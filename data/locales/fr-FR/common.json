@@ -1,0 +1,17 @@
+{
+  "app": {
+    "title": "Pokeforge",
+    "tagline": "Un laboratoire de simulation vivante"
+  },
+  "nav": {
+    "home": "Accueil",
+    "simLab": "Laboratoire de simulation",
+    "research": "Recherche",
+    "settings": "Param\u00e8tres"
+  },
+  "settings": {
+    "language": "Langue",
+    "provider": "Fournisseur LLM",
+    "battleAdapter": "Adaptateur de combat"
+  }
+}

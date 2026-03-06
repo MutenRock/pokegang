@@ -1,0 +1,12 @@
+{
+  "name": "pokeforge",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Pokeforge monorepo starter",
+  "packageManager": "pnpm@10.0.0",
+  "scripts": {
+    "check:repo": "npm run check:locales && npm run check:structure",
+    "check:locales": "node ./tools/check-locales.mjs",
+    "check:structure": "node ./tools/check-structure.mjs"
+  }
+}
