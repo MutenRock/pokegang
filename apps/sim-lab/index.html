@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pokeforge – First Gameplay Prototype</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Pokeforge / Sim Lab</p>
+          <h1 id="title">First Gameplay Prototype</h1>
+          <p id="subtitle" class="subtitle">
+            A living micro-sandbox with persistent NPCs, creatures, events, and player choices.
+          </p>
+        </div>
+        <div class="topbar-actions">
+          <button id="langToggle" type="button">FR</button>
+          <button id="newRunButton" type="button">New run</button>
+          <button id="saveButton" type="button">Save</button>
+          <button id="loadButton" type="button">Load</button>
+        </div>
+      </header>
+
+      <main class="layout">
+        <section class="panel stats-panel">
+          <h2 id="statusTitle">Status</h2>
+          <div id="statusGrid" class="status-grid"></div>
+          <div id="activeGoal" class="goal-box"></div>
+        </section>
+
+        <section class="panel map-panel">
+          <div class="section-head">
+            <h2 id="mapTitle">World map</h2>
+            <span id="turnLabel" class="chip"></span>
+          </div>
+          <div id="mapGrid" class="map-grid"></div>
+          <div class="legend">
+            <span><strong>★</strong> Player</span>
+            <span><strong>◈</strong> NPC</span>
+            <span><strong>✦</strong> Creature</span>
+          </div>
+        </section>
+
+        <section class="panel actions-panel">
+          <h2 id="actionsTitle">Actions</h2>
+          <div id="locationCard" class="location-card"></div>
+          <div id="actionsGrid" class="actions-grid"></div>
+        </section>
+
+        <section class="panel roster-panel">
+          <div class="section-head">
+            <h2 id="rosterTitle">People & creatures</h2>
+            <span id="weatherChip" class="chip"></span>
+          </div>
+          <div id="rosterList" class="roster-list"></div>
+        </section>
+
+        <section class="panel log-panel log-panel-wide">
+          <div class="section-head">
+            <h2 id="logTitle">Event log</h2>
+            <span id="seedLabel" class="chip"></span>
+          </div>
+          <div id="logList" class="log-list"></div>
+        </section>
+      </main>
+    </div>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
