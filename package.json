@@ -7,6 +7,8 @@
   "scripts": {
     "check:repo": "npm run check:locales && npm run check:structure",
     "check:locales": "node ./tools/check-locales.mjs",
-    "check:structure": "node ./tools/check-structure.mjs"
+    "check:structure": "node ./tools/check-structure.mjs",
+    "llm:ollama:check": "node ./tools/scripts/check-ollama.mjs",
+    "battle:setup": "bash ./tools/setup-battle-stack.sh"
   }
 }

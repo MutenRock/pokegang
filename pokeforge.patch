@@ -1,0 +1,425 @@
+diff --git a/README.md b/README.md
+index 163cf5d4f89bcc7c8b9ed24e933925a2a6f11232..d2d61d8562aeeb138c1ec496dba299989d44ef61 100644
+--- a/README.md
++++ b/README.md
+@@ -21,40 +21,53 @@ The project starts as a **simulation lab**, not as a fully locked game design. T
+ ```text
+ apps/           User-facing applications and prototypes
+ packages/       Shared packages (core, llm, npc mind, battle adapter, i18n)
+ docs/           Vision, research notes, ADRs, design directions
+ data/           Seeds, locale files, templates
+ tools/          Small scripts for repo health and validation
+ tests/          Repository-level tests and fixtures
+ ```
+ 
+ ## First milestone
+ 
+ The first milestone is **not** a full game. It is a playable vertical slice with:
+ 
+ - a small persistent map
+ - a few NPCs / creatures with memory
+ - basic event generation
+ - bilingual UI scaffolding
+ - one battle adapter proof of concept
+ 
+ ## Useful scripts
+ 
+ ```bash
+ npm run check:repo
+ npm run check:locales
+ npm run check:structure
++npm run llm:ollama:check
++npm run battle:setup
+ ```
+ 
++
++## Pokeforge v1 direction (current)
++
++Current v1 focuses on a **Team Rocket-style management simulation** with real-time + pause loops.
++
++- Core simulation remains deterministic.
++- LLM calls are event-based (major incidents/dialogues), not continuous.
++- Battle is integrated as a **modular sandbox** via Showdown/PokeLLMon, with deterministic fallback in core gameplay.
++
++See `docs/prototypes/team-rocket-v1.md` for the playable slice.
++
+ ## Git workflow
+ 
+ Suggested branches:
+ 
+ - `main` for stable history
+ - `dev` for integration
+ - `spike/*` for experiments
+ - `feat/*` for actual features
+ - `docs/*` for research and documentation
+ 
+ ## Important note
+ 
+ This repository template only covers **original project code and structure**. If you later add Pokémon-derived content, assets, names, or data, keep legal/IP considerations clearly separated from the engine code.
+diff --git a/docs/prototypes/team-rocket-v1.md b/docs/prototypes/team-rocket-v1.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..271a238d1f02ac3317815e2f1ccdd8cb942ec836
+--- /dev/null
++++ b/docs/prototypes/team-rocket-v1.md
+@@ -0,0 +1,52 @@
++# Team Rocket Management Sim — v1 Skeleton
++
++## Product direction
++
++Pokeforge v1 prioritizes a real-time management loop with pause:
++
++- Build and upgrade HQ rooms.
++- Assign agents and 3-Pokémon squads.
++- Launch regional operations.
++- Resolve most systems deterministically.
++- Use LLM calls only on major narrative events.
++
++## Core resources
++
++- `pokédollars`: construction, bribes, black market, repairs.
++- `members`: agents, specialists, scientists.
++- `pokémon`: team capacity and mission power.
++- `stability` (regional): starts at 100, victory phase 1 at 0.
++- `heat` (police pressure): scales patrol strength and raids.
++- `local sentiment` per zone (0–100): civilian behavior + corruption.
++
++## v1 playable slice
++
++- 1 HQ map.
++- 6 room types.
++- 3 controllable zones.
++- 10–20 available species.
++- 5 team recipes.
++- 3 mission categories.
++- pause / play / x2 speed + event log.
++
++## LLM usage policy
++
++Allowed:
++
++- boss dialogues
++- major incidents
++- interrogation scenes
++- unique mission reports
++
++Forbidden:
++
++- tick simulation
++- regular mission resolution
++- economy updates
++- standard battle turns
++
++## Battle integration mode
++
++- Primary mode: deterministic auto-resolve in management loop.
++- Optional sandbox mode: external Showdown + PokeLLMon integration.
++- Ollama is the default local provider for event narratives.
+diff --git a/package.json b/package.json
+index 3945a224a19c88c11d830a6bbbba6e04b9a52dda..a348b6a18965f800801576041eb065cdb435fcda 100644
+--- a/package.json
++++ b/package.json
+@@ -1,12 +1,14 @@
+ {
+   "name": "pokeforge",
+   "private": true,
+   "version": "0.1.0",
+   "description": "Pokeforge monorepo starter",
+   "packageManager": "pnpm@10.0.0",
+   "scripts": {
+     "check:repo": "npm run check:locales && npm run check:structure",
+     "check:locales": "node ./tools/check-locales.mjs",
+-    "check:structure": "node ./tools/check-structure.mjs"
++    "check:structure": "node ./tools/check-structure.mjs",
++    "llm:ollama:check": "node ./tools/scripts/check-ollama.mjs",
++    "battle:setup": "bash ./tools/setup-battle-stack.sh"
+   }
+ }
+diff --git a/packages/battle-adapter/README.md b/packages/battle-adapter/README.md
+index 9d9a1839a7a8648ff9806e5a0e3e65cfcbae81da..d714690722d0db533ecfdb8a502ee8890f0c1be9 100644
+--- a/packages/battle-adapter/README.md
++++ b/packages/battle-adapter/README.md
+@@ -1,3 +1,13 @@
+ # battle-adapter
+ 
+ Bridge layer between Pokeforge world state and external or internal battle systems.
++
++## v1 mode A scope
++
++Pokeforge v1 keeps combat as a modular sandbox:
++
++- Core game loop = management / operations / region control.
++- Battle resolution = optional external call to Showdown/PokeLLMon.
++- Deterministic fallback always available.
++
++`src/pokellmon-bridge.mjs` includes request shaping, external battle call, and fallback resolver.
+diff --git a/packages/battle-adapter/src/pokellmon-bridge.mjs b/packages/battle-adapter/src/pokellmon-bridge.mjs
+new file mode 100644
+index 0000000000000000000000000000000000000000..09d16570220b34058109436975f4c9c579cf67f7
+--- /dev/null
++++ b/packages/battle-adapter/src/pokellmon-bridge.mjs
+@@ -0,0 +1,50 @@
++/**
++ * Lightweight bridge for Pokeforge v1 (mode A):
++ * - Pokeforge core remains a management sim.
++ * - Battle sandbox can call external services (Showdown/PokeLLMon) when needed.
++ */
++
++export function buildBattleRequest({ missionId, attacker, defender, doctrine }) {
++  return {
++    missionId,
++    doctrine: doctrine || 'balanced',
++    attacker,
++    defender,
++    timestamp: new Date().toISOString()
++  };
++}
++
++export async function resolveBattleViaSandbox({ endpoint, payload }) {
++  if (!endpoint) {
++    throw new Error('resolveBattleViaSandbox requires an endpoint URL.');
++  }
++
++  const response = await fetch(endpoint, {
++    method: 'POST',
++    headers: {
++      'Content-Type': 'application/json',
++      Accept: 'application/json'
++    },
++    body: JSON.stringify(payload)
++  });
++
++  if (!response.ok) {
++    const body = await response.text();
++    throw new Error(`Battle sandbox failed with HTTP ${response.status}: ${body}`);
++  }
++
++  return response.json();
++}
++
++export function fallbackDeterministicResolution({ attacker, defender }) {
++  const attackPower = (attacker?.score || 0) + (attacker?.discipline || 0);
++  const defensePower = (defender?.score || 0) + (defender?.discipline || 0);
++  const winner = attackPower >= defensePower ? 'attacker' : 'defender';
++
++  return {
++    winner,
++    attackPower,
++    defensePower,
++    source: 'deterministic-fallback'
++  };
++}
+diff --git a/packages/llm/README.md b/packages/llm/README.md
+index acd1289e98d78c52651491eaf7b8216209a42654..a898b01c0e413b92aa7aeb7e8b0784e9c0d9f903 100644
+--- a/packages/llm/README.md
++++ b/packages/llm/README.md
+@@ -1,3 +1,25 @@
+ # llm
+ 
+-Provider-agnostic LLM adapters: OpenAI, Ollama, OpenRouter, Anthropic, and future local backends.
++Provider-agnostic LLM adapters for Pokeforge.
++
++## Ollama adapter (v1)
++
++`src/ollama-adapter.mjs` provides:
++
++- `checkOllamaHealth()` to validate a local Ollama runtime.
++- `generateStructuredEvent()` for pause-time major events (not per tick).
++
++Default runtime:
++
++- base URL: `http://127.0.0.1:11434`
++- model: `llama3.1:8b`
++
++### Example
++
++```js
++import { generateStructuredEvent } from './src/ollama-adapter.mjs';
++
++const event = await generateStructuredEvent({
++  prompt: 'Zone Safrania dropped to 35 stability. Generate one crisis event card.'
++});
++```
+diff --git a/packages/llm/src/ollama-adapter.mjs b/packages/llm/src/ollama-adapter.mjs
+new file mode 100644
+index 0000000000000000000000000000000000000000..ebc89a4a53ba961d78166cdbd37e45dcf1c36984
+--- /dev/null
++++ b/packages/llm/src/ollama-adapter.mjs
+@@ -0,0 +1,112 @@
++const DEFAULT_MODEL = 'llama3.1:8b';
++
++function resolveBaseUrl(baseUrl) {
++  return (baseUrl || process.env.OLLAMA_BASE_URL || 'http://127.0.0.1:11434').replace(/\/$/, '');
++}
++
++export async function checkOllamaHealth({ baseUrl } = {}) {
++  const resolvedBaseUrl = resolveBaseUrl(baseUrl);
++  let response;
++  try {
++    response = await fetch(`${resolvedBaseUrl}/api/tags`, {
++      method: 'GET',
++      headers: { Accept: 'application/json' }
++    });
++  } catch (error) {
++    return {
++      ok: false,
++      status: 0,
++      error: error?.message || 'Network error',
++      baseUrl: resolvedBaseUrl
++    };
++  }
++
++  if (!response.ok) {
++    return {
++      ok: false,
++      status: response.status,
++      error: `HTTP ${response.status}`,
++      baseUrl: resolvedBaseUrl
++    };
++  }
++
++  const data = await response.json();
++  return {
++    ok: true,
++    status: response.status,
++    baseUrl: resolvedBaseUrl,
++    modelCount: Array.isArray(data.models) ? data.models.length : 0,
++    models: Array.isArray(data.models) ? data.models.map((model) => model.name) : []
++  };
++}
++
++export async function generateStructuredEvent({
++  prompt,
++  system,
++  model = process.env.OLLAMA_MODEL || DEFAULT_MODEL,
++  baseUrl,
++  temperature = 0.4
++}) {
++  if (!prompt || typeof prompt !== 'string') {
++    throw new Error('generateStructuredEvent requires a non-empty prompt string.');
++  }
++
++  const resolvedBaseUrl = resolveBaseUrl(baseUrl);
++  const body = {
++    model,
++    stream: false,
++    options: { temperature },
++    format: {
++      type: 'object',
++      properties: {
++        title: { type: 'string' },
++        summary: { type: 'string' },
++        choices: {
++          type: 'array',
++          items: {
++            type: 'object',
++            properties: {
++              id: { type: 'string' },
++              label: { type: 'string' },
++              risk: { type: 'string' }
++            },
++            required: ['id', 'label', 'risk']
++          }
++        }
++      },
++      required: ['title', 'summary', 'choices']
++    },
++    messages: [
++      {
++        role: 'system',
++        content:
++          system ||
++          'You generate concise mission event cards for a criminal management sim. Keep output grounded and game-usable.'
++      },
++      { role: 'user', content: prompt }
++    ]
++  };
++
++  const response = await fetch(`${resolvedBaseUrl}/api/chat`, {
++    method: 'POST',
++    headers: {
++      'Content-Type': 'application/json',
++      Accept: 'application/json'
++    },
++    body: JSON.stringify(body)
++  });
++
++  if (!response.ok) {
++    const raw = await response.text();
++    throw new Error(`Ollama generation failed with HTTP ${response.status}: ${raw}`);
++  }
++
++  const payload = await response.json();
++  const content = payload?.message?.content;
++
++  if (!content) {
++    throw new Error('Ollama response did not include message.content.');
++  }
++
++  return JSON.parse(content);
++}
+diff --git a/tools/scripts/check-ollama.mjs b/tools/scripts/check-ollama.mjs
+new file mode 100644
+index 0000000000000000000000000000000000000000..82b64d89558c2e67c1d2f121d53e49a36563e82e
+--- /dev/null
++++ b/tools/scripts/check-ollama.mjs
+@@ -0,0 +1,11 @@
++import { checkOllamaHealth } from '../../packages/llm/src/ollama-adapter.mjs';
++
++const health = await checkOllamaHealth();
++
++if (!health.ok) {
++  console.error(`❌ Ollama unavailable at ${health.baseUrl}: ${health.error}`);
++  process.exit(1);
++}
++
++console.log(`✅ Ollama reachable at ${health.baseUrl}`);
++console.log(`Models (${health.modelCount}): ${health.models.join(', ') || 'none'}`);
+diff --git a/tools/setup-battle-stack.sh b/tools/setup-battle-stack.sh
+new file mode 100755
+index 0000000000000000000000000000000000000000..9c4dd7b4186a39a39d9d72b075d71b3c849e8040
+--- /dev/null
++++ b/tools/setup-battle-stack.sh
+@@ -0,0 +1,43 @@
++#!/usr/bin/env bash
++set -euo pipefail
++
++ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
++EXTERNAL_DIR="${ROOT_DIR}/external"
++SHOWDOWN_DIR="${EXTERNAL_DIR}/pokemon-showdown"
++POKELLMON_DIR="${EXTERNAL_DIR}/PokeLLMon"
++
++mkdir -p "${EXTERNAL_DIR}"
++
++if [[ ! -d "${SHOWDOWN_DIR}" ]]; then
++  git clone https://github.com/smogon/pokemon-showdown.git "${SHOWDOWN_DIR}"
++else
++  echo "pokemon-showdown already exists at ${SHOWDOWN_DIR}"
++fi
++
++if [[ ! -d "${POKELLMON_DIR}" ]]; then
++  git clone https://github.com/git-disl/PokeLLMon "${POKELLMON_DIR}"
++else
++  echo "PokeLLMon already exists at ${POKELLMON_DIR}"
++fi
++
++pushd "${SHOWDOWN_DIR}" >/dev/null
++npm install
++cp -n config/config-example.js config/config.js || true
++popd >/dev/null
++
++cat <<MSG
++
++Battle stack prepared.
++
++1) Start Showdown:
++   cd ${SHOWDOWN_DIR}
++   node pokemon-showdown start --no-security
++
++2) Verify Ollama locally:
++   npm run llm:ollama:check
++
++3) Configure PokeLLMon to use Ollama endpoint:
++   OLLAMA_BASE_URL=http://127.0.0.1:11434
++   OLLAMA_MODEL=llama3.1:8b
++
++MSG

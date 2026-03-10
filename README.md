@@ -43,7 +43,20 @@ The first milestone is **not** a full game. It is a playable vertical slice with
 npm run check:repo
 npm run check:locales
 npm run check:structure
+npm run llm:ollama:check
+npm run battle:setup
 ```
+
+
+## Pokeforge v1 direction (current)
+
+Current v1 focuses on a **Team Rocket-style management simulation** with real-time + pause loops.
+
+- Core simulation remains deterministic.
+- LLM calls are event-based (major incidents/dialogues), not continuous.
+- Battle is integrated as a **modular sandbox** via Showdown/PokeLLMon, with deterministic fallback in core gameplay.
+
+See `docs/prototypes/team-rocket-v1.md` for the playable slice.
 
 ## Git workflow
 
