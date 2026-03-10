@@ -50,6 +50,7 @@ Forbidden:
 - Primary mode: deterministic auto-resolve in management loop.
 - Optional sandbox mode: external Showdown + PokeLLMon integration.
 - Ollama is the default local provider for event narratives.
+<<<<<<< ours
 
  
 # Pokeforge v1 — Team Rocket Management Sim (A/A)
@@ -150,3 +151,5 @@ For battle experimentation in parallel to gameplay v1:
 
 See `docs/research/pokellmon-ollama-integration.md` and scripts in `scripts/`.
 
+=======
+>>>>>>> theirs

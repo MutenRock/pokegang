@@ -11,11 +11,21 @@
       <header class="panel topbar">
         <h1>POKEFORGE // ROCKET HQ</h1>
         <div class="chips">
+<<<<<<< ours
           <span>Jour <strong id="dayValue">1</strong></span>
           <span>Zone <strong id="zoneValue">QG</strong></span>
           <span>LLM <strong id="llmBadge">OFF</strong></span>
         </div>
         <button id="openSettingsBtn">MENU</button>
+=======
+          <span>Tour <strong id="turnValue">1</strong></span>
+          <span>LLM <strong id="llmBadge">OFF</strong></span>
+        </div>
+        <div class="row">
+          <button id="nextTurnBtn">Valider le tour</button>
+          <button id="openSettingsBtn">MENU</button>
+        </div>
+>>>>>>> theirs
       </header>
 
       <main class="layout">
@@ -28,6 +38,7 @@
               <small id="teamName">...</small>
             </div>
           </div>
+<<<<<<< ours
           <h3>Ressources</h3>
           <div id="meters"></div>
         </section>
@@ -42,11 +53,79 @@
         <section class="panel">
           <h2>PNJ</h2>
           <div id="npcList"></div>
+=======
+          <h3>Ressources (incrémental)</h3>
+          <div id="resourcesGrid" class="stat-grid"></div>
+
+          <h3>Salles du QG</h3>
+          <div id="roomsList" class="room-list"></div>
+        </section>
+
+        <section class="panel">
+          <h2>Capture / Élevage Pokémon</h2>
+          <div class="split">
+            <div>
+              <h4>Pokémon possédés</h4>
+              <div id="pokemonOwnedList" class="card-list"></div>
+            </div>
+            <div>
+              <h4>Nouveaux (ce tour)</h4>
+              <div id="pokemonNewList" class="card-list"></div>
+            </div>
+          </div>
+
+          <h3>Panel création d'équipe</h3>
+          <label>Agent
+            <select id="agentSelect"></select>
+          </label>
+          <label>Pokémon (Ctrl/Cmd + click pour multi)
+            <select id="pokemonSelect" multiple size="8"></select>
+          </label>
+          <button id="assignTeamBtn">Assigner à l'agent (max 3)</button>
+          <div id="agentTeams" class="card-list"></div>
+
+          <h3>Salle d'entraînement (combat auto)</h3>
+          <div class="row">
+            <label>Difficulté
+              <select id="difficultySelect">
+                <option value="easy">Facile</option>
+                <option value="normal" selected>Normal</option>
+                <option value="hard">Difficile</option>
+              </select>
+            </label>
+            <button id="startTrainingFightBtn">Lancer combat auto</button>
+          </div>
+          <p id="trainingResult"></p>
+        </section>
+
+        <section class="panel">
+          <h2>Agents / Recrutement / PNJ</h2>
+          <h4>Agents actifs</h4>
+          <div id="agentsList" class="card-list"></div>
+
+          <h4>Recrutement (max 5 interactions)</h4>
+          <div class="recruit-box">
+            <div id="recruitCandidate"></div>
+            <div id="recruitTranscript" class="logs"></div>
+            <div class="chat">
+              <input id="recruitMessage" type="text" placeholder="Argumente pour recruter..." />
+              <button id="sendRecruitBtn">Envoyer</button>
+            </div>
+          </div>
+
+          <h4>Discussion PNJ</h4>
+          <div id="npcList" class="card-list"></div>
+>>>>>>> theirs
           <div class="chat">
             <input id="npcMessage" type="text" placeholder="Parler au PNJ..." />
             <button id="npcSendBtn">Envoyer</button>
           </div>
+<<<<<<< ours
           <h3>Logs</h3>
+=======
+
+          <h4>Logs</h4>
+>>>>>>> theirs
           <div id="logOutput" class="logs"></div>
         </section>
       </main>
@@ -55,7 +134,11 @@
     <div id="introOverlay" class="overlay">
       <div class="panel modal">
         <h2>Intro Rocket HQ</h2>
+<<<<<<< ours
         <p>Crée ta team et ton personnage pour démarrer l'opération.</p>
+=======
+        <p>Crée ta team et ton personnage.</p>
+>>>>>>> theirs
         <label>Nom de team <input id="teamInput" type="text" value="Team Rocket" /></label>
         <label>Prénom <input id="firstNameInput" type="text" value="Ari" /></label>
         <label>Nom <input id="lastNameInput" type="text" value="Voss" /></label>
@@ -70,7 +153,11 @@
     <div id="challengeOverlay" class="overlay hidden">
       <div class="panel modal">
         <h2>Confirmation duel</h2>
+<<<<<<< ours
         <p id="challengeBody">Acceptez-vous le défi ?</p>
+=======
+        <p id="challengeBody">Acceptez vous le défi ?</p>
+>>>>>>> theirs
         <div class="row">
           <button id="challengeYesBtn">Oui</button>
           <button id="challengeNoBtn">Non</button>
