@@ -1,12 +1,21 @@
 # Pokeforge
 
-Pokeforge is a bilingual sandbox project exploring persistent simulation, LLM-driven NPCs, emergent events, and modular Pokémon-compatible battle systems.
+Pokeforge est un jeu de gestion / simulation incrémentale inspiré de l’univers Pokémon, centré sur la prise de contrôle progressive d’une région depuis la base d’une organisation criminelle.
 
-The project starts as a **simulation lab**, not as a fully locked game design. Three gameplay directions are intentionally kept open:
+Le joueur ne contrôle pas directement chaque combat. Son rôle principal est de superviser une base, recruter des membres, entraîner des Pokémon, construire des équipes, lancer des opérations, gérer l’économie, faire baisser la stabilité régionale et répondre aux événements majeurs.
 
-1. **Character simulation** — play as a person in a living world.
-2. **Creature / Pokémon embodiment** — live as a creature with needs, relations, and progression.
-3. **4X / region management** — oversee a settlement, region, or evolving civilization.
+## Fantasy principale
+
+Le joueur prend la relève d’un boss d’organisation criminelle. Depuis le QG, il développe ses infrastructures, corrompt la région, affaiblit les institutions locales et cherche à faire tomber la stabilité régionale jusqu’à la prise de contrôle.
+
+## Piliers du projet
+
+- Gestion de base en temps réel avec pause
+- Carte régionale stratégique
+- Équipes de terrain composées de membres et de Pokémon
+- Combats résolus automatiquement selon des règles lisibles
+- LLM utilisés seulement pour les événements et dialogues importants
+- Direction artistique rétro pixel art
 
 ## Core principles
 
@@ -37,6 +46,19 @@ The first milestone is **not** a full game. It is a playable vertical slice with
 - bilingual UI scaffolding
 - one battle adapter proof of concept
 
+
+## Current v1 focus
+
+The current v1 direction is a **Team Rocket-style management simulation**:
+
+- HQ building and assignment loop
+- regional operations with deterministic resolution
+- real-time with pause + event log supervision
+- optional battle AI experimentation through external adapters
+
+See: docs\prototypes\team-rocket-v1.md
+
+
 ## Useful scripts
 
 ```bash
@@ -45,6 +67,9 @@ npm run check:locales
 npm run check:structure
 npm run llm:ollama:check
 npm run battle:setup
+npm run battle:setup
+npm run battle:showdown
+npm run check:ollama
 ```
 
 
@@ -56,18 +81,5 @@ Current v1 focuses on a **Team Rocket-style management simulation** with real-ti
 - LLM calls are event-based (major incidents/dialogues), not continuous.
 - Battle is integrated as a **modular sandbox** via Showdown/PokeLLMon, with deterministic fallback in core gameplay.
 
-See `docs/prototypes/team-rocket-v1.md` for the playable slice.
+See 'docs\prototypes\team-rocket-v1.md' for the playable slice.
 
-## Git workflow
-
-Suggested branches:
-
-- `main` for stable history
-- `dev` for integration
-- `spike/*` for experiments
-- `feat/*` for actual features
-- `docs/*` for research and documentation
-
-## Important note
-
-This repository template only covers **original project code and structure**. If you later add Pokémon-derived content, assets, names, or data, keep legal/IP considerations clearly separated from the engine code.

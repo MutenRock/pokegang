@@ -9,6 +9,9 @@
     "check:locales": "node ./tools/check-locales.mjs",
     "check:structure": "node ./tools/check-structure.mjs",
     "llm:ollama:check": "node ./tools/scripts/check-ollama.mjs",
-    "battle:setup": "bash ./tools/setup-battle-stack.sh"
+    "battle:setup": "bash ./tools/setup-battle-stack.sh",
+    "battle:setup": "bash scripts/setup-pokellmon-stack.sh",
+    "battle:showdown": "bash scripts/run-showdown.sh",
+    "check:ollama": "node scripts/check-ollama.mjs"
   }
 }
