@@ -1,6 +1,6 @@
 {
   "name": "pokeforge",
-  "private": true,
+  "private": false,
   "version": "0.1.0",
   "description": "Pokeforge monorepo starter",
   "packageManager": "pnpm@10.0.0",
@@ -12,6 +12,8 @@
     "battle:setup": "bash ./tools/setup-battle-stack.sh",
     "battle:setup": "bash scripts/setup-pokellmon-stack.sh",
     "battle:showdown": "bash scripts/run-showdown.sh",
-    "check:ollama": "node scripts/check-ollama.mjs"
+    "check:ollama": "node scripts/check-ollama.mjs",
+    "battle:setup": "bash ./tools/setup-battle-stack.sh"
+
   }
 }

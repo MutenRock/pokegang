@@ -5,6 +5,7 @@ const requiredPaths = [
   'apps/web',
   'apps/api',
   'apps/sim-lab',
+  'apps/rocket-hq',
   'packages/core',
   'packages/llm',
   'packages/i18n',

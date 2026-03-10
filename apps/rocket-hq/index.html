@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pokeforge :: Rocket HQ</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app">
+      <header class="panel topbar">
+        <h1>POKEFORGE // ROCKET HQ</h1>
+        <div class="chips">
+          <span>Jour <strong id="dayValue">1</strong></span>
+          <span>Zone <strong id="zoneValue">QG</strong></span>
+          <span>LLM <strong id="llmBadge">OFF</strong></span>
+        </div>
+        <button id="openSettingsBtn">MENU</button>
+      </header>
+
+      <main class="layout">
+        <section class="panel">
+          <h2>Boss</h2>
+          <div class="profile">
+            <img id="playerSprite" alt="sprite" />
+            <div>
+              <div id="playerName">...</div>
+              <small id="teamName">...</small>
+            </div>
+          </div>
+          <h3>Ressources</h3>
+          <div id="meters"></div>
+        </section>
+
+        <section class="panel">
+          <h2>Carte</h2>
+          <div id="mapGrid" class="map"></div>
+          <p id="sceneText"></p>
+          <div id="actions" class="actions"></div>
+        </section>
+
+        <section class="panel">
+          <h2>PNJ</h2>
+          <div id="npcList"></div>
+          <div class="chat">
+            <input id="npcMessage" type="text" placeholder="Parler au PNJ..." />
+            <button id="npcSendBtn">Envoyer</button>
+          </div>
+          <h3>Logs</h3>
+          <div id="logOutput" class="logs"></div>
+        </section>
+      </main>
+    </div>
+
+    <div id="introOverlay" class="overlay">
+      <div class="panel modal">
+        <h2>Intro Rocket HQ</h2>
+        <p>Crée ta team et ton personnage pour démarrer l'opération.</p>
+        <label>Nom de team <input id="teamInput" type="text" value="Team Rocket" /></label>
+        <label>Prénom <input id="firstNameInput" type="text" value="Ari" /></label>
+        <label>Nom <input id="lastNameInput" type="text" value="Voss" /></label>
+        <label>Sprite Showdown
+          <select id="spriteSelect"></select>
+        </label>
+        <img id="spritePreview" class="preview" alt="preview" />
+        <button id="introStartBtn">Lancer</button>
+      </div>
+    </div>
+
+    <div id="challengeOverlay" class="overlay hidden">
+      <div class="panel modal">
+        <h2>Confirmation duel</h2>
+        <p id="challengeBody">Acceptez-vous le défi ?</p>
+        <div class="row">
+          <button id="challengeYesBtn">Oui</button>
+          <button id="challengeNoBtn">Non</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="settingsOverlay" class="overlay hidden">
+      <div class="panel modal">
+        <h2>Save / LLM</h2>
+        <label><input id="llmEnabledToggle" type="checkbox" /> Utiliser Ollama</label>
+        <label>URL Ollama <input id="baseUrlInput" type="text" value="http://localhost:11434" /></label>
+        <label>Model <input id="modelInput" type="text" value="gemma3:4b" /></label>
+        <div class="row">
+          <button id="testOllamaBtn">Test Ollama</button>
+          <button id="saveBtn">Save</button>
+          <button id="loadBtn">Load</button>
+          <button id="resetBtn">Reset</button>
+        </div>
+        <div class="row">
+          <button id="exportSaveBtn">Export .txt</button>
+          <button id="importSaveBtn">Import .txt</button>
+          <button id="exportCodeBtn">Export code</button>
+          <button id="importCodeBtn">Import code</button>
+          <button id="exportLogsBtn">Export logs</button>
+        </div>
+        <input id="saveFileInput" class="hidden" type="file" accept=".txt,.json" />
+        <pre id="llmStatus"></pre>
+        <button id="closeSettingsBtn">Fermer</button>
+      </div>
+    </div>
+
+    <script src="./app.js"></script>
+  </body>
+</html>

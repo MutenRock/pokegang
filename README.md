@@ -1,5 +1,4 @@
 # Pokeforge
-
 Pokeforge est un jeu de gestion / simulation incrémentale inspiré de l’univers Pokémon, centré sur la prise de contrôle progressive d’une région depuis la base d’une organisation criminelle.
 
 Le joueur ne contrôle pas directement chaque combat. Son rôle principal est de superviser une base, recruter des membres, entraîner des Pokémon, construire des équipes, lancer des opérations, gérer l’économie, faire baisser la stabilité régionale et répondre aux événements majeurs.
@@ -16,24 +15,24 @@ Le joueur prend la relève d’un boss d’organisation criminelle. Depuis le QG
 - Combats résolus automatiquement selon des règles lisibles
 - LLM utilisés seulement pour les événements et dialogues importants
 - Direction artistique rétro pixel art
+Le projet passe maintenant du mode **sim-world** vers une implémentation gameplay plus directe: **Pokémon Rocket HQ**.
 
-## Core principles
+## Prototype principal actuel
 
-- **Persistent entities**: NPCs, creatures, factions, places, and memories should evolve over time.
-- **LLMs for expression, not raw rules**: language models handle dialogue, event framing, personality expression, and local reasoning.
-- **Deterministic core simulation**: economy, combat resolution, resources, and progression should remain testable and reproducible.
-- **Battle adapter, not hard lock-in**: combat can be routed through a modular adapter layer.
-- **English + French from day one**.
+- `apps/rocket-hq/`: prototype jouable Rocket HQ (intro, save/export, logs, NPC + trigger combat).
+- `apps/sim-lab/`: ancien prototype conservé comme référence.
 
-## Repository layout
+
+## Lancer le jeu en mode dev
+
+```bash
+python -m http.server 8080
+```
+
+Ouvrir:
 
 ```text
-apps/           User-facing applications and prototypes
-packages/       Shared packages (core, llm, npc mind, battle adapter, i18n)
-docs/           Vision, research notes, ADRs, design directions
-data/           Seeds, locale files, templates
-tools/          Small scripts for repo health and validation
-tests/          Repository-level tests and fixtures
+http://localhost:8080/apps/rocket-hq/
 ```
 
 ## First milestone
@@ -83,3 +82,20 @@ Current v1 focuses on a **Team Rocket-style management simulation** with real-ti
 
 See 'docs\prototypes\team-rocket-v1.md' for the playable slice.
 
+## Vérifications techniques
+
+```bash
+npm run check:repo
+node --check apps/rocket-hq/app.js
+npm run llm:ollama:check
+```
+
+## Tester le gameplay Rocket HQ
+
+1. Intro: créer team + nom/prénom + sprite.
+2. Dans MENU: tester save locale + export/import (fichier/code) + export logs.
+3. Chat PNJ: envoyer un message normal.
+4. Chat PNJ avec `défi` / `combat`: valider la confirmation Oui/Non.
+5. Vérifier:
+   - Non => PNJ se moque du joueur.
+   - Oui => combat auto déclenché (bridge PokeLLMon si dispo, sinon fallback local).
