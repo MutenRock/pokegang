@@ -5,19 +5,11 @@
   "description": "Pokeforge monorepo starter",
   "packageManager": "pnpm@10.0.0",
   "scripts": {
-    "check:repo": "npm run check:locales && npm run check:structure",
+    "check:repo": "npm run check:locales && npm run check:structure && npm run check:characters",
     "check:locales": "node ./tools/check-locales.mjs",
     "check:structure": "node ./tools/check-structure.mjs",
     "llm:ollama:check": "node ./tools/scripts/check-ollama.mjs",
-<<<<<<< ours
     "battle:setup": "bash ./tools/setup-battle-stack.sh",
-    "battle:setup": "bash scripts/setup-pokellmon-stack.sh",
-    "battle:showdown": "bash scripts/run-showdown.sh",
-    "check:ollama": "node scripts/check-ollama.mjs",
-    "battle:setup": "bash ./tools/setup-battle-stack.sh"
-
-=======
-    "battle:setup": "bash ./tools/setup-battle-stack.sh"
->>>>>>> theirs
+    "check:characters": "node ./tools/scripts/check-character-sheets.mjs"
   }
 }
