@@ -1,158 +1,240 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="fr">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Pokeforge :: Rocket HQ</title>
-    <link rel="stylesheet" href="./styles.css" />
-  </head>
-  <body>
-    <div class="app">
-      <header class="panel topbar">
-        <h1>POKEFORGE // ROCKET HQ</h1>
-        <div class="chips">
-          <span>Tour <strong id="turnValue">1</strong></span>
-          <span>LLM <strong id="llmBadge">OFF</strong></span>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pokeforge — Rocket HQ</title>
+  <style>
+    :root {
+      --bg:#120f1f; --panel:#241d42; --line:#7866d1;
+      --text:#f4eeff; --accent:#ffcc5a; --danger:#ff6f8f; --ok:#70e0a4;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--text);font-family:Verdana,sans-serif}
+    .app{padding:12px;display:grid;gap:12px}
+    .panel{background:var(--panel);border:2px solid var(--line);border-radius:10px;padding:10px}
+    .topbar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+    .chips{display:flex;gap:10px;flex-wrap:wrap}
+    /* 4 colonnes : Boss | Pokémon+Équipe | Missions+Agents | PNJ+Logs */
+    .layout{display:grid;grid-template-columns:280px 1fr 1fr 340px;gap:12px}
+    .col{display:grid;gap:12px;align-content:start}
+    .profile{display:flex;gap:10px;align-items:center}
+    #playerSprite,.preview{width:72px;height:72px;border:2px solid var(--accent);border-radius:8px;background:#0f0c18;object-fit:contain}
+    .stat-grid{display:grid;grid-template-columns:repeat(2,minmax(100px,1fr));gap:8px}
+    .stat{padding:8px;border:1px solid #4b3e83;border-radius:8px;background:#19142e}
+    .room-list,.card-list,#agentTeams{display:grid;gap:8px}
+    .room,.card{border:1px solid #4b3e83;background:#19142e;padding:8px;border-radius:8px;font-size:.88em}
+    .room .row,.card .row{justify-content:space-between}
+    .split{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .card.pokemon{display:flex;gap:8px;align-items:center}
+    .poke-sprite{width:42px;height:42px;object-fit:contain;background:#120f1f;border-radius:6px}
+    .chat{display:grid;grid-template-columns:1fr auto;gap:8px;margin:8px 0}
+    .logs{display:grid;gap:4px;max-height:200px;overflow:auto}
+    .logline{font-size:.78em;border-left:3px solid var(--line);padding:3px 6px;background:#19142e;border-radius:0 6px 6px 0}
+    .log{border:1px solid #4b3e83;background:#19142e;padding:8px;border-radius:8px}
+    .recruit-box{border:1px solid #4b3e83;border-radius:8px;padding:8px}
+    .mission-card{border:1px solid #4b3e83;background:#19142e;padding:8px;border-radius:8px;font-size:.83em;display:grid;gap:4px}
+    .badge-mission{display:inline-block;padding:2px 6px;border-radius:4px;font-size:.75em;font-weight:700;background:#e53;color:#fff}
+    .badge-ok{background:var(--ok);color:#000}
+    .rep-bar{height:8px;border-radius:4px;background:#4b3e83;margin-top:4px}
+    .rep-fill{height:8px;border-radius:4px;background:var(--accent);transition:width .3s}
+    button{border:2px solid #000;background:var(--accent);padding:6px 10px;border-radius:8px;font-weight:700;cursor:pointer;font-size:.85em}
+    button.danger{background:var(--danger)} button.ok{background:var(--ok)}
+    button.small{padding:4px 8px;font-size:.78em}
+    label{display:grid;gap:4px;margin:6px 0}
+    input,select{padding:8px;border-radius:8px;border:1px solid var(--line);background:#171228;color:var(--text)}
+    .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+    .overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);display:grid;place-items:center;padding:20px;z-index:30}
+    .modal{width:min(900px,100%);background:var(--panel);border:2px solid var(--line);border-radius:12px;padding:16px;display:grid;gap:8px}
+    .hidden{display:none}
+    pre{white-space:pre-wrap;background:#130f21;padding:8px;border-radius:8px;min-height:40px;font-size:.8em}
+    h2{margin:0 0 8px;font-size:1em;color:var(--accent);text-transform:uppercase;letter-spacing:.05em}
+    h3{margin:8px 0 4px;font-size:.9em;color:#b9adff}
+    h4{margin:6px 0 4px;font-size:.82em;color:#9e91e0}
+    @media(max-width:1300px){.layout{grid-template-columns:1fr 1fr}}
+    @media(max-width:700px){.layout{grid-template-columns:1fr}.split{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- TOPBAR -->
+  <header class="panel topbar">
+    <h1 style="margin:0;font-size:1.1em;color:var(--accent)">⚡ POKEFORGE — ROCKET HQ</h1>
+    <div class="chips">
+      <span>Tour <strong id="turnValue">1</strong></span>
+      <span>LLM <strong id="llmBadge">OFF</strong></span>
+    </div>
+    <div class="row">
+      <button id="nextTurnBtn">⏩ Valider le tour</button>
+      <button id="openSettingsBtn">⚙ Menu</button>
+    </div>
+  </header>
+
+  <main class="layout">
+
+    <!-- COL 1 : Boss + Ressources + Salles -->
+    <div class="col">
+      <section class="panel">
+        <h2>👤 Boss</h2>
+        <div class="profile">
+          <img id="playerSprite" alt="sprite">
+          <div>
+            <div id="playerName" style="font-weight:700">...</div>
+            <small id="teamName" style="color:var(--accent)">...</small>
+          </div>
         </div>
-        <div class="row">
-          <button id="nextTurnBtn">Valider le tour</button>
-          <button id="openSettingsBtn">MENU</button>
-        </div>
-      </header>
+        <h3>Ressources</h3>
+        <div id="resourcesGrid" class="stat-grid"></div>
+      </section>
 
-      <main class="layout">
-        <section class="panel">
-          <h2>Boss</h2>
-          <div class="profile">
-            <img id="playerSprite" alt="sprite" />
-            <div>
-              <div id="playerName">...</div>
-              <small id="teamName">...</small>
-            </div>
-          </div>
-          <h3>Ressources (incrémental)</h3>
-          <div id="resourcesGrid" class="stat-grid"></div>
-
-          <h3>Salles du QG</h3>
-          <div id="roomsList" class="room-list"></div>
-        </section>
-
-        <section class="panel">
-          <h2>Capture / Élevage Pokémon</h2>
-          <div class="split">
-            <div>
-              <h4>Pokémon possédés</h4>
-              <div id="pokemonOwnedList" class="card-list"></div>
-            </div>
-            <div>
-              <h4>Nouveaux (ce tour)</h4>
-              <div id="pokemonNewList" class="card-list"></div>
-            </div>
-          </div>
-
-          <h3>Panel création d'équipe</h3>
-          <label>Agent
-            <select id="agentSelect"></select>
-          </label>
-          <label>Pokémon (Ctrl/Cmd + click pour multi)
-            <select id="pokemonSelect" multiple size="8"></select>
-          </label>
-          <button id="assignTeamBtn">Assigner à l'agent (max 3)</button>
-          <div id="agentTeams" class="card-list"></div>
-
-          <h3>Salle d'entraînement (combat auto)</h3>
-          <div class="row">
-            <label>Difficulté
-              <select id="difficultySelect">
-                <option value="easy">Facile</option>
-                <option value="normal" selected>Normal</option>
-                <option value="hard">Difficile</option>
-              </select>
-            </label>
-            <button id="startTrainingFightBtn">Lancer combat auto</button>
-          </div>
-          <p id="trainingResult"></p>
-        </section>
-
-        <section class="panel">
-          <h2>Agents / Recrutement / PNJ</h2>
-          <h4>Agents actifs</h4>
-          <div id="agentsList" class="card-list"></div>
-
-          <h4>Recrutement (max 5 interactions)</h4>
-          <div class="recruit-box">
-            <div id="recruitCandidate"></div>
-            <div id="recruitTranscript" class="logs"></div>
-            <div class="chat">
-              <input id="recruitMessage" type="text" placeholder="Argumente pour recruter..." />
-              <button id="sendRecruitBtn">Envoyer</button>
-            </div>
-          </div>
-
-          <h4>Discussion PNJ</h4>
-          <div id="npcList" class="card-list"></div>
-          <div class="chat">
-            <input id="npcMessage" type="text" placeholder="Parler au PNJ..." />
-            <button id="npcSendBtn">Envoyer</button>
-          </div>
-
-          <h4>Logs</h4>
-          <div id="logOutput" class="logs"></div>
-        </section>
-      </main>
+      <section class="panel">
+        <h2>🏢 Salles du QG</h2>
+        <div id="roomsList" class="room-list"></div>
+      </section>
     </div>
 
-    <div id="introOverlay" class="overlay">
-      <div class="panel modal">
-        <h2>Intro Rocket HQ</h2>
-        <p>Crée ta team et ton personnage.</p>
-        <label>Nom de team <input id="teamInput" type="text" value="Team Rocket" /></label>
-        <label>Prénom <input id="firstNameInput" type="text" value="Ari" /></label>
-        <label>Nom <input id="lastNameInput" type="text" value="Voss" /></label>
-        <label>Sprite Showdown
-          <select id="spriteSelect"></select>
+    <!-- COL 2 : Pokémon + Équipes + Combat -->
+    <div class="col">
+      <section class="panel">
+        <h2>🎮 Pokémon</h2>
+        <div class="split">
+          <div>
+            <h4>Pokémon possédés</h4>
+            <div id="pokemonOwnedList" class="card-list"></div>
+          </div>
+          <div>
+            <h4>Nouveaux ce tour</h4>
+            <div id="pokemonNewList" class="card-list"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>🤝 Création d'équipe</h2>
+        <label>Agent
+          <select id="agentSelect"></select>
         </label>
-        <img id="spritePreview" class="preview" alt="preview" />
-        <button id="introStartBtn">Lancer</button>
-      </div>
+        <label>Pokémon <small>(Ctrl+clic pour multi)</small>
+          <select id="pokemonSelect" multiple size="6"></select>
+        </label>
+        <button id="assignTeamBtn">Assigner à l'agent (max 3)</button>
+        <h4>Équipes actives</h4>
+        <div id="agentTeams" class="card-list"></div>
+      </section>
+
+      <section class="panel">
+        <h2>⚔️ Salle d'entraînement</h2>
+        <div class="row">
+          <label>Difficulté
+            <select id="difficultySelect">
+              <option value="easy">Facile</option>
+              <option value="normal" selected>Normal</option>
+              <option value="hard">Difficile</option>
+            </select>
+          </label>
+          <button id="startTrainingFightBtn">Lancer combat auto</button>
+        </div>
+        <p id="trainingResult" style="font-size:.85em;color:var(--ok)"></p>
+      </section>
     </div>
 
-    <div id="challengeOverlay" class="overlay hidden">
-      <div class="panel modal">
-        <h2>Confirmation duel</h2>
-        <p id="challengeBody">Acceptez vous le défi ?</p>
-        <div class="row">
-          <button id="challengeYesBtn">Oui</button>
-          <button id="challengeNoBtn">Non</button>
+    <!-- COL 3 : Missions + Agents + Recrutement -->
+    <div class="col">
+      <section class="panel">
+        <h2>📋 Missions</h2>
+        <div id="missionsList"></div>
+      </section>
+
+      <section class="panel">
+        <h2>🕵️ Agents &amp; Recrutement</h2>
+        <h4>Agents actifs</h4>
+        <div id="agentsList" class="card-list"></div>
+
+        <h4>Recrutement — candidat actuel</h4>
+        <div class="recruit-box">
+          <div id="recruitCandidate"></div>
+          <div id="recruitTranscript" class="logs" style="max-height:150px;margin:6px 0"></div>
+          <div class="chat">
+            <input id="recruitMessage" type="text" placeholder="Argumente pour recruter…">
+            <button id="sendRecruitBtn">Envoyer</button>
+          </div>
         </div>
-      </div>
+      </section>
     </div>
 
-    <div id="settingsOverlay" class="overlay hidden">
-      <div class="panel modal">
-        <h2>Save / LLM</h2>
-        <label><input id="llmEnabledToggle" type="checkbox" /> Utiliser Ollama</label>
-        <label>URL Ollama <input id="baseUrlInput" type="text" value="http://localhost:11434" /></label>
-        <label>Model <input id="modelInput" type="text" value="gemma3:4b" /></label>
-        <div class="row">
-          <button id="testOllamaBtn">Test Ollama</button>
-          <button id="saveBtn">Save</button>
-          <button id="loadBtn">Load</button>
-          <button id="resetBtn">Reset</button>
+    <!-- COL 4 : PNJ + Chat + Logs -->
+    <div class="col">
+      <section class="panel">
+        <h2>💬 Discussion PNJ</h2>
+        <div id="npcList" class="card-list"></div>
+        <div class="chat" style="margin-top:8px">
+          <input id="npcMessage" type="text" placeholder="Parler au PNJ…">
+          <button id="npcSendBtn">Envoyer</button>
         </div>
-        <div class="row">
-          <button id="exportSaveBtn">Export .txt</button>
-          <button id="importSaveBtn">Import .txt</button>
-          <button id="exportCodeBtn">Export code</button>
-          <button id="importCodeBtn">Import code</button>
-          <button id="exportLogsBtn">Export logs</button>
-        </div>
-        <input id="saveFileInput" class="hidden" type="file" accept=".txt,.json" />
-        <pre id="llmStatus"></pre>
-        <button id="closeSettingsBtn">Fermer</button>
-      </div>
+      </section>
+
+      <section class="panel">
+        <h2>📜 Logs</h2>
+        <div id="logOutput" class="logs" style="max-height:400px"></div>
+      </section>
     </div>
 
-    <script src="./app.js"></script>
-  </body>
+  </main>
+</div>
+
+<!-- OVERLAY : Intro -->
+<div id="introOverlay" class="overlay">
+  <div class="modal">
+    <h2>🚀 Intro — Rocket HQ</h2>
+    <p>Crée ta team et ton personnage.</p>
+    <label>Nom de team <input id="teamInput" type="text" value="Team Rocket"></label>
+    <label>Prénom       <input id="firstNameInput" type="text" value="Ari"></label>
+    <label>Nom          <input id="lastNameInput" type="text" value="Voss"></label>
+    <label>Sprite Showdown <select id="spriteSelect"></select></label>
+    <img id="spritePreview" class="preview" alt="preview">
+    <button id="introStartBtn">🚀 Lancer</button>
+  </div>
+</div>
+
+<!-- OVERLAY : Défi -->
+<div id="challengeOverlay" class="overlay hidden">
+  <div class="modal" style="max-width:420px">
+    <h2>⚔️ Confirmation de duel</h2>
+    <p id="challengeBody">Acceptez-vous le défi ?</p>
+    <div class="row">
+      <button id="challengeYesBtn" class="ok">Oui, accepter</button>
+      <button id="challengeNoBtn" class="danger">Non, refuser</button>
+    </div>
+  </div>
+</div>
+
+<!-- OVERLAY : Paramètres / Save / LLM -->
+<div id="settingsOverlay" class="overlay hidden">
+  <div class="modal">
+    <h2>⚙️ Paramètres — Save &amp; LLM</h2>
+    <label><input id="llmEnabledToggle" type="checkbox"> Utiliser Ollama (LLM local)</label>
+    <label>URL Ollama <input id="baseUrlInput" type="text" value="http://localhost:11434"></label>
+    <label>Modèle     <input id="modelInput"   type="text" value="gemma3:4b"></label>
+    <div class="row">
+      <button id="testOllamaBtn">Test Ollama</button>
+      <button id="saveBtn">💾 Save</button>
+      <button id="loadBtn">📂 Load</button>
+      <button id="resetBtn" class="danger">🔄 Reset</button>
+    </div>
+    <div class="row">
+      <button id="exportSaveBtn">Export .txt</button>
+      <button id="importSaveBtn">Import .txt</button>
+      <button id="exportCodeBtn">Export code</button>
+      <button id="importCodeBtn">Import code</button>
+      <button id="exportLogsBtn">Export logs</button>
+    </div>
+    <input id="saveFileInput" class="hidden" type="file" accept=".txt,.json">
+    <pre id="llmStatus">—</pre>
+    <button id="closeSettingsBtn" class="danger">✖ Fermer</button>
+  </div>
+</div>
+
+<script src="./app.js"></script>
+</body>
 </html>
