@@ -1,65 +1,35 @@
-# Pokémon Rocket HQ (prototype v2)
+# POKEFORGE — ROCKET HQ v4
+## Fichiers à déployer
 
-Prototype orienté **gestion de base Team Rocket** (sans carte/lieux visibles pour le moment).
+### Racine du projet (3 fichiers principaux)
+- `menu.html`  — Page d'accueil : 3 save slots, sélection FR/EN, DA sombre Team Rocket
+- `index.html` — Interface de jeu principale
+- `app.js`     — Logique complète v4 (tous modules fusionnés)
 
-## Ce qui est implémenté
+### Démarrage
+Ouvrir `menu.html` dans un navigateur (ou serveur local).
+Le menu redirige vers `index.html?slot=X&lang=fr|en`.
 
-- Intro de création:
-  - nom de team,
-  - prénom + nom du boss,
-  - sprite trainer depuis Pokémon Showdown.
-- Boucle incrémentale par tour (`Valider le tour`):
-  - production pokedollars,
-  - points de capture,
-  - points d'élevage,
-  - intelligence.
-- Gestion des salles du QG:
-  - commandement,
-  - capture,
-  - élevage,
-  - entraînement,
-  - avec upgrade par coût.
-- Début de système capture/élevage Pokémon.
-- Panel création d'équipe:
-  - assignation des Pokémon possédés à un agent (max 3).
-- Salle d'entraînement:
-  - test combat auto (facile/normal/difficile),
-  - tentative bridge PokeLLMon/Showdown via `http://localhost:8081/api/pokellmon/resolve`,
-  - fallback local si indisponible.
-- Recrutement agent via discussion LLM (Ollama optionnel):
-  - maximum 5 interactions,
-  - score caché (1..10),
-  - si score final > 5 : candidat rejoint la team + nouveau PNJ contact débloqué.
-- Chat PNJ + déclenchement duel par mots-clés (`défi`, `combat`, etc.) avec validation Oui/Non.
-- Save locale + export/import (fichier/code) + export logs.
-- Character sheets LLM de base dans `data/characters/` pour piloter les discussions PNJ.
+### Dossier patches/
+Modules individuels pour référence — déjà tous intégrés dans app.js.
 
-## Lancer en dev
+### Notes
+- Saves stockées dans localStorage : pf.slot1 / pf.slot2 / pf.slot3
+- LLM local via Ollama (optionnel) — configurable dans le menu ⚙
+- Compatible Chromium / Firefox — pas de backend requis
 
-```bash
-python -m http.server 8080
-```
+### Nouveautés v4 vs v3
+- Menu principal + 3 save slots + FR/EN
+- Vue monde 2D (Pokémon cliquables, capture)
+- Simulation de mission animée (sprites, dialogues, pop-up résolution)
+- 8 nouvelles missions (raids, vols, trafic, event rare Mewtwo)
+- Recrutement : 3 interactions / 100₽ chacune
+- Niveaux agents + Pokémon + table d'évolution Gen1/Gen2
+- Salle d'apprentissage combat + Salle d'entraînement Pokémon
+- Sprites animés en bas de page par salle
+- Pokédex + Combo Dex (+10₽ par combo)
+- Chat allié recentré (1 conversation/tour)
+- Lore NPCs : Giovanni, Archer, Ariane, Jessie, James, Professeur Chen, Red
 
-Puis ouvrir:
-
-```text
-http://localhost:8080/apps/rocket-hq/
-```
-
-## Vérifications dev
-
-```bash
-npm run check:repo
-node --check apps/rocket-hq/app.js
-npm run llm:ollama:check
-```
-
-## Scénario de test manuel
-
-1. Créer team/personnage/sprite.
-2. Cliquer `Valider le tour` plusieurs fois et vérifier la croissance des ressources.
-3. Améliorer des salles et observer l'impact par tour.
-4. Assigner des Pokémon à un agent puis lancer un combat d'entraînement.
-5. Faire 5 interactions de recrutement et vérifier succès/échec selon le score caché.
-6. Dans chat PNJ, envoyer `je te défie` puis tester Oui/Non.
-7. Tester save/export/import + export logs.
+### Version
+v4.13 — 22/03/2026

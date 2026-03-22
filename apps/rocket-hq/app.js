@@ -1,4 +1,58 @@
 // ============================================================
+// POKEFORGE — ROCKET HQ  app.js  v4  (Full FR/EN + All Patches)
+// Patches intégrés : v4.01 → v4.11
+// ============================================================
+
+// ── LANGUE (lue depuis l'URL ou localStorage) ────────────
+const urlParams = new URLSearchParams(window.location.search);
+let lang = urlParams.get('lang') || localStorage.getItem('pf.lang') || 'fr';
+const SLOT_INDEX = parseInt(urlParams.get('slot') || '1', 10);
+const SAVE_KEY   = `pokeforge.rocket-hq.slot${SLOT_INDEX}`;
+
+// ── I18N STRINGS ─────────────────────────────────────────
+const UI_TEXT = {
+  fr: {
+    nextTurn:'⏩ Valider le tour', openMenu:'⚙ Menu', llmOn:'LLM ON', llmOff:'LLM OFF',
+    turn:'Tour', resources:'Ressources', rooms:'Salles du QG', pokemon:'Pokémon',
+    teamBuilder:'Création d'équipe', training:'Salle d'apprentissage',
+    agents:'Agents', recruit:'Recrutement', missions:'Missions',
+    pokedex:'Pokédex', combodex:'Combo Dex', allyChat:'Briefing allié',
+    logs:'Logs',
+  },
+  en: {
+    nextTurn:'⏩ End Turn', openMenu:'⚙ Menu', llmOn:'LLM ON', llmOff:'LLM OFF',
+    turn:'Turn', resources:'Resources', rooms:'HQ Rooms', pokemon:'Pokémon',
+    teamBuilder:'Team Builder', training:'Learning Room',
+    agents:'Agents', recruit:'Recruitment', missions:'Missions',
+    pokedex:'Pokédex', combodex:'Combo Dex', allyChat:'Ally Briefing',
+    logs:'Logs',
+  },
+};
+function T(key) { return UI_TEXT[lang]?.[key] || UI_TEXT.fr[key] || key; }
+
+// ── SAVE / LOAD (slot-aware) ──────────────────────────────
+function saveState() {
+  const data = { ...state, savedAt: Date.now(), lang };
+  localStorage.setItem(SAVE_KEY, JSON.stringify(data));
+  // Met aussi à jour le menu slot
+  const menuSlot = JSON.parse(localStorage.getItem(SAVE_KEY) || '{}');
+  menuSlot.turn = state.turn;
+  menuSlot.profile = state.profile;
+  menuSlot.savedAt = Date.now();
+  localStorage.setItem(SAVE_KEY, JSON.stringify(data));
+}
+function loadState() {
+  const r = localStorage.getItem(SAVE_KEY);
+  if (!r) return null;
+  try { return JSON.parse(r); } catch { return null; }
+}
+function loadSettings() {
+  const r = localStorage.getItem('pf.settings');
+  if (!r) return { ...DEFAULT_SETTINGS };
+  try { return { ...DEFAULT_SETTINGS, ...JSON.parse(r) }; } catch { return { ...DEFAULT_SETTINGS }; }
+}
+
+// ============================================================
 // POKEFORGE — ROCKET HQ  app.js  v3  (Full FR + Gameplay+)
 // ============================================================
 
@@ -855,3 +909,1968 @@ if (!state.recruit) initRecruit();
 if (!state.availableMissions?.length) rollAvailableMissions();
 if (!state.log.length) addLog('Bienvenue dans Rocket HQ.');
 render();
+
+
+// ============================================================
+// MODULE v4.01 — WORLD VIEW
+// ============================================================
+
+// ============================================================
+// PATCH v4.01 — WORLD VIEW MODULE
+// À injecter dans app.js après les déclarations de constantes
+// ============================================================
+
+// ── WORLD VIEW CONFIG ────────────────────────────────────
+const WORLD_POKEMON_POOL = [
+  { fr:'abo',       en:'ekans',    rarity:0.6 },
+  { fr:'nosferapti',en:'zubat',    rarity:0.6 },
+  { fr:'smogo',     en:'koffing',  rarity:0.5 },
+  { fr:'miaouss',   en:'meowth',   rarity:0.5 },
+  { fr:'fantominus',en:'gastly',   rarity:0.3 },
+  { fr:'magneti',   en:'magnemite',rarity:0.3 },
+  { fr:'voltorbe',  en:'voltorb',  rarity:0.25 },
+  { fr:'soporifik', en:'drowzee',  rarity:0.2 },
+  { fr:'osselait',  en:'cubone',   rarity:0.2 },
+  { fr:'magicarpe', en:'magikarp', rarity:0.15 },
+  { fr:'nidoran♀',  en:'nidoran-f',rarity:0.15 },
+  { fr:'ptéra',     en:'aerodactyl',rarity:0.04 },
+  { fr:'mewtwo',    en:'mewtwo',   rarity:0.01 },
+];
+
+const ZONE_BACKGROUNDS = {
+  default:   'linear-gradient(160deg,#1a0a2e 0%,#0d1a0d 60%,#0a0a1a 100%)',
+  marais:    'linear-gradient(160deg,#0a1a0a 0%,#1a2a10 50%,#0a2a0a 100%)',
+  grotte:    'linear-gradient(160deg,#1a1010 0%,#2a1a10 50%,#1a0808 100%)',
+  silph:     'linear-gradient(160deg,#0a0a2a 0%,#1a1a3a 50%,#2a0a2a 100%)',
+  safari:    'linear-gradient(160deg,#1a2a00 0%,#2a3a10 50%,#1a2a08 100%)',
+  route:     'linear-gradient(160deg,#0a1a0a 0%,#1a2a1a 50%,#0a2a0a 100%)',
+};
+
+// ── WORLD VIEW STATE ─────────────────────────────────────
+// Ajouté au BASE_STATE :
+// worldPokemon: []  ← liste des pkm visibles dans la vue monde
+
+function initWorldView() {
+  if (!state.worldPokemon) state.worldPokemon = [];
+}
+
+// Spawn d'un Pokémon sauvage toutes les ~8s
+let worldSpawnInterval = null;
+function startWorldSpawner() {
+  if (worldSpawnInterval) clearInterval(worldSpawnInterval);
+  worldSpawnInterval = setInterval(() => {
+    if (!state.profile.initialized) return;
+    // Max 5 Pokémon à la fois dans la zone
+    if ((state.worldPokemon||[]).length >= 5) return;
+    spawnWorldPokemon();
+  }, 8000);
+}
+
+function spawnWorldPokemon() {
+  // Tirage pondéré par rareté
+  const total = WORLD_POKEMON_POOL.reduce((s,p) => s+p.rarity, 0);
+  let r = Math.random() * total;
+  let chosen = WORLD_POKEMON_POOL[0];
+  for (const p of WORLD_POKEMON_POOL) { r -= p.rarity; if (r <= 0) { chosen = p; break; } }
+
+  const entry = {
+    uid:    `wp-${Date.now()}-${Math.floor(Math.random()*9999)}`,
+    fr:     chosen.fr,
+    en:     chosen.en,
+    x:      15 + Math.random() * 70, // % de la largeur de la bande
+    level:  3 + Math.floor(Math.random() * 12),
+    spawnedAt: Date.now(),
+    ttl:    12000, // disparaît après 12s
+  };
+  state.worldPokemon = [...(state.worldPokemon||[]), entry];
+  renderWorldView();
+
+  // Auto-disparition
+  setTimeout(() => {
+    state.worldPokemon = (state.worldPokemon||[]).filter(p => p.uid !== entry.uid);
+    renderWorldView();
+  }, entry.ttl);
+}
+
+function tryCapture(uid) {
+  const pkm = (state.worldPokemon||[]).find(p => p.uid === uid);
+  if (!pkm) return;
+
+  const cost = 50; // Pokédollars
+  if (state.resources.pokedollars < cost) {
+    addLog(lang==='fr' ? `Pas assez de Pokédollars pour capturer ! (50₽ requis)` : `Not enough Pokédollars to capture! (50₽ needed)`);
+    return;
+  }
+
+  state.resources.pokedollars -= cost;
+  state.worldPokemon = (state.worldPokemon||[]).filter(p => p.uid !== uid);
+
+  // Taux de succès : 40% + 1% par point de réputation
+  const chance = 40 + (state.reputation || 0);
+  const success = Math.random() * 100 < chance;
+
+  if (success) {
+    const newPkm = makePokemon(pkm.fr, pkm.level);
+    state.pokemons.push(newPkm);
+    state.newPokemonsThisTurn.push(newPkm);
+    updatePokedex(pkm.fr);
+    addLog(lang==='fr'
+      ? `⚡ Capture réussie : ${pkm.fr} Nv.${pkm.level} !`
+      : `⚡ Captured: ${pkm.fr} Lv.${pkm.level}!`);
+    showCaptureFlash(true, pkm.fr);
+  } else {
+    addLog(lang==='fr'
+      ? `💨 ${pkm.fr} a fui ! (-50₽)`
+      : `💨 ${pkm.fr} fled! (-50₽)`);
+    showCaptureFlash(false, pkm.fr);
+  }
+  saveState(); render();
+}
+
+function showCaptureFlash(success, name) {
+  const band = document.getElementById('worldBand');
+  if (!band) return;
+  const flash = document.createElement('div');
+  flash.style.cssText = `
+    position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+    background:${success?'rgba(112,224,164,0.9)':'rgba(255,68,102,0.85)'};
+    color:#000;font-family:'Press Start 2P',monospace;font-size:.65em;
+    padding:8px 14px;border-radius:8px;z-index:20;pointer-events:none;
+    animation:flashFade 1.5s forwards;
+  `;
+  flash.textContent = success ? `✓ ${name} !` : `✗ ${name} fuit !`;
+  band.appendChild(flash);
+  setTimeout(() => flash.remove(), 1500);
+}
+
+function renderWorldView() {
+  const band = document.getElementById('worldBand');
+  if (!band) return;
+
+  // Fond dynamique selon mission active
+  const activeMission = (state.missions||[]).find(m => m.turnsLeft > 0);
+  const activeDef = activeMission ? MISSIONS.find(x => x.id === activeMission.missionId) : null;
+  const zoneBg = ZONE_BACKGROUNDS[activeDef?.zone || 'default'];
+  band.style.background = zoneBg;
+
+  // Nettoie les sprites existants (garder QG)
+  band.querySelectorAll('.world-pokemon,.world-capture-anim').forEach(el => el.remove());
+
+  // Pokémon dans la bande
+  (state.worldPokemon||[]).forEach(pkm => {
+    const el = document.createElement('div');
+    el.className = 'world-pokemon';
+    el.style.cssText = `left:${pkm.x}%;`;
+    el.innerHTML = `
+      <img src="https://play.pokemonshowdown.com/sprites/gen5/${pkm.en}.png"
+           style="width:48px;height:48px;image-rendering:pixelated;">
+      <div style="font-size:.45em;text-align:center;margin-top:2px;color:#ffcc5a">${pkm.fr}<br>Nv.${pkm.level}</div>
+    `;
+    el.onclick = () => tryCapture(pkm.uid);
+    band.appendChild(el);
+  });
+}
+
+
+// ============================================================
+// MODULE v4.02 — MISSION SIMULATION
+// ============================================================
+
+// ============================================================
+// PATCH v4.02 — MISSION SIMULATION MODULE
+// ============================================================
+
+const ZONE_BG_STYLES = {
+  default: { bg:'#0d1a0d', label:'Kanto', stars:true },
+  marais:  { bg:'linear-gradient(160deg,#0a1a06 0%,#142a08 100%)', label:'Marais Cramois', stars:false },
+  grotte:  { bg:'linear-gradient(160deg,#140a06 0%,#2a1408 100%)', label:'Grotte Sombre', stars:false },
+  silph:   { bg:'linear-gradient(160deg,#06060a 0%,#14143a 100%)', label:'Tour Silph Co.', stars:true },
+  safari:  { bg:'linear-gradient(160deg,#0a1a00 0%,#1a2a08 100%)', label:'Zone Safari', stars:false },
+  route:   { bg:'linear-gradient(160deg,#0a1a0a 0%,#182a18 100%)', label:'Route 1', stars:false },
+  centre:  { bg:'linear-gradient(160deg,#180a1a 0%,#0a0a18 100%)', label:'Centre Pokémon', stars:true },
+};
+
+const MISSION_ZONE_MAP = {
+  m1:'centre', m2:'grotte', m3:'safari', m4:'silph', m5:'route', m6:'grotte',
+  m_raid_marais:'marais', m_raid_safari:'safari', m_vol_dresseur:'route',
+  m_event_legendaire:'default',
+};
+
+// Dialogues de simulation par phase (FR/EN)
+const SIM_DIALOGUES = {
+  fr: {
+    approach: [
+      "On approche de la zone. Silence.",
+      "La cible est en vue. On reste groupés.",
+      "Aucun agent ennemi détecté. On y va.",
+    ],
+    combat: [
+      "Allez, montre-leur ce qu'on vaut !",
+      "Fonce ! Ne leur laisse pas le temps !",
+      "Tiens bon ! On n'abandonne pas !",
+    ],
+    success: [
+      "Mission accomplie. Repli immédiat.",
+      "Bien joué. Giovanni sera satisfait.",
+      "On a ce qu'on est venu chercher.",
+    ],
+    failure: [
+      "Retraite ! On se retrouve au QG.",
+      "Maudit soit ce jour. On se replie.",
+      "On reviendra. Mais pas aujourd'hui.",
+    ],
+    jenny: [
+      "L'Agent Jenny ! Vite, fuyez !",
+      "Police ! Abandonnez le butin et courez !",
+    ],
+    pkm_appears: [
+      "Un Pokémon sauvage surgit !",
+      "Attention, Pokémon hostile !",
+    ],
+  },
+  en: {
+    approach: [
+      "Approaching the zone. Silence.",
+      "Target in sight. Stay together.",
+      "No enemy agents detected. Let's go.",
+    ],
+    combat: [
+      "Go, show them what we're worth!",
+      "Charge! Don't give them time!",
+      "Hold on! We don't give up!",
+    ],
+    success: [
+      "Mission complete. Immediate retreat.",
+      "Well done. Giovanni will be pleased.",
+      "We got what we came for.",
+    ],
+    failure: [
+      "Retreat! Meet at HQ.",
+      "Damn this day. We fall back.",
+      "We'll be back. But not today.",
+    ],
+    jenny: [
+      "Officer Jenny! Run!",
+      "Police! Drop everything and run!",
+    ],
+    pkm_appears: [
+      "A wild Pokémon appears!",
+      "Hostile Pokémon!",
+    ],
+  },
+};
+
+// ── POPUP MISSION RÉSOLUTION ──────────────────────────
+function showMissionPopup(missionDef, agentObj, result) {
+  const L = SIM_DIALOGUES[lang] || SIM_DIALOGUES.fr;
+  const zone = MISSION_ZONE_MAP[missionDef.id] || 'default';
+  const zoneDef = ZONE_BG_STYLES[zone] || ZONE_BG_STYLES.default;
+  const steps = buildSimSteps(missionDef, agentObj, result, L);
+
+  const popup = document.createElement('div');
+  popup.id = 'missionSimPopup';
+  popup.style.cssText = `
+    position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:100;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    padding:16px;font-family:'Press Start 2P',monospace;
+  `;
+
+  popup.innerHTML = `
+    <div style="width:min(900px,98vw);background:#0f0c1e;border:2px solid #7866d1;border-radius:12px;overflow:hidden;">
+      <!-- Bande de simulation -->
+      <div id="simBand" style="
+        width:100%;height:170px;position:relative;
+        background:${zoneDef.bg};transition:background 0.8s;
+        border-bottom:2px solid #4a3a8a;overflow:hidden;
+      ">
+        <div style="position:absolute;top:8px;left:12px;font-size:.45em;color:#ffcc5a;letter-spacing:.1em">${zoneDef.label}</div>
+        <!-- Agent sprite -->
+        ${agentObj?.sprite ? `<img id="simAgentSprite" src="${agentObj.sprite}"
+          style="position:absolute;bottom:16px;left:14%;width:56px;image-rendering:pixelated;
+          animation:simFloat 2.5s ease-in-out infinite;">` : ''}
+        <!-- Pokémon slot ennemi -->
+        <div id="simEnemySlot" style="position:absolute;bottom:16px;right:14%;display:flex;gap:8px;"></div>
+        <!-- Bulle de dialogue -->
+        <div id="simBubble" style="
+          position:absolute;top:10px;left:50%;transform:translateX(-50%);
+          background:rgba(255,255,255,0.92);color:#0a0812;
+          padding:6px 12px;border-radius:8px;font-size:.42em;
+          max-width:55%;text-align:center;white-space:normal;line-height:1.6;
+          display:none;
+        "></div>
+      </div>
+      <!-- Corps -->
+      <div style="padding:16px;display:grid;gap:10px;">
+        <div style="font-size:.6em;color:#ffcc5a;letter-spacing:.1em">${missionDef.nom || missionDef.name}</div>
+        <div id="simLog" style="font-size:.42em;color:#b9adff;line-height:2;min-height:60px;"></div>
+        <div id="simRewards" style="display:none;font-size:.48em;color:#70e0a4;line-height:2;"></div>
+        <div id="simContinueBtn" style="display:none;text-align:center;">
+          <button onclick="closeMissionPopup()" style="
+            font-family:'Press Start 2P',monospace;font-size:.55em;
+            background:#ffcc5a;border:2px solid #000;padding:10px 24px;
+            border-radius:8px;cursor:pointer;
+          ">${lang==='fr'?'CONTINUER':'CONTINUE'} →</button>
+        </div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(popup);
+
+  // Injection CSS animation si absente
+  if (!document.getElementById('simAnimStyle')) {
+    const s = document.createElement('style');
+    s.id = 'simAnimStyle';
+    s.textContent = `
+      @keyframes simFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+      @keyframes simPop{0%{transform:scale(0)}60%{transform:scale(1.15)}100%{transform:scale(1)}}
+      @keyframes simShake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+    `;
+    document.head.appendChild(s);
+  }
+
+  // Joue les étapes de simulation
+  playSimSteps(steps, 0);
+}
+
+function buildSimSteps(missionDef, agentObj, result, L) {
+  const steps = [];
+  const enemies = getMissionEnemyPokemon(missionDef);
+
+  steps.push({ type:'log',    text: pick(L.approach) });
+  steps.push({ type:'bubble', text: pick(L.approach) });
+
+  if (enemies.length) {
+    steps.push({ type:'log',     text: pick(L.pkm_appears) });
+    steps.push({ type:'bubble',  text: pick(L.pkm_appears) });
+    steps.push({ type:'showPkm', pokemons: enemies });
+  }
+
+  steps.push({ type:'log',    text: pick(L.combat) });
+  steps.push({ type:'bubble', text: pick(L.combat) });
+
+  if (result.jennyEvent) {
+    steps.push({ type:'log',    text: pick(L.jenny) });
+    steps.push({ type:'bubble', text: pick(L.jenny) });
+    steps.push({ type:'shake' });
+  }
+
+  const finalLine = result.success ? pick(L.success) : pick(L.failure);
+  steps.push({ type:'log',    text: finalLine });
+  steps.push({ type:'bubble', text: finalLine });
+  steps.push({ type:'rewards', result });
+
+  return steps;
+}
+
+function getMissionEnemyPokemon(missionDef) {
+  const zone = MISSION_ZONE_MAP[missionDef.id] || 'default';
+  const pools = {
+    marais:  ['poliwag','psyduck','tentacool'],
+    grotte:  ['geodude','zubat','onix'],
+    silph:   ['porygon','electrode','magneton'],
+    safari:  ['tauros','kangaskhan','scyther'],
+    route:   ['pidgey','rattata','spearow'],
+    centre:  ['chansey','clefairy','jigglypuff'],
+    default: ['rattata','pidgey'],
+  };
+  const pool = pools[zone] || pools.default;
+  return [pick(pool)];
+}
+
+let simStepTimeout = null;
+function playSimSteps(steps, idx) {
+  if (idx >= steps.length) return;
+  const step = steps[idx];
+  const delay = 1200;
+
+  const logEl    = document.getElementById('simLog');
+  const bubbleEl = document.getElementById('simBubble');
+  const enemyEl  = document.getElementById('simEnemySlot');
+
+  if (step.type === 'log' && logEl) {
+    logEl.innerHTML += `<div>▶ ${step.text}</div>`;
+  }
+  if (step.type === 'bubble' && bubbleEl) {
+    bubbleEl.textContent = step.text;
+    bubbleEl.style.display = 'block';
+    setTimeout(() => { if (bubbleEl) bubbleEl.style.display = 'none'; }, 2200);
+  }
+  if (step.type === 'showPkm' && enemyEl) {
+    enemyEl.innerHTML = step.pokemons.map(en => `
+      <div style="display:flex;flex-direction:column;align-items:center;animation:simPop .4s">
+        <img src="https://play.pokemonshowdown.com/sprites/gen5/${en}.png"
+             style="width:48px;image-rendering:pixelated;">
+      </div>`).join('');
+  }
+  if (step.type === 'shake') {
+    const band = document.getElementById('simBand');
+    if (band) { band.style.animation='simShake .5s'; setTimeout(()=>{band.style.animation='';},600); }
+  }
+  if (step.type === 'rewards') {
+    const rewardEl = document.getElementById('simRewards');
+    const contBtn  = document.getElementById('simContinueBtn');
+    if (rewardEl) {
+      const r = step.result;
+      let html = r.success
+        ? (lang==='fr' ? '✅ Succès !' : '✅ Success!')
+        : (lang==='fr' ? '❌ Échec.' : '❌ Failed.');
+      if (r.pokedollars) html += `<br>💰 +${r.pokedollars} Pokédollars`;
+      if (r.intel)       html += `<br>🔍 +${r.intel} Intel`;
+      if (r.pokemon)     html += `<br>🎯 Pokémon récupéré : ${r.pokemon.map(p=>p.species_fr).join(', ')}`;
+      if (r.losses)      html += `<br>💀 Perdu : ${r.losses.join(', ')}`;
+      rewardEl.innerHTML = html;
+      rewardEl.style.display = 'block';
+    }
+    if (contBtn) contBtn.style.display = 'block';
+    return; // stop auto-advance
+  }
+
+  simStepTimeout = setTimeout(() => playSimSteps(steps, idx+1), delay);
+}
+
+function closeMissionPopup() {
+  if (simStepTimeout) clearTimeout(simStepTimeout);
+  const popup = document.getElementById('missionSimPopup');
+  if (popup) popup.remove();
+}
+
+
+// ============================================================
+// MODULE v4.03 — MISSIONS V2
+// ============================================================
+
+// ============================================================
+// PATCH v4.03 — MISSIONS V2
+// Nouvelles missions, récompenses Pokémon, mort/capture Jenny
+// Retrait salle de capture
+// ============================================================
+
+// ── MISSIONS V2 — CATALOGUE COMPLET ─────────────────────
+const MISSIONS_V2 = [
+  // ── VOL DE POKÉMON ────────────────────────────────────
+  { id:'m_vol_centre',    zone:'centre', categorie:'vol',
+    nom:      { fr:'Vol au Centre Pokémon',          en:'Pokémon Center Theft' },
+    desc:     { fr:'Subtiliser les Pokémon hospitalisés.', en:'Steal hospitalized Pokémon.' },
+    recompense:{ pokedollars:200, pokemon:['chansey','clefairy'], intel:1 },
+    duree:2, risque:'faible', jennyRisk:0.15,
+    pkmRewardPool: ['chansey','clefairy','jigglypuff'],
+  },
+  { id:'m_vol_dresseur',  zone:'route',  categorie:'vol',
+    nom:      { fr:'Racket de dresseurs Route 1',    en:'Route 1 Trainer Mugging' },
+    desc:     { fr:'Forcer les dresseurs à abandonner leurs Pokémon.', en:'Force trainers to surrender their Pokémon.' },
+    recompense:{ pokedollars:300, pokemon:['pidgey','rattata'] },
+    duree:1, risque:'faible', jennyRisk:0.1,
+    pkmRewardPool: ['pidgey','rattata','spearow','ekans'],
+  },
+
+  // ── RAID DE ZONE ──────────────────────────────────────
+  { id:'m_raid_marais',   zone:'marais', categorie:'raid',
+    nom:      { fr:'Raid — Marais Cramois',           en:'Raid — Crimson Swamp' },
+    desc:     { fr:'Capturer les Pokémon aquatiques du marais.', en:'Capture aquatic Pokémon from the swamp.' },
+    recompense:{ pokedollars:400, capturePoints:2 },
+    duree:2, risque:'moyen', jennyRisk:0.2,
+    pkmRewardPool: ['psyduck','poliwag','tentacool','goldeen','slowpoke'],
+  },
+  { id:'m_raid_safari',   zone:'safari', categorie:'raid',
+    nom:      { fr:'Infiltration — Zone Safari',     en:'Infiltration — Safari Zone' },
+    desc:     { fr:'Braconner des espèces rares sous couverture.', en:'Poach rare species undercover.' },
+    recompense:{ pokedollars:500, capturePoints:3 },
+    duree:3, risque:'moyen', jennyRisk:0.3,
+    pkmRewardPool: ['tauros','kangaskhan','scyther','pinsir','rhyhorn'],
+  },
+  { id:'m_raid_grotte',   zone:'grotte', categorie:'raid',
+    nom:      { fr:'Fouille — Grotte Azurée',         en:'Sweep — Cerulean Cave' },
+    desc:     { fr:'Explorer la grotte pour capturer ce qui s'y trouve.', en:'Explore the cave and capture whatever lurks.' },
+    recompense:{ pokedollars:600, intel:2 },
+    duree:3, risque:'élevé', jennyRisk:0.2,
+    pkmRewardPool: ['zubat','geodude','onix','cubone','drowzee'],
+  },
+
+  // ── TRAFIC / CONTREBANDE ──────────────────────────────
+  { id:'m_trafic_fossiles', zone:'grotte', categorie:'trafic',
+    nom:      { fr:'Trafic de Fossiles',              en:'Fossil Trafficking' },
+    desc:     { fr:'Revendre des fossiles volés au Musée de Jadielle.', en:'Resell stolen fossils at Pewter Museum.' },
+    recompense:{ pokedollars:700, intel:2 },
+    duree:3, risque:'moyen', jennyRisk:0.25,
+    pkmRewardPool: [],
+  },
+  { id:'m_silph',           zone:'silph',  categorie:'trafic',
+    nom:      { fr:'Opération Silph Co.',             en:'Silph Co. Operation' },
+    desc:     { fr:'Prendre le contrôle d'un étage de la Tour Silph.', en:'Take control of one floor of Silph Tower.' },
+    recompense:{ pokedollars:1000, intel:5, capturePoints:2 },
+    duree:4, risque:'élevé', jennyRisk:0.35,
+    pkmRewardPool: ['porygon','electrode','lapras'],
+  },
+
+  // ── ÉVÉNEMENTS SPÉCIAUX ───────────────────────────────
+  { id:'m_event_legendaire', zone:'default', categorie:'event',
+    nom:       { fr:'Rumeur — Signal Inconnu',        en:'Rumor — Unknown Signal' },
+    desc:      { fr:'Un signal étrange vient d'une île au large...', en:'A strange signal from a distant island...' },
+    recompense: { pokedollars:1500, intel:8 },
+    duree:5, risque:'élevé', jennyRisk:0.4,
+    pkmRewardPool: ['mew','mewtwo'],
+    rare:true,
+  },
+];
+
+// Retire la salle de capture du state (migration douce)
+function migrateRemoveCapture() {
+  if (state.rooms && state.rooms.capture) {
+    const pts = state.rooms.capture.level * 2;
+    state.resources.pokedollars = (state.resources.pokedollars||0) + pts * 50;
+    delete state.rooms.capture;
+    addLog(lang==='fr'
+      ? `Salle de Capture retirée — conversion : +${pts*50} Pokédollars.`
+      : `Capture Room removed — converted to +${pts*50} Pokédollars.`);
+  }
+}
+
+// Pool de missions disponibles — tirage parmi MISSIONS_V2
+function rollAvailableMissionsV2() {
+  const pool = MISSIONS_V2.filter(m => !m.rare);
+  const shuffled = [...pool].sort(() => Math.random()-0.5);
+  // Événement rare : 15% de chance d'apparaître
+  const rares = MISSIONS_V2.filter(m => m.rare);
+  if (Math.random() < 0.15 && rares.length) shuffled.unshift(pick(rares));
+  state.availableMissions = shuffled.slice(0, 3);
+}
+
+// Résolution d'une mission V2
+function resolveMissionV2(mi) {
+  const mDef = MISSIONS_V2.find(x => x.id === mi.missionId) || MISSIONS.find(x => x.id === mi.missionId);
+  if (!mDef) return;
+  const agent = state.agents.find(a => a.id === mi.agentId);
+
+  // Succès basé sur réputation + level agent
+  const agentLevel = agent?.level || 1;
+  const baseChance = 35 + (state.reputation||0) * 0.6 + agentLevel * 5;
+  const success = Math.random() * 100 < Math.min(90, baseChance);
+
+  // Risque Jenny
+  const jennyRisk = mDef.jennyRisk || 0.1;
+  const jennyEvent = Math.random() < jennyRisk;
+
+  const result = { success, jennyEvent, pokedollars:0, intel:0, pokemon:[], losses:[] };
+
+  if (success) {
+    // Pokédollars
+    result.pokedollars = mDef.recompense?.pokedollars || 0;
+    state.resources.pokedollars += result.pokedollars;
+    // Intel
+    result.intel = mDef.recompense?.intel || 0;
+    state.resources.intel += result.intel;
+    // CapturePoints
+    if (mDef.recompense?.capturePoints) state.resources.capturePoints += mDef.recompense.capturePoints;
+
+    // Pokémon en récompense
+    const pkmPool = mDef.pkmRewardPool || [];
+    if (pkmPool.length) {
+      const numPkm = 1 + Math.floor(Math.random() * Math.min(2, pkmPool.length));
+      for (let i=0; i<numPkm; i++) {
+        const spEN = pick(pkmPool);
+        const spFR = Object.keys(FR_TO_EN).find(k => FR_TO_EN[k]===spEN) || spEN;
+        const pok = makePokemon(spFR, 8 + Math.floor(Math.random()*10));
+        state.pokemons.push(pok);
+        state.newPokemonsThisTurn.push(pok);
+        updatePokedex(spFR);
+        result.pokemon.push(pok);
+      }
+    }
+    // XP agent
+    if (agent) {
+      const xpGain = mDef.risque==='élevé' ? 50 : mDef.risque==='moyen' ? 30 : 15;
+      grantAgentXP(agent, xpGain);
+    }
+    state.reputation = Math.min(100, (state.reputation||0) + 2);
+    addLog(`✅ ${mDef.nom?.[lang]||mDef.nom} — ${lang==='fr'?'Succès':'Success'} (${agent?.name})`);
+  } else {
+    state.reputation = Math.max(0, (state.reputation||0) - 3);
+    addLog(`❌ ${mDef.nom?.[lang]||mDef.nom} — ${lang==='fr'?'Échec':'Failure'} (${agent?.name})`);
+  }
+
+  // Événement Jenny : peut saisir un Pokémon de l'équipe de l'agent
+  if (jennyEvent && agent?.team?.length) {
+    const pkmId = pick(agent.team);
+    const pkmObj = state.pokemons.find(p => p.id===pkmId);
+    if (pkmObj) {
+      result.losses.push(pkmObj.species_fr || pkmObj.species_en);
+      state.pokemons = state.pokemons.filter(p => p.id !== pkmId);
+      agent.team = agent.team.filter(id => id !== pkmId);
+      addLog(`🚔 Jenny a saisi ${pkmObj.species_fr || pkmObj.species_en} !`);
+    }
+  }
+
+  // Mort en mission : risque selon difficulté
+  const deathRisk = mDef.risque==='élevé' ? 0.12 : mDef.risque==='moyen' ? 0.05 : 0.01;
+  if (!success && agent?.team?.length && Math.random() < deathRisk) {
+    const pkmId = pick(agent.team);
+    const pkmObj = state.pokemons.find(p => p.id===pkmId);
+    if (pkmObj) {
+      result.losses.push(`${pkmObj.species_fr||pkmObj.species_en} (${lang==='fr'?'mort':'died'})`);
+      state.pokemons = state.pokemons.filter(p => p.id !== pkmId);
+      agent.team = agent.team.filter(id => id !== pkmId);
+      addLog(`💀 ${pkmObj.species_fr||pkmObj.species_en} est mort en mission.`);
+    }
+  }
+
+  // Cooldown post-mission
+  if (agent) {
+    const hasBourreau = (agent.traits||[]).includes('bourreau_de_travail');
+    agent.cooldown = hasBourreau ? 0 : 1;
+  }
+  // Cooldown Pokémon
+  if (agent?.team) {
+    agent.team.forEach(pkmId => {
+      const pkmObj = state.pokemons.find(p => p.id===pkmId);
+      if (pkmObj) {
+        const hasBourreau = (agent.traits||[]).includes('bourreau_de_travail');
+        pkmObj.cooldown = hasBourreau ? 1 : 2;
+      }
+    });
+  }
+
+  // Popup de résolution
+  showMissionPopup(mDef, agent, result);
+
+  return result;
+}
+
+// Remplacement de processMissions par processMissionsV2
+function processMissionsV2() {
+  if (!state.missions) state.missions = [];
+  state.missions.forEach(mi => mi.turnsLeft -= 1);
+  const done = state.missions.filter(mi => mi.turnsLeft <= 0);
+  state.missions = state.missions.filter(mi => mi.turnsLeft > 0);
+  done.forEach(mi => resolveMissionV2(mi));
+
+  // Décrémente cooldowns agents
+  state.agents.forEach(a => { if (a.cooldown > 0) a.cooldown -= 1; });
+  // Décrémente cooldowns pokémons
+  state.pokemons.forEach(p => { if (p.cooldown > 0) p.cooldown -= 1; });
+}
+
+function renderMissionsV2() {
+  const el = document.getElementById('missionsList');
+  if (!el) return;
+  const T = {
+    fr:{ avail:'Missions disponibles', ongoing:'Missions en cours', none:'Aucune.', send:'Envoyer', noAgent:'Aucun agent libre', turns:'tour(s)', risk:'risque', reward:'Récompense' },
+    en:{ avail:'Available Missions', ongoing:'Ongoing Missions', none:'None.', send:'Send', noAgent:'No free agent', turns:'turn(s)', risk:'risk', reward:'Reward' },
+  }[lang];
+
+  let html = `<h4>${T.avail}</h4>`;
+  if (!state.availableMissions?.length) html += `<div class="mission-card">${T.none}</div>`;
+  else html += state.availableMissions.map(m => {
+    const agentLibre = state.agents.find(a =>
+      !(state.missions||[]).some(mi => mi.agentId === a.id) && !(a.cooldown > 0)
+    );
+    const nom = m.nom?.[lang] || m.nom || m.id;
+    const desc = m.desc?.[lang] || m.desc || '';
+    const rwStr = Object.entries(m.recompense||{}).map(([k,v])=>`${v} ${k}`).join(', ');
+    return `<div class="mission-card">
+      <strong>${nom}</strong>
+      <span class="badge-mission">${m.risque||'?'}</span>
+      <small>${desc}</small>
+      <small>${m.duree} ${T.turns} — ${T.reward} : ${rwStr}</small>
+      ${agentLibre
+        ? `<button class="small" onclick="assignMissionV2('${m.id}','${agentLibre.id}')">${T.send} ${agentLibre.name}</button>`
+        : `<small><em>${T.noAgent}</em></small>`}
+    </div>`;
+  }).join('');
+
+  html += `<h4>${T.ongoing}</h4>`;
+  if (!state.missions?.length) html += `<div class="mission-card">${T.none}</div>`;
+  else html += state.missions.map(mi => {
+    const agent = state.agents.find(a => a.id === mi.agentId);
+    const mDef = MISSIONS_V2.find(x => x.id === mi.missionId) || MISSIONS.find(x => x.id === mi.missionId);
+    const nom = mDef?.nom?.[lang] || mDef?.nom || mi.missionId;
+    return `<div class="mission-card"><strong>${nom}</strong> — ${agent?.name||'?'} — ${mi.turnsLeft} ${T.turns}</div>`;
+  }).join('');
+  el.innerHTML = html;
+}
+
+function assignMissionV2(missionId, agentId) {
+  const m = MISSIONS_V2.find(x => x.id === missionId) || MISSIONS.find(x => x.id === missionId);
+  const agent = state.agents.find(a => a.id === agentId);
+  if (!m || !agent) return;
+  if (!state.missions) state.missions = [];
+  state.missions.push({ missionId, agentId, turnsLeft:m.duree, recompense:m.recompense });
+  state.availableMissions = state.availableMissions.filter(x => x.id !== missionId);
+  addLog(`${lang==='fr'?'Mission lancée':'Mission started'} : "${m.nom?.[lang]||m.nom}" — ${agent.name}`);
+  saveState(); render();
+}
+
+
+// ============================================================
+// MODULE v4.04 — RECRUTEMENT V2
+// ============================================================
+
+// ============================================================
+// PATCH v4.04 — RECRUTEMENT V2
+// 3 interactions max, coût 100₽ chacune
+// ============================================================
+
+const RECRUIT_MAX_INTERACTIONS = 3;
+const RECRUIT_COST_PER_STEP    = 100; // Pokédollars
+
+// Override de recruitStep (remplace la version v3)
+async function recruitStepV2() {
+  const r = state.recruit;
+  if (!r || r.finished) return;
+
+  const message = ui.recruitMessage.value.trim();
+  if (!message) return;
+
+  // Coût
+  if (state.resources.pokedollars < RECRUIT_COST_PER_STEP) {
+    const msg = lang==='fr'
+      ? `Pas assez de Pokédollars pour cette interaction. (${RECRUIT_COST_PER_STEP}₽ requis)`
+      : `Not enough Pokédollars for this interaction. (${RECRUIT_COST_PER_STEP}₽ needed)`;
+    ui.recruitTranscript.innerHTML += `<div class="logline" style="color:var(--danger)">${msg}</div>`;
+    return;
+  }
+
+  state.resources.pokedollars -= RECRUIT_COST_PER_STEP;
+  ui.recruitMessage.value = '';
+  r.interactions += 1;
+  r.transcript.push(`${lang==='fr'?'Vous':'You'} : ${message}`);
+
+  const npc = r.npc;
+  const systemPrompt = buildNpcSystemPrompt(npc);
+  const fullPrompt   = `${systemPrompt}\n\n${lang==='fr'?'Message du recruteur':'Recruiter message'} : "${message}"\n\nRéponds en JSON strict : {"reply":"...","scoreDelta":-2..2}`;
+  const fallback     = JSON.stringify({ reply:`${r.candidateName} : ${lang==='fr'?'Continue...':'Go on...'}`, scoreDelta: message.length > 20 ? 1 : 0 });
+  const llmOut       = await callOllama(fullPrompt, fallback);
+
+  let reply = `${r.candidateName} : ${lang==='fr'?'Je t'écoute.':'I'm listening.'}`;
+  let delta  = 0;
+  try {
+    const jsonText = llmOut.includes('{') ? llmOut.slice(llmOut.indexOf('{'), llmOut.lastIndexOf('}')+1) : llmOut;
+    const parsed   = JSON.parse(jsonText);
+    reply = parsed.reply || reply;
+    delta = Math.max(-2, Math.min(2, Number(parsed.scoreDelta)||0));
+  } catch {
+    delta = message.includes('Rocket')||message.includes('ressource')||message.includes('resource') ? 1 : 0;
+  }
+
+  r.hiddenScore = Math.max(1, Math.min(10, r.hiddenScore + delta));
+  r.transcript.push(reply);
+
+  // Fin à 3 interactions
+  if (r.interactions >= RECRUIT_MAX_INTERACTIONS) {
+    r.finished = true;
+    if (r.hiddenScore >= 5) {
+      const hasBourreau = Math.random() < 0.15; // 15% de chance d'avoir ce trait
+      const newAgent = {
+        id:      `ag-${Date.now()}`,
+        name:    r.candidateName,
+        rank:    r.candidateRole,
+        level:   1, xp:0, cooldown:0,
+        team:    [],
+        traits:  hasBourreau ? ['bourreau_de_travail'] : [],
+        sprite:  npc.sprite,
+        personality:      npc.personality,
+        catch_phrases:    npc.catch_phrases,
+        pokemon_preferences: npc.pokemon_preferences,
+        missions:[],
+      };
+      state.agents.push(newAgent);
+      npc.possible_pokemon.forEach(spFR => state.pokemons.push(makePokemon(spFR)));
+      state.reputation = Math.min(100, (state.reputation||0) + 3);
+      const traitMsg = hasBourreau ? (lang==='fr' ? ' [Bourreau de travail !]' : ' [Workaholic!]') : '';
+      addLog(`✅ ${lang==='fr'?'Recrutement réussi':'Recruitment successful'} : ${r.candidateName}${traitMsg}`);
+      r.transcript.push(`--- ${lang==='fr'?'Recrutement réussi':'Recruitment successful'} ---`);
+    } else {
+      addLog(`❌ ${lang==='fr'?'Recrutement échoué':'Recruitment failed'} : ${r.candidateName}`);
+      r.transcript.push(`--- ${lang==='fr'?'Refus':'Refused'} ---`);
+    }
+  }
+
+  saveState(); render();
+}
+
+// Mise à jour du render de recrutement pour afficher les 3 étapes
+function renderRecruitV2() {
+  if (!state.recruit) initRecruit();
+  const r    = state.recruit;
+  const npc  = r.npc;
+  const T = {
+    fr:{ inter:'Interaction', max:'max', cost:'coût', score:'Score', finished:'Recrutement terminé.', newNext:'Nouveau candidat au prochain tour.', send:'Envoyer', placeholder:'Argumente pour recruter…' },
+    en:{ inter:'Interaction', max:'max', cost:'cost', score:'Score', finished:'Recruitment over.', newNext:'New candidate next turn.', send:'Send', placeholder:'Make your pitch…' },
+  }[lang];
+
+  const spriteImg = npc?.sprite ? `<img src="${npc.sprite}" style="height:48px;vertical-align:middle;margin-right:8px;">` : '';
+  const traits   = (npc?.personality||[]).join(', ');
+  const pkmnFR   = (npc?.possible_pokemon||[]).join(', ');
+  const phrase   = (npc?.catch_phrases||['...'])[0];
+  const stepsLeft = RECRUIT_MAX_INTERACTIONS - (r.interactions||0);
+
+  // Barre de progression des interactions
+  const stepBar = [1,2,3].map(i =>
+    `<span style="display:inline-block;width:18px;height:18px;border-radius:50%;margin:0 3px;
+      background:${i <= (r.interactions||0) ? '#ffcc5a' : '#4b3e83'};
+      border:2px solid ${i <= (r.interactions||0) ? '#ffcc5a' : '#4b3e83'}"></span>`
+  ).join('');
+
+  const recruitCandidateEl = document.getElementById('recruitCandidate');
+  if (!recruitCandidateEl) return;
+
+  if (r.finished) {
+    recruitCandidateEl.innerHTML = `<div class="card"><em>${T.finished}<br>${T.newNext}</em></div>`;
+  } else {
+    recruitCandidateEl.innerHTML = `
+      <div class="card" style="display:flex;align-items:center;gap:8px;">
+        ${spriteImg}
+        <div style="flex:1">
+          <strong>${r.candidateName}</strong> — ${r.candidateRole}<br>
+          <small>Traits : ${traits}</small><br>
+          <small>Pokémon : ${pkmnFR}</small><br>
+          <small style="color:rgba(255,255,255,.5)">"${phrase}"</small><br>
+          <div style="margin-top:6px">${stepBar}
+            <span style="font-size:.65em;color:var(--muted);margin-left:6px">
+              ${r.interactions}/${RECRUIT_MAX_INTERACTIONS} — ${RECRUIT_COST_PER_STEP}₽/${T.cost}
+            </span>
+          </div>
+          ${!r.finished && stepsLeft>0
+            ? `<small style="color:var(--accent)">${lang==='fr'?'Reste':'Remaining'} : ${stepsLeft} — Total : ${stepsLeft*RECRUIT_COST_PER_STEP}₽</small>`
+            : ''}
+        </div>
+      </div>`;
+  }
+
+  const transcriptEl = document.getElementById('recruitTranscript');
+  if (transcriptEl) {
+    transcriptEl.innerHTML = r.transcript.length
+      ? r.transcript.map(line => `<div class="logline">${line}</div>`).join('')
+      : `<div class="log">${lang==='fr'?'Démarre une discussion.':'Start a conversation.'}</div>`;
+  }
+
+  // Mise à jour placeholder
+  const inp = document.getElementById('recruitMessage');
+  if (inp) inp.placeholder = T.placeholder;
+  const btn = document.getElementById('sendRecruitBtn');
+  if (btn) btn.textContent = T.send;
+}
+
+
+// ============================================================
+// MODULE v4.05 — NIVEAUX AGENTS
+// ============================================================
+
+// ============================================================
+// PATCH v4.05 — NIVEAUX AGENTS + COOLDOWN
+// ============================================================
+
+const AGENT_XP_THRESHOLDS = [0, 50, 120, 250, 500]; // index = level-1
+
+function grantAgentXP(agent, xp) {
+  if (!agent) return;
+  agent.xp = (agent.xp||0) + xp;
+  const prevLevel = agent.level || 1;
+  // Calcul du nouveau level
+  let newLevel = 1;
+  for (let i = AGENT_XP_THRESHOLDS.length-1; i>=0; i--) {
+    if (agent.xp >= AGENT_XP_THRESHOLDS[i]) { newLevel = i+1; break; }
+  }
+  agent.level = newLevel;
+  if (newLevel > prevLevel) {
+    addLog(`⬆ ${agent.name} ${lang==='fr'?'passe au niveau':'reached level'} ${newLevel} !`);
+  }
+}
+
+function agentMissionSuccessRate(agent) {
+  const lvlBonus  = (agent?.level||1) * 5;
+  const repBonus  = (state.reputation||0) * 0.6;
+  return Math.min(90, 35 + lvlBonus + repBonus);
+}
+
+function renderAgentsV2() {
+  const el = document.getElementById('agentsList');
+  if (!el) return;
+  const T = {
+    fr:{ cd:'Repos', turns:'tour(s)', noTeam:'Aucune équipe', mission:'en mission', trait:'Bourreau de travail', xpTo:'XP suivant niveau' },
+    en:{ cd:'Rest',  turns:'turn(s)', noTeam:'No team',       mission:'on mission', trait:'Workaholic',          xpTo:'XP to next level' },
+  }[lang];
+
+  el.innerHTML = state.agents.map(a => {
+    const enMission = (state.missions||[]).some(mi => mi.agentId === a.id);
+    const inCooldown = (a.cooldown||0) > 0;
+    const sprite = a.sprite ? `<img src="${a.sprite}" style="height:36px;vertical-align:middle;margin-right:6px;">` : '';
+    const traits  = (a.personality||[]).join(', ');
+    const isBourreau = (a.traits||[]).includes('bourreau_de_travail');
+
+    // Barre XP
+    const currThreshold = AGENT_XP_THRESHOLDS[(a.level||1)-1] || 0;
+    const nextThreshold = AGENT_XP_THRESHOLDS[a.level]  || AGENT_XP_THRESHOLDS[AGENT_XP_THRESHOLDS.length-1];
+    const xpProgress = nextThreshold > currThreshold
+      ? Math.min(100, Math.round(((a.xp||0)-currThreshold)/(nextThreshold-currThreshold)*100))
+      : 100;
+
+    return `<div class="card">
+      ${sprite}
+      <strong>${a.name}</strong> — ${a.rank}
+      <span style="font-size:.7em;color:var(--accent);margin-left:6px">Nv.${a.level||1}</span>
+      ${enMission ? `<span style="color:#e53;font-size:.7em"> [${T.mission}]</span>` : ''}
+      ${inCooldown ? `<span style="color:#7060a8;font-size:.7em"> [${T.cd} ${a.cooldown} ${T.turns}]</span>` : ''}
+      <div style="font-size:.68em;color:var(--muted);margin-top:2px">${traits}</div>
+      ${isBourreau ? `<div style="font-size:.62em;color:var(--ok)">★ ${T.trait}</div>` : ''}
+      <div style="margin-top:4px">
+        <div style="font-size:.6em;color:var(--muted)">${T.xpTo} : ${(a.xp||0)}/${nextThreshold} XP</div>
+        <div class="rep-bar" style="margin-top:3px">
+          <div class="rep-fill" style="width:${xpProgress}%;background:var(--line)"></div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+
+// ============================================================
+// MODULE v4.06 — NIVEAUX POKÉMON + ÉVOLUTION
+// ============================================================
+
+// ============================================================
+// PATCH v4.06 — NIVEAUX POKÉMON + ÉVOLUTION + EVENTS SPÉCIAUX
+// ============================================================
+
+// Table d'évolution Gen1/Gen2 (niveau minimal + espèce FR cible)
+const EVOLUTION_TABLE = {
+  'abo':          { level:22, into_fr:'arbok',       into_en:'arbok' },
+  'nosferapti':   { level:22, into_fr:'nosferalto',  into_en:'golbat' },
+  'smogo':        { level:35, into_fr:'smogogo',     into_en:'weezing' },
+  'voltorbe':     { level:30, into_fr:'électrode',   into_en:'electrode' },
+  'fantominus':   { level:25, into_fr:'spectrum',    into_en:'haunter' },
+  'magneti':      { level:30, into_fr:'magnéton',    into_en:'magneton' },
+  'osselait':     { level:28, into_fr:'ossatueur',   into_en:'marowak' },
+  'soporifik':    { level:26, into_fr:'hypnomade',   into_en:'hypno' },
+  'miaouss':      { level:28, into_fr:'persian',     into_en:'persian' },
+  'magicarpe':    { level:20, into_fr:'léviator',    into_en:'gyarados' },
+  'ptitard':      { level:25, into_fr:'têtarte',     into_en:'poliwhirl' },
+  'feuforêve':    { level:24, into_fr:'démolosse',   into_en:'houndoom' },
+  'munja':        { level:1,  into_fr:'munja',       into_en:'murkrow' }, // pas d'évolution Gen2
+  'farfuret':     { level:1,  into_fr:'farfuret',    into_en:'sneasel' },
+  'abra':         { level:16, into_fr:'kadabra',     into_en:'kadabra' },
+  'racaillou':    { level:25, into_fr:'gravalanch',  into_en:'graveler' },
+  'héricendre':   { level:14, into_fr:'feurisson',   into_en:'quilava' },
+  'germignon':    { level:16, into_fr:'macronium',   into_en:'bayleef' },
+  'kaiminus':     { level:18, into_fr:'crocrodil',   into_en:'croconaw' },
+};
+
+// Événements spéciaux d'entraînement
+const TRAINING_EVENTS = {
+  fr: [
+    { id:'ev_atk',  label:'Percée offensive !',   effect:{ stat:'atk',  delta:+5 }, positive:true },
+    { id:'ev_def',  label:'Carapace renforcée !',  effect:{ stat:'def',  delta:+5 }, positive:true },
+    { id:'ev_hp',   label:'Endurance décuplée !',  effect:{ stat:'hp',   delta:+10 }, positive:true },
+    { id:'ev_fear', label:'Traumatisme de combat.', effect:{ stat:'accuracy', delta:-10 }, positive:false },
+    { id:'ev_weak', label:'Blessure chronique.',   effect:{ stat:'hp',   delta:-5  }, positive:false },
+  ],
+  en: [
+    { id:'ev_atk',  label:'Offensive breakthrough!', effect:{ stat:'atk',  delta:+5 }, positive:true },
+    { id:'ev_def',  label:'Reinforced shell!',        effect:{ stat:'def',  delta:+5 }, positive:true },
+    { id:'ev_hp',   label:'Increased endurance!',     effect:{ stat:'hp',   delta:+10 }, positive:true },
+    { id:'ev_fear', label:'Battle trauma.',           effect:{ stat:'accuracy', delta:-10 }, positive:false },
+    { id:'ev_weak', label:'Chronic injury.',          effect:{ stat:'hp',   delta:-5  }, positive:false },
+  ],
+};
+
+function grantPokemonXP(pkm, xp) {
+  if (!pkm) return;
+  pkm.xp    = (pkm.xp||0) + xp;
+  // Chaque tranche de 30 XP = +1 niveau
+  const newLevel = 1 + Math.floor(pkm.xp / 30);
+  if (newLevel > (pkm.level||1)) {
+    pkm.level = newLevel;
+    addLog(`⬆ ${pkm.species_fr||pkm.species_en} ${lang==='fr'?'passe':'reached'} Nv.${pkm.level} !`);
+  }
+}
+
+function checkEvolution(pkm) {
+  const key = (pkm.species_fr||'').toLowerCase();
+  const evo = EVOLUTION_TABLE[key];
+  if (!evo) return false;
+  if (evo.level <= 1) return false; // pas d'évolution
+  if ((pkm.level||1) < evo.level) return false;
+  if (pkm.evolved) return false; // déjà évolué une fois
+
+  // Évolution !
+  const oldName = pkm.species_fr;
+  pkm.species_fr = evo.into_fr;
+  pkm.species_en = evo.into_en;
+  pkm.evolved    = true;
+  updatePokedex(evo.into_fr);
+  addLog(`✨ ${oldName} a évolué en ${evo.into_fr} !`);
+  return true;
+}
+
+function rollTrainingEvent(salle) {
+  const eventChance = 0.05 + 0.03 * (salle.level||1);
+  if (Math.random() > eventChance) return null;
+  const events = TRAINING_EVENTS[lang] || TRAINING_EVENTS.fr;
+  return pick(events);
+}
+
+function applyTrainingEvent(pkm, event) {
+  if (!pkm || !event) return;
+  if (!pkm.bonuses) pkm.bonuses = {};
+  pkm.bonuses[event.effect.stat] = (pkm.bonuses[event.effect.stat]||0) + event.effect.delta;
+  const sign = event.effect.delta > 0 ? '+' : '';
+  addLog(`⚡ [Événement] ${pkm.species_fr||pkm.species_en} : ${event.label} (${sign}${event.effect.delta} ${event.effect.stat})`);
+}
+
+
+// ============================================================
+// MODULE v4.07 — SALLES V2
+// ============================================================
+
+// ============================================================
+// PATCH v4.07 — SALLES V2
+// Salle d'apprentissage du combat + Salle d'entraînement Pokémon
+// ============================================================
+
+// ── STATE ADDITIONS ───────────────────────────────────────
+// Ajouté dans BASE_STATE.rooms :
+// learning:  { nom, level, assignedAgentId, upgradeCost }
+// pkm_train: { nom, level, assignedPokemonIds:[], upgradeCost }
+
+const LEARNING_ROOM_DEFAULTS = {
+  nom:            { fr:'Salle d'apprentissage', en:'Learning Room' },
+  level:          1,
+  assignedAgentId:null,
+  upgradeCost:    600,
+  baseXpPerFight: 5,   // XP agent par combat simulé
+  pkmXpPerFight:  2,   // XP Pokémon par combat simulé
+};
+
+const PKM_TRAIN_ROOM_DEFAULTS = {
+  nom:                { fr:'Salle d'entraînement Pokémon', en:'Pokémon Training Room' },
+  level:              1,
+  assignedPokemonIds: [],
+  upgradeCost:        600,
+  baseXpPerTurn:      12,   // XP Pokémon/tour au niveau 1
+};
+
+function initRoomsV2() {
+  if (!state.rooms.learning) {
+    state.rooms.learning  = { ...LEARNING_ROOM_DEFAULTS };
+  }
+  if (!state.rooms.pkm_train) {
+    state.rooms.pkm_train = { ...PKM_TRAIN_ROOM_DEFAULTS, assignedPokemonIds:[] };
+  }
+}
+
+// Slots Pokémon disponibles dans la salle d'entraînement selon son level
+function pkmTrainSlots(room) {
+  if ((room.level||1) >= 5) return 3;
+  if ((room.level||1) >= 3) return 2;
+  return 1;
+}
+
+// ── PROCESSING ────────────────────────────────────────────
+function processLearningRoom() {
+  const room = state.rooms.learning;
+  if (!room || !room.assignedAgentId) return;
+  const agent = state.agents.find(a => a.id === room.assignedAgentId);
+  if (!agent) return;
+  if ((agent.cooldown||0) > 0) return; // agent en repos
+
+  const fights = 5;
+  const agentXP = fights * room.baseXpPerFight;
+  grantAgentXP(agent, agentXP);
+
+  // XP pour les Pokémon de l'agent
+  agent.team.forEach(pkmId => {
+    const pkm = state.pokemons.find(p => p.id === pkmId);
+    if (pkm && !(pkm.cooldown > 0)) {
+      grantPokemonXP(pkm, fights * room.pkmXpPerFight);
+    }
+  });
+  addLog(`📚 ${agent.name} ${lang==='fr'?'a fait':'did'} ${fights} ${lang==='fr'?'combats simulés':'simulated fights'} (+${agentXP} XP)`);
+}
+
+function processPkmTrainingRoom() {
+  const room = state.rooms.pkm_train;
+  if (!room || !room.assignedPokemonIds?.length) return;
+
+  const xpPerTurn = (room.baseXpPerTurn||12) * (room.level||1);
+
+  room.assignedPokemonIds.forEach(pkmId => {
+    const pkm = state.pokemons.find(p => p.id === pkmId);
+    if (!pkm || (pkm.cooldown||0) > 0) return;
+
+    // XP
+    grantPokemonXP(pkm, xpPerTurn);
+
+    // Évolution ?
+    checkEvolution(pkm);
+
+    // Événement spécial ?
+    const ev = rollTrainingEvent(room);
+    if (ev) {
+      applyTrainingEvent(pkm, ev);
+      // Flash visuel dans la bande des salles
+      flashRoomSprite(pkmId, ev.positive);
+    }
+  });
+}
+
+function flashRoomSprite(pkmId, positive) {
+  const el = document.getElementById(`room-sprite-${pkmId}`);
+  if (!el) return;
+  el.style.filter = positive ? 'drop-shadow(0 0 10px #70e0a4)' : 'drop-shadow(0 0 10px #ff4466)';
+  el.style.animation = 'simShake .5s';
+  setTimeout(() => {
+    el.style.filter = '';
+    el.style.animation = '';
+  }, 800);
+}
+
+// ── RENDER SALLES V2 ─────────────────────────────────────
+function renderRoomsV2() {
+  const el = document.getElementById('roomsList');
+  if (!el) return;
+
+  const T = {
+    fr:{ upgrade:'Améliorer', level:'Niv.', prod:'Prod./tour', assign:'Assigner', unassign:'Retirer', agent:'Agent assigné', none:'Aucun', pkm:'Pokémon assignés', slots:'slots', fights:'5 combats/tour' },
+    en:{ upgrade:'Upgrade',   level:'Lv.',  prod:'Prod/turn',  assign:'Assign',   unassign:'Remove',  agent:'Assigned agent',  none:'None',  pkm:'Assigned Pokémon', slots:'slots', fights:'5 fights/turn' },
+  }[lang];
+
+  let html = '';
+
+  // Salles standard (command, breeding, training)
+  const standardRooms = ['command','breeding','training'];
+  standardRooms.filter(k => state.rooms[k]).forEach(roomId => {
+    const room = state.rooms[roomId];
+    const nom = typeof room.nom === 'object' ? (room.nom[lang]||room.nom.fr) : room.nom;
+    html += `<div class="room">
+      <div><strong>${nom}</strong> ${T.level}${room.level}</div>
+      <div class="row">
+        <small>${T.prod} : ${room.baseIncome * room.level}</small>
+        <button data-room="${roomId}">${T.upgrade} ${room.upgradeCost}₽</button>
+      </div>
+    </div>`;
+  });
+
+  // Salle d'apprentissage
+  const lr = state.rooms.learning;
+  if (lr) {
+    const nom = lr.nom?.[lang] || lr.nom?.fr || 'Salle d'apprentissage';
+    const assignedAgent = lr.assignedAgentId ? state.agents.find(a => a.id === lr.assignedAgentId) : null;
+    const freeAgents = state.agents.filter(a => !(state.missions||[]).some(mi=>mi.agentId===a.id) && !(a.cooldown>0));
+
+    html += `<div class="room">
+      <div><strong>${nom}</strong> ${T.level}${lr.level} <small>(${T.fights})</small></div>
+      <div><small>${T.agent} : ${assignedAgent ? assignedAgent.name : T.none}</small></div>
+      ${assignedAgent
+        ? `<button data-unassign-learning>✕ ${T.unassign}</button>`
+        : `<select id="learningAgentSelect">${freeAgents.map(a=>`<option value="${a.id}">${a.name}</option>`).join('')}</select>
+           <button data-assign-learning>${T.assign}</button>`}
+      <div class="row" style="margin-top:4px">
+        <button data-room="learning">${T.upgrade} ${lr.upgradeCost}₽</button>
+      </div>
+    </div>`;
+  }
+
+  // Salle d'entraînement Pokémon
+  const ptr = state.rooms.pkm_train;
+  if (ptr) {
+    const nom   = ptr.nom?.[lang] || ptr.nom?.fr || 'Salle d'entraînement Pokémon';
+    const slots = pkmTrainSlots(ptr);
+    const assignedPkm = (ptr.assignedPokemonIds||[]).map(id => state.pokemons.find(p=>p.id===id)).filter(Boolean);
+    const freePkm = state.pokemons.filter(p => !(ptr.assignedPokemonIds||[]).includes(p.id) && !(p.cooldown>0));
+    const canAdd  = assignedPkm.length < slots;
+
+    html += `<div class="room">
+      <div><strong>${nom}</strong> ${T.level}${ptr.level} <small>(${slots} ${T.slots})</small></div>
+      <div style="font-size:.75em;color:var(--muted)">${T.pkm} (${assignedPkm.length}/${slots}) :</div>
+      ${assignedPkm.map(p => `
+        <div style="display:flex;align-items:center;gap:4px;font-size:.75em">
+          <img src="https://play.pokemonshowdown.com/sprites/gen5/${p.species_en}.png" id="room-sprite-${p.id}"
+               style="width:28px;image-rendering:pixelated">
+          ${p.species_fr} Nv.${p.level||1}
+          ${p.cooldown>0 ? `<span style="color:#7060a8">[repos ${p.cooldown}t]</span>` : ''}
+          <button class="small" data-unassign-pkm="${p.id}">✕</button>
+        </div>`).join('')}
+      ${canAdd && freePkm.length
+        ? `<select id="pkmTrainSelect">${freePkm.map(p=>`<option value="${p.id}">${p.species_fr} Nv.${p.level||1}</option>`).join('')}</select>
+           <button data-assign-pkm>${T.assign}</button>`
+        : ''}
+      <div class="row" style="margin-top:4px">
+        <button data-room="pkm_train">${T.upgrade} ${ptr.upgradeCost}₽</button>
+      </div>
+    </div>`;
+  }
+
+  el.innerHTML = html;
+
+  // Events
+  el.querySelectorAll('button[data-room]').forEach(btn => {
+    btn.onclick = () => {
+      const room = state.rooms[btn.dataset.room];
+      if (!room) return;
+      if (state.resources.pokedollars < room.upgradeCost) {
+        addLog(lang==='fr' ? 'Pas assez de Pokédollars.' : 'Not enough Pokédollars.');
+        return;
+      }
+      state.resources.pokedollars -= room.upgradeCost;
+      room.level = (room.level||1) + 1;
+      room.upgradeCost = Math.round(room.upgradeCost * 1.5);
+      addLog(`${typeof room.nom==='object'?room.nom[lang]:room.nom} ${lang==='fr'?'améliorée':'upgraded'} — Nv.${room.level}`);
+      saveState(); render();
+    };
+  });
+  el.querySelectorAll('[data-unassign-learning]').forEach(btn => {
+    btn.onclick = () => { state.rooms.learning.assignedAgentId=null; saveState(); render(); };
+  });
+  el.querySelectorAll('[data-assign-learning]').forEach(btn => {
+    btn.onclick = () => {
+      const sel = document.getElementById('learningAgentSelect');
+      if (sel) { state.rooms.learning.assignedAgentId = sel.value; saveState(); render(); }
+    };
+  });
+  el.querySelectorAll('[data-unassign-pkm]').forEach(btn => {
+    btn.onclick = () => {
+      state.rooms.pkm_train.assignedPokemonIds =
+        (state.rooms.pkm_train.assignedPokemonIds||[]).filter(id => id !== btn.dataset.unassignPkm);
+      saveState(); render();
+    };
+  });
+  el.querySelectorAll('[data-assign-pkm]').forEach(btn => {
+    btn.onclick = () => {
+      const sel = document.getElementById('pkmTrainSelect');
+      const slots = pkmTrainSlots(state.rooms.pkm_train);
+      if (sel && (state.rooms.pkm_train.assignedPokemonIds||[]).length < slots) {
+        state.rooms.pkm_train.assignedPokemonIds = [...(state.rooms.pkm_train.assignedPokemonIds||[]), sel.value];
+        saveState(); render();
+      }
+    };
+  });
+}
+
+
+// ============================================================
+// MODULE v4.08 — SPRITES SALLES
+// ============================================================
+
+// ============================================================
+// PATCH v4.08 — BANDE SALLES EN BAS DE PAGE (Sprites animés)
+// ============================================================
+
+function renderRoomsBand() {
+  const el = document.getElementById('roomsBand');
+  if (!el) return;
+
+  const rooms = [
+    {
+      key: 'command',
+      icon: '🏢',
+      label: { fr:'Commandement', en:'Command' },
+      getSprites: () => [
+        state.profile.sprite,
+        ...(state.agents.slice(0,2).map(a=>a.sprite).filter(Boolean)),
+      ],
+    },
+    {
+      key: 'breeding',
+      icon: '🥚',
+      label: { fr:'Nurserie', en:'Nursery' },
+      getSprites: () => {
+        const bpkm = state.breedingQueue.slice(0,3).map(e => {
+          const en = FR_TO_EN[(e.species_fr||'').toLowerCase()] || e.species_fr;
+          return `https://play.pokemonshowdown.com/sprites/gen5/${en}.png`;
+        });
+        return bpkm;
+      },
+    },
+    {
+      key: 'learning',
+      icon: '📚',
+      label: { fr:'Apprentissage', en:'Learning' },
+      getSprites: () => {
+        const lr = state.rooms.learning;
+        if (!lr?.assignedAgentId) return [];
+        const agent = state.agents.find(a => a.id === lr.assignedAgentId);
+        const sprites = agent?.sprite ? [agent.sprite] : [];
+        (agent?.team||[]).slice(0,2).forEach(pkmId => {
+          const p = state.pokemons.find(x=>x.id===pkmId);
+          if (p) sprites.push(`https://play.pokemonshowdown.com/sprites/gen5/${p.species_en}.png`);
+        });
+        return sprites;
+      },
+    },
+    {
+      key: 'pkm_train',
+      icon: '⚔️',
+      label: { fr:'Entraînement', en:'Training' },
+      getSprites: () => {
+        const ptr = state.rooms.pkm_train;
+        return (ptr?.assignedPokemonIds||[]).map(id => {
+          const p = state.pokemons.find(x=>x.id===id);
+          return p ? `https://play.pokemonshowdown.com/sprites/gen5/${p.species_en}.png` : null;
+        }).filter(Boolean);
+      },
+    },
+  ];
+
+  el.innerHTML = rooms.map(r => {
+    const room = state.rooms[r.key];
+    if (!room) return '';
+    const nom = r.label[lang];
+    const sprites = r.getSprites();
+    const spriteHtml = sprites.length
+      ? sprites.map((src,i) => `
+          <img src="${src}"
+               style="width:36px;height:36px;image-rendering:pixelated;object-fit:contain;
+                      animation:bandFloat ${2.5+i*0.4}s ease-in-out infinite;
+                      animation-delay:${i*0.3}s;">`
+        ).join('')
+      : `<span style="font-size:.55em;color:var(--muted)">${lang==='fr'?'Vide':'Empty'}</span>`;
+
+    return `<div class="room-band-card" id="band-${r.key}">
+      <div class="room-band-title">${r.icon} ${nom} <span style="color:var(--muted)">Nv.${room.level||1}</span></div>
+      <div class="room-band-sprites">${spriteHtml}</div>
+    </div>`;
+  }).join('');
+}
+
+
+// ============================================================
+// MODULE v4.09 — POKÉDEX + COMBO DEX
+// ============================================================
+
+// ============================================================
+// PATCH v4.09 — POKÉDEX + COMBO DEX
+// ============================================================
+
+// ── POKÉDEX ──────────────────────────────────────────────
+// state.pokedex = { [species_fr]: { count:N, lost:N, firstSeen:turn } }
+function updatePokedex(species_fr) {
+  if (!state.pokedex) state.pokedex = {};
+  if (!state.pokedex[species_fr]) {
+    state.pokedex[species_fr] = { count:0, lost:0, firstSeen: state.turn };
+    addLog(`📖 ${lang==='fr'?'Pokédex':'Pokédex'} : ${species_fr} ${lang==='fr'?'enregistré !':'registered!'}`);
+  }
+  state.pokedex[species_fr].count += 1;
+}
+
+function markPokedexLost(species_fr) {
+  if (!state.pokedex) return;
+  if (!state.pokedex[species_fr]) return;
+  state.pokedex[species_fr].lost = (state.pokedex[species_fr].lost||0) + 1;
+}
+
+function renderPokedex() {
+  const el = document.getElementById('pokedexPanel');
+  if (!el) return;
+  const dex = state.pokedex || {};
+  const entries = Object.entries(dex);
+  const T = {
+    fr:{ title:'Pokédex', seen:'Obtenus', lost:'Perdus', empty:'Aucun Pokémon encore enregistré.' },
+    en:{ title:'Pokédex', seen:'Obtained', lost:'Lost',  empty:'No Pokémon registered yet.' },
+  }[lang];
+
+  if (!entries.length) {
+    el.innerHTML = `<div class="card">${T.empty}</div>`;
+    return;
+  }
+  el.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:6px;">
+    ${entries.map(([fr, data]) => {
+      const en = FR_TO_EN[fr.toLowerCase()] || fr;
+      return `<div class="card pokemon" style="flex-direction:column;align-items:center;padding:6px;text-align:center;">
+        <img src="https://play.pokemonshowdown.com/sprites/gen5/${en}.png"
+             style="width:40px;image-rendering:pixelated;">
+        <div style="font-size:.55em;margin-top:2px">${fr}</div>
+        <div style="font-size:.5em;color:var(--ok)">×${data.count}</div>
+        ${data.lost ? `<div style="font-size:.45em;color:var(--danger)">💀×${data.lost}</div>` : ''}
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+
+// ── COMBO DEX ─────────────────────────────────────────────
+// state.comboDex = { [key]: { pattern:[], label:'', wins:0, rewardClaimed:false } }
+
+function getTeamPattern(agent) {
+  if (!agent?.team?.length) return null;
+  const types = agent.team.map(pkmId => {
+    const p = state.pokemons.find(x => x.id === pkmId);
+    if (!p) return null;
+    const fr = (p.species_fr||'').toLowerCase();
+    // Type approximatif depuis les pools
+    for (const [type, pool] of Object.entries(POKEMON_FR_POOL_BY_TYPE)) {
+      if (pool.includes(fr)) return type;
+    }
+    return 'normal';
+  }).filter(Boolean).sort();
+  if (types.length < 2) return null;
+  return types.join('-');
+}
+
+function checkComboUnlock(agent) {
+  const pattern = getTeamPattern(agent);
+  if (!pattern) return;
+  if (!state.comboDex) state.comboDex = {};
+  if (state.comboDex[pattern]) {
+    if (!state.comboDex[pattern].rewardClaimed) {
+      state.comboDex[pattern].rewardClaimed = true;
+      state.resources.pokedollars += 10;
+      addLog(`🏆 Combo "${pattern}" validé ! +10₽`);
+    }
+    return;
+  }
+  // Nouveau combo
+  state.comboDex[pattern] = {
+    pattern: pattern.split('-'),
+    label: pattern,
+    wins: 0,
+    rewardClaimed: false,
+    firstSeen: state.turn,
+  };
+  state.resources.pokedollars += 10;
+  addLog(`🏆 ${lang==='fr'?'Nouveau combo débloqué':'New combo unlocked'} : "${pattern}" +10₽`);
+}
+
+function renderComboDex() {
+  const el = document.getElementById('comboDexPanel');
+  if (!el) return;
+  const dex = state.comboDex || {};
+  const entries = Object.entries(dex);
+  const T = {
+    fr:{ empty:'Aucun combo découvert.', apply:'Appliquer', wins:'victoires' },
+    en:{ empty:'No combo discovered.',   apply:'Apply',     wins:'wins' },
+  }[lang];
+
+  if (!entries.length) { el.innerHTML = `<div class="card">${T.empty}</div>`; return; }
+
+  el.innerHTML = entries.map(([key, data]) => {
+    // Peut-on appliquer ce combo ?
+    const canApply = data.pattern.every(type => {
+      const pool = POKEMON_FR_POOL_BY_TYPE[type] || [];
+      return state.pokemons.some(p => pool.includes((p.species_fr||'').toLowerCase()) && !(p.assignedAgentId));
+    });
+    return `<div class="card" style="font-size:.78em">
+      <strong>${data.label}</strong>
+      ${data.rewardClaimed ? '<span style="color:var(--ok)">✓</span>' : ''}
+      <div style="font-size:.8em;color:var(--muted)">${data.wins} ${T.wins}</div>
+      ${canApply
+        ? `<button class="small" onclick="applyCombo('${key}')">${T.apply}</button>`
+        : ''}
+    </div>`;
+  }).join('');
+}
+
+function applyCombo(key) {
+  const combo = state.comboDex?.[key];
+  const agent = state.agents.find(a => a.id === document.getElementById('agentSelect')?.value);
+  if (!combo || !agent) return;
+
+  const assigned = [];
+  combo.pattern.forEach(type => {
+    const pool = POKEMON_FR_POOL_BY_TYPE[type] || [];
+    const pkm = state.pokemons.find(p =>
+      pool.includes((p.species_fr||'').toLowerCase()) &&
+      !p.assignedAgentId && !assigned.includes(p.id)
+    );
+    if (pkm) assigned.push(pkm.id);
+  });
+
+  agent.team.forEach(id => { const p = state.pokemons.find(x=>x.id===id); if(p) p.assignedAgentId=null; });
+  agent.team = assigned.slice(0,3);
+  assigned.forEach(id => { const p = state.pokemons.find(x=>x.id===id); if(p) p.assignedAgentId=agent.id; });
+  checkComboUnlock(agent);
+  addLog(`Combo "${key}" appliqué à ${agent.name}.`);
+  saveState(); render();
+}
+
+
+// ============================================================
+// MODULE v4.10 — CHAT ALLIÉ
+// ============================================================
+
+// ============================================================
+// PATCH v4.10 — CHAT PNJ ALLIÉ RECENTRÉ
+// 1 conversation/tour, uniquement agents recrutés
+// ============================================================
+
+// state.chatUsedThisTurn = false | agentId
+
+function renderAllyChat() {
+  const el = document.getElementById('allyChatPanel');
+  if (!el) return;
+  const T = {
+    fr:{ title:'Briefing allié', used:'Conversation utilisée ce tour.', pick:'Choisir un allié', send:'Parler', placeholder:'Message à l'allié…', hint:'1 conversation disponible par tour.' },
+    en:{ title:'Ally Briefing',  used:'Conversation used this turn.',    pick:'Choose an ally',  send:'Talk',   placeholder:'Message to ally…',    hint:'1 conversation available per turn.' },
+  }[lang];
+
+  const alreadyUsed = !!state.chatUsedThisTurn;
+
+  const agentOptions = state.agents.map(a =>
+    `<option value="${a.id}" ${state.chatUsedThisTurn===a.id?'disabled':''}>
+      ${a.name} — ${a.rank}
+    </option>`
+  ).join('');
+
+  el.innerHTML = `
+    <h2>${T.title}</h2>
+    ${alreadyUsed
+      ? `<div class="card" style="font-size:.78em;color:var(--muted)">${T.used}</div>`
+      : `<small style="color:var(--muted);font-size:.7em">${T.hint}</small>`}
+    <label style="font-size:.75em">${T.pick}
+      <select id="allyChatAgentSelect">${agentOptions}</select>
+    </label>
+    <div class="chat">
+      <input id="allyChatInput" type="text" placeholder="${T.placeholder}" ${alreadyUsed?'disabled':''}>
+      <button id="allyChatSendBtn" ${alreadyUsed?'disabled':''} onclick="sendAllyChat()">${T.send}</button>
+    </div>
+    <div id="allyChatLog" class="logs" style="max-height:160px;margin-top:6px"></div>
+  `;
+
+  // Log de la conversation du tour
+  const log = state.allyChatLog || [];
+  const logEl = document.getElementById('allyChatLog');
+  if (logEl) {
+    logEl.innerHTML = log.map(l => `<div class="logline">${l}</div>`).join('') ||
+      `<div style="font-size:.7em;color:var(--muted)">${lang==='fr'?'Aucune conversation.':'No conversation.'}</div>`;
+  }
+
+  // Enter key
+  const inp = document.getElementById('allyChatInput');
+  if (inp) inp.onkeydown = e => { if(e.key==='Enter') sendAllyChat(); };
+}
+
+async function sendAllyChat() {
+  if (state.chatUsedThisTurn) return;
+  const sel = document.getElementById('allyChatAgentSelect');
+  const inp = document.getElementById('allyChatInput');
+  if (!sel || !inp) return;
+  const msg = inp.value.trim();
+  if (!msg) return;
+  inp.value = '';
+
+  const agentId = sel.value;
+  const agent   = state.agents.find(a => a.id === agentId);
+  if (!agent) return;
+
+  state.chatUsedThisTurn = agentId;
+  if (!state.allyChatLog) state.allyChatLog = [];
+  state.allyChatLog = []; // reset à chaque tour (voir processTurn)
+  state.allyChatLog.push(`${lang==='fr'?'Vous':'You'} → ${agent.name} : ${msg}`);
+
+  // LLM ou fallback
+  const system  = buildNpcSystemPrompt(agent);
+  const prompt  = `${system}
+
+${lang==='fr'?'Message reçu':'Message received'} : "${msg}"
+${lang==='fr'?'Réponds en une ou deux phrases.':'Answer in one or two sentences.'}`;
+  const fallback= `${agent.name} : ${pick(agent.catch_phrases||['...'])}`;
+  const reply   = await callOllama(prompt, fallback);
+
+  state.allyChatLog.push(reply);
+
+  // Chance de bonus narratif
+  if (Math.random() < 0.2) {
+    const bonuses = {
+      fr: ['Cette conversation te donne des informations utiles. +1 Intel.', 'L'agent partage un tuyau. +50₽.', 'Un détail révélateur. +1 Intel.'],
+      en: ['This conversation yields useful intel. +1 Intel.', 'The agent shares a tip. +50₽.', 'A revealing detail. +1 Intel.'],
+    };
+    const bonus = pick(bonuses[lang] || bonuses.fr);
+    if (bonus.includes('Intel')) state.resources.intel += 1;
+    else state.resources.pokedollars += 50;
+    state.allyChatLog.push(`💡 ${bonus}`);
+    addLog(`💡 ${bonus}`);
+  }
+
+  addLog(`[Chat] ${agent.name} : ${reply.slice(0, 80)}…`);
+  saveState(); render();
+}
+
+// Réinitialise le chat en début de tour (appelé dans processTurn)
+function resetAllyChat() {
+  state.chatUsedThisTurn = false;
+  state.allyChatLog = [];
+}
+
+
+// ============================================================
+// MODULE v4.11 — LORE NPCs
+// ============================================================
+
+// ============================================================
+// PATCH v4.11 — LORE NPCs
+// Giovanni, Archer, Ariana, Jessie, James, Oak, Red
+// ============================================================
+
+const LORE_NPCS = {
+  giovanni: {
+    id: 'lore_giovanni',
+    name: { fr:'Giovanni', en:'Giovanni' },
+    rank: { fr:'Boss de la Team Rocket', en:'Team Rocket Boss' },
+    faction: 'team_rocket',
+    sprite: 'https://play.pokemonshowdown.com/sprites/trainers/giovanni-gen2.png',
+    personality: ['froid','calculateur','impitoyable'],
+    values: ['pouvoir','argent','contrôle'],
+    speech_style: { tone:'autoritaire', verbosity:'court', formality:'high' },
+    catch_phrases: {
+      fr:['Le pouvoir est tout.','Tu es un outil. Sois utile.','La Team Rocket ne pardonne pas l'échec.','Rapporte-moi des résultats, pas des excuses.'],
+      en:['Power is everything.','You are a tool. Be useful.','Team Rocket does not forgive failure.','Bring me results, not excuses.'],
+    },
+    pokemon_preferences: ['psychic','poison'],
+    possible_pokemon: ['persian','nidoking','nidoqueen'],
+    activation: { minReputation: 0, alwaysPresent: true },
+    role_in_game: 'supervisor', // apparaît sur missions élevées
+  },
+
+  archer: {
+    id: 'lore_archer',
+    name: { fr:'Archer', en:'Archer' },
+    rank: { fr:'Sous-Chef Rocket', en:'Team Rocket Admin' },
+    faction: 'team_rocket',
+    sprite: 'https://play.pokemonshowdown.com/sprites/trainers/archer.png',
+    personality: ['loyal','méthodique','ambitieux'],
+    values: ['ordre','hiérarchie','discipline'],
+    speech_style: { tone:'professionnel', verbosity:'moyen', formality:'medium' },
+    catch_phrases: {
+      fr:['Les ordres viennent d'en haut.','Efficacité avant tout.','Archer surveille tout.'],
+      en:['Orders come from above.','Efficiency above all.','Archer watches everything.'],
+    },
+    pokemon_preferences: ['dark','poison'],
+    possible_pokemon: ['houndour','murkrow','weezing'],
+    activation: { minReputation: 40 },
+    role_in_game: 'ally_agent',
+  },
+
+  ariana: {
+    id: 'lore_ariana',
+    name: { fr:'Ariane', en:'Ariana' },
+    rank: { fr:'Sous-Chef Rocket', en:'Team Rocket Admin' },
+    faction: 'team_rocket',
+    sprite: 'https://play.pokemonshowdown.com/sprites/trainers/ariana.png',
+    personality: ['impitoyable','directe','protectrice'],
+    values: ['loyauté','force','survie'],
+    speech_style: { tone:'agressif', verbosity:'court', formality:'low' },
+    catch_phrases: {
+      fr:['Ne me fais pas perdre mon temps.','Montre ta valeur.','Je ne fais pas dans la demi-mesure.'],
+      en:['Don't waste my time.','Prove your worth.','I don't do things halfway.'],
+    },
+    pokemon_preferences: ['poison','fighting'],
+    possible_pokemon: ['arbok','murkrow','vileplume'],
+    activation: { minReputation: 40 },
+    role_in_game: 'ally_agent',
+  },
+
+  jessie: {
+    id: 'lore_jessie',
+    name: { fr:'Jessie', en:'Jessie' },
+    rank: { fr:'Agent Rocket', en:'Rocket Agent' },
+    faction: 'team_rocket',
+    sprite: 'https://play.pokemonshowdown.com/sprites/trainers/jessie.png',
+    personality: ['théâtrale','orgueilleuse','déterminée'],
+    values: ['gloire','beauté','vengeance'],
+    speech_style: { tone:'dramatique', verbosity:'long', formality:'low' },
+    catch_phrases: {
+      fr:['Préparez-vous pour les ennuis !','La beauté et la ruse, c'est notre devise.','Personne ne m'arrêtera !'],
+      en:['Prepare for trouble!','Beauty and cunning, that's our motto.','Nobody will stop me!'],
+    },
+    pokemon_preferences: ['poison','normal'],
+    possible_pokemon: ['ekans','arbok','wobbuffet'],
+    activation: { minReputation: 20, minTurn: 5, event: true },
+    role_in_game: 'recruit_event',
+  },
+
+  james: {
+    id: 'lore_james',
+    name: { fr:'James', en:'James' },
+    rank: { fr:'Agent Rocket', en:'Rocket Agent' },
+    faction: 'team_rocket',
+    sprite: 'https://play.pokemonshowdown.com/sprites/trainers/james.png',
+    personality: ['naïf','gentil','maladroit'],
+    values: ['amitié','Pokémon','appartenance'],
+    speech_style: { tone:'hésitant', verbosity:'moyen', formality:'low' },
+    catch_phrases: {
+      fr:['Et faites-en le double !','Je ne suis pas sûr que c'est une bonne idée…','Mes Pokémon comptent sur moi.'],
+      en:['Make it double!','I'm not sure this is a good idea…','My Pokémon count on me.'],
+    },
+    pokemon_preferences: ['poison','grass'],
+    possible_pokemon: ['koffing','weezing','victreebel'],
+    activation: { minReputation: 20, minTurn: 5, event: true },
+    role_in_game: 'recruit_event',
+  },
+
+  oak: {
+    id: 'lore_oak',
+    name: { fr:'Professeur Chen', en:'Professor Oak' },
+    rank: { fr:'Chercheur Pokémon', en:'Pokémon Researcher' },
+    faction: 'neutral',
+    sprite: 'https://play.pokemonshowdown.com/sprites/trainers/oak.png',
+    personality: ['sage','curieux','prudent'],
+    values: ['science','nature','harmonie'],
+    speech_style: { tone:'académique', verbosity:'long', formality:'high' },
+    catch_phrases: {
+      fr:['Les Pokémon ne sont pas des outils.','La science ne peut tolérer cela.','Vous faites fausse route.'],
+      en:['Pokémon are not tools.','Science cannot tolerate this.','You are on the wrong path.'],
+    },
+    pokemon_preferences: ['normal','grass'],
+    possible_pokemon: ['eevee','arcanine','dragonite'],
+    activation: { },
+    role_in_game: 'antagonist_mission',
+  },
+
+  red: {
+    id: 'lore_red',
+    name: { fr:'Red', en:'Red' },
+    rank: { fr:'Champion de Kanto', en:'Kanto Champion' },
+    faction: 'hero',
+    sprite: 'https://play.pokemonshowdown.com/sprites/trainers/red.png',
+    personality: ['silencieux','déterminé','légendaire'],
+    values: ['justice','amitié','dépassement'],
+    speech_style: { tone:'minimal', verbosity:'très court', formality:'low' },
+    catch_phrases: {
+      fr:['…','…!','Pikachu.'],
+      en:['…','…!','Pikachu.'],
+    },
+    pokemon_preferences: ['electric','fire','water','grass'],
+    possible_pokemon: ['pikachu','charizard','blastoise','venusaur','snorlax','lapras'],
+    activation: { minReputation: 70 }, // boss final
+    role_in_game: 'boss_mission',
+  },
+};
+
+// ── INJECTION DANS LE JEU ────────────────────────────────
+
+// Vérifie si des PNJs lore doivent devenir disponibles
+function checkLoreNpcActivation() {
+  if (!state.loreNpcsActivated) state.loreNpcsActivated = {};
+
+  Object.values(LORE_NPCS).forEach(npc => {
+    if (state.loreNpcsActivated[npc.id]) return;
+    const cond = npc.activation || {};
+
+    // Activation permanente (Giovanni)
+    if (cond.alwaysPresent) {
+      activateLoreNpc(npc);
+      return;
+    }
+    // Activation par réputation
+    if (cond.minReputation !== undefined && (state.reputation||0) < cond.minReputation) return;
+    // Activation par tour
+    if (cond.minTurn !== undefined && state.turn < cond.minTurn) return;
+    // Activation événement : 30% de chance par tour si conditions remplies
+    if (cond.event && Math.random() > 0.30) return;
+
+    activateLoreNpc(npc);
+  });
+}
+
+function activateLoreNpc(npc) {
+  if (state.loreNpcsActivated[npc.id]) return;
+  state.loreNpcsActivated[npc.id] = true;
+
+  const nom = npc.name[lang] || npc.name.fr;
+  const rank = npc.rank[lang] || npc.rank.fr;
+
+  if (npc.role_in_game === 'ally_agent' || npc.role_in_game === 'supervisor') {
+    // Ajoute comme agent allié s'il n'existe pas déjà
+    if (!state.agents.find(a => a.id === npc.id)) {
+      state.agents.push({
+        id:          npc.id,
+        name:        nom,
+        rank:        rank,
+        level:       npc.id === 'lore_giovanni' ? 10 : 5,
+        xp:          npc.id === 'lore_giovanni' ? 999 : 250,
+        cooldown:    0,
+        team:        [],
+        traits:      ['lore'],
+        sprite:      npc.sprite,
+        personality: npc.personality,
+        catch_phrases: npc.catch_phrases[lang] || npc.catch_phrases.fr,
+        pokemon_preferences: npc.pokemon_preferences,
+        possible_pokemon: npc.possible_pokemon,
+        missions:    [],
+        isLore:      true,
+      });
+      addLog(`⭐ ${nom} (${rank}) ${lang==='fr'?'rejoint votre équipe !':'joins your team!'}`);
+    }
+  }
+
+  if (npc.role_in_game === 'recruit_event') {
+    // Injecte comme candidat de recrutement si pas déjà en cours
+    if (!state.recruit || state.recruit.finished) {
+      state.recruit = {
+        npc: {
+          ...npc,
+          name:         nom,
+          role:         rank,
+          personality:  npc.personality,
+          catch_phrases: npc.catch_phrases[lang] || npc.catch_phrases.fr,
+          possible_pokemon: npc.possible_pokemon,
+          sprite:       npc.sprite,
+          hiddenScore:  8, // lore = plus facile à recruter
+          isLore:       true,
+        },
+        candidateName: nom,
+        candidateRole: rank,
+        interactions:  0,
+        hiddenScore:   8,
+        transcript:    [],
+        finished:      false,
+      };
+      addLog(`⭐ Événement spécial : ${nom} ${lang==='fr'?'est disponible au recrutement !':'is available for recruitment!'}`);
+    }
+  }
+}
+
+// System prompt enrichi pour les lore NPCs
+function buildLoreNpcPrompt(npcDef, message) {
+  const nom  = npcDef.name[lang] || npcDef.name.fr;
+  const rank = npcDef.rank[lang] || npcDef.rank.fr;
+  const phrases = (npcDef.catch_phrases[lang] || npcDef.catch_phrases.fr).join(' | ');
+  return `Tu incarnes ${nom}, ${rank}, dans un jeu de gestion inspiré de Pokémon.
+Personnalité : ${npcDef.personality.join(', ')}.
+Valeurs : ${npcDef.values.join(', ')}.
+Style : ${npcDef.speech_style.tone}, ${npcDef.speech_style.verbosity}, formalité ${npcDef.speech_style.formality}.
+Répliques types : "${phrases}"
+Pokémon : ${npcDef.possible_pokemon.join(', ')}.
+Réponds toujours en ${lang==='fr'?'français':'English'}. Reste dans le personnage. Maximum deux phrases.
+
+Message reçu : "${message}"`;
+}
+
+// Giovanni apparaît comme superviseur sur les missions élevées
+function getGiovanniComment(missionId, success) {
+  const phrases = success
+    ? (lang==='fr' ? ['Bien. Continue.','C'est ce que j'attendais.','Correct. Ne te repose pas.'] : ['Good. Continue.','That's what I expected.','Correct. Don't rest.'])
+    : (lang==='fr' ? ['Décevant.','Encore un échec ? Inacceptable.','Tu me déçois.'] : ['Disappointing.','Another failure? Unacceptable.','You disappoint me.']);
+  return `Giovanni : ${pick(phrases)}`;
+}
+
+
+// ============================================================
+// RENDER PRINCIPAL v4 — override de render()
+// ============================================================
+function render() {
+  // Topbar
+  if (ui.turnValue)  ui.turnValue.textContent  = state.turn;
+  if (ui.llmBadge)   ui.llmBadge.textContent   = settings.llmEnabled ? T('llmOn') : T('llmOff');
+  if (ui.nextTurnBtn) ui.nextTurnBtn.textContent = T('nextTurn');
+
+  // Profil
+  if (ui.playerName)  ui.playerName.textContent  = `${state.profile.firstName} ${state.profile.lastName}`;
+  if (ui.teamName)    ui.teamName.textContent     = state.profile.team;
+  if (ui.playerSprite) ui.playerSprite.src        = state.profile.sprite;
+  if (ui.introOverlay) ui.introOverlay.classList.toggle('hidden', state.profile.initialized);
+
+  renderResources();
+  renderRoomsV2();
+  renderPokemonPanels();
+  renderTeamBuilder();
+  renderAgentsV2();
+  renderRecruitV2();
+  renderMissionsV2();
+  renderAllyChat();
+  renderPokedex();
+  renderComboDex();
+  renderWorldView();
+  renderRoomsBand();
+
+  // Logs
+  if (ui.logOutput) ui.logOutput.innerHTML = state.log.map(l => `<div class="logline">${l}</div>`).join('');
+
+  // Settings
+  if (ui.llmEnabledToggle) ui.llmEnabledToggle.checked = settings.llmEnabled;
+  if (ui.baseUrlInput)     ui.baseUrlInput.value        = settings.baseUrl;
+  if (ui.modelInput)       ui.modelInput.value          = settings.model;
+}
+
+// ============================================================
+// PROCESS TURN v4
+// ============================================================
+function processTurn() {
+  state.turn += 1;
+  state.newPokemonsThisTurn = [];
+
+  // Revenus salles
+  const roomIncome = (state.rooms.command?.baseIncome||120) * (state.rooms.command?.level||1);
+  state.resources.pokedollars    += roomIncome;
+  state.resources.breedingPoints += (state.rooms.breeding?.baseIncome||2) * (state.rooms.breeding?.level||1);
+  state.resources.intel          += (state.rooms.training?.baseIncome||1)  * (state.rooms.training?.level||1);
+
+  // Élevage
+  while ((state.resources.breedingPoints||0) >= 4) {
+    state.resources.breedingPoints -= 4;
+    if (!state.breedingQueue) state.breedingQueue = [];
+    state.breedingQueue.push({ turnsLeft:2, species_fr: pick(POKEDEX_POOL_FR) });
+    addLog(lang==='fr' ? 'Un œuf est ajouté à la nurserie.' : 'An egg is added to the nursery.');
+  }
+  if (state.breedingQueue) {
+    state.breedingQueue.forEach(e => e.turnsLeft -= 1);
+    const hatched = state.breedingQueue.filter(e => e.turnsLeft <= 0);
+    state.breedingQueue = state.breedingQueue.filter(e => e.turnsLeft > 0);
+    hatched.forEach(e => {
+      const pok = makePokemon(e.species_fr, 5 + Math.floor(Math.random()*6));
+      state.pokemons.push(pok); state.newPokemonsThisTurn.push(pok);
+      updatePokedex(pok.species_fr);
+      addLog(`${lang==='fr'?'Éclosion':'Hatched'} : ${e.species_fr}`);
+    });
+  }
+
+  // Salles V2
+  processLearningRoom();
+  processPkmTrainingRoom();
+
+  // Missions
+  processMissionsV2();
+  rollAvailableMissionsV2();
+
+  // Événements aléatoires
+  rollRandomEvent();
+
+  // Chat allié reset
+  resetAllyChat();
+
+  // Lore NPCs check
+  checkLoreNpcActivation();
+
+  // Candidat recrutement
+  if (state.recruit?.finished) {
+    initRecruit();
+    addLog(`${lang==='fr'?'Nouveau candidat':'New candidate'} : ${state.recruit.candidateName}`);
+  }
+
+  saveState(); render();
+}
+
+// ============================================================
+// BOOT v4
+// ============================================================
+function bootV4() {
+  // Migrations
+  migrateRemoveCapture();
+  initRoomsV2();
+  initWorldView();
+
+  // Lire état sauvegardé
+  const saved = loadState();
+  if (saved && saved.profile?.initialized) {
+    state = { ...structuredClone(BASE_STATE), ...saved };
+    lang  = saved.lang || lang;
+  }
+
+  // Candidat de recrutement
+  if (!state.recruit) initRecruit();
+  if (!state.availableMissions?.length) rollAvailableMissionsV2();
+  if (!state.log?.length) addLog(lang==='fr' ? 'Bienvenue dans Rocket HQ.' : 'Welcome to Rocket HQ.');
+
+  // Lore NPCs
+  checkLoreNpcActivation();
+
+  // Bind events
+  bindEvents();
+  // Override sendRecruit
+  if (ui.sendRecruitBtn) ui.sendRecruitBtn.onclick = recruitStepV2;
+  if (ui.recruitMessage) ui.recruitMessage.onkeydown = e => { if(e.key==='Enter') recruitStepV2(); };
+
+  // World spawner
+  startWorldSpawner();
+
+  render();
+}
+
+bootV4();
