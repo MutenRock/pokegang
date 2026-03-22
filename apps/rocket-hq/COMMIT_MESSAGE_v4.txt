@@ -1,0 +1,136 @@
+feat(v4): full gameplay overhaul — menu, world view, missions, levels, lore NPCs
+
+## Summary
+Complete rewrite of Pokeforge Rocket HQ from v3 to v4.
+13 patches applied, all modules merged into a single app.js (128 Ko).
+
+---
+
+## New files
+- menu.html         — Main menu, 3 save slots, FR/EN language selection, dark Team Rocket DA
+- index.html        — Full v4 game interface (4-column layout, world band, rooms band)
+- app.js            — All v4 modules merged (v4.01 → v4.11)
+- PATCH_ROADMAP_v4.md — Full patch history and changelog
+
+---
+
+## Changes by patch
+
+### v4.00 — Main Menu
+- Separate menu.html page with Press Start 2P pixel font
+- Dark DA: scanlines, red glow pulse, floating background sprites
+- FR/EN language selector persisted in localStorage (pf.lang)
+- 3 save slots: display boss name, team, turn, date
+- Redirect to index.html?slot=X&lang=fr|en on game start
+- LLM settings panel (Ollama URL, model, toggle)
+
+### v4.01 — World View
+- Horizontal 2D band above main layout
+- Wild Pokémon spawn every 8s (weighted rarity pool, Gen1/2 FR names)
+- Click to capture: costs 50₽, success rate = 40% + reputation%
+- Dynamic background per active mission zone
+- Capture flash animation (green/red)
+- Removal of Capture Room (converted to Pokédollars)
+
+### v4.02 — Mission Simulation
+- Animated step-by-step mission resolution popup
+- Zone backgrounds: marais, grotte, silph, safari, route, centre
+- Agent sprites + enemy Pokémon sprites with pop animation
+- Dialogue bubbles per phase (approach / combat / outcome)
+- Jenny event: screen shake + log
+- Final rewards display + Continue button
+
+### v4.03 — Missions V2
+- 8 new missions: vol (theft), raid, trafic, rare event (Mewtwo signal)
+- Each mission has a zone, Jenny risk, Pokémon reward pool
+- Pokémon rewards added directly to roster on success
+- Pokémon can die in mission (risk-based probability)
+- Pokémon can be seized by Officer Jenny
+- Post-mission cooldown: agent 1 turn, Pokémon 2 turns
+- Trait "Bourreau de travail": agent 0 turns, Pokémon 1 turn (15% recruit chance)
+
+### v4.04 — Recruitment V2
+- Max 3 interactions (was 5)
+- Each interaction costs 100 Pokédollars, blocked if insufficient funds
+- Visual step bar (3 dots)
+- Workaholic trait assigned on successful recruit (15% chance)
+
+### v4.05 — Agent Levels
+- Agents have level (1-5), xp, cooldown fields
+- XP thresholds: 0 / 50 / 120 / 250 / 500
+- XP gained via missions and Learning Room
+- XP progress bar displayed on agent card
+- Cooldown shown as "[Repos N tour(s)]"
+
+### v4.06 — Pokémon Levels + Evolution
+- Pokémon have xp, level, cooldown, bonuses fields
+- +1 level every 30 XP
+- Evolution table: 20+ Gen1/Gen2 species (Abo→Arbok, Magicarpe→Léviator, etc.)
+- Evolution only triggers if Pokémon is in Training Room at turn start
+- Special events: permanent stat bonuses/maluses (ATK, DEF, HP, accuracy)
+
+### v4.07 — Rooms V2
+- Learning Room: assign 1 agent → 5 simulated fights/turn → XP for agent + team Pokémon
+- Pokémon Training Room: 1-3 slots based on room level (1→1, 3→2, 5→3)
+- XP/turn = baseXP × room level
+- Special event chance = 5% + 3% per room level
+- Evolution triggered at turn start if conditions met
+
+### v4.08 — Room Sprites Band
+- Sticky footer band with one mini-card per active room
+- Displays agent/Pokémon sprites with float animation
+- Red/green flash on special events
+
+### v4.09 — Pokédex + Combo Dex
+- Pokédex: grid of obtained species, count + lost counter
+- Auto-unlocked on first acquisition
+- Combo Dex: detects team type patterns automatically
+- +10₽ reward per new combo validated
+- "Apply" button if matching Pokémon available
+
+### v4.10 — Ally Chat Refocus
+- Removed global NPC chat panel
+- New "Ally Briefing" panel: recruited agents only
+- 1 conversation per turn, reset each turn
+- 20% chance of narrative bonus (Intel or Pokédollars)
+- Uses full agent Character Sheet in LLM prompt
+
+### v4.11 — Lore NPCs
+- Giovanni: permanent supervisor (level 10), appears on high-risk missions
+- Archer + Ariana: ally agents unlocked at reputation >= 40
+- Jessie + James: recruitable via event (turn > 5, reputation > 20, 30% chance/turn)
+- Professor Oak + Red: mission antagonists
+- All have full Character Sheets injected into LLM prompts
+- Catch phrases in FR and EN
+
+### v4.12 — app.js v4 (merged)
+- All modules v4.01-v4.11 merged in order
+- URL param reading: ?slot=X&lang=fr|en
+- Slot-aware save/load (pf.slot1/2/3)
+- Full processTurn() v4: breeding, learning, training, missions, events, lore NPC check
+- bootV4(): migration, init, world spawner, lore activation
+
+### v4.13 — index.html v4 (final)
+- 4-column layout: Boss+Rooms / Pokémon+Teams+Pokédex / Missions+Agents / Chat+Logs
+- World Band sticky top, Rooms Band sticky bottom
+- Press Start 2P on headings
+- Back to menu button
+- All v4 panels integrated
+
+---
+
+## Breaking changes
+- Save format changed: v3 localStorage key (pokeforge.rocket-hq.state) NOT migrated
+- New keys: pf.slot1, pf.slot2, pf.slot3, pf.lang, pf.settings
+- Capture Room removed from game (soft migration on boot)
+- recruitStep() replaced by recruitStepV2()
+- processMissions() replaced by processMissionsV2()
+- render() fully overridden by v4 version
+
+---
+
+## Stats
+- app.js:     128 Ko  (~3 200 lines)
+- index.html:  14 Ko
+- menu.html:   18 Ko
+- Patches:     13 modules (v4.00 → v4.13)
