@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="fr" id="htmlRoot">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pokeforge — Rocket HQ</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+    :root {
+      --bg:#0a0812; --panel:#14102a; --line:#4a3a8a;
+      --accent:#ffcc5a; --danger:#ff4466; --ok:#70e0a4;
+      --text:#e8deff; --muted:#7060a8; --rocket:#cc2233;
+    }
+    *{box-sizing:border-box;margin:0;padding:0}
+    body {
+      background:var(--bg); color:var(--text);
+      font-family:'Press Start 2P', monospace;
+      min-height:100vh; display:flex; flex-direction:column;
+      align-items:center; justify-content:center;
+      overflow:hidden; position:relative;
+    }
+
+    /* ── BACKGROUND ANIMATION ─────────────────────── */
+    .bg-layer {
+      position:fixed; inset:0; pointer-events:none; z-index:0;
+      background:
+        radial-gradient(ellipse at 20% 50%, rgba(100,0,30,0.18) 0%, transparent 60%),
+        radial-gradient(ellipse at 80% 20%, rgba(60,0,100,0.15) 0%, transparent 60%),
+        radial-gradient(ellipse at 50% 80%, rgba(20,0,60,0.2)  0%, transparent 60%);
+    }
+    .scanline {
+      position:fixed; inset:0; pointer-events:none; z-index:1;
+      background:repeating-linear-gradient(
+        to bottom,
+        transparent 0px, transparent 3px,
+        rgba(0,0,0,0.08) 3px, rgba(0,0,0,0.08) 4px
+      );
+    }
+    .bg-sprites {
+      position:fixed; inset:0; pointer-events:none; z-index:1;
+      overflow:hidden;
+    }
+    .bg-sprite {
+      position:absolute; opacity:0.04; filter:grayscale(1);
+      animation:floatSp 14s ease-in-out infinite;
+    }
+    @keyframes floatSp {
+      0%,100%{transform:translateY(0) rotate(-3deg)}
+      50%{transform:translateY(-18px) rotate(3deg)}
+    }
+
+    /* ── MAIN CONTAINER ───────────────────────────── */
+    .main-container {
+      position:relative; z-index:10;
+      display:flex; flex-direction:column; align-items:center; gap:32px;
+      padding:24px 16px;
+    }
+
+    /* ── LOGO ─────────────────────────────────────── */
+    .logo-wrap { text-align:center; }
+    .logo-r {
+      display:inline-block;
+      background:var(--rocket);
+      color:#fff;
+      font-size:clamp(1.2em,4vw,2.2em);
+      padding:10px 20px;
+      border:3px solid #fff;
+      border-radius:6px;
+      box-shadow:0 0 30px rgba(204,34,51,0.6), inset 0 0 12px rgba(0,0,0,0.4);
+      letter-spacing:.1em;
+      animation:pulse-r 2.5s ease-in-out infinite;
+    }
+    @keyframes pulse-r {
+      0%,100%{box-shadow:0 0 30px rgba(204,34,51,0.6), inset 0 0 12px rgba(0,0,0,0.4)}
+      50%{box-shadow:0 0 55px rgba(204,34,51,0.9), inset 0 0 18px rgba(0,0,0,0.5)}
+    }
+    .logo-sub {
+      display:block; margin-top:10px;
+      font-size:clamp(.45em,1.5vw,.75em);
+      color:var(--muted); letter-spacing:.2em;
+    }
+    .logo-tagline {
+      display:block; margin-top:6px;
+      font-size:clamp(.35em,1vw,.55em);
+      color:var(--accent); letter-spacing:.15em;
+    }
+
+    /* ── LANGUE SELECTOR ─────────────────────────── */
+    .lang-bar {
+      display:flex; gap:12px;
+    }
+    .lang-btn {
+      background:transparent; border:2px solid var(--muted);
+      color:var(--muted); padding:6px 16px; border-radius:6px;
+      font-family:inherit; font-size:.6em; cursor:pointer;
+      transition:all .2s;
+    }
+    .lang-btn.active, .lang-btn:hover {
+      border-color:var(--accent); color:var(--accent);
+      background:rgba(255,204,90,0.08);
+    }
+
+    /* ── SAVE SLOTS ──────────────────────────────── */
+    .slots-title {
+      font-size:.55em; color:var(--muted); letter-spacing:.15em;
+      text-align:center;
+    }
+    .slots-grid {
+      display:grid; grid-template-columns:repeat(3,1fr); gap:14px;
+      width:min(780px, 95vw);
+    }
+    .slot-card {
+      background:var(--panel);
+      border:2px solid var(--line);
+      border-radius:10px; padding:16px 12px;
+      display:flex; flex-direction:column; gap:8px;
+      cursor:pointer; transition:all .2s; min-height:130px;
+      position:relative; overflow:hidden;
+    }
+    .slot-card:hover { border-color:var(--accent); transform:translateY(-2px); box-shadow:0 6px 24px rgba(255,204,90,0.15); }
+    .slot-card.empty { border-style:dashed; opacity:.7; }
+    .slot-card.empty:hover { opacity:1; }
+    .slot-num {
+      font-size:.5em; color:var(--muted); letter-spacing:.1em;
+    }
+    .slot-name { font-size:.7em; color:var(--accent); }
+    .slot-team { font-size:.5em; color:var(--text); }
+    .slot-meta { font-size:.42em; color:var(--muted); margin-top:auto; }
+    .slot-actions {
+      display:flex; gap:6px; margin-top:6px;
+    }
+    .slot-btn {
+      flex:1; padding:5px 4px; border-radius:5px;
+      font-family:inherit; font-size:.45em; cursor:pointer;
+      border:1px solid var(--line); background:rgba(255,255,255,0.05);
+      color:var(--text); transition:background .15s;
+    }
+    .slot-btn:hover { background:rgba(255,204,90,0.12); }
+    .slot-btn.del { color:var(--danger); border-color:var(--danger); }
+    .slot-btn.del:hover { background:rgba(255,68,102,0.12); }
+    .slot-new-label {
+      font-size:.6em; color:var(--ok); margin:auto; text-align:center; line-height:1.8;
+    }
+
+    /* ── BOTTOM BUTTONS ──────────────────────────── */
+    .bottom-btns { display:flex; gap:14px; flex-wrap:wrap; justify-content:center; }
+    .menu-btn {
+      background:transparent; border:2px solid var(--line);
+      color:var(--muted); padding:8px 18px; border-radius:7px;
+      font-family:inherit; font-size:.5em; cursor:pointer;
+      transition:all .2s; letter-spacing:.1em;
+    }
+    .menu-btn:hover { border-color:var(--accent); color:var(--accent); }
+
+    /* ── OVERLAYS ────────────────────────────────── */
+    .overlay {
+      position:fixed; inset:0; background:rgba(0,0,0,.82);
+      display:grid; place-items:center; padding:20px; z-index:50;
+    }
+    .modal {
+      background:var(--panel); border:2px solid var(--line);
+      border-radius:12px; padding:24px; max-width:520px; width:100%;
+      display:grid; gap:14px;
+    }
+    .modal h2 { font-size:.8em; color:var(--accent); }
+    .modal label { display:grid; gap:5px; font-size:.55em; color:var(--muted); }
+    .modal input, .modal select {
+      padding:8px; border-radius:6px; border:1px solid var(--line);
+      background:#0f0c1e; color:var(--text); font-family:inherit; font-size:.9em;
+    }
+    .modal-btns { display:flex; gap:8px; flex-wrap:wrap; }
+    .modal-btn {
+      flex:1; padding:8px; border-radius:7px; font-family:inherit;
+      font-size:.55em; cursor:pointer; border:2px solid var(--line);
+      background:rgba(255,255,255,0.04); color:var(--text); transition:all .2s;
+    }
+    .modal-btn.primary { background:var(--accent); color:#000; border-color:var(--accent); }
+    .modal-btn.danger  { background:var(--danger);  color:#fff; border-color:var(--danger); }
+    .hidden { display:none !important; }
+
+    /* ── VERSION ─────────────────────────────────── */
+    .version {
+      position:fixed; bottom:10px; right:14px; font-size:.38em;
+      color:var(--muted); z-index:20; letter-spacing:.1em;
+    }
+  </style>
+</head>
+<body>
+
+<div class="bg-layer"></div>
+<div class="scanline"></div>
+<div class="bg-sprites" id="bgSprites"></div>
+
+<div class="main-container">
+
+  <!-- LOGO -->
+  <div class="logo-wrap">
+    <span class="logo-r">⚡ POKEFORGE — ROCKET HQ</span>
+    <span class="logo-sub" id="logoSub">OPÉRATIONS SECRÈTES • KANTO</span>
+    <span class="logo-tagline" id="logoTagline">"La Team Rocket s'empare de tout."</span>
+  </div>
+
+  <!-- LANGUE -->
+  <div class="lang-bar">
+    <button class="lang-btn" id="btnFR" onclick="setLang('fr')">🇫🇷 FRANÇAIS</button>
+    <button class="lang-btn" id="btnEN" onclick="setLang('en')">🇬🇧 ENGLISH</button>
+  </div>
+
+  <!-- SAVE SLOTS -->
+  <p class="slots-title" id="slotsTitle">— SAUVEGARDES —</p>
+  <div class="slots-grid" id="slotsGrid"></div>
+
+  <!-- BOUTONS BAS -->
+  <div class="bottom-btns">
+    <button class="menu-btn" onclick="openSettings()" id="btnSettings">⚙ PARAMÈTRES LLM</button>
+    <button class="menu-btn" onclick="openCredits()"  id="btnCredits">★ CRÉDITS</button>
+  </div>
+
+</div>
+
+<!-- OVERLAY : Nouvelle partie -->
+<div class="overlay hidden" id="newGameOverlay">
+  <div class="modal">
+    <h2 id="ngTitle">NOUVELLE PARTIE</h2>
+    <label id="ngLabelTeam">Nom de l'équipe
+      <input id="ngTeam" type="text" value="Team Rocket">
+    </label>
+    <label id="ngLabelFirst">Prénom du boss
+      <input id="ngFirst" type="text" value="Ari">
+    </label>
+    <label id="ngLabelLast">Nom du boss
+      <input id="ngLast" type="text" value="Voss">
+    </label>
+    <div class="modal-btns">
+      <button class="modal-btn primary" id="ngStart" onclick="startNewGame()">🚀 LANCER</button>
+      <button class="modal-btn" onclick="closeOverlay('newGameOverlay')">✖ ANNULER</button>
+    </div>
+  </div>
+</div>
+
+<!-- OVERLAY : Paramètres LLM -->
+<div class="overlay hidden" id="settingsOverlay">
+  <div class="modal">
+    <h2 id="setTitle">⚙ PARAMÈTRES LLM</h2>
+    <label id="setLabelUrl">URL Ollama
+      <input id="setUrl" type="text" value="http://localhost:11434">
+    </label>
+    <label id="setLabelModel">Modèle
+      <input id="setModel" type="text" value="gemma3:4b">
+    </label>
+    <label>
+      <span id="setLabelLLM">Utiliser le LLM local</span>
+      <input id="setLLMToggle" type="checkbox">
+    </label>
+    <div class="modal-btns">
+      <button class="modal-btn primary" onclick="saveSettings()">💾 SAUVEGARDER</button>
+      <button class="modal-btn" onclick="closeOverlay('settingsOverlay')" id="setClose">✖ FERMER</button>
+    </div>
+  </div>
+</div>
+
+<!-- OVERLAY : Crédits -->
+<div class="overlay hidden" id="creditsOverlay">
+  <div class="modal" style="text-align:center">
+    <h2>★ CRÉDITS</h2>
+    <p style="font-size:.5em;line-height:2;color:var(--muted)">
+      POKEFORGE — ROCKET HQ<br>
+      Prototype de simulation de gestion criminelle<br>
+      inspiré de l'univers Pokémon.<br><br>
+      Sprites : Pokémon Showdown (MIT)<br>
+      LLM : Ollama / OpenRouter<br>
+      Combat IA : PokeLLMon (git-disl)<br><br>
+      <span style="color:var(--accent)">Projet personnel — non affilié à Nintendo/GameFreak</span>
+    </p>
+    <button class="modal-btn" onclick="closeOverlay('creditsOverlay')">✖ FERMER</button>
+  </div>
+</div>
+
+<div class="version">v4.00</div>
+
+<script>
+// ── I18N ──────────────────────────────────────────────
+const I18N = {
+  fr: {
+    logoSub: "OPÉRATIONS SECRÈTES • KANTO",
+    logoTagline: '"La Team Rocket s'empare de tout."',
+    slotsTitle: "— SAUVEGARDES —",
+    slotEmpty: "NOUVELLE PARTIE",
+    slotEmptyHint: "Cliquer pour créer",
+    slotLoad: "CHARGER",
+    slotDel: "SUPPRIMER",
+    slotTurn: "Tour",
+    btnSettings: "⚙ PARAMÈTRES LLM",
+    btnCredits: "★ CRÉDITS",
+    ngTitle: "NOUVELLE PARTIE",
+    ngLabelTeam: "Nom de l'équipe",
+    ngLabelFirst: "Prénom du boss",
+    ngLabelLast: "Nom du boss",
+    ngStart: "🚀 LANCER",
+    setTitle: "⚙ PARAMÈTRES LLM",
+    setLabelUrl: "URL Ollama",
+    setLabelModel: "Modèle",
+    setLabelLLM: "Utiliser le LLM local",
+    setClose: "✖ FERMER",
+  },
+  en: {
+    logoSub: "SECRET OPERATIONS • KANTO",
+    logoTagline: '"Team Rocket takes everything."',
+    slotsTitle: "— SAVE FILES —",
+    slotEmpty: "NEW GAME",
+    slotEmptyHint: "Click to create",
+    slotLoad: "LOAD",
+    slotDel: "DELETE",
+    slotTurn: "Turn",
+    btnSettings: "⚙ LLM SETTINGS",
+    btnCredits: "★ CREDITS",
+    ngTitle: "NEW GAME",
+    ngLabelTeam: "Team name",
+    ngLabelFirst: "Boss first name",
+    ngLabelLast: "Boss last name",
+    ngStart: "🚀 START",
+    setTitle: "⚙ LLM SETTINGS",
+    setLabelUrl: "Ollama URL",
+    setLabelModel: "Model",
+    setLabelLLM: "Use local LLM",
+    setClose: "✖ CLOSE",
+  }
+};
+
+let lang = localStorage.getItem('pf.lang') || 'fr';
+let pendingSlot = null;
+
+function setLang(l) {
+  lang = l;
+  localStorage.setItem('pf.lang', l);
+  applyI18N();
+  renderSlots();
+}
+
+function t(key) { return I18N[lang][key] || key; }
+
+function applyI18N() {
+  document.getElementById('btnFR').classList.toggle('active', lang==='fr');
+  document.getElementById('btnEN').classList.toggle('active', lang==='en');
+  document.getElementById('logoSub').textContent      = t('logoSub');
+  document.getElementById('logoTagline').textContent  = t('logoTagline');
+  document.getElementById('slotsTitle').textContent   = t('slotsTitle');
+  document.getElementById('btnSettings').textContent  = t('btnSettings');
+  document.getElementById('btnCredits').textContent   = t('btnCredits');
+  document.getElementById('ngTitle').textContent      = t('ngTitle');
+  document.getElementById('ngLabelTeam').childNodes[0].nodeValue = t('ngLabelTeam');
+  document.getElementById('ngLabelFirst').childNodes[0].nodeValue = t('ngLabelFirst');
+  document.getElementById('ngLabelLast').childNodes[0].nodeValue = t('ngLabelLast');
+  document.getElementById('ngStart').textContent      = t('ngStart');
+  document.getElementById('setTitle').textContent     = t('setTitle');
+  document.getElementById('setClose').textContent     = t('setClose');
+}
+
+// ── SAVE SLOTS ────────────────────────────────────────
+function getSlot(i) {
+  const raw = localStorage.getItem(`pf.slot${i}`);
+  if (!raw) return null;
+  try { return JSON.parse(raw); } catch { return null; }
+}
+function delSlot(i) {
+  localStorage.removeItem(`pf.slot${i}`);
+  renderSlots();
+}
+
+function renderSlots() {
+  const grid = document.getElementById('slotsGrid');
+  grid.innerHTML = [1,2,3].map(i => {
+    const save = getSlot(i);
+    if (!save) {
+      return `<div class="slot-card empty" onclick="openNewGame(${i})">
+        <div class="slot-num">SLOT ${i}</div>
+        <div class="slot-new-label">+ ${t('slotEmpty')}<br><span style="font-size:.7em;color:var(--muted)">${t('slotEmptyHint')}</span></div>
+      </div>`;
+    }
+    const date = save.savedAt ? new Date(save.savedAt).toLocaleDateString(lang==='fr'?'fr-FR':'en-GB') : '—';
+    return `<div class="slot-card">
+      <div class="slot-num">SLOT ${i}</div>
+      <div class="slot-name">${save.profile?.firstName || '?'} ${save.profile?.lastName || '?'}</div>
+      <div class="slot-team">${save.profile?.team || '?'}</div>
+      <div class="slot-meta">${t('slotTurn')} ${save.turn || 1} • ${date}</div>
+      <div class="slot-actions">
+        <button class="slot-btn" onclick="loadSlot(${i})">${t('slotLoad')}</button>
+        <button class="slot-btn del" onclick="event.stopPropagation();confirmDel(${i})">${t('slotDel')}</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function openNewGame(slotIndex) {
+  pendingSlot = slotIndex;
+  document.getElementById('newGameOverlay').classList.remove('hidden');
+}
+function startNewGame() {
+  const profile = {
+    team:        document.getElementById('ngTeam').value.trim()  || 'Team Rocket',
+    firstName:   document.getElementById('ngFirst').value.trim() || 'Ari',
+    lastName:    document.getElementById('ngLast').value.trim()  || 'Voss',
+    initialized: true,
+    sprite:      'https://play.pokemonshowdown.com/sprites/trainers/rocketgrunt.png',
+  };
+  // Stub save minimal — app.js complétera au boot
+  const stub = { turn:1, profile, savedAt: Date.now() };
+  localStorage.setItem(`pf.slot${pendingSlot}`, JSON.stringify(stub));
+  goToGame(pendingSlot);
+}
+function loadSlot(i) {
+  goToGame(i);
+}
+function goToGame(i) {
+  window.location.href = `index.html?slot=${i}&lang=${lang}`;
+}
+function confirmDel(i) {
+  if (confirm(`Supprimer le slot ${i} ?`)) delSlot(i);
+}
+function closeOverlay(id) {
+  document.getElementById(id).classList.add('hidden');
+}
+
+// ── SETTINGS ──────────────────────────────────────────
+function openSettings() {
+  const s = JSON.parse(localStorage.getItem('pf.settings')||'{}');
+  document.getElementById('setUrl').value = s.baseUrl || 'http://localhost:11434';
+  document.getElementById('setModel').value = s.model || 'gemma3:4b';
+  document.getElementById('setLLMToggle').checked = !!s.llmEnabled;
+  document.getElementById('settingsOverlay').classList.remove('hidden');
+}
+function saveSettings() {
+  localStorage.setItem('pf.settings', JSON.stringify({
+    baseUrl:    document.getElementById('setUrl').value.trim(),
+    model:      document.getElementById('setModel').value.trim(),
+    llmEnabled: document.getElementById('setLLMToggle').checked,
+  }));
+  closeOverlay('settingsOverlay');
+}
+function openCredits() { document.getElementById('creditsOverlay').classList.remove('hidden'); }
+
+// ── BG SPRITES ────────────────────────────────────────
+const BG_PKM = ['zubat','koffing','ekans','meowth','gastly','voltorb','magikarp'];
+function spawnBgSprites() {
+  const container = document.getElementById('bgSprites');
+  BG_PKM.forEach((p,i) => {
+    const img = document.createElement('img');
+    img.className = 'bg-sprite';
+    img.src = `https://play.pokemonshowdown.com/sprites/gen5/${p}.png`;
+    img.style.cssText = `
+      width:80px; top:${10+Math.random()*75}%; left:${5+i*13+Math.random()*5}%;
+      animation-delay:${Math.random()*6}s; animation-duration:${10+Math.random()*8}s;
+    `;
+    container.appendChild(img);
+  });
+}
+
+// ── BOOT ─────────────────────────────────────────────
+applyI18N();
+renderSlots();
+spawnBgSprites();
+</script>
+</body>
+</html>
