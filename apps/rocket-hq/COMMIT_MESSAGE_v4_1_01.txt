@@ -1,0 +1,43 @@
+feat(v4.1.01): Ollama model picker + LLM loading bar
+
+## Changes
+
+### Ollama Model Discovery
+- New `fetchOllamaModels()`: GET /api/tags → populates a <select> in settings
+- Auto-refresh on settings panel open
+- Graceful fallback if Ollama unreachable (status message, keeps current model)
+- Model change persisted to pf.settings
+
+### Loading Bar
+- `showLoadingBar(anchorId, label)`: global 3px gradient bar at bottom of page
+- Mini bar (64px) above speaking character sprite when anchorId provided
+- Animated label (blink) with agent/NPC name
+- Indeterminate progress simulation (0→92%, random increments every 200ms)
+- `hideLoadingBar(handle)`: fills to 100% then fades out (400ms)
+
+### LLM call wrappers
+- `callOllamaWithBar()`: wraps base callOllama with loading bar lifecycle
+- `recruitStepV2()` overridden: loading bar anchored on #recruitCandidate
+- `sendAllyChat()` overridden: loading bar anchored on #allyChatPanel
+
+### Side script (inactive)
+- `pokellmon_bridge.js`: PokéLLMon integration set aside for v5
+  - checkPokellmon(), pokellmonChooseMove(), pokellmonResolveCombat()
+  - pokellmonMissionHook() for high-risk missions
+  - NOT included in app.js — activate via separate <script> tag if needed
+
+---
+
+## Files
+- patch_v4_1_01_ollama_picker_loadingbar.js  ← inject at end of app.js
+- pokellmon_bridge.js                         ← side script, v5 candidate
+- test_v4_1_01.js                             ← browser console test suite
+- COVERAGE_v4_1_01.md                         ← coverage report (~85%)
+
+## Breaking changes
+None — additive patch only.
+
+## How to integrate
+1. Append patch_v4_1_01_ollama_picker_loadingbar.js content to app.js
+2. In settings overlay HTML, no changes needed (model picker auto-injected)
+3. pokellmon_bridge.js: keep in repo, do NOT include in index.html for now
