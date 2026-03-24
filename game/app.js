@@ -14,7 +14,7 @@ const UI_TEXT = {
   fr: {
     nextTurn:'⏩ Valider le tour', openMenu:'⚙ Menu', llmOn:'LLM ON', llmOff:'LLM OFF',
     turn:'Tour', resources:'Ressources', rooms:'Salles du QG', pokemon:'Pokémon',
-    teamBuilder:'Création d'équipe', training:'Salle d'apprentissage',
+    teamBuilder:"Création d'équipe", training:"Salle d'apprentissage",
     agents:'Agents', recruit:'Recrutement', missions:'Missions',
     pokedex:'Pokédex', combodex:'Combo Dex', allyChat:'Briefing allié',
     logs:'Logs',
@@ -1545,7 +1545,7 @@ const MISSIONS_V2 = [
   },
   { id:'m_raid_grotte',   zone:'grotte', categorie:'raid',
     nom:      { fr:'Fouille — Grotte Azurée',         en:'Sweep — Cerulean Cave' },
-    desc:     { fr:'Explorer la grotte pour capturer ce qui s'y trouve.', en:'Explore the cave and capture whatever lurks.' },
+    desc:     { fr:"Explorer la grotte pour capturer ce qui s'y trouve.", en:'Explore the cave and capture whatever lurks.' },
     recompense:{ pokedollars:600, intel:2 },
     duree:3, risque:'élevé', jennyRisk:0.2,
     pkmRewardPool: ['zubat','geodude','onix','cubone','drowzee'],
@@ -1561,7 +1561,7 @@ const MISSIONS_V2 = [
   },
   { id:'m_silph',           zone:'silph',  categorie:'trafic',
     nom:      { fr:'Opération Silph Co.',             en:'Silph Co. Operation' },
-    desc:     { fr:'Prendre le contrôle d'un étage de la Tour Silph.', en:'Take control of one floor of Silph Tower.' },
+    desc:     { fr:"Prendre le contrôle d'un étage de la Tour Silph.", en:'Take control of one floor of Silph Tower.' },
     recompense:{ pokedollars:1000, intel:5, capturePoints:2 },
     duree:4, risque:'élevé', jennyRisk:0.35,
     pkmRewardPool: ['porygon','electrode','lapras'],
@@ -1570,7 +1570,7 @@ const MISSIONS_V2 = [
   // ── ÉVÉNEMENTS SPÉCIAUX ───────────────────────────────
   { id:'m_event_legendaire', zone:'default', categorie:'event',
     nom:       { fr:'Rumeur — Signal Inconnu',        en:'Rumor — Unknown Signal' },
-    desc:      { fr:'Un signal étrange vient d'une île au large...', en:'A strange signal from a distant island...' },
+    desc:      { fr:"Un signal étrange vient d'une île au large...", en:'A strange signal from a distant island...' },
     recompense: { pokedollars:1500, intel:8 },
     duree:5, risque:'élevé', jennyRisk:0.4,
     pkmRewardPool: ['mew','mewtwo'],
@@ -2099,7 +2099,7 @@ function applyTrainingEvent(pkm, event) {
 // pkm_train: { nom, level, assignedPokemonIds:[], upgradeCost }
 
 const LEARNING_ROOM_DEFAULTS = {
-  nom:            { fr:'Salle d'apprentissage', en:'Learning Room' },
+  nom:            { fr:"Salle d'apprentissage", en:'Learning Room' },
   level:          1,
   assignedAgentId:null,
   upgradeCost:    600,
@@ -2108,7 +2108,7 @@ const LEARNING_ROOM_DEFAULTS = {
 };
 
 const PKM_TRAIN_ROOM_DEFAULTS = {
-  nom:                { fr:'Salle d'entraînement Pokémon', en:'Pokémon Training Room' },
+  nom:                { fr:"Salle d'entraînement Pokémon", en:'Pokémon Training Room' },
   level:              1,
   assignedPokemonIds: [],
   upgradeCost:        600,
@@ -2219,7 +2219,7 @@ function renderRoomsV2() {
   // Salle d'apprentissage
   const lr = state.rooms.learning;
   if (lr) {
-    const nom = lr.nom?.[lang] || lr.nom?.fr || 'Salle d'apprentissage';
+    const nom = lr.nom?.[lang] || lr.nom?.fr || "Salle d'apprentissage";
     const assignedAgent = lr.assignedAgentId ? state.agents.find(a => a.id === lr.assignedAgentId) : null;
     const freeAgents = state.agents.filter(a => !(state.missions||[]).some(mi=>mi.agentId===a.id) && !(a.cooldown>0));
 
@@ -2239,7 +2239,7 @@ function renderRoomsV2() {
   // Salle d'entraînement Pokémon
   const ptr = state.rooms.pkm_train;
   if (ptr) {
-    const nom   = ptr.nom?.[lang] || ptr.nom?.fr || 'Salle d'entraînement Pokémon';
+    const nom   = ptr.nom?.[lang] || ptr.nom?.fr || "Salle d'entraînement Pokémon";
     const slots = pkmTrainSlots(ptr);
     const assignedPkm = (ptr.assignedPokemonIds||[]).map(id => state.pokemons.find(p=>p.id===id)).filter(Boolean);
     const freePkm = state.pokemons.filter(p => !(ptr.assignedPokemonIds||[]).includes(p.id) && !(p.cooldown>0));
@@ -2563,7 +2563,7 @@ function renderAllyChat() {
   const el = document.getElementById('allyChatPanel');
   if (!el) return;
   const T = {
-    fr:{ title:'Briefing allié', used:'Conversation utilisée ce tour.', pick:'Choisir un allié', send:'Parler', placeholder:'Message à l'allié…', hint:'1 conversation disponible par tour.' },
+    fr:{ title:'Briefing allié', used:'Conversation utilisée ce tour.', pick:'Choisir un allié', send:'Parler', placeholder:"Message à l'allié…", hint:'1 conversation disponible par tour.' },
     en:{ title:'Ally Briefing',  used:'Conversation used this turn.',    pick:'Choose an ally',  send:'Talk',   placeholder:'Message to ally…',    hint:'1 conversation available per turn.' },
   }[lang];
 
@@ -2676,7 +2676,7 @@ const LORE_NPCS = {
     values: ['pouvoir','argent','contrôle'],
     speech_style: { tone:'autoritaire', verbosity:'court', formality:'high' },
     catch_phrases: {
-      fr:['Le pouvoir est tout.','Tu es un outil. Sois utile.','La Team Rocket ne pardonne pas l'échec.','Rapporte-moi des résultats, pas des excuses.'],
+      fr:['Le pouvoir est tout.','Tu es un outil. Sois utile.',"La Team Rocket ne pardonne pas l'échec.",'Rapporte-moi des résultats, pas des excuses.'],
       en:['Power is everything.','You are a tool. Be useful.','Team Rocket does not forgive failure.','Bring me results, not excuses.'],
     },
     pokemon_preferences: ['psychic','poison'],
@@ -2695,7 +2695,7 @@ const LORE_NPCS = {
     values: ['ordre','hiérarchie','discipline'],
     speech_style: { tone:'professionnel', verbosity:'moyen', formality:'medium' },
     catch_phrases: {
-      fr:['Les ordres viennent d'en haut.','Efficacité avant tout.','Archer surveille tout.'],
+      fr:["Les ordres viennent d'en haut.",'Efficacité avant tout.','Archer surveille tout.'],
       en:['Orders come from above.','Efficiency above all.','Archer watches everything.'],
     },
     pokemon_preferences: ['dark','poison'],
@@ -2715,7 +2715,7 @@ const LORE_NPCS = {
     speech_style: { tone:'agressif', verbosity:'court', formality:'low' },
     catch_phrases: {
       fr:['Ne me fais pas perdre mon temps.','Montre ta valeur.','Je ne fais pas dans la demi-mesure.'],
-      en:['Don't waste my time.','Prove your worth.','I don't do things halfway.'],
+      en:["Don't waste my time.",'Prove your worth.',"I don't do things halfway."],
     },
     pokemon_preferences: ['poison','fighting'],
     possible_pokemon: ['arbok','murkrow','vileplume'],
@@ -2733,7 +2733,7 @@ const LORE_NPCS = {
     values: ['gloire','beauté','vengeance'],
     speech_style: { tone:'dramatique', verbosity:'long', formality:'low' },
     catch_phrases: {
-      fr:['Préparez-vous pour les ennuis !','La beauté et la ruse, c'est notre devise.','Personne ne m'arrêtera !'],
+      fr:['Préparez-vous pour les ennuis !',"La beauté et la ruse, c'est notre devise.","Personne ne m'arrêtera !"],
       en:['Prepare for trouble!','Beauty and cunning, that's our motto.','Nobody will stop me!'],
     },
     pokemon_preferences: ['poison','normal'],
@@ -2903,7 +2903,7 @@ Message reçu : "${message}"`;
 // Giovanni apparaît comme superviseur sur les missions élevées
 function getGiovanniComment(missionId, success) {
   const phrases = success
-    ? (lang==='fr' ? ['Bien. Continue.','C'est ce que j'attendais.','Correct. Ne te repose pas.'] : ['Good. Continue.','That's what I expected.','Correct. Don't rest.'])
+    ? (lang==='fr' ? ['Bien. Continue.',"C'est ce que j'attendais.",'Correct. Ne te repose pas.'] : ['Good. Continue.',"That's what I expected.","Correct. Don't rest."])
     : (lang==='fr' ? ['Décevant.','Encore un échec ? Inacceptable.','Tu me déçois.'] : ['Disappointing.','Another failure? Unacceptable.','You disappoint me.']);
   return `Giovanni : ${pick(phrases)}`;
 }
