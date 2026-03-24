@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git -C /c/Users/pierr/Documents/GitHub/pokeforge log --oneline -15)"
+    ]
+  }
+}
