@@ -594,13 +594,22 @@ function renderTeamBuilder() {
   ui.agentSelect.innerHTML  = state.agents.map(a => `<option value="${a.id}">${a.name} – ${a.rank}</option>`).join('');
   ui.pokemonSelect.innerHTML = state.pokemons.map(p => {
     const spFR = p.species_fr || p.species;
-    return `<option value="${p.id}">${spFR} Niv.${p.level}</option>`;
+    const cdTag = (p.cooldown||0) > 0 ? ` [repos ${p.cooldown}t]` : '';
+    return `<option value="${p.id}" ${(p.cooldown||0)>0?'style="color:#7060a8"':''}>${spFR} Niv.${p.level}${cdTag}</option>`;
   }).join('');
   ui.agentTeams.innerHTML = state.agents.map(a => {
-    const names = a.team.map(id => { const p = state.pokemons.find(x => x.id === id); return p?.species_fr || p?.species; }).filter(Boolean);
+    const pkmInfo = a.team.map(id => {
+      const p = state.pokemons.find(x => x.id === id);
+      if (!p) return null;
+      const name = p.species_fr || p.species;
+      const cd = (p.cooldown||0) > 0 ? ` <span style="color:#7060a8;font-size:.85em">[${p.cooldown}t]</span>` : '';
+      const en = FR_TO_EN[(p.species_fr||'').toLowerCase()] || p.species_en || 'pikachu';
+      return `<span style="display:inline-flex;align-items:center;gap:2px"><img src="https://play.pokemonshowdown.com/sprites/gen5/${en}.png" style="width:24px;image-rendering:pixelated">${name}${cd}</span>`;
+    }).filter(Boolean);
     const sprite = a.sprite ? `<img src="${a.sprite}" style="height:40px;vertical-align:middle;margin-right:6px;">` : '';
-    return `<div class="card">${sprite}<strong>${a.name}</strong> — ${a.rank}
-      <div><small>${names.length ? names.join(', ') : 'Aucune équipe'}</small></div>
+    const agentCd = (a.cooldown||0) > 0 ? ` <span style="color:#7060a8;font-size:.75em">[repos ${a.cooldown}t]</span>` : '';
+    return `<div class="card">${sprite}<strong>${a.name}</strong> — ${a.rank}${agentCd}
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px"><small>${pkmInfo.length ? pkmInfo.join('') : (lang==='fr'?'Aucune équipe':'No team')}</small></div>
     </div>`;
   }).join('');
 }
@@ -1188,6 +1197,8 @@ function showMissionPopup(missionDef, agentObj, result) {
         ${agentObj?.sprite ? `<img id="simAgentSprite" src="${agentObj.sprite}"
           style="position:absolute;bottom:16px;left:14%;width:56px;image-rendering:pixelated;
           animation:simFloat 2.5s ease-in-out infinite;">` : ''}
+        <!-- Pokémon slot allié (back sprites) -->
+        <div id="simAllySlot" style="position:absolute;bottom:16px;left:28%;display:flex;gap:6px;"></div>
         <!-- Pokémon slot ennemi -->
         <div id="simEnemySlot" style="position:absolute;bottom:16px;right:14%;display:flex;gap:8px;"></div>
         <!-- Bulle de dialogue -->
@@ -1232,31 +1243,167 @@ function showMissionPopup(missionDef, agentObj, result) {
   playSimSteps(steps, 0);
 }
 
+// Génère une réplique personnalisée basée sur la personnalité de l'agent
+function agentLine(agentObj, phase, L) {
+  const name = agentObj?.name || '???';
+  const phrases = agentObj?.catch_phrases || [];
+  const traits = agentObj?.personality || [];
+
+  const PERSONALITY_LINES = {
+    fr: {
+      approach: {
+        loyal:        "Je ne vous décevrai pas, chef.",
+        discret:      "Pas un bruit. On avance.",
+        intelligent:  "J'ai analysé la zone. On est prêts.",
+        froid:        "Aucune émotion. Juste l'objectif.",
+        brutal:       "J'ai hâte d'en découdre.",
+        rusé:         "Ils ne nous verront pas venir.",
+        courageux:    "Pas de peur. En avant.",
+        nerveux:      "J-j'espère que ça va aller…",
+        ambitieux:    "Cette mission fera ma réputation.",
+        calculateur:  "Tout est en place. Exécution.",
+      },
+      combat: {
+        loyal:        "Pour la Team Rocket !",
+        discret:      "Vite, avant qu'on nous repère !",
+        intelligent:  "Exploitons leur point faible.",
+        froid:        "Pas de pitié.",
+        brutal:       "CHARGEZ !!!",
+        rusé:         "Feinte à droite, attaque à gauche.",
+        courageux:    "On n'abandonne jamais !",
+        nerveux:      "T-tenez bon !",
+        ambitieux:    "Je vais leur montrer !",
+        calculateur:  "Phase deux. Maintenant.",
+      },
+      success: {
+        loyal:        "Mission accomplie. Le boss sera fier.",
+        discret:      "On s'éclipse avant d'être repérés.",
+        intelligent:  "Résultat optimal, comme prévu.",
+        froid:        "Objectif atteint. On rentre.",
+        brutal:       "Haha ! Trop facile.",
+        rusé:         "Ils n'ont rien compris. Parfait.",
+        courageux:    "On l'a fait ! Bien joué !",
+        nerveux:      "O-ouf… on a réussi.",
+        ambitieux:    "Une victoire de plus à mon palmarès.",
+        calculateur:  "Exactement selon le plan.",
+      },
+      failure: {
+        loyal:        "Je suis désolé, chef…",
+        discret:      "Repli silencieux. On recommencera.",
+        intelligent:  "Il faut revoir notre stratégie.",
+        froid:        "Échec. Inutile de s'attarder.",
+        brutal:       "Raaah ! Ils me le paieront !",
+        rusé:         "Hmm… je n'avais pas prévu ça.",
+        courageux:    "On se relève et on repart.",
+        nerveux:      "J-je savais que ça tournerait mal…",
+        ambitieux:    "Ce n'est qu'un revers temporaire.",
+        calculateur:  "Erreur de calcul. À corriger.",
+      },
+    },
+    en: {
+      approach: {
+        loyal:        "I won't let you down, boss.",
+        discret:      "Not a sound. Move forward.",
+        intelligent:  "I've analyzed the zone. We're ready.",
+        froid:        "No emotions. Just the target.",
+        brutal:       "I can't wait to fight.",
+        rusé:         "They won't see us coming.",
+        courageux:    "No fear. Let's go.",
+        nerveux:      "I-I hope this goes well…",
+        ambitieux:    "This mission will make my name.",
+        calculateur:  "Everything is in place. Execute.",
+      },
+      combat: {
+        loyal:        "For Team Rocket!",
+        discret:      "Quick, before they spot us!",
+        intelligent:  "Let's exploit their weakness.",
+        froid:        "No mercy.",
+        brutal:       "CHARGE!!!",
+        rusé:         "Feint right, strike left.",
+        courageux:    "We never give up!",
+        nerveux:      "H-hold on!",
+        ambitieux:    "I'll show them!",
+        calculateur:  "Phase two. Now.",
+      },
+      success: {
+        loyal:        "Mission complete. The boss will be proud.",
+        discret:      "Let's vanish before they notice.",
+        intelligent:  "Optimal result, as expected.",
+        froid:        "Target acquired. Heading back.",
+        brutal:       "Haha! Too easy.",
+        rusé:         "They didn't see it coming. Perfect.",
+        courageux:    "We did it! Well done!",
+        nerveux:      "P-phew… we made it.",
+        ambitieux:    "Another victory for my record.",
+        calculateur:  "Exactly according to plan.",
+      },
+      failure: {
+        loyal:        "I'm sorry, boss…",
+        discret:      "Silent retreat. We'll try again.",
+        intelligent:  "We need to rethink our strategy.",
+        froid:        "Failed. No point dwelling on it.",
+        brutal:       "Grrr! They'll pay for this!",
+        rusé:         "Hmm… I didn't see that coming.",
+        courageux:    "We get back up and try again.",
+        nerveux:      "I-I knew this would go wrong…",
+        ambitieux:    "Just a temporary setback.",
+        calculateur:  "Miscalculation. Needs correction.",
+      },
+    },
+  };
+
+  const pLines = PERSONALITY_LINES[lang] || PERSONALITY_LINES.fr;
+  const phaseLines = pLines[phase] || {};
+
+  // Cherche une réplique basée sur le premier trait reconnu
+  for (const trait of traits) {
+    if (phaseLines[trait]) return `${name} : "${phaseLines[trait]}"`;
+  }
+
+  // Fallback: catch phrase ou dialogue générique
+  if (phrases.length && (phase === 'approach' || phase === 'combat')) {
+    return `${name} : "${pick(phrases)}"`;
+  }
+  return `${name} : "${pick(L[phase])}"`;
+}
+
 function buildSimSteps(missionDef, agentObj, result, L) {
   const steps = [];
   const enemies = getMissionEnemyPokemon(missionDef);
+  const name = agentObj?.name || '???';
 
+  // Approche : dialogue générique + réplique perso de l'agent
   steps.push({ type:'log',    text: pick(L.approach) });
-  steps.push({ type:'bubble', text: pick(L.approach) });
+  steps.push({ type:'bubble', text: agentLine(agentObj, 'approach', L), speaker: name });
 
   if (enemies.length) {
     steps.push({ type:'log',     text: pick(L.pkm_appears) });
-    steps.push({ type:'bubble',  text: pick(L.pkm_appears) });
     steps.push({ type:'showPkm', pokemons: enemies });
+    // Affiche aussi les Pokémon alliés de l'agent
+    if (agentObj?.team?.length) {
+      const allyPkm = agentObj.team.map(id => {
+        const p = state.pokemons.find(x => x.id === id);
+        return p ? (FR_TO_EN[(p.species_fr||'').toLowerCase()] || p.species_en || 'pikachu') : null;
+      }).filter(Boolean);
+      if (allyPkm.length) steps.push({ type:'showAllyPkm', pokemons: allyPkm });
+    }
   }
 
+  // Combat
+  steps.push({ type:'bubble', text: agentLine(agentObj, 'combat', L), speaker: name });
   steps.push({ type:'log',    text: pick(L.combat) });
-  steps.push({ type:'bubble', text: pick(L.combat) });
 
+  // Jenny
   if (result.jennyEvent) {
     steps.push({ type:'log',    text: pick(L.jenny) });
-    steps.push({ type:'bubble', text: pick(L.jenny) });
+    steps.push({ type:'bubble', text: pick(L.jenny), speaker: 'Jenny' });
     steps.push({ type:'shake' });
   }
 
-  const finalLine = result.success ? pick(L.success) : pick(L.failure);
-  steps.push({ type:'log',    text: finalLine });
-  steps.push({ type:'bubble', text: finalLine });
+  // Résultat
+  const phase = result.success ? 'success' : 'failure';
+  steps.push({ type:'log',    text: pick(L[phase]) });
+  steps.push({ type:'bubble', text: agentLine(agentObj, phase, L), speaker: name });
   steps.push({ type:'rewards', result });
 
   return steps;
@@ -1265,16 +1412,20 @@ function buildSimSteps(missionDef, agentObj, result, L) {
 function getMissionEnemyPokemon(missionDef) {
   const zone = MISSION_ZONE_MAP[missionDef.id] || 'default';
   const pools = {
-    marais:  ['poliwag','psyduck','tentacool'],
-    grotte:  ['geodude','zubat','onix'],
-    silph:   ['porygon','electrode','magneton'],
-    safari:  ['tauros','kangaskhan','scyther'],
-    route:   ['pidgey','rattata','spearow'],
-    centre:  ['chansey','clefairy','jigglypuff'],
-    default: ['rattata','pidgey'],
+    marais:  ['poliwag','psyduck','tentacool','grimer','koffing','ekans','oddish'],
+    grotte:  ['geodude','zubat','onix','machop','cubone','rhyhorn','diglett'],
+    silph:   ['porygon','electrode','magneton','voltorb','magnemite','alakazam'],
+    safari:  ['tauros','kangaskhan','scyther','pinsir','nidoran-f','nidoran-m','chansey'],
+    route:   ['pidgey','rattata','spearow','caterpie','weedle','pikachu','mankey'],
+    centre:  ['chansey','clefairy','jigglypuff','happiny','wigglytuff','audino'],
+    default: ['rattata','pidgey','zubat','meowth'],
   };
   const pool = pools[zone] || pools.default;
-  return [pick(pool)];
+  // 1 à 2 Pokémon ennemis selon la difficulté
+  const count = (missionDef.risque === 'élevé') ? 2 : 1;
+  const result = [];
+  for (let i = 0; i < count; i++) result.push(pick(pool));
+  return result;
 }
 
 let simStepTimeout = null;
@@ -1291,16 +1442,30 @@ function playSimSteps(steps, idx) {
     logEl.innerHTML += `<div>▶ ${step.text}</div>`;
   }
   if (step.type === 'bubble' && bubbleEl) {
-    bubbleEl.textContent = step.text;
+    const speakerTag = step.speaker ? `<span style="color:#ffcc5a;font-size:.9em;font-weight:bold">${step.speaker}</span><br>` : '';
+    bubbleEl.innerHTML = speakerTag + step.text;
     bubbleEl.style.display = 'block';
-    setTimeout(() => { if (bubbleEl) bubbleEl.style.display = 'none'; }, 2200);
+    setTimeout(() => { if (bubbleEl) bubbleEl.style.display = 'none'; }, 2800);
   }
   if (step.type === 'showPkm' && enemyEl) {
     enemyEl.innerHTML = step.pokemons.map(en => `
       <div style="display:flex;flex-direction:column;align-items:center;animation:simPop .4s">
         <img src="https://play.pokemonshowdown.com/sprites/gen5/${en}.png"
              style="width:48px;image-rendering:pixelated;">
+        <span style="font-size:.35em;color:#ff6b6b;margin-top:2px">${en}</span>
       </div>`).join('');
+  }
+  if (step.type === 'showAllyPkm') {
+    // Affiche les Pokémon alliés côté gauche
+    const allyEl = document.getElementById('simAllySlot');
+    if (allyEl) {
+      allyEl.innerHTML = step.pokemons.map(en => `
+        <div style="display:flex;flex-direction:column;align-items:center;animation:simPop .4s">
+          <img src="https://play.pokemonshowdown.com/sprites/gen5-back/${en}.png"
+               style="width:48px;image-rendering:pixelated;">
+          <span style="font-size:.35em;color:#70e0a4;margin-top:2px">${en}</span>
+        </div>`).join('');
+    }
   }
   if (step.type === 'shake') {
     const band = document.getElementById('simBand');
@@ -1494,6 +1659,7 @@ function resolveMissionV2(mi) {
     const pkmObj = state.pokemons.find(p => p.id===pkmId);
     if (pkmObj) {
       result.losses.push(pkmObj.species_fr || pkmObj.species_en);
+      markPokedexLost(pkmObj.species_fr || pkmObj.species_en);
       state.pokemons = state.pokemons.filter(p => p.id !== pkmId);
       agent.team = agent.team.filter(id => id !== pkmId);
       addLog(`🚔 Jenny a saisi ${pkmObj.species_fr || pkmObj.species_en} !`);
@@ -1507,6 +1673,7 @@ function resolveMissionV2(mi) {
     const pkmObj = state.pokemons.find(p => p.id===pkmId);
     if (pkmObj) {
       result.losses.push(`${pkmObj.species_fr||pkmObj.species_en} (${lang==='fr'?'mort':'died'})`);
+      markPokedexLost(pkmObj.species_fr || pkmObj.species_en);
       state.pokemons = state.pokemons.filter(p => p.id !== pkmId);
       agent.team = agent.team.filter(id => id !== pkmId);
       addLog(`💀 ${pkmObj.species_fr||pkmObj.species_en} est mort en mission.`);
