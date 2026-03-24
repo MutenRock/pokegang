@@ -1,0 +1,12 @@
+{
+  "name": "pokeforge",
+  "private": true,
+  "version": "5.0.0",
+  "description": "Pokeforge — Team Rocket HQ Management Game",
+  "scripts": {
+    "dev": "npx serve game/ -l 8080",
+    "check:locales": "node ./tools/check-locales.mjs",
+    "check:characters": "node ./tools/scripts/check-character-sheets.mjs",
+    "check:ollama": "node ./scripts/check-ollama.mjs"
+  }
+}
