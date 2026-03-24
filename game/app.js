@@ -1807,7 +1807,7 @@ async function recruitStepV2() {
   const fallback     = JSON.stringify({ reply:`${r.candidateName} : ${lang==='fr'?'Continue...':'Go on...'}`, scoreDelta: message.length > 20 ? 1 : 0 });
   const llmOut       = await callOllama(fullPrompt, fallback);
 
-  let reply = `${r.candidateName} : ${lang==='fr'?'Je t'écoute.':'I'm listening.'}`;
+  let reply = `${r.candidateName} : ${lang==='fr'?"Je t'écoute.":"I'm listening."}`;
   let delta  = 0;
   try {
     const jsonText = llmOut.includes('{') ? llmOut.slice(llmOut.indexOf('{'), llmOut.lastIndexOf('}')+1) : llmOut;
@@ -2635,7 +2635,7 @@ ${lang==='fr'?'Réponds en une ou deux phrases.':'Answer in one or two sentences
   // Chance de bonus narratif
   if (Math.random() < 0.2) {
     const bonuses = {
-      fr: ['Cette conversation te donne des informations utiles. +1 Intel.', 'L'agent partage un tuyau. +50₽.', 'Un détail révélateur. +1 Intel.'],
+      fr: ['Cette conversation te donne des informations utiles. +1 Intel.', "L'agent partage un tuyau. +50₽.", 'Un détail révélateur. +1 Intel.'],
       en: ['This conversation yields useful intel. +1 Intel.', 'The agent shares a tip. +50₽.', 'A revealing detail. +1 Intel.'],
     };
     const bonus = pick(bonuses[lang] || bonuses.fr);
@@ -2734,7 +2734,7 @@ const LORE_NPCS = {
     speech_style: { tone:'dramatique', verbosity:'long', formality:'low' },
     catch_phrases: {
       fr:['Préparez-vous pour les ennuis !',"La beauté et la ruse, c'est notre devise.","Personne ne m'arrêtera !"],
-      en:['Prepare for trouble!','Beauty and cunning, that's our motto.','Nobody will stop me!'],
+      en:['Prepare for trouble!',"Beauty and cunning, that's our motto.",'Nobody will stop me!'],
     },
     pokemon_preferences: ['poison','normal'],
     possible_pokemon: ['ekans','arbok','wobbuffet'],
@@ -2752,8 +2752,8 @@ const LORE_NPCS = {
     values: ['amitié','Pokémon','appartenance'],
     speech_style: { tone:'hésitant', verbosity:'moyen', formality:'low' },
     catch_phrases: {
-      fr:['Et faites-en le double !','Je ne suis pas sûr que c'est une bonne idée…','Mes Pokémon comptent sur moi.'],
-      en:['Make it double!','I'm not sure this is a good idea…','My Pokémon count on me.'],
+      fr:['Et faites-en le double !',"Je ne suis pas sûr que c'est une bonne idée…",'Mes Pokémon comptent sur moi.'],
+      en:['Make it double!',"I'm not sure this is a good idea…",'My Pokémon count on me.'],
     },
     pokemon_preferences: ['poison','grass'],
     possible_pokemon: ['koffing','weezing','victreebel'],
@@ -3194,7 +3194,7 @@ ${lang==='fr'?'Réponds en une ou deux phrases.':'Answer in one or two sentences
   state.allyChatLog.push(reply);
   if (Math.random() < 0.2) {
     const bonuses = {
-      fr: ['Cette conversation te donne des informations utiles. +1 Intel.','L'agent partage un tuyau. +50₽.'],
+      fr: ['Cette conversation te donne des informations utiles. +1 Intel.',"L'agent partage un tuyau. +50₽."],
       en: ['This conversation yields useful intel. +1 Intel.','The agent shares a tip. +50₽.'],
     };
     const bonus = pick(bonuses[lang]||bonuses.fr);
@@ -3234,7 +3234,7 @@ Réponds en JSON strict : {"reply":"...","scoreDelta":-2..2}`;
 
   const llmOut = await callOllamaWithBar(fullPrompt, fallback, 'recruitCandidate', r.candidateName);
 
-  let reply = `${r.candidateName} : ${lang==='fr'?'Je t'écoute.':'I'm listening.'}`;
+  let reply = `${r.candidateName} : ${lang==='fr'?"Je t'écoute.":"I'm listening."}`;
   let delta  = 0;
   try {
     const jsonText = llmOut.includes('{') ? llmOut.slice(llmOut.indexOf('{'), llmOut.lastIndexOf('}')+1) : llmOut;
