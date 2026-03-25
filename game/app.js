@@ -969,10 +969,10 @@ function startWorldSpawner() {
   if (worldSpawnInterval) clearInterval(worldSpawnInterval);
   worldSpawnInterval = setInterval(() => {
     if (!state.profile.initialized) return;
-    // Max 5 Pokémon à la fois dans la zone
-    if ((state.worldPokemon||[]).length >= 5) return;
+    // Max 3 Pokémon à la fois dans la zone
+    if ((state.worldPokemon||[]).length >= 3) return;
     spawnWorldPokemon();
-  }, 8000);
+  }, 16000);
 }
 
 function spawnWorldPokemon() {
