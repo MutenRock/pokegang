@@ -373,10 +373,8 @@ function pokeSpriteFromFR(species_fr) {
 }
 function pick(list)   { return list[Math.floor(Math.random() * list.length)]; }
 function addLog(text) { state.log.unshift(`[T${state.turn}] ${text}`); state.log = state.log.slice(0, 200); }
-function saveState()    { localStorage.setItem('pokeforge.rocket-hq.state', JSON.stringify(state)); }
-function saveSettings() { localStorage.setItem('pokeforge.rocket-hq.settings', JSON.stringify(settings)); }
-function loadState() { const r = localStorage.getItem('pokeforge.rocket-hq.state'); if (!r) return null; try { return JSON.parse(r); } catch { return null; } }
-function loadSettings() { const r = localStorage.getItem('pokeforge.rocket-hq.settings'); if (!r) return {...DEFAULT_SETTINGS}; try { return {...DEFAULT_SETTINGS,...JSON.parse(r)}; } catch { return {...DEFAULT_SETTINGS}; } }
+// saveState/loadState/loadSettings → voir bloc slot-aware en haut du fichier
+function saveSettings() { localStorage.setItem('pf.settings', JSON.stringify(settings)); }
 
 // Crée un objet Pokémon à partir d'un nom FR
 function makePokemon(species_fr, level) {
@@ -452,72 +450,7 @@ function initRecruit() {
   state.recruit = { npc, candidateName:npc.name, candidateRole:npc.role, interactions:0, hiddenScore:npc.hiddenScore, transcript:[], finished:false };
 }
 
-// ── MISSIONS ─────────────────────────────────────────────
-function rollAvailableMissions() {
-  const shuffled = [...MISSIONS].sort(() => Math.random() - 0.5);
-  state.availableMissions = shuffled.slice(0, 3);
-}
-
-function renderMissions() {
-  let html = '<h4>Missions disponibles</h4>';
-  if (!state.availableMissions?.length) { html += '<div class="card">Aucune mission disponible.</div>'; }
-  else {
-    html += state.availableMissions.map(m => {
-      const agentLibre = state.agents.find(a => !(state.missions||[]).some(mi => mi.agentId === a.id));
-      return `<div class="card">
-        <strong>${m.nom}</strong> <small>[${m.risque}]</small><br>
-        <small>${m.description}</small><br>
-        <small>Durée : ${m.duree} tours — Récompense : ${Object.entries(m.recompense).map(([k,v])=>`${v} ${k}`).join(', ')}</small><br>
-        ${agentLibre
-          ? `<button onclick="assignMission('${m.id}','${agentLibre.id}')">Envoyer ${agentLibre.name}</button>`
-          : '<small><em>Aucun agent disponible</em></small>'}
-      </div>`;
-    }).join('');
-  }
-  html += '<h4>Missions en cours</h4>';
-  if (!state.missions?.length) { html += '<div class="card">Aucune mission en cours.</div>'; }
-  else {
-    html += state.missions.map(mi => {
-      const agent = state.agents.find(a => a.id === mi.agentId);
-      const m = MISSIONS.find(x => x.id === mi.missionId);
-      return `<div class="card"><strong>${m?.nom || mi.missionId}</strong> — Agent : ${agent?.name || '?'} — ${mi.turnsLeft} tour(s) restant(s)</div>`;
-    }).join('');
-  }
-  const missionsEl = document.getElementById('missionsList');
-  if (missionsEl) missionsEl.innerHTML = html;
-}
-
-function assignMission(missionId, agentId) {
-  const m = MISSIONS.find(x => x.id === missionId);
-  if (!m) return;
-  if (!state.missions) state.missions = [];
-  state.missions.push({ missionId, agentId, turnsLeft: m.duree, recompense: m.recompense });
-  state.availableMissions = state.availableMissions.filter(x => x.id !== missionId);
-  const agent = state.agents.find(a => a.id === agentId);
-  addLog(`Mission lancée : "${m.nom}" — Agent ${agent?.name} envoyé.`);
-  saveState(); render();
-}
-
-function processMissions() {
-  if (!state.missions) state.missions = [];
-  state.missions.forEach(mi => mi.turnsLeft -= 1);
-  const terminées = state.missions.filter(mi => mi.turnsLeft <= 0);
-  state.missions = state.missions.filter(mi => mi.turnsLeft > 0);
-  terminées.forEach(mi => {
-    const m = MISSIONS.find(x => x.id === mi.missionId);
-    const agent = state.agents.find(a => a.id === mi.agentId);
-    // Succès ou échec selon réputation
-    const success = Math.random() * 100 < (40 + state.reputation);
-    if (success) {
-      Object.entries(mi.recompense).forEach(([k,v]) => { if (state.resources[k] !== undefined) state.resources[k] += v; });
-      state.reputation = Math.min(100, state.reputation + 2);
-      addLog(`✅ Mission "${m?.nom}" réussie par ${agent?.name}. Récompenses perçues.`);
-    } else {
-      state.reputation = Math.max(0, state.reputation - 3);
-      addLog(`❌ Mission "${m?.nom}" échouée. ${agent?.name} revient bredouille.`);
-    }
-  });
-}
+// Missions v3 supprimées — voir MISSIONS_V2 / rollAvailableMissionsV2 / resolveMissionV2
 
 // ── ÉVÉNEMENTS ALÉATOIRES ─────────────────────────────────
 const RANDOM_EVENTS = [
@@ -545,25 +478,7 @@ function renderResources() {
     .join('') + `<div class="stat"><strong>⭐ Réputation</strong><div>${state.reputation||0}/100</div></div>`;
 }
 
-function renderRooms() {
-  ui.roomsList.innerHTML = Object.entries(state.rooms).map(([roomId, room]) => `
-    <div class="room">
-      <div><strong>${room.nom}</strong> Niv.${room.level}</div>
-      <div class="row"><small>Prod./tour : ${room.baseIncome * room.level}</small>
-      <button data-room="${roomId}">Améliorer ${room.upgradeCost}$</button></div>
-    </div>`).join('');
-  ui.roomsList.querySelectorAll('button[data-room]').forEach(btn => {
-    btn.onclick = () => {
-      const room = state.rooms[btn.dataset.room];
-      if (state.resources.pokedollars < room.upgradeCost) return addLog(`Pas assez de Pokédollars pour ${room.nom}.`);
-      state.resources.pokedollars -= room.upgradeCost;
-      room.level += 1;
-      room.upgradeCost = Math.round(room.upgradeCost * 1.5);
-      addLog(`${room.nom} améliorée — niveau ${room.level}.`);
-      saveState(); render();
-    };
-  });
-}
+// renderRooms v3 supprimée — voir renderRoomsV2
 
 function renderPokemonPanels() {
   ui.pokemonOwnedList.innerHTML = state.pokemons.map(p => {
@@ -663,68 +578,7 @@ function renderNpcs() {
   });
 }
 
-function render() {
-  ui.turnValue.textContent = state.turn;
-  ui.llmBadge.textContent  = settings.llmEnabled ? 'ON' : 'OFF';
-  ui.playerName.textContent = `${state.profile.firstName} ${state.profile.lastName}`;
-  ui.teamName.textContent   = state.profile.team;
-  ui.playerSprite.src       = state.profile.sprite;
-  ui.introOverlay.classList.toggle('hidden', state.profile.initialized);
-  renderResources();
-  renderRooms();
-  renderPokemonPanels();
-  renderTeamBuilder();
-  renderAgentsAndRecruitment();
-  renderNpcs();
-  renderMissions();
-  ui.logOutput.innerHTML = state.log.map(l => `<div class="logline">${l}</div>`).join('');
-  ui.llmEnabledToggle.checked = settings.llmEnabled;
-  ui.baseUrlInput.value = settings.baseUrl;
-  ui.modelInput.value   = settings.model;
-}
-
-// ── GAME LOOP ────────────────────────────────────────────
-function processTurn() {
-  state.turn += 1;
-  state.newPokemonsThisTurn = [];
-
-  state.resources.pokedollars    += state.rooms.command.baseIncome  * state.rooms.command.level;
-  state.resources.capturePoints  += state.rooms.capture.baseIncome  * state.rooms.capture.level;
-  state.resources.breedingPoints += state.rooms.breeding.baseIncome * state.rooms.breeding.level;
-  state.resources.intel          += state.rooms.training.baseIncome * state.rooms.training.level;
-
-  while (state.resources.capturePoints >= 3) {
-    state.resources.capturePoints -= 3;
-    const pFR = pick(POKEDEX_POOL_FR);
-    const pok = makePokemon(pFR, 6 + Math.floor(Math.random()*7));
-    state.pokemons.push(pok); state.newPokemonsThisTurn.push(pok);
-    addLog(`Capture réussie : ${pFR}.`);
-  }
-  while (state.resources.breedingPoints >= 4) {
-    state.resources.breedingPoints -= 4;
-    state.breedingQueue.push({ turnsLeft:2, species_fr: pick(POKEDEX_POOL_FR) });
-    addLog('Un œuf est ajouté à la nurserie.');
-  }
-  state.breedingQueue.forEach(e => e.turnsLeft -= 1);
-  const hatched = state.breedingQueue.filter(e => e.turnsLeft <= 0);
-  state.breedingQueue = state.breedingQueue.filter(e => e.turnsLeft > 0);
-  hatched.forEach(e => {
-    const pok = makePokemon(e.species_fr, 5 + Math.floor(Math.random()*6));
-    state.pokemons.push(pok); state.newPokemonsThisTurn.push(pok);
-    addLog(`Éclosion : ${e.species_fr} rejoint la base.`);
-  });
-
-  processMissions();
-  rollRandomEvent();
-  rollAvailableMissions();
-
-  if (state.recruit?.finished) {
-    initRecruit();
-    addLog(`Nouveau candidat disponible : ${state.recruit.candidateName} (${state.recruit.candidateRole}).`);
-  }
-
-  saveState(); render();
-}
+// render() et processTurn() → voir versions V5 en bas du fichier
 
 // ── TEAM ASSIGNMENT ──────────────────────────────────────
 function assignTeam() {
@@ -3613,12 +3467,4 @@ if (!document.getElementById('loadingBarStyle')) {
   document.head.appendChild(s);
 }
 
-// ============================================================
-// BOOT — Initialisation au chargement
-// ============================================================
-openIntro();
-bindEvents();
-if (!state.recruit) initRecruit();
-if (!state.availableMissions?.length) rollAvailableMissions();
-if (!state.log.length) addLog('Bienvenue dans Rocket HQ.');
-render();
+// Boot principal → bootV4() appelé plus haut
