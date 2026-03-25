@@ -56,6 +56,9 @@ function loadSettings() {
 // POKEFORGE — ROCKET HQ  app.js  v3  (Full FR + Gameplay+)
 // ============================================================
 
+// ── CONSTANTES GLOBALES ──────────────────────────────────
+const AGENT_XP_THRESHOLDS = [0, 50, 120, 250, 500]; // index = level-1
+
 // ── SPRITES ─────────────────────────────────────────────
 const TRAINER_SPRITES = [
   'https://play.pokemonshowdown.com/sprites/trainers/rocketgrunt.png',
@@ -915,13 +918,7 @@ function bindEvents() {
   on(ui.exportLogsBtn, 'onclick', () => exportFile('rocket-hq-logs.txt', state.log.join('\n')));
 }
 
-// ── BOOT ─────────────────────────────────────────────────
-openIntro();
-bindEvents();
-if (!state.recruit) initRecruit();
-if (!state.availableMissions?.length) rollAvailableMissions();
-if (!state.log.length) addLog('Bienvenue dans Rocket HQ.');
-render();
+// ── BOOT (déplacé en fin de fichier pour éviter les erreurs de hoisting) ──
 
 
 // ============================================================
@@ -2168,8 +2165,6 @@ function renderRecruitV2() {
 // ============================================================
 // PATCH v4.05 — NIVEAUX AGENTS + COOLDOWN
 // ============================================================
-
-const AGENT_XP_THRESHOLDS = [0, 50, 120, 250, 500]; // index = level-1
 
 function grantAgentXP(agent, xp) {
   if (!agent) return;
@@ -3622,3 +3617,13 @@ if (!document.getElementById('loadingBarStyle')) {
   `;
   document.head.appendChild(s);
 }
+
+// ============================================================
+// BOOT — Initialisation au chargement
+// ============================================================
+openIntro();
+bindEvents();
+if (!state.recruit) initRecruit();
+if (!state.availableMissions?.length) rollAvailableMissions();
+if (!state.log.length) addLog('Bienvenue dans Rocket HQ.');
+render();
