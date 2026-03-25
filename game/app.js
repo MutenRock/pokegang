@@ -1101,12 +1101,23 @@ const ZONE_BG_STYLES = {
   safari:  { bg:'linear-gradient(160deg,#0a1a00 0%,#1a2a08 100%)', label:'Zone Safari', stars:false },
   route:   { bg:'linear-gradient(160deg,#0a1a0a 0%,#182a18 100%)', label:'Route 1', stars:false },
   centre:  { bg:'linear-gradient(160deg,#180a1a 0%,#0a0a18 100%)', label:'Centre Pokémon', stars:true },
+  labo:    { bg:'linear-gradient(160deg,#0a0f1a 0%,#1a2a3a 100%)', label:'Laboratoire Chen', stars:false },
+  arene:   { bg:'linear-gradient(160deg,#1a0a06 0%,#3a1a08 100%)', label:'Arène de Jadielle', stars:false },
+  sommet:  { bg:'linear-gradient(160deg,#1a1a2a 0%,#0a0a1a 60%,#020208 100%)', label:'Mont Argenté', stars:true },
 };
 
 const MISSION_ZONE_MAP = {
   m1:'centre', m2:'grotte', m3:'safari', m4:'silph', m5:'route', m6:'grotte',
-  m_raid_marais:'marais', m_raid_safari:'safari', m_vol_dresseur:'route',
+  m_vol_centre:'centre', m_vol_dresseur:'route',
+  m_raid_marais:'marais', m_raid_safari:'safari', m_raid_grotte:'grotte',
+  m_trafic_fossiles:'grotte', m_silph:'silph',
   m_event_legendaire:'default',
+  // Antagonistes
+  m_antag_chen_labo:'labo', m_antag_chen_conf:'centre',
+  m_antag_silver_embu:'route', m_antag_silver_vol:'grotte',
+  m_antag_blue_arene:'arene',
+  // Boss
+  m_boss_red:'sommet',
 };
 
 // Dialogues de simulation par phase (FR/EN)
@@ -1397,6 +1408,48 @@ function buildSimSteps(missionDef, agentObj, result, L) {
   steps.push({ type:'bubble', text: agentLine(agentObj, 'combat', L), speaker: name });
   steps.push({ type:'log',    text: pick(L.combat) });
 
+  // ── Antagoniste ─────────────────────────────────────
+  if (result.antagonist) {
+    const antag = result.antagonist;
+    const antagName = antag.name[lang] || antag.name.fr;
+    const antagPhrases = antag.catch_phrases[lang] || antag.catch_phrases.fr;
+    const antagPkm = antag.possible_pokemon || [];
+
+    // Apparition de l'antagoniste
+    steps.push({ type:'shake' });
+    const appearMsg = lang === 'fr'
+      ? `⚔️ ${antagName} apparaît et bloque le chemin !`
+      : `⚔️ ${antagName} appears and blocks the way!`;
+    steps.push({ type:'log', text: appearMsg });
+    steps.push({ type:'showAntagonist', sprite: antag.sprite, name: antagName });
+    steps.push({ type:'bubble', text: `${antagName} : "${pick(antagPhrases)}"`, speaker: antagName });
+
+    // Pokémon de l'antagoniste
+    if (antagPkm.length) {
+      const enPkm = antagPkm.map(fr => FR_TO_EN[fr] || fr);
+      steps.push({ type:'showPkm', pokemons: enPkm.slice(0, 3) });
+    }
+
+    // Réplique de combat de l'antagoniste
+    steps.push({ type:'bubble', text: `${antagName} : "${pick(antagPhrases)}"`, speaker: antagName });
+
+    // Réaction de notre agent
+    const reactMsg = result.success
+      ? (lang==='fr' ? `${name} : "On ne se laissera pas faire !"` : `${name}: "We won't back down!"`)
+      : (lang==='fr' ? `${name} : "Il est trop fort… Repli !"` : `${name}: "Too strong… Fall back!"`);
+    steps.push({ type:'bubble', text: reactMsg, speaker: name });
+
+    // Boss Red : dialogue spécial
+    if (result.isBoss && result.bossVictory) {
+      steps.push({ type:'shake' });
+      const bossMsg = lang === 'fr'
+        ? '🏆 RED EST VAINCU ! La Team Rocket triomphe !'
+        : '🏆 RED IS DEFEATED! Team Rocket triumphs!';
+      steps.push({ type:'log', text: bossMsg });
+      steps.push({ type:'bubble', text: 'Red : "…"', speaker: 'Red' });
+    }
+  }
+
   // Jenny
   if (result.jennyEvent) {
     steps.push({ type:'log',    text: pick(L.jenny) });
@@ -1422,6 +1475,9 @@ function getMissionEnemyPokemon(missionDef) {
     safari:  ['tauros','kangaskhan','scyther','pinsir','nidoran-f','nidoran-m','chansey'],
     route:   ['pidgey','rattata','spearow','caterpie','weedle','pikachu','mankey'],
     centre:  ['chansey','clefairy','jigglypuff','happiny','wigglytuff','audino'],
+    labo:    ['eevee','porygon','bulbasaur','charmander','squirtle','ditto'],
+    arene:   ['arcanine','machamp','alakazam','gyarados','pidgeot','exeggutor'],
+    sommet:  ['pikachu','charizard','blastoise','venusaur','snorlax','lapras'],
     default: ['rattata','pidgey','zubat','meowth'],
   };
   const pool = pools[zone] || pools.default;
@@ -1471,6 +1527,23 @@ function playSimSteps(steps, idx) {
         </div>`).join('');
     }
   }
+  if (step.type === 'showAntagonist') {
+    // Affiche le sprite de l'antagoniste côté droit, au-dessus des Pokémon
+    const band = document.getElementById('simBand');
+    if (band) {
+      let antagEl = document.getElementById('simAntagSprite');
+      if (!antagEl) {
+        antagEl = document.createElement('div');
+        antagEl.id = 'simAntagSprite';
+        antagEl.style.cssText = 'position:absolute;bottom:16px;right:5%;display:flex;flex-direction:column;align-items:center;animation:simPop .5s;';
+        band.appendChild(antagEl);
+      }
+      antagEl.innerHTML = `
+        <img src="${step.sprite}" style="width:64px;image-rendering:pixelated;">
+        <span style="font-size:.4em;color:#ff4444;margin-top:2px;font-weight:bold">${step.name}</span>
+      `;
+    }
+  }
   if (step.type === 'shake') {
     const band = document.getElementById('simBand');
     if (band) { band.style.animation='simShake .5s'; setTimeout(()=>{band.style.animation='';},600); }
@@ -1480,13 +1553,29 @@ function playSimSteps(steps, idx) {
     const contBtn  = document.getElementById('simContinueBtn');
     if (rewardEl) {
       const r = step.result;
-      let html = r.success
+      let html = '';
+
+      // Boss victory banner
+      if (r.bossVictory) {
+        html += `<div style="color:#ffcc5a;font-size:1.2em;margin-bottom:8px">🏆 ${lang==='fr'?'VICTOIRE ULTIME !':'ULTIMATE VICTORY!'}</div>`;
+      }
+
+      html += r.success
         ? (lang==='fr' ? '✅ Succès !' : '✅ Success!')
         : (lang==='fr' ? '❌ Échec.' : '❌ Failed.');
+
+      // Antagoniste info
+      if (r.antagonist) {
+        const antagName = r.antagonist.name[lang] || r.antagonist.name.fr;
+        html += r.success
+          ? `<br>⚔️ ${antagName} ${lang==='fr'?'repoussé !':'driven back!'}`
+          : `<br>⚔️ ${antagName} ${lang==='fr'?'vous a dominé.':'overpowered you.'}`;
+      }
+
       if (r.pokedollars) html += `<br>💰 +${r.pokedollars} Pokédollars`;
       if (r.intel)       html += `<br>🔍 +${r.intel} Intel`;
-      if (r.pokemon)     html += `<br>🎯 Pokémon récupéré : ${r.pokemon.map(p=>p.species_fr).join(', ')}`;
-      if (r.losses)      html += `<br>💀 Perdu : ${r.losses.join(', ')}`;
+      if (r.pokemon?.length) html += `<br>🎯 ${lang==='fr'?'Pokémon récupéré':'Pokémon captured'} : ${r.pokemon.map(p=>p.species_fr).join(', ')}`;
+      if (r.losses?.length)  html += `<br>💀 ${lang==='fr'?'Perdu':'Lost'} : ${r.losses.join(', ')}`;
       rewardEl.innerHTML = html;
       rewardEl.style.display = 'block';
     }
@@ -1580,6 +1669,75 @@ const MISSIONS_V2 = [
     pkmRewardPool: ['mew','mewtwo'],
     rare:true,
   },
+
+  // ── MISSIONS ANTAGONISTES — Prof. Chen ────────────────
+  { id:'m_antag_chen_labo', zone:'labo', categorie:'antagoniste',
+    nom:      { fr:'Infiltration — Labo du Prof. Chen',     en:'Infiltration — Prof. Oak\'s Lab' },
+    desc:     { fr:'Voler les données de recherche du Professeur Chen.', en:'Steal research data from Professor Oak\'s lab.' },
+    recompense:{ pokedollars:600, intel:5 },
+    duree:3, risque:'élevé', jennyRisk:0.3,
+    pkmRewardPool: ['eevee','bulbasaur','charmander','squirtle'],
+    antagonist: 'oak',
+    antagonistChance: 0.6,
+    rare: true,
+  },
+  { id:'m_antag_chen_conf', zone:'centre', categorie:'antagoniste',
+    nom:      { fr:'Sabotage — Conférence Pokémon',         en:'Sabotage — Pokémon Conference' },
+    desc:     { fr:'Perturber la conférence de Chen pour voler des prototypes.', en:'Disrupt Oak\'s conference to steal prototypes.' },
+    recompense:{ pokedollars:800, intel:3 },
+    duree:2, risque:'moyen', jennyRisk:0.25,
+    pkmRewardPool: ['porygon','magnemite'],
+    antagonist: 'oak',
+    antagonistChance: 0.8,
+    rare: true,
+  },
+
+  // ── MISSIONS ANTAGONISTES — Silver ────────────────────
+  { id:'m_antag_silver_embu', zone:'route', categorie:'antagoniste',
+    nom:      { fr:'Embuscade — Silver rôde',                en:'Ambush — Silver Lurks' },
+    desc:     { fr:'Silver attaque nos agents sur la route. Ripostez.', en:'Silver is attacking our agents on the route. Strike back.' },
+    recompense:{ pokedollars:500, intel:2 },
+    duree:2, risque:'élevé', jennyRisk:0.1,
+    pkmRewardPool: ['sneasel','murkrow','totodile'],
+    antagonist: 'silver',
+    antagonistChance: 1.0,
+    rare: true,
+  },
+  { id:'m_antag_silver_vol', zone:'grotte', categorie:'antagoniste',
+    nom:      { fr:'Représailles — Silver vole nos Pokémon', en:'Retaliation — Silver Steals Our Pokémon' },
+    desc:     { fr:"Silver s'est introduit dans notre planque.", en:'Silver broke into our hideout.' },
+    recompense:{ pokedollars:400, intel:1 },
+    duree:1, risque:'élevé', jennyRisk:0.05,
+    pkmRewardPool: [],
+    antagonist: 'silver',
+    antagonistChance: 1.0,
+    rare: true,
+  },
+
+  // ── MISSIONS ANTAGONISTES — Blue ──────────────────────
+  { id:'m_antag_blue_arene', zone:'arene', categorie:'antagoniste',
+    nom:      { fr:'Défi — Arène de Jadielle',              en:'Challenge — Viridian Gym' },
+    desc:     { fr:"Prendre le contrôle de l'Arène de Blue.", en:"Take control of Blue's Gym." },
+    recompense:{ pokedollars:1200, intel:5, capturePoints:3 },
+    duree:4, risque:'élevé', jennyRisk:0.35,
+    pkmRewardPool: ['arcanine','alakazam','machamp'],
+    antagonist: 'blue',
+    antagonistChance: 1.0,
+    rare: true,
+  },
+
+  // ── MISSION BOSS — Red ────────────────────────────────
+  { id:'m_boss_red', zone:'sommet', categorie:'boss',
+    nom:      { fr:'Assaut Final — Le Mont Argenté',         en:'Final Assault — Mt. Silver' },
+    desc:     { fr:'Affronter Red au sommet du Mont Argenté. La victoire ultime.', en:'Face Red atop Mt. Silver. The ultimate victory.' },
+    recompense:{ pokedollars:5000, intel:20, capturePoints:10 },
+    duree:5, risque:'élevé', jennyRisk:0.1,
+    pkmRewardPool: ['pikachu','charizard','blastoise','venusaur','snorlax','lapras'],
+    antagonist: 'red',
+    antagonistChance: 1.0,
+    rare: true,
+    boss: true,
+  },
 ];
 
 // Retire la salle de capture du state (migration douce)
@@ -1598,10 +1756,43 @@ function migrateRemoveCapture() {
 function rollAvailableMissionsV2() {
   const pool = MISSIONS_V2.filter(m => !m.rare);
   const shuffled = [...pool].sort(() => Math.random()-0.5);
+
   // Événement rare : 15% de chance d'apparaître
-  const rares = MISSIONS_V2.filter(m => m.rare);
+  const rares = MISSIONS_V2.filter(m => m.rare && !m.antagonist && !m.boss);
   if (Math.random() < 0.15 && rares.length) shuffled.unshift(pick(rares));
-  state.availableMissions = shuffled.slice(0, 3);
+
+  // Missions antagonistes : injection conditionnelle
+  const antagMissions = MISSIONS_V2.filter(m => m.antagonist && !m.boss);
+  antagMissions.forEach(m => {
+    const npcDef = LORE_NPCS[m.antagonist];
+    if (!npcDef) return;
+    const cond = npcDef.activation || {};
+    // Conditions d'activation de l'antagoniste
+    if (cond.minReputation !== undefined && (state.reputation||0) < cond.minReputation) return;
+    if (cond.minTurn !== undefined && state.turn < cond.minTurn) return;
+    // 20% de chance par tour qu'une mission antagoniste apparaisse
+    if (Math.random() < 0.20) shuffled.unshift(m);
+  });
+
+  // Mission Boss Red : injection si conditions remplies et pas déjà vaincue
+  if (!state.bossRedDefeated) {
+    const bossMission = MISSIONS_V2.find(m => m.boss && m.antagonist === 'red');
+    const redNpc = LORE_NPCS.red;
+    if (bossMission && redNpc) {
+      const cond = redNpc.activation || {};
+      const repOk = cond.minReputation === undefined || (state.reputation||0) >= cond.minReputation;
+      const turnOk = cond.minTurn === undefined || state.turn >= cond.minTurn;
+      // 10% de chance par tour quand conditions remplies
+      if (repOk && turnOk && Math.random() < 0.10) {
+        shuffled.unshift(bossMission);
+        addLog(lang==='fr'
+          ? '⚠️ RED a été repéré au Mont Argenté ! Mission spéciale disponible.'
+          : '⚠️ RED has been spotted on Mt. Silver! Special mission available.');
+      }
+    }
+  }
+
+  state.availableMissions = shuffled.slice(0, 4); // 4 slots pour laisser place aux missions spéciales
 }
 
 // Résolution d'une mission V2
@@ -1612,8 +1803,16 @@ function resolveMissionV2(mi) {
 
   // Succès basé sur réputation + level agent
   const agentLevel = agent?.level || 1;
-  const baseChance = 35 + (state.reputation||0) * 0.6 + agentLevel * 5;
-  const success = Math.random() * 100 < Math.min(90, baseChance);
+  let baseChance = 35 + (state.reputation||0) * 0.6 + agentLevel * 5;
+
+  // Malus antagoniste : les missions antagonistes sont plus dures
+  const hasAntagonist = mDef.antagonist && Math.random() < (mDef.antagonistChance || 0.5);
+  const antagonistNpc = hasAntagonist ? LORE_NPCS[mDef.antagonist] : null;
+  if (hasAntagonist) {
+    baseChance -= mDef.boss ? 25 : 15; // Boss Red est beaucoup plus dur
+  }
+
+  const success = Math.random() * 100 < Math.min(90, Math.max(5, baseChance));
 
   // Risque Jenny
   const jennyRisk = mDef.jennyRisk || 0.1;
@@ -1700,6 +1899,30 @@ function resolveMissionV2(mi) {
     });
   }
 
+  // Antagoniste : infos supplémentaires pour le popup
+  result.antagonist = antagonistNpc || null;
+  result.isBoss = !!mDef.boss;
+
+  // Boss Red : victoire spéciale
+  if (mDef.boss && mDef.antagonist === 'red' && success) {
+    state.bossRedDefeated = true;
+    state.reputation = 100;
+    result.bossVictory = true;
+    addLog(lang==='fr'
+      ? '🏆 VICTOIRE ULTIME ! Red a été vaincu au Mont Argenté !'
+      : '🏆 ULTIMATE VICTORY! Red has been defeated on Mt. Silver!');
+  }
+
+  // Antagoniste vaincu : bonus réputation + XP
+  if (antagonistNpc && success && !mDef.boss) {
+    const bonusRep = 5;
+    state.reputation = Math.min(100, (state.reputation||0) + bonusRep);
+    if (agent) grantAgentXP(agent, 30);
+    addLog(lang==='fr'
+      ? `⚔️ ${antagonistNpc.name[lang]||antagonistNpc.name.fr} a été repoussé ! +${bonusRep} réputation`
+      : `⚔️ ${antagonistNpc.name[lang]||antagonistNpc.name.en} has been driven back! +${bonusRep} reputation`);
+  }
+
   // Popup de résolution
   showMissionPopup(mDef, agent, result);
 
@@ -1737,8 +1960,24 @@ function renderMissionsV2() {
     const nom = m.nom?.[lang] || m.nom || m.id;
     const desc = m.desc?.[lang] || m.desc || '';
     const rwStr = Object.entries(m.recompense||{}).map(([k,v])=>`${v} ${k}`).join(', ');
-    return `<div class="mission-card">
-      <strong>${nom}</strong>
+
+    // Badges spéciaux pour antagonistes/boss
+    const isAntag = !!m.antagonist;
+    const isBoss = !!m.boss;
+    const antagNpc = isAntag ? LORE_NPCS[m.antagonist] : null;
+    const borderColor = isBoss ? '#ff2222' : isAntag ? '#ff8800' : '#4a3a8a';
+    const antagBadge = isBoss
+      ? '<span style="color:#ff2222;font-size:.75em;font-weight:bold"> ★ BOSS</span>'
+      : isAntag
+        ? `<span style="color:#ff8800;font-size:.75em"> ⚔️ ${antagNpc?.name?.[lang]||m.antagonist}</span>`
+        : '';
+    const antagSprite = antagNpc?.sprite
+      ? `<img src="${antagNpc.sprite}" style="width:32px;image-rendering:pixelated;float:right;margin:-4px 0 4px 8px">`
+      : '';
+
+    return `<div class="mission-card" style="border-color:${borderColor}">
+      ${antagSprite}
+      <strong>${nom}</strong>${antagBadge}
       <span class="badge-mission">${m.risque||'?'}</span>
       <small>${desc}</small>
       <small>${m.duree} ${T.turns} — ${T.reward} : ${rwStr}</small>
@@ -2799,8 +3038,67 @@ const LORE_NPCS = {
     },
     pokemon_preferences: ['electric','fire','water','grass'],
     possible_pokemon: ['pikachu','charizard','blastoise','venusaur','snorlax','lapras'],
-    activation: { minReputation: 70 }, // boss final
+    activation: { minReputation: 70 },
     role_in_game: 'boss_mission',
+  },
+
+  // ── NOUVEAUX PERSONNAGES v5 ─────────────────────────────
+
+  proton: {
+    id: 'lore_proton',
+    name: { fr:'Proton', en:'Proton' },
+    rank: { fr:'Sous-Chef Rocket', en:'Team Rocket Admin' },
+    faction: 'team_rocket',
+    sprite: 'https://play.pokemonshowdown.com/sprites/trainers/proton.png',
+    personality: ['cruel','sadique','efficace'],
+    values: ['terreur','résultats','intimidation'],
+    speech_style: { tone:'menaçant', verbosity:'court', formality:'low' },
+    catch_phrases: {
+      fr:["Je suis le plus terrifiant de la Team Rocket.",'La peur est mon arme.',"N'espère aucune pitié."],
+      en:["I'm the scariest guy in Team Rocket.",'Fear is my weapon.','Expect no mercy.'],
+    },
+    pokemon_preferences: ['poison','dark'],
+    possible_pokemon: ['zubat','golbat','weezing','crobat'],
+    activation: { minReputation: 30 },
+    role_in_game: 'ally_agent',
+  },
+
+  silver: {
+    id: 'lore_silver',
+    name: { fr:'Silver', en:'Silver' },
+    rank: { fr:'Rival / Fils de Giovanni', en:'Rival / Giovanni\'s Son' },
+    faction: 'antagonist',
+    sprite: 'https://play.pokemonshowdown.com/sprites/trainers/silver.png',
+    personality: ['hostile','solitaire','tourmenté'],
+    values: ['force','indépendance','rejet'],
+    speech_style: { tone:'agressif', verbosity:'court', formality:'low' },
+    catch_phrases: {
+      fr:['Les faibles ne méritent pas de Pokémon.','La Team Rocket est pathétique.',"Je n'ai besoin de personne."],
+      en:["Weaklings don't deserve Pokémon.",'Team Rocket is pathetic.','I need no one.'],
+    },
+    pokemon_preferences: ['dark','fire','ice'],
+    possible_pokemon: ['sneasel','totodile','murkrow','magneton','haunter','crobat'],
+    activation: { minReputation: 35, minTurn: 8 },
+    role_in_game: 'antagonist_mission',
+  },
+
+  blue: {
+    id: 'lore_blue',
+    name: { fr:'Blue', en:'Blue' },
+    rank: { fr:'Champion de Jadielle', en:'Viridian Gym Leader' },
+    faction: 'hero',
+    sprite: 'https://play.pokemonshowdown.com/sprites/trainers/blue.png',
+    personality: ['arrogant','compétitif','stratège'],
+    values: ['victoire','prestige','défi'],
+    speech_style: { tone:'condescendant', verbosity:'moyen', formality:'medium' },
+    catch_phrases: {
+      fr:['Vous croyez pouvoir me battre ?',"L'odeur de la défaite, c'est vous.",'Je suis imbattable.'],
+      en:['You think you can beat me?','You smell like defeat.','I am unbeatable.'],
+    },
+    pokemon_preferences: ['normal','water','psychic'],
+    possible_pokemon: ['arcanine','alakazam','gyarados','exeggutor','pidgeot','machamp'],
+    activation: { minReputation: 50, minTurn: 12 },
+    role_in_game: 'antagonist_mission',
   },
 };
 
@@ -2885,6 +3183,18 @@ function activateLoreNpc(npc) {
       };
       addLog(`⭐ Événement spécial : ${nom} ${lang==='fr'?'est disponible au recrutement !':'is available for recruitment!'}`);
     }
+  }
+
+  if (npc.role_in_game === 'antagonist_mission' || npc.role_in_game === 'boss_mission') {
+    // Log d'alerte : un antagoniste est maintenant actif
+    const icon = npc.role_in_game === 'boss_mission' ? '🔴' : '⚠️';
+    const msgFR = npc.faction === 'hero'
+      ? `${nom} a été repéré dans la région. Ses missions seront plus dangereuses.`
+      : `${nom} rôde dans les parages. Méfiez-vous.`;
+    const msgEN = npc.faction === 'hero'
+      ? `${nom} has been spotted in the region. Their missions will be more dangerous.`
+      : `${nom} is lurking nearby. Stay alert.`;
+    addLog(`${icon} ${lang==='fr' ? msgFR : msgEN}`);
   }
 }
 
