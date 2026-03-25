@@ -432,55 +432,78 @@ function releaseStandbyPokemon() {
 }
 
 // ── FUSION : combat même espèce ─────────────────────────
-// Le plus fort survit, gagne +1 étoile (max 3) + bonus stats
+// ★0 + ★0 → ★1 (2 Pokémon)
+// ★1 + ★1 → ★2 (besoin de 2 ★1)
+// ★2 + ★2 + ★2 → ★3 (besoin de 3 ★2)
 const STAR_BONUSES = {
   1: { label:'★',   bonusLevel: 2, trait: null },
-  2: { label:'★★',  bonusLevel: 3, trait: 'résistant' },
-  3: { label:'★★★', bonusLevel: 5, trait: 'élite' },
+  2: { label:'★★',  bonusLevel: 4, trait: 'résistant' },
+  3: { label:'★★★', bonusLevel: 8, trait: 'élite' },
 };
 
-function canFuse(pkmA, pkmB) {
-  if (!pkmA || !pkmB) return false;
-  if (pkmA.id === pkmB.id) return false;
-  if (pkmA.species_fr?.toLowerCase() !== pkmB.species_fr?.toLowerCase()) return false;
-  if ((pkmA.stars || 0) >= 3) return false;
-  return true;
+// Combien de Pokémon même espèce/même étoile faut-il pour monter ?
+function fusionCost(currentStars) {
+  if (currentStars === 0) return 2; // 2x ★0 → ★1
+  if (currentStars === 1) return 2; // 2x ★1 → ★2
+  if (currentStars === 2) return 3; // 3x ★2 → ★3
+  return Infinity;
 }
 
-function fusePokemon(winnerId, loserId) {
+// Trouve les doublons fusionnables (même espèce, même étoile)
+function findFusionCandidates(pkm) {
+  const stars = pkm.stars || 0;
+  if (stars >= 3) return [];
+  const needed = fusionCost(stars);
+  return state.pokemons.filter(p =>
+    p.id !== pkm.id &&
+    p.species_fr?.toLowerCase() === pkm.species_fr?.toLowerCase() &&
+    (p.stars || 0) === stars
+  ).slice(0, needed - 1);
+}
+
+function canFuse(pkm) {
+  if (!pkm) return false;
+  const stars = pkm.stars || 0;
+  if (stars >= 3) return false;
+  const candidates = findFusionCandidates(pkm);
+  return candidates.length >= (fusionCost(stars) - 1);
+}
+
+function fusePokemon(winnerId) {
   const winner = state.pokemons.find(p => p.id === winnerId);
-  const loser  = state.pokemons.find(p => p.id === loserId);
-  if (!canFuse(winner, loser)) return false;
+  if (!winner || !canFuse(winner)) return false;
 
-  // Le plus fort gagne (ou le winner par défaut si égal)
-  const actualWinner = (loser.level > winner.level) ? loser : winner;
-  const actualLoser  = (actualWinner === winner) ? loser : winner;
+  const stars = winner.stars || 0;
+  const needed = fusionCost(stars) - 1; // combien sacrifier
+  const sacrifices = findFusionCandidates(winner).slice(0, needed);
+  if (sacrifices.length < needed) return false;
 
-  // Augmente les étoiles
-  actualWinner.stars = Math.min(3, (actualWinner.stars || 0) + 1);
-  const starData = STAR_BONUSES[actualWinner.stars];
+  // Sacrifier les doublons
+  const sacrificeIds = sacrifices.map(s => s.id);
+  sacrificeIds.forEach(sId => {
+    state.agents.forEach(a => { a.team = (a.team||[]).filter(id => id !== sId); });
+    const lost = state.pokemons.find(p => p.id === sId);
+    if (lost) markPokedexLost(lost.species_fr);
+  });
+  state.pokemons = state.pokemons.filter(p => !sacrificeIds.includes(p.id));
 
-  // Bonus de niveau
-  actualWinner.level += starData.bonusLevel;
+  // Promotion
+  winner.stars = stars + 1;
+  const starData = STAR_BONUSES[winner.stars];
+  winner.level += starData.bonusLevel;
 
-  // Trait spécial à 2+ étoiles
-  if (starData.trait && !actualWinner.fusionTraits) actualWinner.fusionTraits = [];
-  if (starData.trait && !actualWinner.fusionTraits.includes(starData.trait)) {
-    actualWinner.fusionTraits.push(starData.trait);
+  if (starData.trait) {
+    if (!winner.fusionTraits) winner.fusionTraits = [];
+    if (!winner.fusionTraits.includes(starData.trait)) {
+      winner.fusionTraits.push(starData.trait);
+    }
   }
 
-  // Supprimer le perdant
-  // Retirer de toute équipe d'agent
-  state.agents.forEach(a => {
-    a.team = (a.team || []).filter(id => id !== actualLoser.id);
-  });
-  state.pokemons = state.pokemons.filter(p => p.id !== actualLoser.id);
-  markPokedexLost(actualLoser.species_fr);
-
-  const starLabel = '★'.repeat(actualWinner.stars);
+  const starLabel = '★'.repeat(winner.stars);
+  const costLabel = `${needed + 1}× ${sacrifices[0]?.species_fr||'?'}`;
   addLog(lang === 'fr'
-    ? `⚔️ Fusion ! ${actualWinner.species_fr} ${starLabel} (Niv.${actualWinner.level}) absorbe son rival !`
-    : `⚔️ Fusion! ${actualWinner.species_fr} ${starLabel} (Lv.${actualWinner.level}) absorbs its rival!`);
+    ? `⚔️ Fusion ${costLabel} → ${winner.species_fr} ${starLabel} (Niv.${winner.level}) !`
+    : `⚔️ Fusion ${costLabel} → ${winner.species_fr} ${starLabel} (Lv.${winner.level})!`);
 
   saveState(); render();
   return true;
@@ -599,10 +622,11 @@ function renderPokemonPanels() {
     const traitStr = (p.fusionTraits||[]).length ? `<span style="color:#70e0a4;font-size:.7em">[${p.fusionTraits.join(',')}]</span>` : '';
     const cdStr = (p.cooldown||0) > 0 ? `<span style="color:#7060a8;font-size:.7em"> [${p.cooldown}t]</span>` : '';
 
-    // Cherche un doublon fusionnable
-    const fusable = state.pokemons.find(x => x.id !== p.id && canFuse(p, x));
-    const fuseBtn = fusable
-      ? `<button class="small" style="font-size:.6em;padding:2px 6px" onclick="fusePokemon('${p.id}','${fusable.id}')">${lang==='fr'?'⚔️ Fusionner':'⚔️ Fuse'}</button>`
+    // Cherche si ce Pokémon peut fusionner (assez de doublons même étoile)
+    const canFuseThis = canFuse(p);
+    const needed = fusionCost(p.stars||0);
+    const fuseBtn = canFuseThis
+      ? `<button class="small" style="font-size:.6em;padding:2px 6px" onclick="fusePokemon('${p.id}')">${lang==='fr'?`⚔️ Fusionner (${needed}x)`:`⚔️ Fuse (${needed}x)`}</button>`
       : '';
 
     return `<div class="card pokemon" style="flex-wrap:wrap;gap:4px">
