@@ -863,19 +863,23 @@ function openIntro() {
 }
 
 function bindEvents() {
-  ui.nextTurnBtn.onclick = processTurn;
-  ui.assignTeamBtn.onclick = assignTeam;
-  ui.startTrainingFightBtn.onclick = runTrainingBattle;
-  ui.sendRecruitBtn.onclick = recruitStep;
-  ui.recruitMessage.addEventListener('keydown', e => { if(e.key==='Enter') recruitStep(); });
-  ui.npcSendBtn.onclick = talkToNpc;
-  ui.npcMessage.addEventListener('keydown', e => { if(e.key==='Enter') talkToNpc(); });
-  ui.challengeYesBtn.onclick = acceptNpcChallenge;
-  ui.challengeNoBtn.onclick  = refuseNpcChallenge;
-  ui.openSettingsBtn.onclick  = () => ui.settingsOverlay.classList.remove('hidden');
-  ui.closeSettingsBtn.onclick = () => ui.settingsOverlay.classList.add('hidden');
-  ui.spriteSelect.onchange = () => { ui.spritePreview.src = ui.spriteSelect.value; };
-  ui.introStartBtn.onclick = () => {
+  // Helper: safe bind — skip if element is null
+  const on = (el, evt, fn) => { if (el) el[evt] = fn; };
+  const listen = (el, evt, fn) => { if (el) el.addEventListener(evt, fn); };
+
+  on(ui.nextTurnBtn,           'onclick', processTurn);
+  on(ui.assignTeamBtn,         'onclick', assignTeam);
+  on(ui.startTrainingFightBtn, 'onclick', runTrainingBattle);
+  on(ui.sendRecruitBtn,        'onclick', recruitStep);
+  listen(ui.recruitMessage, 'keydown', e => { if(e.key==='Enter') recruitStep(); });
+  on(ui.npcSendBtn, 'onclick', talkToNpc);
+  listen(ui.npcMessage, 'keydown', e => { if(e.key==='Enter') talkToNpc(); });
+  on(ui.challengeYesBtn,  'onclick', acceptNpcChallenge);
+  on(ui.challengeNoBtn,   'onclick', refuseNpcChallenge);
+  on(ui.openSettingsBtn,  'onclick', () => ui.settingsOverlay.classList.remove('hidden'));
+  on(ui.closeSettingsBtn, 'onclick', () => ui.settingsOverlay.classList.add('hidden'));
+  on(ui.spriteSelect, 'onchange', () => { ui.spritePreview.src = ui.spriteSelect.value; });
+  on(ui.introStartBtn, 'onclick', () => {
     state.profile.team=ui.teamInput.value.trim()||'Team Rocket';
     state.profile.firstName=ui.firstNameInput.value.trim()||'Ari';
     state.profile.lastName=ui.lastNameInput.value.trim()||'Voss';
@@ -883,11 +887,11 @@ function bindEvents() {
     state.profile.initialized=true;
     addLog(`Profil créé : ${state.profile.firstName} ${state.profile.lastName} — ${state.profile.team}`);
     saveState(); render();
-  };
-  ui.llmEnabledToggle.onchange = () => { settings.llmEnabled=ui.llmEnabledToggle.checked; saveSettings(); render(); };
-  ui.baseUrlInput.onchange = () => { settings.baseUrl=ui.baseUrlInput.value.trim(); saveSettings(); };
-  ui.modelInput.onchange   = () => { settings.model=ui.modelInput.value.trim(); saveSettings(); };
-  ui.testOllamaBtn.onclick = async () => {
+  });
+  on(ui.llmEnabledToggle, 'onchange', () => { settings.llmEnabled=ui.llmEnabledToggle.checked; saveSettings(); render(); });
+  on(ui.baseUrlInput, 'onchange', () => { settings.baseUrl=ui.baseUrlInput.value.trim(); saveSettings(); });
+  on(ui.modelInput,   'onchange', () => { settings.model=ui.modelInput.value.trim(); saveSettings(); });
+  if (ui.testOllamaBtn) ui.testOllamaBtn.onclick = async () => {
     try {
       const r = await fetch(`${settings.baseUrl.replace(/\/$/,'')}/api/tags`);
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -895,20 +899,20 @@ function bindEvents() {
       ui.llmStatus.textContent = `OK — ${data.models?.map(m=>m.name.slice(0,8)).join(', ')}`;
     } catch(e) { ui.llmStatus.textContent = `Erreur Ollama : ${e.message}`; }
   };
-  ui.saveBtn.onclick  = () => { saveState(); ui.llmStatus.textContent='Save locale OK'; };
-  ui.loadBtn.onclick  = () => { const l=loadState(); if(l){state=l;render();} };
-  ui.resetBtn.onclick = () => { localStorage.removeItem('pokeforge.rocket-hq.state'); state=structuredClone(BASE_STATE); openIntro(); addLog('Bienvenue dans Rocket HQ.'); render(); };
-  ui.exportSaveBtn.onclick = () => exportFile('rocket-hq-save.txt', JSON.stringify(state,null,2));
-  ui.importSaveBtn.onclick = () => ui.saveFileInput.click();
-  ui.saveFileInput.onchange = () => {
+  on(ui.saveBtn,       'onclick', () => { saveState(); if(ui.llmStatus) ui.llmStatus.textContent='Save locale OK'; });
+  on(ui.loadBtn,       'onclick', () => { const l=loadState(); if(l){state=l;render();} });
+  on(ui.resetBtn,      'onclick', () => { localStorage.removeItem('pokeforge.rocket-hq.state'); state=structuredClone(BASE_STATE); openIntro(); addLog('Bienvenue dans Rocket HQ.'); render(); });
+  on(ui.exportSaveBtn, 'onclick', () => exportFile('rocket-hq-save.txt', JSON.stringify(state,null,2)));
+  on(ui.importSaveBtn, 'onclick', () => ui.saveFileInput?.click());
+  if (ui.saveFileInput) ui.saveFileInput.onchange = () => {
     const file = ui.saveFileInput.files?.[0]; if (!file) return;
     const reader = new FileReader();
-    reader.onload = () => { try { state={...structuredClone(BASE_STATE),...JSON.parse(reader.result)}; addLog('Save importée.'); saveState(); render(); } catch { ui.llmStatus.textContent='Fichier invalide.'; } };
+    reader.onload = () => { try { state={...structuredClone(BASE_STATE),...JSON.parse(reader.result)}; addLog('Save importée.'); saveState(); render(); } catch { if(ui.llmStatus) ui.llmStatus.textContent='Fichier invalide.'; } };
     reader.readAsText(file); ui.saveFileInput.value='';
   };
-  ui.exportCodeBtn.onclick = () => { const code=btoa(unescape(encodeURIComponent(JSON.stringify(state)))); navigator.clipboard?.writeText(code); ui.llmStatus.textContent=`Code copié : ${code.slice(0,36)}…`; };
-  ui.importCodeBtn.onclick = () => { const code=prompt('Colle le code :'); if(!code) return; try { state={...structuredClone(BASE_STATE),...JSON.parse(decodeURIComponent(escape(atob(code.trim()))))}; addLog('Save importée via code.'); saveState(); render(); } catch { ui.llmStatus.textContent='Code invalide.'; } };
-  ui.exportLogsBtn.onclick = () => exportFile('rocket-hq-logs.txt', state.log.join('\n'));
+  on(ui.exportCodeBtn, 'onclick', () => { const code=btoa(unescape(encodeURIComponent(JSON.stringify(state)))); navigator.clipboard?.writeText(code); if(ui.llmStatus) ui.llmStatus.textContent=`Code copié : ${code.slice(0,36)}…`; });
+  on(ui.importCodeBtn, 'onclick', () => { const code=prompt('Colle le code :'); if(!code) return; try { state={...structuredClone(BASE_STATE),...JSON.parse(decodeURIComponent(escape(atob(code.trim()))))}; addLog('Save importée via code.'); saveState(); render(); } catch { if(ui.llmStatus) ui.llmStatus.textContent='Code invalide.'; } });
+  on(ui.exportLogsBtn, 'onclick', () => exportFile('rocket-hq-logs.txt', state.log.join('\n')));
 }
 
 // ── BOOT ─────────────────────────────────────────────────
