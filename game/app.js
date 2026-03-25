@@ -272,6 +272,7 @@ const BASE_STATE = {
   profile: { initialized:false, team:'Team Rocket', firstName:'Ari', lastName:'Voss', sprite:TRAINER_SPRITES[0] },
   resources: { pokedollars:1800, capturePoints:0, breedingPoints:0, intel:0 },
   reputation: 10, // 0→100, influence sur les recrutements et événements
+  pokemonStandby: [], // surplus Pokémon au-delà du cap
   rooms: {
     command:  { nom:'Salle de commandement', level:1, baseIncome:120, upgradeCost:700 },
     capture:  { nom:'Salle de capture',      level:1, baseIncome:2,   upgradeCost:550 },
@@ -379,7 +380,110 @@ function saveSettings() { localStorage.setItem('pf.settings', JSON.stringify(set
 // Crée un objet Pokémon à partir d'un nom FR
 function makePokemon(species_fr, level) {
   const species_en = FR_TO_EN[species_fr.toLowerCase()] || species_fr;
-  return { id:`pk-${Date.now()}-${Math.floor(Math.random()*9999)}`, species_fr, species_en, level: level || 5+Math.floor(Math.random()*8), assignedAgentId:null };
+  return {
+    id:`pk-${Date.now()}-${Math.floor(Math.random()*9999)}`,
+    species_fr, species_en,
+    level: level || 5+Math.floor(Math.random()*8),
+    assignedAgentId: null,
+    stars: 0,       // 0-3 étoiles (fusion)
+    cooldown: 0,
+  };
+}
+
+// ============================================================
+// POKÉMON CAP + STANDBY + FUSION
+// ============================================================
+
+// Cap = 5 de base, +5 tous les 3 tours
+function getPokemonCap() {
+  const baseCap = 5;
+  const bonusPerCycle = 5;
+  const cycleLength = 3;
+  return baseCap + Math.floor((state.turn - 1) / cycleLength) * bonusPerCycle;
+}
+
+// Ajoute un Pokémon en respectant le cap — surplus → standby
+function addPokemonWithCap(pok) {
+  if (!state.pokemonStandby) state.pokemonStandby = [];
+  const cap = getPokemonCap();
+  if (state.pokemons.length < cap) {
+    state.pokemons.push(pok);
+    state.newPokemonsThisTurn.push(pok);
+  } else {
+    state.pokemonStandby.push(pok);
+    addLog(lang === 'fr'
+      ? `📦 ${pok.species_fr} mis en attente (limite ${cap} atteinte).`
+      : `📦 ${pok.species_fr} put on standby (cap ${cap} reached).`);
+  }
+}
+
+// Appelé à chaque augmentation de cap : récupère les standby
+function releaseStandbyPokemon() {
+  if (!state.pokemonStandby?.length) return;
+  const cap = getPokemonCap();
+  while (state.pokemons.length < cap && state.pokemonStandby.length > 0) {
+    const pok = state.pokemonStandby.shift();
+    state.pokemons.push(pok);
+    state.newPokemonsThisTurn.push(pok);
+    addLog(lang === 'fr'
+      ? `📦→ ${pok.species_fr} récupéré depuis le standby !`
+      : `📦→ ${pok.species_fr} released from standby!`);
+  }
+}
+
+// ── FUSION : combat même espèce ─────────────────────────
+// Le plus fort survit, gagne +1 étoile (max 3) + bonus stats
+const STAR_BONUSES = {
+  1: { label:'★',   bonusLevel: 2, trait: null },
+  2: { label:'★★',  bonusLevel: 3, trait: 'résistant' },
+  3: { label:'★★★', bonusLevel: 5, trait: 'élite' },
+};
+
+function canFuse(pkmA, pkmB) {
+  if (!pkmA || !pkmB) return false;
+  if (pkmA.id === pkmB.id) return false;
+  if (pkmA.species_fr?.toLowerCase() !== pkmB.species_fr?.toLowerCase()) return false;
+  if ((pkmA.stars || 0) >= 3) return false;
+  return true;
+}
+
+function fusePokemon(winnerId, loserId) {
+  const winner = state.pokemons.find(p => p.id === winnerId);
+  const loser  = state.pokemons.find(p => p.id === loserId);
+  if (!canFuse(winner, loser)) return false;
+
+  // Le plus fort gagne (ou le winner par défaut si égal)
+  const actualWinner = (loser.level > winner.level) ? loser : winner;
+  const actualLoser  = (actualWinner === winner) ? loser : winner;
+
+  // Augmente les étoiles
+  actualWinner.stars = Math.min(3, (actualWinner.stars || 0) + 1);
+  const starData = STAR_BONUSES[actualWinner.stars];
+
+  // Bonus de niveau
+  actualWinner.level += starData.bonusLevel;
+
+  // Trait spécial à 2+ étoiles
+  if (starData.trait && !actualWinner.fusionTraits) actualWinner.fusionTraits = [];
+  if (starData.trait && !actualWinner.fusionTraits.includes(starData.trait)) {
+    actualWinner.fusionTraits.push(starData.trait);
+  }
+
+  // Supprimer le perdant
+  // Retirer de toute équipe d'agent
+  state.agents.forEach(a => {
+    a.team = (a.team || []).filter(id => id !== actualLoser.id);
+  });
+  state.pokemons = state.pokemons.filter(p => p.id !== actualLoser.id);
+  markPokedexLost(actualLoser.species_fr);
+
+  const starLabel = '★'.repeat(actualWinner.stars);
+  addLog(lang === 'fr'
+    ? `⚔️ Fusion ! ${actualWinner.species_fr} ${starLabel} (Niv.${actualWinner.level}) absorbe son rival !`
+    : `⚔️ Fusion! ${actualWinner.species_fr} ${starLabel} (Lv.${actualWinner.level}) absorbs its rival!`);
+
+  saveState(); render();
+  return true;
 }
 
 // ── LLM ─────────────────────────────────────────────────
@@ -481,16 +585,36 @@ function renderResources() {
 // renderRooms v3 supprimée — voir renderRoomsV2
 
 function renderPokemonPanels() {
-  ui.pokemonOwnedList.innerHTML = state.pokemons.map(p => {
+  const cap = getPokemonCap();
+  const standbyCount = (state.pokemonStandby||[]).length;
+  const capLabel = lang === 'fr'
+    ? `<div style="font-size:.7em;color:var(--muted);margin-bottom:6px">Pokémon : ${state.pokemons.length}/${cap}${standbyCount ? ` · 📦 ${standbyCount} en attente` : ''}</div>`
+    : `<div style="font-size:.7em;color:var(--muted);margin-bottom:6px">Pokémon: ${state.pokemons.length}/${cap}${standbyCount ? ` · 📦 ${standbyCount} standby` : ''}</div>`;
+
+  ui.pokemonOwnedList.innerHTML = capLabel + state.pokemons.map(p => {
     const agent = state.agents.find(a => a.id === p.assignedAgentId);
     const spFR = p.species_fr || p.species_en || p.species;
     const spEN = p.species_en || FR_TO_EN[spFR?.toLowerCase()] || spFR;
-    return `<div class="card pokemon">
+    const starStr = (p.stars||0) > 0 ? `<span style="color:#ffcc5a">${'★'.repeat(p.stars)}</span>` : '';
+    const traitStr = (p.fusionTraits||[]).length ? `<span style="color:#70e0a4;font-size:.7em">[${p.fusionTraits.join(',')}]</span>` : '';
+    const cdStr = (p.cooldown||0) > 0 ? `<span style="color:#7060a8;font-size:.7em"> [${p.cooldown}t]</span>` : '';
+
+    // Cherche un doublon fusionnable
+    const fusable = state.pokemons.find(x => x.id !== p.id && canFuse(p, x));
+    const fuseBtn = fusable
+      ? `<button class="small" style="font-size:.6em;padding:2px 6px" onclick="fusePokemon('${p.id}','${fusable.id}')">${lang==='fr'?'⚔️ Fusionner':'⚔️ Fuse'}</button>`
+      : '';
+
+    return `<div class="card pokemon" style="flex-wrap:wrap;gap:4px">
       <img class="poke-sprite" src="${pokeSprite(spEN)}" alt="${spFR}">
-      <div>${spFR} Niv.${p.level}</div>
-      <small>${agent ? `→ ${agent.name}` : 'Non assigné'}</small>
+      <div>
+        <div>${spFR} Niv.${p.level} ${starStr} ${traitStr}${cdStr}</div>
+        <small>${agent ? `→ ${agent.name}` : (lang==='fr'?'Non assigné':'Unassigned')}</small>
+      </div>
+      ${fuseBtn}
     </div>`;
   }).join('');
+
   ui.pokemonNewList.innerHTML = state.newPokemonsThisTurn.length
     ? state.newPokemonsThisTurn.map(p => {
         const spFR = p.species_fr || p.species_en || p.species;
@@ -500,7 +624,7 @@ function renderPokemonPanels() {
           <div>${spFR} Niv.${p.level}</div>
         </div>`;
       }).join('')
-    : '<div class="card">Aucun nouveau Pokémon ce tour.</div>';
+    : `<div class="card">${lang==='fr'?'Aucun nouveau Pokémon ce tour.':'No new Pokémon this turn.'}</div>`;
 }
 
 function renderTeamBuilder() {
@@ -648,7 +772,7 @@ async function recruitStep() {
     if (r.hiddenScore >= 5) {
       const newAgent = { id:`ag-${Date.now()}`, name:r.candidateName, rank:r.candidateRole, team:[], sprite:npc.sprite, personality:npc.personality, catch_phrases:npc.catch_phrases, pokemon_preferences:npc.pokemon_preferences, missions:[] };
       state.agents.push(newAgent);
-      npc.possible_pokemon.forEach(spFR => { state.pokemons.push(makePokemon(spFR)); });
+      npc.possible_pokemon.forEach(spFR => addPokemonWithCap(makePokemon(spFR)));
       state.npcs.push({ name:`${r.candidateName}-contact`, mood:'loyal', sprite:npc.sprite, catch_phrases:npc.catch_phrases });
       state.reputation = Math.min(100, (state.reputation||0)+3);
       addLog(`✅ Recrutement réussi : ${r.candidateName} rejoint la team.`);
@@ -1073,7 +1197,7 @@ function showMissionPopup(missionDef, agentObj, result) {
       </div>
       <!-- Corps -->
       <div style="padding:16px;display:grid;gap:10px;">
-        <div style="font-size:.6em;color:#ffcc5a;letter-spacing:.1em">${missionDef.nom || missionDef.name}</div>
+        <div style="font-size:.6em;color:#ffcc5a;letter-spacing:.1em">${missionDef.nom?.[lang]||missionDef.nom?.fr||missionDef.id}</div>
         <div id="simLog" style="font-size:.42em;color:#b9adff;line-height:2;min-height:60px;"></div>
         <div id="simRewards" style="display:none;font-size:.48em;color:#70e0a4;line-height:2;"></div>
         <div id="simContinueBtn" style="display:none;text-align:center;">
@@ -1684,8 +1808,7 @@ function resolveMissionV2(mi) {
         const spEN = pick(pkmPool);
         const spFR = Object.keys(FR_TO_EN).find(k => FR_TO_EN[k]===spEN) || spEN;
         const pok = makePokemon(spFR, 8 + Math.floor(Math.random()*10));
-        state.pokemons.push(pok);
-        state.newPokemonsThisTurn.push(pok);
+        addPokemonWithCap(pok);
         updatePokedex(spFR);
         result.pokemon.push(pok);
       }
@@ -1696,10 +1819,10 @@ function resolveMissionV2(mi) {
       grantAgentXP(agent, xpGain);
     }
     state.reputation = Math.min(100, (state.reputation||0) + 2);
-    addLog(`✅ ${mDef.nom?.[lang]||mDef.nom} — ${lang==='fr'?'Succès':'Success'} (${agent?.name})`);
+    addLog(`✅ ${mDef.nom?.[lang]||mDef.nom?.fr||mDef.id} — ${lang==='fr'?'Succès':'Success'} (${agent?.name})`);
   } else {
     state.reputation = Math.max(0, (state.reputation||0) - 3);
-    addLog(`❌ ${mDef.nom?.[lang]||mDef.nom} — ${lang==='fr'?'Échec':'Failure'} (${agent?.name})`);
+    addLog(`❌ ${mDef.nom?.[lang]||mDef.nom?.fr||mDef.id} — ${lang==='fr'?'Échec':'Failure'} (${agent?.name})`);
   }
 
   // Événement Jenny : peut saisir un Pokémon de l'équipe de l'agent
@@ -1929,7 +2052,7 @@ async function recruitStepV2() {
         missions:[],
       };
       state.agents.push(newAgent);
-      npc.possible_pokemon.forEach(spFR => state.pokemons.push(makePokemon(spFR)));
+      npc.possible_pokemon.forEach(spFR => addPokemonWithCap(makePokemon(spFR)));
       state.reputation = Math.min(100, (state.reputation||0) + 3);
       const traitMsg = hasBourreau ? (lang==='fr' ? ' [Bourreau de travail !]' : ' [Workaholic!]') : '';
       addLog(`✅ ${lang==='fr'?'Recrutement réussi':'Recruitment successful'} : ${r.candidateName}${traitMsg}`);
@@ -3130,10 +3253,19 @@ function processTurn() {
     state.breedingQueue = state.breedingQueue.filter(e => e.turnsLeft > 0);
     hatched.forEach(e => {
       const pok = makePokemon(e.species_fr, 5 + Math.floor(Math.random()*6));
-      state.pokemons.push(pok); state.newPokemonsThisTurn.push(pok);
+      addPokemonWithCap(pok);
       updatePokedex(pok.species_fr);
       addLog(`${lang==='fr'?'Éclosion':'Hatched'} : ${e.species_fr}`);
     });
+  }
+
+  // Cap Pokémon : relâche les standby si la limite augmente (tous les 3 tours)
+  if ((state.turn - 1) % 3 === 0 && state.turn > 1) {
+    const newCap = getPokemonCap();
+    addLog(lang === 'fr'
+      ? `📈 Limite Pokémon augmentée à ${newCap} !`
+      : `📈 Pokémon cap increased to ${newCap}!`);
+    releaseStandbyPokemon();
   }
 
   // Salles V2
@@ -3417,7 +3549,7 @@ Réponds en JSON strict : {"reply":"...","scoreDelta":-2..2}`;
         missions:[],
       };
       state.agents.push(newAgent);
-      npc.possible_pokemon?.forEach(spFR => state.pokemons.push(makePokemon(spFR)));
+      npc.possible_pokemon?.forEach(spFR => addPokemonWithCap(makePokemon(spFR)));
       state.reputation = Math.min(100,(state.reputation||0)+3);
       addLog(`✅ ${lang==='fr'?'Recrutement réussi':'Recruited'} : ${r.candidateName}${hasBourreau?' [Bourreau de travail]':''}`);
       r.transcript.push(`--- ${lang==='fr'?'Recrutement réussi':'Success'} ---`);
