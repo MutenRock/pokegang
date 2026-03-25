@@ -30,15 +30,12 @@ const UI_TEXT = {
 };
 function T(key) { return UI_TEXT[lang]?.[key] || UI_TEXT.fr[key] || key; }
 
+// ── SETTINGS (doit être déclaré avant loadSettings) ─────
+const DEFAULT_SETTINGS = { llmEnabled:false, baseUrl:'http://localhost:11434', model:'gemma3:4b' };
+
 // ── SAVE / LOAD (slot-aware) ──────────────────────────────
 function saveState() {
   const data = { ...state, savedAt: Date.now(), lang };
-  localStorage.setItem(SAVE_KEY, JSON.stringify(data));
-  // Met aussi à jour le menu slot
-  const menuSlot = JSON.parse(localStorage.getItem(SAVE_KEY) || '{}');
-  menuSlot.turn = state.turn;
-  menuSlot.profile = state.profile;
-  menuSlot.savedAt = Date.now();
   localStorage.setItem(SAVE_KEY, JSON.stringify(data));
 }
 function loadState() {
@@ -303,8 +300,6 @@ const BASE_STATE = {
   events: [],           // file d'événements narratifs
   log: [],
 };
-
-const DEFAULT_SETTINGS = { llmEnabled:false, baseUrl:'http://localhost:11434', model:'gemma3:4b' };
 
 // ── UI ───────────────────────────────────────────────────
 const ui = {
