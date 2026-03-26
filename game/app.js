@@ -654,11 +654,23 @@ function renderPokemonPanels() {
 }
 
 function renderTeamBuilder() {
-  ui.agentSelect.innerHTML  = state.agents.map(a => `<option value="${a.id}">${a.name} – ${a.rank}</option>`).join('');
-  ui.pokemonSelect.innerHTML = state.pokemons.map(p => {
+  ui.agentSelect.innerHTML  = state.agents.map(a => {
+    const onMission = (state.missions||[]).some(mi => mi.agentId === a.id);
+    const cd = (a.cooldown||0) > 0;
+    const tag = onMission ? ` ⏳` : cd ? ` [${a.cooldown}t]` : '';
+    return `<option value="${a.id}" ${cd||onMission?'style="color:#7060a8"':''}>${a.name} – ${a.rank}${tag}</option>`;
+  }).join('');
+  // Filtre : ne montre que les Pokémon non déjà assignés à un autre agent
+  const assignedIds = new Set(state.agents.flatMap(a => a.team||[]));
+  const selectedAgentId = ui.agentSelect?.value;
+  const selectedAgentTeam = new Set((state.agents.find(a=>a.id===selectedAgentId)?.team||[]));
+  const availablePkm = state.pokemons.filter(p => !assignedIds.has(p.id) || selectedAgentTeam.has(p.id));
+  ui.pokemonSelect.innerHTML = availablePkm.map(p => {
     const spFR = p.species_fr || p.species;
-    const cdTag = (p.cooldown||0) > 0 ? ` [repos ${p.cooldown}t]` : '';
-    return `<option value="${p.id}" ${(p.cooldown||0)>0?'style="color:#7060a8"':''}>${spFR} Niv.${p.level}${cdTag}</option>`;
+    const cd = (p.cooldown||0) > 0;
+    const cdTag = cd ? ` [${lang==='fr'?'repos':'rest'} ${p.cooldown}t]` : '';
+    const starTag = (p.stars||0) > 0 ? ` ${'★'.repeat(p.stars)}` : '';
+    return `<option value="${p.id}" ${cd?'style="color:#7060a8"':''}>${spFR} Nv.${p.level}${starTag}${cdTag}</option>`;
   }).join('');
   ui.agentTeams.innerHTML = state.agents.map(a => {
     const pkmInfo = a.team.map(id => {
@@ -736,10 +748,29 @@ function assignTeam() {
   const selectedIds = Array.from(ui.pokemonSelect.selectedOptions).map(o => o.value).slice(0,3);
   const agent = state.agents.find(a => a.id === agentId);
   if (!agent) return;
+
+  // Warn if agent is on cooldown
+  if ((agent.cooldown||0) > 0) {
+    addLog(lang==='fr'
+      ? `⚠️ ${agent.name} est en repos (${agent.cooldown} tour(s) restant(s)).`
+      : `⚠️ ${agent.name} is resting (${agent.cooldown} turn(s) left).`);
+  }
+
+  // Warn about Pokémon on cooldown
+  const cdPkm = selectedIds.map(id => state.pokemons.find(x=>x.id===id)).filter(p => p && (p.cooldown||0)>0);
+  if (cdPkm.length) {
+    const names = cdPkm.map(p => `${p.species_fr||p.species} (${p.cooldown}t)`).join(', ');
+    addLog(lang==='fr'
+      ? `⚠️ Pokémon en repos : ${names}`
+      : `⚠️ Pokémon resting: ${names}`);
+  }
+
   agent.team.forEach(id => { const p = state.pokemons.find(x => x.id===id); if (p) p.assignedAgentId=null; });
   agent.team = selectedIds;
   selectedIds.forEach(id => { const p = state.pokemons.find(x => x.id===id); if (p) p.assignedAgentId=agent.id; });
-  addLog(`Équipe assignée à ${agent.name} (${agent.team.length}/3).`);
+  addLog(lang==='fr'
+    ? `Équipe assignée à ${agent.name} (${agent.team.length}/3).`
+    : `Team assigned to ${agent.name} (${agent.team.length}/3).`);
   saveState(); render();
 }
 
