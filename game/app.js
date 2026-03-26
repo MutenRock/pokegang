@@ -1431,9 +1431,34 @@ function buildSimSteps(missionDef, agentObj, result, L) {
     }
   }
 
-  // Combat
+  // Combat — détails de puissance
+  const agentLevel = agentObj?.level || 1;
+  const teamSize = agentObj?.team?.length || 0;
+  const teamPower = teamSize * 10 + agentLevel * 5 + (state.reputation||0) * 0.5;
+  const enemyPower = enemies.length * 15 + (missionDef.risque === 'élevé' ? 30 : missionDef.risque === 'moyen' ? 15 : 5);
+  const powerRatio = teamPower / Math.max(1, enemyPower);
+
+  const combatInfoFr = `⚡ Puissance : ${Math.round(teamPower)} vs ${Math.round(enemyPower)} · Ratio : ${powerRatio.toFixed(1)}x`;
+  const combatInfoEn = `⚡ Power: ${Math.round(teamPower)} vs ${Math.round(enemyPower)} · Ratio: ${powerRatio.toFixed(1)}x`;
+  steps.push({ type:'log', text: lang==='fr' ? combatInfoFr : combatInfoEn });
+
   steps.push({ type:'bubble', text: agentLine(agentObj, 'combat', L), speaker: name });
   steps.push({ type:'log',    text: pick(L.combat) });
+
+  // Narration de combat détaillée
+  if (teamSize > 0) {
+    const combatNarrFr = [
+      'Les Pokémon échangent des coups !', 'Le combat fait rage !',
+      'Une attaque critique touche sa cible !', 'Esquive réussie !',
+      'Les deux camps se jaugent…', 'Attaque combinée !',
+    ];
+    const combatNarrEn = [
+      'The Pokémon exchange blows!', 'The battle rages on!',
+      'A critical hit lands!', 'Dodge successful!',
+      'Both sides size each other up…', 'Combined attack!',
+    ];
+    steps.push({ type:'log', text: `⚔️ ${pick(lang==='fr' ? combatNarrFr : combatNarrEn)}` });
+  }
 
   // ── Antagoniste ─────────────────────────────────────
   if (result.antagonist) {
@@ -1588,21 +1613,43 @@ function playSimSteps(steps, idx) {
       }
 
       html += r.success
-        ? (lang==='fr' ? '✅ Succès !' : '✅ Success!')
-        : (lang==='fr' ? '❌ Échec.' : '❌ Failed.');
+        ? `<div style="color:#70e0a4;font-size:1.1em;margin-bottom:4px">${lang==='fr' ? '✅ MISSION RÉUSSIE' : '✅ MISSION SUCCESS'}</div>`
+        : `<div style="color:#ff4466;font-size:1.1em;margin-bottom:4px">${lang==='fr' ? '❌ MISSION ÉCHOUÉE' : '❌ MISSION FAILED'}</div>`;
 
       // Antagoniste info
       if (r.antagonist) {
         const antagName = r.antagonist.name[lang] || r.antagonist.name.fr;
         html += r.success
-          ? `<br>⚔️ ${antagName} ${lang==='fr'?'repoussé !':'driven back!'}`
-          : `<br>⚔️ ${antagName} ${lang==='fr'?'vous a dominé.':'overpowered you.'}`;
+          ? `<div>⚔️ ${antagName} ${lang==='fr'?'repoussé !':'driven back!'} <span style="color:#70e0a4">+5 rep, +30 XP</span></div>`
+          : `<div>⚔️ ${antagName} ${lang==='fr'?'vous a dominé.':'overpowered you.'}</div>`;
       }
 
-      if (r.pokedollars) html += `<br>💰 +${r.pokedollars} Pokédollars`;
-      if (r.intel)       html += `<br>🔍 +${r.intel} Intel`;
-      if (r.pokemon?.length) html += `<br>🎯 ${lang==='fr'?'Pokémon récupéré':'Pokémon captured'} : ${r.pokemon.map(p=>p.species_fr).join(', ')}`;
-      if (r.losses?.length)  html += `<br>💀 ${lang==='fr'?'Perdu':'Lost'} : ${r.losses.join(', ')}`;
+      // Giovanni bonus
+      if (r.giovanniComment) {
+        html += `<div style="color:#ffcc5a">👔 ${r.giovanniComment}</div>`;
+        if (r.giovanniBonus) html += `<div style="color:#70e0a4">💰 Bonus Giovanni : +${r.giovanniBonus}₽</div>`;
+      }
+
+      // Rewards breakdown
+      html += '<div style="margin-top:6px;border-top:1px solid #4a3a8a;padding-top:4px">';
+      if (r.pokedollars) html += `<div>💰 +${r.pokedollars} Pokédollars</div>`;
+      if (r.intel)       html += `<div>🔍 +${r.intel} Intel</div>`;
+      if (r.pokemon?.length) {
+        r.pokemon.forEach(p => {
+          const stars = (p.stars||0) > 0 ? ` ${'★'.repeat(p.stars)}` : '';
+          html += `<div>🎯 ${lang==='fr'?'Capturé':'Captured'} : ${p.species_fr} Nv.${p.level}${stars}</div>`;
+        });
+      }
+      if (r.losses?.length) {
+        r.losses.forEach(l => {
+          html += `<div style="color:#ff4466">💀 ${lang==='fr'?'Perdu':'Lost'} : ${l}</div>`;
+        });
+      }
+      // Reputation change
+      html += r.success
+        ? `<div style="color:#70e0a4">📈 ${lang==='fr'?'Réputation':'Reputation'} +2</div>`
+        : `<div style="color:#ff4466">📉 ${lang==='fr'?'Réputation':'Reputation'} -3</div>`;
+      html += '</div>';
       rewardEl.innerHTML = html;
       rewardEl.style.display = 'block';
     }
