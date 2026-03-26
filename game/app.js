@@ -59,8 +59,8 @@ const AGENT_XP_THRESHOLDS = [0, 50, 120, 250, 500]; // index = level-1
 // ── SPRITES ─────────────────────────────────────────────
 const TRAINER_SPRITES = [
   'https://play.pokemonshowdown.com/sprites/trainers/rocketgrunt.png',
-  'https://play.pokemonshowdown.com/sprites/trainers/rocketgrunf.png',
-  'https://play.pokemonshowdown.com/sprites/trainers/giovanni-gen2.png',
+  'https://play.pokemonshowdown.com/sprites/trainers/rocketgruntf.png',
+  'https://play.pokemonshowdown.com/sprites/trainers/giovanni.png',
   'https://play.pokemonshowdown.com/sprites/trainers/archer.png',
   'https://play.pokemonshowdown.com/sprites/trainers/ariana.png',
   'https://play.pokemonshowdown.com/sprites/trainers/proton.png',
@@ -238,10 +238,10 @@ const NPC_LAST_NAMES = [
 ];
 
 const NPC_ROLES = [
-  { id:'Infiltration',   faction:'team_rocket', traits:['discret','loyal','nerveux'],      types:['poison','dark'],    sprites:['rocketgrunt','rocketgrunf'] },
+  { id:'Infiltration',   faction:'team_rocket', traits:['discret','loyal','nerveux'],      types:['poison','dark'],    sprites:['rocketgrunt','rocketgruntf'] },
   { id:'Science',        faction:'team_rocket', traits:['intelligent','froid','précis'],   types:['electric','psychic'],sprites:['scientist','scientistf'] },
   { id:'Combat',         faction:'team_rocket', traits:['agressif','courageux','brutal'],  types:['fighting','poison'],sprites:['rocketgrunt'] },
-  { id:'Logistique',     faction:'team_rocket', traits:['organisé','méfiant','fiable'],    types:['normal','dark'],    sprites:['rocketgrunf'] },
+  { id:'Logistique',     faction:'team_rocket', traits:['organisé','méfiant','fiable'],    types:['normal','dark'],    sprites:['rocketgruntf'] },
   { id:'Renseignement',  faction:'team_rocket', traits:['observateur','calme','rusé'],     types:['psychic','dark'],   sprites:['scientist'] },
 ];
 
@@ -3044,7 +3044,7 @@ const LORE_NPCS = {
     name: { fr:'Giovanni', en:'Giovanni' },
     rank: { fr:'Boss de la Team Rocket', en:'Team Rocket Boss' },
     faction: 'team_rocket',
-    sprite: 'https://play.pokemonshowdown.com/sprites/trainers/giovanni-gen2.png',
+    sprite: 'https://play.pokemonshowdown.com/sprites/trainers/giovanni.png',
     personality: ['froid','calculateur','impitoyable'],
     values: ['pouvoir','argent','contrôle'],
     speech_style: { tone:'autoritaire', verbosity:'court', formality:'high' },
@@ -3101,7 +3101,7 @@ const LORE_NPCS = {
     name: { fr:'Jessie', en:'Jessie' },
     rank: { fr:'Agent Rocket', en:'Rocket Agent' },
     faction: 'team_rocket',
-    sprite: 'https://play.pokemonshowdown.com/sprites/trainers/jessie.png',
+    sprite: 'https://play.pokemonshowdown.com/sprites/trainers/jessiejames-gen1.png',
     personality: ['théâtrale','orgueilleuse','déterminée'],
     values: ['gloire','beauté','vengeance'],
     speech_style: { tone:'dramatique', verbosity:'long', formality:'low' },
@@ -3120,7 +3120,7 @@ const LORE_NPCS = {
     name: { fr:'James', en:'James' },
     rank: { fr:'Agent Rocket', en:'Rocket Agent' },
     faction: 'team_rocket',
-    sprite: 'https://play.pokemonshowdown.com/sprites/trainers/james.png',
+    sprite: 'https://play.pokemonshowdown.com/sprites/trainers/jessiejames-gen1.png',
     personality: ['naïf','gentil','maladroit'],
     values: ['amitié','Pokémon','appartenance'],
     speech_style: { tone:'hésitant', verbosity:'moyen', formality:'low' },
