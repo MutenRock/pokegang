@@ -653,6 +653,210 @@ function renderPokemonPanels() {
     : `<div class="card">${lang==='fr'?'Aucun nouveau Pokémon ce tour.':'No new Pokémon this turn.'}</div>`;
 }
 
+// ── PC-STYLE POKÉMON MANAGEMENT ──────────────────────────
+function renderPokemonPC() {
+  const el = document.getElementById('pokemonPC');
+  if (!el) return;
+
+  const cap = getPokemonCap();
+  const standbyCount = (state.pokemonStandby||[]).length;
+
+  // Header avec compteur
+  const headerFr = `Pokémon : ${state.pokemons.length}/${cap}${standbyCount ? ` · 📦 ${standbyCount} en attente` : ''}`;
+  const headerEn = `Pokémon: ${state.pokemons.length}/${cap}${standbyCount ? ` · 📦 ${standbyCount} standby` : ''}`;
+
+  // Nouveaux ce tour
+  const newPkm = state.newPokemonsThisTurn || [];
+  const newBadge = newPkm.length ? ` <span style="color:#70e0a4;font-size:.8em">+${newPkm.length} new</span>` : '';
+
+  // Grille de tous les Pokémon
+  const grid = state.pokemons.map(p => {
+    const spFR = p.species_fr || p.species_en || p.species;
+    const spEN = p.species_en || FR_TO_EN[spFR?.toLowerCase()] || spFR;
+    const agent = state.agents.find(a => (a.team||[]).includes(p.id));
+    const inTraining = (state.rooms?.pkm_train?.assignedPokemonIds||[]).includes(p.id);
+    const cd = (p.cooldown||0) > 0;
+    const stars = (p.stars||0) > 0 ? `<div class="pc-stars">${'★'.repeat(p.stars)}</div>` : '';
+    const isNew = newPkm.some(np => np.id === p.id);
+
+    let badgeHtml = '';
+    if (agent) badgeHtml = `<span class="pc-badge" style="background:#3a5a2a;color:#aaffaa">→${agent.name.slice(0,3)}</span>`;
+    else if (inTraining) badgeHtml = `<span class="pc-badge" style="background:#2a3a5a;color:#aaaaff">🏋️</span>`;
+    else if (cd) badgeHtml = `<span class="pc-badge" style="background:#3a2a5a;color:#aaaaff">${p.cooldown}t</span>`;
+
+    const classes = ['pc-slot', agent?'assigned':'', cd?'cooldown':''].filter(Boolean).join(' ');
+
+    return `<div class="${classes}" onclick="openPokemonContext(event,'${p.id}')" ${isNew?'style="border-color:#70e0a4;box-shadow:0 0 8px rgba(112,224,164,.3)"':''}>
+      ${badgeHtml}
+      <img src="${pokeSprite(spEN)}" alt="${spFR}">
+      <div class="pc-name">${spFR}</div>
+      <div class="pc-info">Nv.${p.level}</div>
+      ${stars}
+    </div>`;
+  }).join('');
+
+  // Équipes des agents
+  const teams = state.agents.map(a => {
+    const sprite = a.sprite ? `<img class="agent-sprite" src="${a.sprite}" onerror="this.style.display='none'">` : '';
+    const agentCd = (a.cooldown||0) > 0 ? ` <span style="color:#7060a8">[${a.cooldown}t]</span>` : '';
+    const teamPkm = (a.team||[]).map(id => {
+      const p = state.pokemons.find(x => x.id === id);
+      if (!p) return '';
+      const en = FR_TO_EN[(p.species_fr||'').toLowerCase()] || p.species_en || 'pikachu';
+      return `<img src="${pokeSprite(en)}" title="${p.species_fr} Nv.${p.level}">`;
+    }).join('');
+    const teamLabel = (a.team||[]).length ? '' : `<span style="color:var(--muted)">${lang==='fr'?'Aucun Pokémon':'No Pokémon'}</span>`;
+    return `<div class="pc-team-row">
+      ${sprite}<strong>${a.name}</strong>${agentCd}
+      <div class="team-pkm">${teamPkm}${teamLabel}</div>
+    </div>`;
+  }).join('');
+
+  // Fusion candidates count
+  const fusable = state.pokemons.filter(p => canFuse(p)).length;
+  const fuseInfo = fusable ? `<span style="color:#ffcc5a;font-size:.7em"> · ⚔️ ${fusable} ${lang==='fr'?'fusionnable(s)':'fusable'}</span>` : '';
+
+  el.innerHTML = `
+    <div class="pc-header">
+      <span>${lang==='fr'?headerFr:headerEn}${newBadge}${fuseInfo}</span>
+    </div>
+    <div class="pc-grid">${grid || `<div style="color:var(--muted);font-size:.6em;grid-column:1/-1;text-align:center;padding:16px">${lang==='fr'?'Aucun Pokémon':'No Pokémon'}</div>`}</div>
+    <div style="font-size:.55em;color:var(--accent);margin-top:10px;letter-spacing:.05em">${lang==='fr'?'ÉQUIPES':'TEAMS'}</div>
+    <div class="pc-teams">${teams}</div>
+  `;
+}
+
+// Menu contextuel Pokémon (clic sur un slot du PC)
+function openPokemonContext(event, pkmId) {
+  // Ferme un menu existant
+  document.getElementById('pcContextMenu')?.remove();
+  event.stopPropagation();
+
+  const p = state.pokemons.find(x => x.id === pkmId);
+  if (!p) return;
+
+  const spFR = p.species_fr || p.species;
+  const currentAgent = state.agents.find(a => (a.team||[]).includes(p.id));
+  const inTraining = (state.rooms?.pkm_train?.assignedPokemonIds||[]).includes(p.id);
+  const cd = (p.cooldown||0) > 0;
+  const canFuseThis = canFuse(p);
+
+  const menu = document.createElement('div');
+  menu.id = 'pcContextMenu';
+  menu.className = 'pc-context';
+
+  // Position near click
+  const x = Math.min(event.clientX, window.innerWidth - 200);
+  const y = Math.min(event.clientY, window.innerHeight - 250);
+  menu.style.left = x + 'px';
+  menu.style.top = y + 'px';
+
+  const stars = (p.stars||0) > 0 ? ` ${'★'.repeat(p.stars)}` : '';
+  let btns = '';
+
+  // Assigner à un agent
+  const freeAgents = state.agents.filter(a => (a.team||[]).length < 3 && a.id !== currentAgent?.id);
+  if (freeAgents.length) {
+    freeAgents.forEach(a => {
+      btns += `<button onclick="pcAssignTo('${pkmId}','${a.id}')">${lang==='fr'?'→ Équipe de':'→ Team'} ${a.name}</button>`;
+    });
+  }
+
+  // Retirer de l'équipe
+  if (currentAgent) {
+    btns += `<button onclick="pcUnassign('${pkmId}','${currentAgent.id}')">${lang==='fr'?'✕ Retirer de':'✕ Remove from'} ${currentAgent.name}</button>`;
+  }
+
+  // Salle d'entraînement
+  const ptr = state.rooms?.pkm_train;
+  if (ptr && !inTraining) {
+    const slots = pkmTrainSlots(ptr);
+    if ((ptr.assignedPokemonIds||[]).length < slots) {
+      btns += `<button onclick="pcSendTraining('${pkmId}')">${lang==='fr'?'🏋️ Salle d\'entraînement':'🏋️ Training Room'}</button>`;
+    }
+  }
+  if (inTraining) {
+    btns += `<button onclick="pcRemoveTraining('${pkmId}')">${lang==='fr'?'✕ Retirer entraînement':'✕ Remove training'}</button>`;
+  }
+
+  // Fusion
+  if (canFuseThis) {
+    const cost = fusionCost(p.stars||0);
+    btns += `<button onclick="fusePokemon('${pkmId}');document.getElementById('pcContextMenu')?.remove();render();">⚔️ ${lang==='fr'?`Fusionner (${cost}x)`:`Fuse (${cost}x)`}</button>`;
+  }
+
+  // Repos forcé / Relâcher
+  btns += `<button onclick="pcRelease('${pkmId}')" style="color:#ff6666">${lang==='fr'?'🔓 Relâcher':'🔓 Release'}</button>`;
+
+  menu.innerHTML = `
+    <div class="pc-ctx-header">${spFR} Nv.${p.level}${stars}${cd?' [repos]':''}</div>
+    ${btns}
+  `;
+  document.body.appendChild(menu);
+
+  // Ferme sur clic extérieur
+  setTimeout(() => {
+    const close = (e) => { if (!menu.contains(e.target)) { menu.remove(); document.removeEventListener('click', close); } };
+    document.addEventListener('click', close);
+  }, 10);
+}
+
+// Actions du PC
+function pcAssignTo(pkmId, agentId) {
+  const agent = state.agents.find(a => a.id === agentId);
+  const p = state.pokemons.find(x => x.id === pkmId);
+  if (!agent || !p) return;
+  // Retire d'un autre agent si déjà assigné
+  state.agents.forEach(a => { a.team = (a.team||[]).filter(id => id !== pkmId); });
+  if ((agent.team||[]).length >= 3) { addLog(lang==='fr'?'Équipe pleine (3 max).':'Team full (3 max).'); }
+  else {
+    agent.team.push(pkmId);
+    p.assignedAgentId = agentId;
+    if ((p.cooldown||0)>0) addLog(`⚠️ ${p.species_fr} ${lang==='fr'?'est en repos':'is resting'} (${p.cooldown}t)`);
+    addLog(`${p.species_fr} → ${agent.name}`);
+  }
+  document.getElementById('pcContextMenu')?.remove();
+  saveState(); render();
+}
+
+function pcUnassign(pkmId, agentId) {
+  const agent = state.agents.find(a => a.id === agentId);
+  if (agent) agent.team = (agent.team||[]).filter(id => id !== pkmId);
+  const p = state.pokemons.find(x => x.id === pkmId);
+  if (p) p.assignedAgentId = null;
+  document.getElementById('pcContextMenu')?.remove();
+  saveState(); render();
+}
+
+function pcSendTraining(pkmId) {
+  const ptr = state.rooms?.pkm_train;
+  if (!ptr) return;
+  ptr.assignedPokemonIds = [...(ptr.assignedPokemonIds||[]), pkmId];
+  addLog(`🏋️ ${state.pokemons.find(p=>p.id===pkmId)?.species_fr} ${lang==='fr'?'envoyé en entraînement':'sent to training'}`);
+  document.getElementById('pcContextMenu')?.remove();
+  saveState(); render();
+}
+
+function pcRemoveTraining(pkmId) {
+  const ptr = state.rooms?.pkm_train;
+  if (ptr) ptr.assignedPokemonIds = (ptr.assignedPokemonIds||[]).filter(id => id !== pkmId);
+  document.getElementById('pcContextMenu')?.remove();
+  saveState(); render();
+}
+
+function pcRelease(pkmId) {
+  const p = state.pokemons.find(x => x.id === pkmId);
+  if (!p) return;
+  if (!confirm(lang==='fr' ? `Relâcher ${p.species_fr} ? Cette action est irréversible.` : `Release ${p.species_fr}? This cannot be undone.`)) return;
+  state.agents.forEach(a => { a.team = (a.team||[]).filter(id => id !== pkmId); });
+  if (state.rooms?.pkm_train) state.rooms.pkm_train.assignedPokemonIds = (state.rooms.pkm_train.assignedPokemonIds||[]).filter(id => id !== pkmId);
+  markPokedexLost(p.species_fr);
+  state.pokemons = state.pokemons.filter(x => x.id !== pkmId);
+  addLog(`🔓 ${p.species_fr} ${lang==='fr'?'a été relâché.':'has been released.'}`);
+  document.getElementById('pcContextMenu')?.remove();
+  saveState(); render();
+}
+
 function renderTeamBuilder() {
   ui.agentSelect.innerHTML  = state.agents.map(a => {
     const onMission = (state.missions||[]).some(mi => mi.agentId === a.id);
@@ -3484,6 +3688,7 @@ function render() {
 
   renderResources();
   renderRoomsV2();
+  renderPokemonPC();
   renderPokemonPanels();
   renderTeamBuilder();
   renderAgentsV2();
