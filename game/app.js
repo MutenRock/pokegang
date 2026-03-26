@@ -1421,6 +1421,43 @@ function agentLine(agentObj, phase, L) {
   return `${name} : "${pick(L[phase])}"`;
 }
 
+// Dresseurs croisés en mission — NPCs aléatoires rencontrés
+const ROUTE_TRAINERS = {
+  fr: [
+    { name:'Gamin Yohan',     sprite:'youngster',   line:"Hé ! Mon Rattata est parmi les meilleurs !" },
+    { name:'Fillette Lucie',   sprite:'lass',        line:"Tu ne battras jamais mes Pokémon !" },
+    { name:'Pêcheur Marcel',   sprite:'fisherman',   line:"Patience… la pêche, c'est tout un art." },
+    { name:'Campeur Denis',    sprite:'camper',       line:"J'adore dormir à la belle étoile !" },
+    { name:'Scout Emma',       sprite:'picnicker',    line:"Tu veux goûter mes riceballs ?" },
+    { name:'Montagnard René',  sprite:'hiker',        line:"Les roches sont mes meilleures amies." },
+    { name:'Karatéka Ryu',     sprite:'blackbelt',    line:"Le combat, c'est une philosophie !" },
+    { name:'Dresseur Alex',    sprite:'acetrainer',   line:"Je m'entraîne depuis tout petit !" },
+    { name:'Kinésiste Clara',  sprite:'psychic',      line:"Je lis dans tes pensées…" },
+    { name:'Gentleman Pierre', sprite:'gentleman',    line:"Un combat entre gens de bonne compagnie ?" },
+    { name:'Nageur Thomas',    sprite:'swimmer',      line:"L'eau, c'est la vie !" },
+    { name:'Bug Catcher Léo',  sprite:'bugcatcher',   line:"Mon Chenipan va t'écraser !" },
+  ],
+  en: [
+    { name:'Youngster Joey',   sprite:'youngster',   line:"Hey! My Rattata is in the top percentage!" },
+    { name:'Lass Jenny',       sprite:'lass',        line:"You'll never beat my Pokémon!" },
+    { name:'Fisherman Marco',  sprite:'fisherman',   line:"Patience… fishing is an art." },
+    { name:'Camper Dennis',    sprite:'camper',       line:"I love sleeping under the stars!" },
+    { name:'Picnicker Emma',   sprite:'picnicker',    line:"Want to try my riceballs?" },
+    { name:'Hiker Brock',      sprite:'hiker',        line:"Rocks are my best friends." },
+    { name:'Black Belt Ryu',   sprite:'blackbelt',    line:"Fighting is a philosophy!" },
+    { name:'Ace Trainer Alex',  sprite:'acetrainer',   line:"I've been training since I was a kid!" },
+    { name:'Psychic Clara',    sprite:'psychic',      line:"I can read your mind…" },
+    { name:'Gentleman Pierre', sprite:'gentleman',    line:"A battle between gentlemen?" },
+    { name:'Swimmer Thomas',   sprite:'swimmer',      line:"Water is life!" },
+    { name:'Bug Catcher Leo',  sprite:'bugcatcher',   line:"My Caterpie will crush you!" },
+  ],
+};
+
+function getRandomTrainer() {
+  const pool = ROUTE_TRAINERS[lang] || ROUTE_TRAINERS.fr;
+  return pick(pool);
+}
+
 function buildSimSteps(missionDef, agentObj, result, L) {
   const steps = [];
   const enemies = getMissionEnemyPokemon(missionDef);
@@ -1429,6 +1466,16 @@ function buildSimSteps(missionDef, agentObj, result, L) {
   // Approche : dialogue générique + réplique perso de l'agent
   steps.push({ type:'log',    text: pick(L.approach) });
   steps.push({ type:'bubble', text: agentLine(agentObj, 'approach', L), speaker: name });
+
+  // Dresseur croisé en route (50% de chance)
+  if (Math.random() < 0.5) {
+    const trainer = getRandomTrainer();
+    const trainerAppearFr = `🧑‍🤝‍🧑 ${trainer.name} croise votre chemin !`;
+    const trainerAppearEn = `🧑‍🤝‍🧑 ${trainer.name} crosses your path!`;
+    steps.push({ type:'log', text: lang==='fr' ? trainerAppearFr : trainerAppearEn });
+    steps.push({ type:'showTrainer', sprite: trainer.sprite, name: trainer.name });
+    steps.push({ type:'bubble', text: `${trainer.name} : "${trainer.line}"`, speaker: trainer.name });
+  }
 
   if (enemies.length) {
     steps.push({ type:'log',     text: pick(L.pkm_appears) });
@@ -1589,6 +1636,27 @@ function playSimSteps(steps, idx) {
                style="width:48px;image-rendering:pixelated;">
           <span style="font-size:.35em;color:#70e0a4;margin-top:2px">${en}</span>
         </div>`).join('');
+    }
+  }
+  if (step.type === 'showTrainer') {
+    // Affiche un dresseur croisé côté droit temporairement
+    const band = document.getElementById('simBand');
+    if (band) {
+      let trainerEl = document.getElementById('simTrainerSprite');
+      if (!trainerEl) {
+        trainerEl = document.createElement('div');
+        trainerEl.id = 'simTrainerSprite';
+        trainerEl.style.cssText = 'position:absolute;bottom:16px;right:20%;display:flex;flex-direction:column;align-items:center;animation:simPop .5s;';
+        band.appendChild(trainerEl);
+      }
+      trainerEl.innerHTML = `
+        <img src="https://play.pokemonshowdown.com/sprites/trainers/${step.sprite}.png"
+             style="width:48px;image-rendering:pixelated;"
+             onerror="this.style.display='none'">
+        <span style="font-size:.35em;color:#ffcc5a;margin-top:2px">${step.name}</span>
+      `;
+      // Disparaît après 3s
+      setTimeout(() => { if (trainerEl) trainerEl.remove(); }, 3000);
     }
   }
   if (step.type === 'showAntagonist') {
