@@ -2703,31 +2703,103 @@ function markPokedexLost(species_fr) {
 }
 
 function renderPokedex() {
-  const el = document.getElementById('pokedexPanel');
-  if (!el) return;
+  // Le Pokédex s'ouvre via un bouton overlay — rien à rendre inline
+  const btn = document.getElementById('openPokedexBtn');
+  if (btn) {
+    const count = Object.keys(state.pokedex||{}).length;
+    btn.textContent = `📖 POKÉDEX (${count})`;
+    btn.onclick = openPokedexOverlay;
+  }
+}
+
+function openPokedexOverlay() {
+  // Ferme s'il existe déjà
+  const existing = document.getElementById('pokedexOverlay');
+  if (existing) { existing.remove(); return; }
+
   const dex = state.pokedex || {};
   const entries = Object.entries(dex);
+  const comboDex = state.comboDex || {};
+  const comboEntries = Object.entries(comboDex);
   const T = {
-    fr:{ title:'Pokédex', seen:'Obtenus', lost:'Perdus', empty:'Aucun Pokémon encore enregistré.' },
-    en:{ title:'Pokédex', seen:'Obtained', lost:'Lost',  empty:'No Pokémon registered yet.' },
+    fr:{ title:'POKÉDEX', seen:'obtenus', lost:'perdus', empty:'Aucun Pokémon enregistré.', combo:'COMBO DEX', noCombo:'Aucun combo.', close:'FERMER', wins:'victoires' },
+    en:{ title:'POKÉDEX', seen:'obtained', lost:'lost',  empty:'No Pokémon registered.',  combo:'COMBO DEX', noCombo:'No combo.',   close:'CLOSE',  wins:'wins' },
   }[lang];
 
-  if (!entries.length) {
-    el.innerHTML = `<div class="card">${T.empty}</div>`;
-    return;
-  }
-  el.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:6px;">
-    ${entries.map(([fr, data]) => {
-      const en = FR_TO_EN[fr.toLowerCase()] || fr;
-      return `<div class="card pokemon" style="flex-direction:column;align-items:center;padding:6px;text-align:center;">
-        <img src="https://play.pokemonshowdown.com/sprites/gen5/${en}.png"
-             style="width:40px;image-rendering:pixelated;">
-        <div style="font-size:.55em;margin-top:2px">${fr}</div>
-        <div style="font-size:.5em;color:var(--ok)">×${data.count}</div>
-        ${data.lost ? `<div style="font-size:.45em;color:var(--danger)">💀×${data.lost}</div>` : ''}
-      </div>`;
-    }).join('')}
-  </div>`;
+  const overlay = document.createElement('div');
+  overlay.id = 'pokedexOverlay';
+  overlay.style.cssText = `
+    position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:100;
+    display:flex;align-items:center;justify-content:center;padding:16px;
+    font-family:'Press Start 2P',monospace;
+  `;
+
+  const pokemonGrid = entries.length
+    ? entries.map(([fr, data]) => {
+        const en = FR_TO_EN[fr.toLowerCase()] || fr;
+        const lostTag = data.lost ? `<div style="color:#cc3333;font-size:.4em">💀×${data.lost}</div>` : '';
+        return `<div style="
+          background:#1a0808;border:1px solid #551111;border-radius:4px;
+          padding:6px;text-align:center;display:flex;flex-direction:column;align-items:center;
+        ">
+          <img src="https://play.pokemonshowdown.com/sprites/gen5/${en}.png"
+               style="width:40px;image-rendering:pixelated;filter:saturate(0.7) brightness(1.1);">
+          <div style="font-size:.4em;color:#cc6666;margin-top:3px">${fr}</div>
+          <div style="font-size:.4em;color:#888">×${data.count} ${T.seen}</div>
+          ${lostTag}
+        </div>`;
+      }).join('')
+    : `<div style="grid-column:1/-1;color:#663333;font-size:.5em;text-align:center;padding:20px">${T.empty}</div>`;
+
+  const comboList = comboEntries.length
+    ? comboEntries.map(([key, data]) => `
+        <div style="display:flex;align-items:center;gap:8px;font-size:.4em;padding:4px 0;border-bottom:1px solid #331111">
+          <span style="color:#cc3333;font-weight:bold">${data.label}</span>
+          <span style="color:#888">${data.wins} ${T.wins}</span>
+          ${data.rewardClaimed ? '<span style="color:#66aa66">✓</span>' : ''}
+        </div>`).join('')
+    : `<div style="color:#663333;font-size:.45em">${T.noCombo}</div>`;
+
+  overlay.innerHTML = `
+    <div style="
+      width:min(700px,95vw);max-height:85vh;overflow-y:auto;
+      background:#0a0404;border:3px solid #cc3333;border-radius:8px;
+      box-shadow:0 0 40px rgba(204,51,51,.3),inset 0 0 60px rgba(0,0,0,.8);
+    ">
+      <!-- Header -->
+      <div style="
+        background:linear-gradient(90deg,#1a0808,#2a0a0a,#1a0808);
+        padding:12px 16px;border-bottom:2px solid #cc3333;
+        display:flex;justify-content:space-between;align-items:center;
+      ">
+        <div style="color:#cc3333;font-size:.6em;letter-spacing:.2em;text-shadow:0 0 10px rgba(204,51,51,.5)">${T.title}</div>
+        <div style="color:#663333;font-size:.4em">${entries.length} / 251</div>
+      </div>
+      <!-- Pokémon Grid -->
+      <div style="
+        padding:12px;
+        display:grid;grid-template-columns:repeat(auto-fill,minmax(75px,1fr));gap:6px;
+      ">${pokemonGrid}</div>
+      <!-- Combo Dex -->
+      <div style="padding:8px 16px;border-top:1px solid #331111">
+        <div style="color:#993333;font-size:.45em;letter-spacing:.15em;margin-bottom:6px">${T.combo}</div>
+        ${comboList}
+      </div>
+      <!-- Close button -->
+      <div style="text-align:center;padding:12px">
+        <button onclick="document.getElementById('pokedexOverlay')?.remove()" style="
+          font-family:'Press Start 2P',monospace;font-size:.45em;
+          background:#1a0808;color:#cc3333;border:2px solid #cc3333;
+          padding:8px 24px;border-radius:4px;cursor:pointer;
+          text-transform:uppercase;
+        ">${T.close}</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  // Clic en dehors pour fermer
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
 }
 
 // ── COMBO DEX ─────────────────────────────────────────────
@@ -2774,32 +2846,8 @@ function checkComboUnlock(agent) {
 }
 
 function renderComboDex() {
-  const el = document.getElementById('comboDexPanel');
-  if (!el) return;
-  const dex = state.comboDex || {};
-  const entries = Object.entries(dex);
-  const T = {
-    fr:{ empty:'Aucun combo découvert.', apply:'Appliquer', wins:'victoires' },
-    en:{ empty:'No combo discovered.',   apply:'Apply',     wins:'wins' },
-  }[lang];
-
-  if (!entries.length) { el.innerHTML = `<div class="card">${T.empty}</div>`; return; }
-
-  el.innerHTML = entries.map(([key, data]) => {
-    // Peut-on appliquer ce combo ?
-    const canApply = data.pattern.every(type => {
-      const pool = POKEMON_FR_POOL_BY_TYPE[type] || [];
-      return state.pokemons.some(p => pool.includes((p.species_fr||'').toLowerCase()) && !(p.assignedAgentId));
-    });
-    return `<div class="card" style="font-size:.78em">
-      <strong>${data.label}</strong>
-      ${data.rewardClaimed ? '<span style="color:var(--ok)">✓</span>' : ''}
-      <div style="font-size:.8em;color:var(--muted)">${data.wins} ${T.wins}</div>
-      ${canApply
-        ? `<button class="small" onclick="applyCombo('${key}')">${T.apply}</button>`
-        : ''}
-    </div>`;
-  }).join('');
+  // Combo Dex est maintenant intégré dans l'overlay Pokédex
+  // Rien à rendre inline
 }
 
 function applyCombo(key) {
