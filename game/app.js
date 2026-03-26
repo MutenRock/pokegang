@@ -911,6 +911,18 @@ function bindEvents() {
   on(ui.challengeNoBtn,   'onclick', refuseNpcChallenge);
   on(ui.openSettingsBtn,  'onclick', () => ui.settingsOverlay.classList.remove('hidden'));
   on(ui.closeSettingsBtn, 'onclick', () => ui.settingsOverlay.classList.add('hidden'));
+
+  // Purge cache (sprites + assets)
+  const purgeBtn = document.getElementById('purgeCacheBtn');
+  if (purgeBtn) purgeBtn.onclick = async () => {
+    if ('caches' in window) {
+      const names = await caches.keys();
+      await Promise.all(names.map(n => caches.delete(n)));
+    }
+    addLog(lang==='fr' ? '🗑️ Cache purgé. Rechargement…' : '🗑️ Cache purged. Reloading…');
+    saveState();
+    location.reload(true);
+  };
   on(ui.spriteSelect, 'onchange', () => { ui.spritePreview.src = ui.spriteSelect.value; });
   on(ui.introStartBtn, 'onclick', () => {
     state.profile.team=ui.teamInput.value.trim()||'Team Rocket';
