@@ -1676,6 +1676,8 @@ function closeMissionPopup() {
   if (simStepTimeout) clearTimeout(simStepTimeout);
   const popup = document.getElementById('missionSimPopup');
   if (popup) popup.remove();
+  // Joue le popup suivant s'il y en a dans la queue
+  setTimeout(() => playNextMissionPopup(), 300);
 }
 
 
@@ -2019,10 +2021,26 @@ function resolveMissionV2(mi) {
     }
   }
 
-  // Popup de résolution
-  showMissionPopup(mDef, agent, result);
+  // Popup de résolution (via queue pour éviter chevauchement)
+  queueMissionPopup(mDef, agent, result);
 
   return result;
+}
+
+// File d'attente de popups missions — joue un à un, pas simultanément
+let missionPopupQueue = [];
+let missionPopupActive = false;
+
+function queueMissionPopup(missionDef, agentObj, result) {
+  missionPopupQueue.push({ missionDef, agentObj, result });
+  if (!missionPopupActive) playNextMissionPopup();
+}
+
+function playNextMissionPopup() {
+  if (!missionPopupQueue.length) { missionPopupActive = false; return; }
+  missionPopupActive = true;
+  const { missionDef, agentObj, result } = missionPopupQueue.shift();
+  showMissionPopup(missionDef, agentObj, result);
 }
 
 // Remplacement de processMissions par processMissionsV2
