@@ -379,13 +379,173 @@ function addLog(text) { state.log.unshift(`[T${state.turn}] ${text}`); state.log
 // saveState/loadState/loadSettings → voir bloc slot-aware en haut du fichier
 function saveSettings() { localStorage.setItem('pf.settings', JSON.stringify(settings)); }
 
+// Capacités par espèce (EN) — 4 moves Gen1, on en attribue 2 aléatoirement
+const POKEMON_MOVES = {
+  bulbasaur:   ['Fouet Lianes','Vampigraine','Charge','Poudre Dodo'],
+  ivysaur:     ['Fouet Lianes','Tranch\'Herbe','Vampigraine','Poudre Toxik'],
+  venusaur:    ['Lance-Soleil','Danse-Fleur','Tranch\'Herbe','Poudre Dodo'],
+  charmander:  ['Griffe','Flammèche','Brouillard','Frénésie'],
+  charmeleon:  ['Lance-Flamme','Tranche','Griffe','Frénésie'],
+  charizard:   ['Lance-Flamme','Déflagration','Danse Lames','Cru-Aile'],
+  squirtle:    ['Pistolet à O','Repli','Charge','Morsure'],
+  wartortle:   ['Pistolet à O','Morsure','Abri','Surf'],
+  blastoise:   ['Hydrocanon','Surf','Laser Glace','Morsure'],
+  caterpie:    ['Charge','Sécrétion','Charge','Sécrétion'],
+  metapod:     ['Armure','Charge','Armure','Charge'],
+  butterfree:  ['Choc Mental','Poudre Dodo','Cyclone','Ultrason'],
+  weedle:      ['Dard-Venin','Sécrétion','Dard-Venin','Sécrétion'],
+  kakuna:      ['Armure','Dard-Venin','Armure','Dard-Venin'],
+  beedrill:    ['Dard-Venin','Double-Dard','Furie','Hâte'],
+  pidgey:      ['Charge','Tornade','Vive-Attaque','Jet de Sable'],
+  pidgeotto:   ['Cru-Aile','Vive-Attaque','Cyclone','Tornade'],
+  pidgeot:     ['Cru-Aile','Lame d\'Air','Cyclone','Vive-Attaque'],
+  rattata:     ['Charge','Vive-Attaque','Croc de Mort','Morsure'],
+  raticate:    ['Croc de Mort','Vive-Attaque','Plaquage','Poursuite'],
+  spearow:     ['Picpic','Furie','Poursuite','Bec Vrille'],
+  fearow:      ['Bec Vrille','Furie','Aéropique','Poursuite'],
+  ekans:       ['Morsure','Ligotage','Acide','Regard Médusant'],
+  arbok:       ['Morsure','Acide','Crocs Venin','Intimidation'],
+  pikachu:     ['Tonnerre','Vive-Attaque','Cage Éclair','Queue de Fer'],
+  raichu:      ['Tonnerre','Fatal-Foudre','Vive-Attaque','Surf'],
+  sandshrew:   ['Griffe','Jet de Sable','Tranche','Tunnel'],
+  sandslash:   ['Tranche','Tunnel','Séisme','Tempête de Sable'],
+  'nidoran-f': ['Griffe','Dard-Venin','Morsure','Double Pied'],
+  nidorina:    ['Morsure','Dard-Venin','Griffe','Plaquage'],
+  nidoqueen:   ['Plaquage','Séisme','Surf','Laser Glace'],
+  'nidoran-m': ['Koud\'Korne','Dard-Venin','Double Pied','Furie'],
+  nidorino:    ['Koud\'Korne','Dard-Venin','Morsure','Furie'],
+  nidoking:    ['Séisme','Mégacorne','Surf','Lance-Flamme'],
+  clefairy:    ['Métronome','Torgnoles','Berceuse','Reflet'],
+  clefable:    ['Métronome','Plaquage','Berceuse','Éclat Magique'],
+  vulpix:      ['Flammèche','Vive-Attaque','Danse-Flamme','Hurlement'],
+  ninetales:   ['Lance-Flamme','Vive-Attaque','Onde Folie','Feu Follet'],
+  jigglypuff:  ['Berceuse','Torgnoles','Charge','Roulade'],
+  wigglytuff:  ['Plaquage','Berceuse','Torgnoles','Éclat Magique'],
+  zubat:       ['Vampirisme','Ultrason','Morsure','Onde Folie'],
+  golbat:      ['Vampirisme','Cru-Aile','Morsure','Onde Folie'],
+  oddish:      ['Méga-Sangsue','Poudre Toxik','Acide','Poudre Dodo'],
+  gloom:       ['Méga-Sangsue','Acide','Danse-Fleur','Poudre Toxik'],
+  vileplume:   ['Danse-Fleur','Méga-Sangsue','Poudre Dodo','Acide'],
+  paras:       ['Griffe','Spore','Vampigraine','Tranche'],
+  parasect:    ['Spore','Tranche','Vampigraine','Coupe'],
+  venonat:     ['Choc Mental','Poudre Toxik','Ultrason','Psyko'],
+  venomoth:    ['Psyko','Poudre Toxik','Cyclone','Ultrason'],
+  diglett:     ['Tunnel','Griffe','Tranche','Séisme'],
+  dugtrio:     ['Séisme','Tunnel','Tranche','Piège de Roc'],
+  meowth:      ['Griffe','Morsure','Jackpot','Bluff'],
+  persian:     ['Tranche','Jackpot','Morsure','Vive-Attaque'],
+  psyduck:     ['Griffe','Choc Mental','Pistolet à O','Amnésie'],
+  golduck:     ['Surf','Psyko','Hydrocanon','Amnésie'],
+  mankey:      ['Griffe','Poing-Karaté','Frénésie','Balayage'],
+  primeape:    ['Poing-Karaté','Frénésie','Balayage','Mania'],
+  growlithe:   ['Flammèche','Morsure','Roue de Feu','Grondement'],
+  arcanine:    ['Lance-Flamme','Vitesse Extrême','Morsure','Déflagration'],
+  poliwag:     ['Pistolet à O','Hypnose','Torgnoles','Bulles d\'O'],
+  poliwhirl:   ['Surf','Hypnose','Plaquage','Bulles d\'O'],
+  poliwrath:   ['Surf','Soumission','Hypnose','Séisme'],
+  abra:        ['Téléport','Choc Mental','Téléport','Choc Mental'],
+  kadabra:     ['Psyko','Choc Mental','Téléport','Soin'],
+  alakazam:    ['Psyko','Soin','Laser Glace','Tonnerre'],
+  machop:      ['Poing-Karaté','Balayage','Frappe Atlas','Vendetta'],
+  machoke:     ['Poing-Karaté','Soumission','Frappe Atlas','Balayage'],
+  machamp:     ['Soumission','Poing-Karaté','Séisme','Frappe Atlas'],
+  bellsprout:  ['Fouet Lianes','Acide','Vampigraine','Ligotage'],
+  weepinbell:  ['Tranch\'Herbe','Acide','Ligotage','Poudre Dodo'],
+  victreebel:  ['Tranch\'Herbe','Acide','Lance-Soleil','Ligotage'],
+  tentacool:   ['Dard-Venin','Acide','Surf','Ultrason'],
+  tentacruel:  ['Surf','Dard-Venin','Acide','Siphon'],
+  geodude:     ['Charge','Jet-Pierres','Séisme','Armure'],
+  graveler:    ['Jet-Pierres','Séisme','Charge','Destruction'],
+  golem:       ['Séisme','Jet-Pierres','Explosion','Plaquage'],
+  ponyta:      ['Flammèche','Charge','Roue de Feu','Hâte'],
+  rapidash:    ['Lance-Flamme','Mégacorne','Roue de Feu','Hâte'],
+  slowpoke:    ['Choc Mental','Pistolet à O','Amnésie','Bâillement'],
+  slowbro:     ['Psyko','Surf','Amnésie','Lance-Flamme'],
+  magnemite:   ['Cage Éclair','Étincelle','Ultrason','Tonnerre'],
+  magneton:    ['Tonnerre','Étincelle','Cage Éclair','Tri Attaque'],
+  farfetchd:   ['Tranche','Cru-Aile','Danse Lames','Hâte'],
+  doduo:       ['Picpic','Furie','Poursuite','Bec Vrille'],
+  dodrio:      ['Bec Vrille','Furie','Tri Attaque','Hâte'],
+  seel:        ['Laser Glace','Aqua-Jet','Plaquage','Repos'],
+  dewgong:     ['Laser Glace','Surf','Aqua-Jet','Repos'],
+  grimer:      ['Détritus','Acide','Plaquage','Direct Toxik'],
+  muk:         ['Détritus','Direct Toxik','Acide','Plaquage'],
+  shellder:    ['Pistolet à O','Repli','Laser Glace','Claquoir'],
+  cloyster:    ['Laser Glace','Surf','Picanon','Repli'],
+  gastly:      ['Léchouille','Hypnose','Ombre Nocturne','Onde Folie'],
+  haunter:     ['Ball\'Ombre','Hypnose','Ombre Nocturne','Onde Folie'],
+  gengar:      ['Ball\'Ombre','Hypnose','Cauchemar','Tonnerre'],
+  onix:        ['Jet-Pierres','Ligotage','Tunnel','Charge'],
+  drowzee:     ['Choc Mental','Hypnose','Psyko','Coup d\'Boule'],
+  hypno:       ['Psyko','Hypnose','Cauchemar','Onde Folie'],
+  krabby:      ['Pince-Masse','Bulles d\'O','Armure','Guillotine'],
+  kingler:     ['Pince-Masse','Surf','Guillotine','Armure'],
+  voltorb:     ['Étincelle','Destruction','Cage Éclair','Roulade'],
+  electrode:   ['Tonnerre','Explosion','Cage Éclair','Roulade'],
+  exeggcute:   ['Choc Mental','Vampigraine','Pilonnage','Hypnose'],
+  exeggutor:   ['Psyko','Lance-Soleil','Pilonnage','Hypnose'],
+  cubone:      ['Osmerang','Coup d\'Boule','Charge','Frénésie'],
+  marowak:     ['Osmerang','Séisme','Coup d\'Boule','Danse Lames'],
+  hitmonlee:   ['Mawashi Geri','Pied Brûleur','Balayage','Pied Voltige'],
+  hitmonchan:  ['Mach Punch','Poing de Feu','Poing Éclair','Poing Glace'],
+  lickitung:   ['Léchouille','Ligotage','Plaquage','Tranche'],
+  koffing:     ['Détritus','Purédpois','Destruction','Charge'],
+  weezing:     ['Détritus','Purédpois','Explosion','Lance-Flamme'],
+  rhyhorn:     ['Charge','Koud\'Korne','Piétisol','Séisme'],
+  rhydon:      ['Séisme','Mégacorne','Surf','Jet-Pierres'],
+  chansey:     ['Torgnoles','Œuf Mimique','E-Coque','Tonnerre'],
+  tangela:     ['Fouet Lianes','Étreinte','Vampigraine','Poudre Dodo'],
+  kangaskhan:  ['Mégacorne','Plaquage','Séisme','Tranche'],
+  horsea:      ['Pistolet à O','Cyclone','Bulles d\'O','Brouillard'],
+  seadra:      ['Hydrocanon','Laser Glace','Cyclone','Bulles d\'O'],
+  goldeen:     ['Koud\'Korne','Cascade','Hâte','Furie'],
+  seaking:     ['Cascade','Koud\'Korne','Mégacorne','Surf'],
+  staryu:      ['Pistolet à O','Vive-Attaque','Soin','Tonnerre'],
+  starmie:     ['Psyko','Surf','Tonnerre','Soin'],
+  'mr-mime':   ['Choc Mental','Mur Lumière','Protection','Psyko'],
+  scyther:     ['Tranche','Cru-Aile','Danse Lames','Vive-Attaque'],
+  jynx:        ['Psyko','Laser Glace','Grobisou','Berceuse'],
+  electabuzz:  ['Tonnerre','Poing Éclair','Vive-Attaque','Cage Éclair'],
+  magmar:      ['Lance-Flamme','Poing de Feu','Brouillard','Déflagration'],
+  pinsir:      ['Plaie-Croix','Guillotine','Tranche','Soumission'],
+  tauros:      ['Plaquage','Séisme','Bélier','Frénésie'],
+  magikarp:    ['Trempette','Charge','Trempette','Charge'],
+  gyarados:    ['Hydrocanon','Morsure','Tonnerre','Ouragan'],
+  lapras:      ['Surf','Laser Glace','Plaquage','Berceuse'],
+  ditto:       ['Morphing','Morphing','Morphing','Morphing'],
+  eevee:       ['Charge','Vive-Attaque','Morsure','Jet de Sable'],
+  vaporeon:    ['Surf','Laser Glace','Vive-Attaque','Brouillard'],
+  jolteon:     ['Tonnerre','Vive-Attaque','Cage Éclair','Double Pied'],
+  flareon:     ['Lance-Flamme','Vive-Attaque','Morsure','Brouillard'],
+  porygon:     ['Tri Attaque','Psyko','Tonnerre','Laser Glace'],
+  omanyte:     ['Pistolet à O','Morsure','Repli','Surf'],
+  omastar:     ['Surf','Jet-Pierres','Laser Glace','Picanon'],
+  kabuto:      ['Griffe','Pistolet à O','Armure','Tranche'],
+  kabutops:    ['Tranche','Surf','Séisme','Danse Lames'],
+  aerodactyl:  ['Cru-Aile','Morsure','Hâte','Bec Vrille'],
+  snorlax:     ['Plaquage','Repos','Séisme','Coup d\'Boule'],
+  articuno:    ['Blizzard','Laser Glace','Cru-Aile','Brume'],
+  zapdos:      ['Fatal-Foudre','Tonnerre','Bec Vrille','Cage Éclair'],
+  moltres:     ['Déflagration','Lance-Flamme','Cru-Aile','Hâte'],
+  dratini:     ['Ligotage','Cage Éclair','Surf','Hâte'],
+  dragonair:   ['Draco-Rage','Surf','Tonnerre','Hâte'],
+  dragonite:   ['Draco-Rage','Surf','Tonnerre','Déflagration'],
+  mewtwo:      ['Psyko','Laser Glace','Tonnerre','Soin'],
+  mew:         ['Psyko','Métronome','Surf','Lance-Flamme'],
+};
+
 // Crée un objet Pokémon à partir d'un nom FR
 function makePokemon(species_fr, level) {
   const species_en = FR_TO_EN[species_fr.toLowerCase()] || species_fr;
+  // Attribue 2 capacités aléatoires parmi les 4 possibles
+  const movePool = POKEMON_MOVES[species_en.toLowerCase()] || ['Charge','Griffe','Morsure','Plaquage'];
+  const shuffled = [...movePool].sort(() => Math.random() - 0.5);
+  const moves = [shuffled[0], shuffled[1]];
   return {
     id:`pk-${Date.now()}-${Math.floor(Math.random()*9999)}`,
     species_fr, species_en,
     level: level || 5+Math.floor(Math.random()*8),
+    moves,
     assignedAgentId: null,
     stars: 0,       // 0-3 étoiles (fusion)
     cooldown: 0,
@@ -690,7 +850,7 @@ function renderPokemonPC() {
       ${badgeHtml}
       <img src="${pokeSprite(spEN)}" alt="${spFR}">
       <div class="pc-name">${spFR}</div>
-      <div class="pc-info">Nv.${p.level}</div>
+      <div class="pc-info">Nv.${p.level}${(p.moves||[]).length?` · ${p.moves.join(' / ')}`:''}</div>
       ${stars}
     </div>`;
   }).join('');
@@ -789,7 +949,9 @@ function openPokemonContext(event, pkmId) {
   btns += `<button onclick="pcRelease('${pkmId}')" style="color:#ff6666">${lang==='fr'?'🔓 Relâcher':'🔓 Release'}</button>`;
 
   menu.innerHTML = `
-    <div class="pc-ctx-header">${spFR} Nv.${p.level}${stars}${cd?' [repos]':''}</div>
+    <div class="pc-ctx-header">${spFR} Nv.${p.level}${stars}${cd?' [repos]':''}
+      ${(p.moves||[]).length ? `<div style="font-size:.85em;color:#aaa;margin-top:3px">💥 ${p.moves.join(' / ')}</div>` : ''}
+    </div>
     ${btns}
   `;
   document.body.appendChild(menu);
@@ -1701,15 +1863,15 @@ function buildSimSteps(missionDef, agentObj, result, L) {
   steps.push({ type:'bubble', text: agentLine(agentObj, 'combat', L), speaker: name });
   steps.push({ type:'log',    text: pick(L.combat) });
 
-  // Simulation de rounds de combat
+  // Simulation de rounds de combat — utilise les vrais moves des Pokémon
   const allyPkmNames = (agentObj?.team||[]).map(id => {
     const p = state.pokemons.find(x => x.id === id);
-    return p ? { fr: p.species_fr||'???', en: FR_TO_EN[(p.species_fr||'').toLowerCase()]||p.species_en||'pikachu', level: p.level||1 } : null;
+    if (!p) return null;
+    const en = FR_TO_EN[(p.species_fr||'').toLowerCase()]||p.species_en||'pikachu';
+    return { fr: p.species_fr||'???', en, level: p.level||1, moves: p.moves||[] };
   }).filter(Boolean);
 
-  const ATTACKS_FR = ['Charge','Griffe','Morsure','Dard-Venin','Jet de Sable','Balayage','Hypnose','Ombre Nocturne','Vive-Attaque','Tonnerre','Lance-Flamme','Surf','Psyko'];
-  const ATTACKS_EN = ['Tackle','Scratch','Bite','Poison Sting','Sand Attack','Low Kick','Hypnosis','Night Shade','Quick Attack','Thunderbolt','Flamethrower','Surf','Psybeam'];
-  const attacks = lang==='fr' ? ATTACKS_FR : ATTACKS_EN;
+  const FALLBACK_ATTACKS = ['Charge','Griffe','Morsure','Plaquage'];
 
   // Simule 2-4 rounds de combat
   const rounds = Math.min(2 + Math.floor(Math.random()*3), Math.max(enemies.length, allyPkmNames.length, 2));
@@ -1724,8 +1886,11 @@ function buildSimSteps(missionDef, agentObj, result, L) {
     const enemy = enemies[enemyIdx];
 
     if (ally && enemy) {
-      const allyAtk = pick(attacks);
-      const enemyAtk = pick(attacks);
+      // Utilise les vrais moves du Pokémon allié, sinon fallback
+      const allyAtk = ally.moves.length ? pick(ally.moves) : pick(FALLBACK_ATTACKS);
+      // Moves de l'ennemi depuis le dictionnaire
+      const enemyMoves = POKEMON_MOVES[enemy] || FALLBACK_ATTACKS;
+      const enemyAtk = pick(enemyMoves);
 
       // Allié attaque
       steps.push({ type:'log', text: `⚔️ ${ally.fr} ${lang==='fr'?'utilise':'uses'} ${allyAtk} !` });
@@ -2099,7 +2264,7 @@ const MISSIONS_V2 = [
     desc:     { fr:'Silver attaque nos agents sur la route. Ripostez.', en:'Silver is attacking our agents on the route. Strike back.' },
     recompense:{ pokedollars:500, intel:2 },
     duree:2, risque:'élevé', jennyRisk:0.1,
-    pkmRewardPool: ['sneasel','murkrow','totodile'],
+    pkmRewardPool: ['nidorino','kadabra','gastly'],
     antagonist: 'silver',
     antagonistChance: 1.0,
     rare: true,
@@ -3415,7 +3580,7 @@ const LORE_NPCS = {
       en:['Orders come from above.','Efficiency above all.','Archer watches everything.'],
     },
     pokemon_preferences: ['dark','poison'],
-    possible_pokemon: ['houndour','murkrow','weezing'],
+    possible_pokemon: ['golbat','persian','weezing'],
     activation: { minReputation: 40 },
     role_in_game: 'ally_agent',
   },
@@ -3434,7 +3599,7 @@ const LORE_NPCS = {
       en:["Don't waste my time.",'Prove your worth.',"I don't do things halfway."],
     },
     pokemon_preferences: ['poison','fighting'],
-    possible_pokemon: ['arbok','murkrow','vileplume'],
+    possible_pokemon: ['arbok','hypno','vileplume'],
     activation: { minReputation: 40 },
     role_in_game: 'ally_agent',
   },
@@ -3444,7 +3609,7 @@ const LORE_NPCS = {
     name: { fr:'Jessie', en:'Jessie' },
     rank: { fr:'Agent Rocket', en:'Rocket Agent' },
     faction: 'team_rocket',
-    sprite: 'https://play.pokemonshowdown.com/sprites/trainers/jessiejames-gen1.png',
+    sprite: 'https://play.pokemonshowdown.com/sprites/trainers/jessie.png',
     personality: ['théâtrale','orgueilleuse','déterminée'],
     values: ['gloire','beauté','vengeance'],
     speech_style: { tone:'dramatique', verbosity:'long', formality:'low' },
@@ -3453,7 +3618,7 @@ const LORE_NPCS = {
       en:['Prepare for trouble!',"Beauty and cunning, that's our motto.",'Nobody will stop me!'],
     },
     pokemon_preferences: ['poison','normal'],
-    possible_pokemon: ['ekans','arbok','wobbuffet'],
+    possible_pokemon: ['ekans','arbok','lickitung'],
     activation: { minReputation: 20, minTurn: 5, event: true },
     role_in_game: 'recruit_event',
   },
@@ -3463,7 +3628,7 @@ const LORE_NPCS = {
     name: { fr:'James', en:'James' },
     rank: { fr:'Agent Rocket', en:'Rocket Agent' },
     faction: 'team_rocket',
-    sprite: 'https://play.pokemonshowdown.com/sprites/trainers/jessiejames-gen1.png',
+    sprite: 'https://play.pokemonshowdown.com/sprites/trainers/james.png',
     personality: ['naïf','gentil','maladroit'],
     values: ['amitié','Pokémon','appartenance'],
     speech_style: { tone:'hésitant', verbosity:'moyen', formality:'low' },
@@ -3472,7 +3637,7 @@ const LORE_NPCS = {
       en:['Make it double!',"I'm not sure this is a good idea…",'My Pokémon count on me.'],
     },
     pokemon_preferences: ['poison','grass'],
-    possible_pokemon: ['koffing','weezing','victreebel'],
+    possible_pokemon: ['koffing','weezing','growlithe'],
     activation: { minReputation: 20, minTurn: 5, event: true },
     role_in_game: 'recruit_event',
   },
@@ -3531,7 +3696,7 @@ const LORE_NPCS = {
       en:["I'm the scariest guy in Team Rocket.",'Fear is my weapon.','Expect no mercy.'],
     },
     pokemon_preferences: ['poison','dark'],
-    possible_pokemon: ['zubat','golbat','weezing','crobat'],
+    possible_pokemon: ['zubat','golbat','weezing','muk'],
     activation: { minReputation: 30 },
     role_in_game: 'ally_agent',
   },
@@ -3550,7 +3715,7 @@ const LORE_NPCS = {
       en:["Weaklings don't deserve Pokémon.",'Team Rocket is pathetic.','I need no one.'],
     },
     pokemon_preferences: ['dark','fire','ice'],
-    possible_pokemon: ['sneasel','totodile','murkrow','magneton','haunter','crobat'],
+    possible_pokemon: ['golbat','nidorino','magneton','haunter','kadabra','gengar'],
     activation: { minReputation: 35, minTurn: 8 },
     role_in_game: 'antagonist_mission',
   },
