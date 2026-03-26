@@ -1918,6 +1918,17 @@ function resolveMissionV2(mi) {
       : `⚔️ ${antagonistNpc.name[lang]||antagonistNpc.name.en} has been driven back! +${bonusRep} reputation`);
   }
 
+  // Giovanni supervise les missions élevées s'il est actif
+  if (state.giovanniActive && mDef.risque === 'élevé') {
+    result.giovanniComment = getGiovanniComment(mDef.id, result.success);
+    addLog(`👔 ${result.giovanniComment}`);
+    // Giovanni bonus : +100₽ sur succès de missions élevées
+    if (result.success) {
+      state.resources.pokedollars += 100;
+      result.giovanniBonus = 100;
+    }
+  }
+
   // Popup de résolution
   showMissionPopup(mDef, agent, result);
 
@@ -2918,7 +2929,7 @@ const LORE_NPCS = {
     pokemon_preferences: ['psychic','poison'],
     possible_pokemon: ['persian','nidoking','nidoqueen'],
     activation: { minReputation: 0, alwaysPresent: true },
-    role_in_game: 'supervisor', // apparaît sur missions élevées
+    role_in_game: 'npc_adjuvant', // superviseur, pas membre d'équipe
   },
 
   archer: {
@@ -3128,15 +3139,31 @@ function activateLoreNpc(npc) {
   const nom = npc.name[lang] || npc.name.fr;
   const rank = npc.rank[lang] || npc.rank.fr;
 
-  if (npc.role_in_game === 'ally_agent' || npc.role_in_game === 'supervisor') {
+  if (npc.role_in_game === 'npc_adjuvant') {
+    // Giovanni = superviseur, pas membre d'équipe
+    // Il apparaît comme bonus aléatoire sur les missions de haut rang
+    state.giovanniActive = true;
+    addLog(`⭐ ${nom} ${lang==='fr'?'supervise désormais vos opérations.':'now oversees your operations.'}`);
+    // Chance de drop Persian ★★★ lors de l'activation
+    if (Math.random() < 0.3) {
+      const persian = makePokemon('persian', 30);
+      persian.stars = 3;
+      persian.fusionTraits = ['intimidation','boss'];
+      addPokemonWithCap(persian);
+      updatePokedex('persian');
+      addLog(`🎁 ${nom} ${lang==='fr'?'vous confie son Persian ★★★ !':'entrusts you with his Persian ★★★!'}`);
+    }
+  }
+
+  if (npc.role_in_game === 'ally_agent') {
     // Ajoute comme agent allié s'il n'existe pas déjà
     if (!state.agents.find(a => a.id === npc.id)) {
       state.agents.push({
         id:          npc.id,
         name:        nom,
         rank:        rank,
-        level:       npc.id === 'lore_giovanni' ? 10 : 5,
-        xp:          npc.id === 'lore_giovanni' ? 999 : 250,
+        level:       5,
+        xp:          250,
         cooldown:    0,
         team:        [],
         traits:      ['lore'],
@@ -3340,6 +3367,10 @@ function bootV4() {
   if (!state.recruit) initRecruit();
   if (!state.availableMissions?.length) rollAvailableMissionsV2();
   if (!state.log?.length) addLog(lang==='fr' ? 'Bienvenue dans Rocket HQ.' : 'Welcome to Rocket HQ.');
+
+  // Migration: remove Giovanni from agents (now NPC adjuvant, not team member)
+  state.agents = (state.agents||[]).filter(a => a.id !== 'lore_giovanni');
+  if (state.loreNpcsActivated?.['lore_giovanni']) state.giovanniActive = true;
 
   // Lore NPCs
   checkLoreNpcActivation();
