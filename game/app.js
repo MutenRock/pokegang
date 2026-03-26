@@ -1694,33 +1694,59 @@ function buildSimSteps(missionDef, agentObj, result, L) {
     }
   }
 
-  // Combat — détails de puissance
+  // Combat tour par tour simulé
   const agentLevel = agentObj?.level || 1;
   const teamSize = agentObj?.team?.length || 0;
-  const teamPower = teamSize * 10 + agentLevel * 5 + (state.reputation||0) * 0.5;
-  const enemyPower = enemies.length * 15 + (missionDef.risque === 'élevé' ? 30 : missionDef.risque === 'moyen' ? 15 : 5);
-  const powerRatio = teamPower / Math.max(1, enemyPower);
-
-  const combatInfoFr = `⚡ Puissance : ${Math.round(teamPower)} vs ${Math.round(enemyPower)} · Ratio : ${powerRatio.toFixed(1)}x`;
-  const combatInfoEn = `⚡ Power: ${Math.round(teamPower)} vs ${Math.round(enemyPower)} · Ratio: ${powerRatio.toFixed(1)}x`;
-  steps.push({ type:'log', text: lang==='fr' ? combatInfoFr : combatInfoEn });
 
   steps.push({ type:'bubble', text: agentLine(agentObj, 'combat', L), speaker: name });
   steps.push({ type:'log',    text: pick(L.combat) });
 
-  // Narration de combat détaillée
-  if (teamSize > 0) {
-    const combatNarrFr = [
-      'Les Pokémon échangent des coups !', 'Le combat fait rage !',
-      'Une attaque critique touche sa cible !', 'Esquive réussie !',
-      'Les deux camps se jaugent…', 'Attaque combinée !',
-    ];
-    const combatNarrEn = [
-      'The Pokémon exchange blows!', 'The battle rages on!',
-      'A critical hit lands!', 'Dodge successful!',
-      'Both sides size each other up…', 'Combined attack!',
-    ];
-    steps.push({ type:'log', text: `⚔️ ${pick(lang==='fr' ? combatNarrFr : combatNarrEn)}` });
+  // Simulation de rounds de combat
+  const allyPkmNames = (agentObj?.team||[]).map(id => {
+    const p = state.pokemons.find(x => x.id === id);
+    return p ? { fr: p.species_fr||'???', en: FR_TO_EN[(p.species_fr||'').toLowerCase()]||p.species_en||'pikachu', level: p.level||1 } : null;
+  }).filter(Boolean);
+
+  const ATTACKS_FR = ['Charge','Griffe','Morsure','Dard-Venin','Jet de Sable','Balayage','Hypnose','Ombre Nocturne','Vive-Attaque','Tonnerre','Lance-Flamme','Surf','Psyko'];
+  const ATTACKS_EN = ['Tackle','Scratch','Bite','Poison Sting','Sand Attack','Low Kick','Hypnosis','Night Shade','Quick Attack','Thunderbolt','Flamethrower','Surf','Psybeam'];
+  const attacks = lang==='fr' ? ATTACKS_FR : ATTACKS_EN;
+
+  // Simule 2-4 rounds de combat
+  const rounds = Math.min(2 + Math.floor(Math.random()*3), Math.max(enemies.length, allyPkmNames.length, 2));
+  const willWin = result.success;
+  let enemiesKO = 0;
+  let alliesKO = 0;
+
+  for (let round = 0; round < rounds; round++) {
+    const allyIdx = round % Math.max(1, allyPkmNames.length);
+    const enemyIdx = round % Math.max(1, enemies.length);
+    const ally = allyPkmNames[allyIdx];
+    const enemy = enemies[enemyIdx];
+
+    if (ally && enemy) {
+      const allyAtk = pick(attacks);
+      const enemyAtk = pick(attacks);
+
+      // Allié attaque
+      steps.push({ type:'log', text: `⚔️ ${ally.fr} ${lang==='fr'?'utilise':'uses'} ${allyAtk} !` });
+      steps.push({ type:'shake' });
+
+      // Ennemi attaque
+      steps.push({ type:'log', text: `💥 ${enemy} ${lang==='fr'?'riposte avec':'counters with'} ${enemyAtk} !` });
+
+      // KO ennemi (sur les derniers rounds si victoire)
+      if (willWin && round >= rounds - enemies.length + enemiesKO) {
+        steps.push({ type:'faintPkm', side:'enemy', index: enemyIdx });
+        steps.push({ type:'log', text: `✨ ${enemy} ${lang==='fr'?'est K.O. !':'is knocked out!'}` });
+        enemiesKO++;
+      }
+      // KO allié (si défaite, sur les derniers rounds)
+      else if (!willWin && round >= rounds - 1 && alliesKO < allyPkmNames.length) {
+        steps.push({ type:'faintPkm', side:'ally', index: allyIdx });
+        steps.push({ type:'log', text: `💀 ${ally.fr} ${lang==='fr'?'tombe au combat !':'falls in battle!'}` });
+        alliesKO++;
+      }
+    }
   }
 
   // ── Antagoniste ─────────────────────────────────────
@@ -1840,6 +1866,21 @@ function playSimSteps(steps, idx) {
                style="width:48px;image-rendering:pixelated;">
           <span style="font-size:.35em;color:#70e0a4;margin-top:2px">${en}</span>
         </div>`).join('');
+    }
+  }
+  if (step.type === 'faintPkm') {
+    // Fait "tomber" un sprite Pokémon (KO animation)
+    const slotId = step.side === 'enemy' ? 'simEnemySlot' : 'simAllySlot';
+    const slotEl = document.getElementById(slotId);
+    if (slotEl) {
+      const sprites = slotEl.querySelectorAll('div');
+      const target = sprites[step.index];
+      if (target) {
+        target.style.transition = 'all 0.6s ease-in';
+        target.style.opacity = '0.2';
+        target.style.transform = 'translateY(30px) rotate(15deg)';
+        target.style.filter = 'grayscale(1)';
+      }
     }
   }
   if (step.type === 'showTrainer') {
