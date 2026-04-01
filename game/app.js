@@ -1,4294 +1,2652 @@
 // ============================================================
-// POKEFORGE — ROCKET HQ  app.js  v4  (Full FR/EN + All Patches)
-// Patches intégrés : v4.01 → v4.11
+// POKEFORGE v6 — Gang Wars  (vanilla JS, single-file engine)
 // ============================================================
 
-// ── LANGUE (lue depuis l'URL ou localStorage) ────────────
-const urlParams = new URLSearchParams(window.location.search);
-let lang = urlParams.get('lang') || localStorage.getItem('pf.lang') || 'fr';
-const SLOT_INDEX = parseInt(urlParams.get('slot') || '1', 10);
-const SAVE_KEY   = `pokeforge.rocket-hq.slot${SLOT_INDEX}`;
+'use strict';
 
-// ── I18N STRINGS ─────────────────────────────────────────
-const UI_TEXT = {
-  fr: {
-    nextTurn:'⏩ Valider le tour', openMenu:'⚙ Menu', llmOn:'LLM ON', llmOff:'LLM OFF',
-    turn:'Tour', resources:'Ressources', rooms:'Salles du QG', pokemon:'Pokémon',
-    teamBuilder:"Création d'équipe", training:"Salle d'apprentissage",
-    agents:'Agents', recruit:'Recrutement', missions:'Missions',
-    pokedex:'Pokédex', combodex:'Combo Dex', allyChat:'Briefing allié',
-    logs:'Logs',
-  },
-  en: {
-    nextTurn:'⏩ End Turn', openMenu:'⚙ Menu', llmOn:'LLM ON', llmOff:'LLM OFF',
-    turn:'Turn', resources:'Resources', rooms:'HQ Rooms', pokemon:'Pokémon',
-    teamBuilder:'Team Builder', training:'Learning Room',
-    agents:'Agents', recruit:'Recruitment', missions:'Missions',
-    pokedex:'Pokédex', combodex:'Combo Dex', allyChat:'Ally Briefing',
-    logs:'Logs',
-  },
+// ════════════════════════════════════════════════════════════════
+//  1.  CONFIG & CONSTANTS
+// ════════════════════════════════════════════════════════════════
+
+// ── 151 Gen 1 species ─────────────────────────────────────────
+// { en, fr, dex, types, baseAtk, baseDef, baseSpd, rarity, moves[] }
+// rarity: 'common' | 'uncommon' | 'rare' | 'very_rare' | 'legendary'
+const POKEMON_GEN1 = [
+  {en:'bulbasaur',fr:'Bulbizarre',dex:1,types:['Grass','Poison'],baseAtk:49,baseDef:49,baseSpd:45,rarity:'rare',moves:['Fouet Lianes','Vampigraine','Charge','Poudre Dodo']},
+  {en:'ivysaur',fr:'Herbizarre',dex:2,types:['Grass','Poison'],baseAtk:62,baseDef:63,baseSpd:60,rarity:'very_rare',moves:['Fouet Lianes','Tranch\'Herbe','Vampigraine','Poudre Toxik']},
+  {en:'venusaur',fr:'Florizarre',dex:3,types:['Grass','Poison'],baseAtk:82,baseDef:83,baseSpd:80,rarity:'very_rare',moves:['Lance-Soleil','Danse-Fleur','Tranch\'Herbe','Poudre Dodo']},
+  {en:'charmander',fr:'Salamèche',dex:4,types:['Fire'],baseAtk:52,baseDef:43,baseSpd:65,rarity:'rare',moves:['Griffe','Flammèche','Brouillard','Frénésie']},
+  {en:'charmeleon',fr:'Reptincel',dex:5,types:['Fire'],baseAtk:64,baseDef:58,baseSpd:80,rarity:'very_rare',moves:['Lance-Flamme','Tranche','Griffe','Frénésie']},
+  {en:'charizard',fr:'Dracaufeu',dex:6,types:['Fire','Flying'],baseAtk:84,baseDef:78,baseSpd:100,rarity:'very_rare',moves:['Lance-Flamme','Déflagration','Danse Lames','Cru-Aile']},
+  {en:'squirtle',fr:'Carapuce',dex:7,types:['Water'],baseAtk:48,baseDef:65,baseSpd:43,rarity:'rare',moves:['Pistolet à O','Repli','Charge','Morsure']},
+  {en:'wartortle',fr:'Carabaffe',dex:8,types:['Water'],baseAtk:63,baseDef:80,baseSpd:58,rarity:'very_rare',moves:['Pistolet à O','Morsure','Abri','Surf']},
+  {en:'blastoise',fr:'Tortank',dex:9,types:['Water'],baseAtk:83,baseDef:100,baseSpd:78,rarity:'very_rare',moves:['Hydrocanon','Surf','Laser Glace','Morsure']},
+  {en:'caterpie',fr:'Chenipan',dex:10,types:['Bug'],baseAtk:30,baseDef:35,baseSpd:45,rarity:'common',moves:['Charge','Sécrétion','Charge','Sécrétion']},
+  {en:'metapod',fr:'Chrysacier',dex:11,types:['Bug'],baseAtk:20,baseDef:55,baseSpd:30,rarity:'common',moves:['Armure','Charge','Armure','Charge']},
+  {en:'butterfree',fr:'Papilusion',dex:12,types:['Bug','Flying'],baseAtk:45,baseDef:50,baseSpd:70,rarity:'uncommon',moves:['Choc Mental','Poudre Dodo','Cyclone','Ultrason']},
+  {en:'weedle',fr:'Aspicot',dex:13,types:['Bug','Poison'],baseAtk:35,baseDef:30,baseSpd:50,rarity:'common',moves:['Dard-Venin','Sécrétion','Dard-Venin','Sécrétion']},
+  {en:'kakuna',fr:'Coconfort',dex:14,types:['Bug','Poison'],baseAtk:25,baseDef:50,baseSpd:35,rarity:'common',moves:['Armure','Dard-Venin','Armure','Dard-Venin']},
+  {en:'beedrill',fr:'Dardargnan',dex:15,types:['Bug','Poison'],baseAtk:80,baseDef:40,baseSpd:75,rarity:'uncommon',moves:['Dard-Venin','Double-Dard','Furie','Hâte']},
+  {en:'pidgey',fr:'Roucool',dex:16,types:['Normal','Flying'],baseAtk:45,baseDef:40,baseSpd:56,rarity:'common',moves:['Charge','Tornade','Vive-Attaque','Jet de Sable']},
+  {en:'pidgeotto',fr:'Roucoups',dex:17,types:['Normal','Flying'],baseAtk:60,baseDef:55,baseSpd:71,rarity:'uncommon',moves:['Cru-Aile','Vive-Attaque','Cyclone','Tornade']},
+  {en:'pidgeot',fr:'Roucarnage',dex:18,types:['Normal','Flying'],baseAtk:80,baseDef:75,baseSpd:91,rarity:'rare',moves:['Cru-Aile','Lame d\'Air','Cyclone','Vive-Attaque']},
+  {en:'rattata',fr:'Rattata',dex:19,types:['Normal'],baseAtk:56,baseDef:35,baseSpd:72,rarity:'common',moves:['Charge','Vive-Attaque','Croc de Mort','Morsure']},
+  {en:'raticate',fr:'Rattatac',dex:20,types:['Normal'],baseAtk:81,baseDef:60,baseSpd:97,rarity:'uncommon',moves:['Croc de Mort','Vive-Attaque','Plaquage','Poursuite']},
+  {en:'spearow',fr:'Piafabec',dex:21,types:['Normal','Flying'],baseAtk:60,baseDef:30,baseSpd:70,rarity:'common',moves:['Picpic','Furie','Poursuite','Bec Vrille']},
+  {en:'fearow',fr:'Rapasdepic',dex:22,types:['Normal','Flying'],baseAtk:90,baseDef:65,baseSpd:100,rarity:'uncommon',moves:['Bec Vrille','Furie','Aéropique','Poursuite']},
+  {en:'ekans',fr:'Abo',dex:23,types:['Poison'],baseAtk:60,baseDef:44,baseSpd:55,rarity:'common',moves:['Morsure','Ligotage','Acide','Regard Médusant']},
+  {en:'arbok',fr:'Arbok',dex:24,types:['Poison'],baseAtk:85,baseDef:69,baseSpd:80,rarity:'uncommon',moves:['Morsure','Acide','Crocs Venin','Intimidation']},
+  {en:'pikachu',fr:'Pikachu',dex:25,types:['Electric'],baseAtk:55,baseDef:40,baseSpd:90,rarity:'uncommon',moves:['Tonnerre','Vive-Attaque','Cage Éclair','Queue de Fer']},
+  {en:'raichu',fr:'Raichu',dex:26,types:['Electric'],baseAtk:90,baseDef:55,baseSpd:110,rarity:'rare',moves:['Tonnerre','Fatal-Foudre','Vive-Attaque','Surf']},
+  {en:'sandshrew',fr:'Sabelette',dex:27,types:['Ground'],baseAtk:75,baseDef:85,baseSpd:40,rarity:'common',moves:['Griffe','Jet de Sable','Tranche','Tunnel']},
+  {en:'sandslash',fr:'Sablaireau',dex:28,types:['Ground'],baseAtk:100,baseDef:110,baseSpd:65,rarity:'uncommon',moves:['Tranche','Tunnel','Séisme','Tempête de Sable']},
+  {en:'nidoran-f',fr:'Nidoran♀',dex:29,types:['Poison'],baseAtk:47,baseDef:52,baseSpd:41,rarity:'common',moves:['Griffe','Dard-Venin','Morsure','Double Pied']},
+  {en:'nidorina',fr:'Nidorina',dex:30,types:['Poison'],baseAtk:62,baseDef:67,baseSpd:56,rarity:'uncommon',moves:['Morsure','Dard-Venin','Griffe','Plaquage']},
+  {en:'nidoqueen',fr:'Nidoqueen',dex:31,types:['Poison','Ground'],baseAtk:82,baseDef:87,baseSpd:76,rarity:'rare',moves:['Plaquage','Séisme','Surf','Laser Glace']},
+  {en:'nidoran-m',fr:'Nidoran♂',dex:32,types:['Poison'],baseAtk:57,baseDef:40,baseSpd:50,rarity:'common',moves:['Koud\'Korne','Dard-Venin','Double Pied','Furie']},
+  {en:'nidorino',fr:'Nidorino',dex:33,types:['Poison'],baseAtk:72,baseDef:57,baseSpd:65,rarity:'uncommon',moves:['Koud\'Korne','Dard-Venin','Morsure','Furie']},
+  {en:'nidoking',fr:'Nidoking',dex:34,types:['Poison','Ground'],baseAtk:92,baseDef:77,baseSpd:85,rarity:'rare',moves:['Séisme','Mégacorne','Surf','Lance-Flamme']},
+  {en:'clefairy',fr:'Mélofée',dex:35,types:['Fairy'],baseAtk:45,baseDef:48,baseSpd:35,rarity:'uncommon',moves:['Métronome','Torgnoles','Berceuse','Reflet']},
+  {en:'clefable',fr:'Mélodelfe',dex:36,types:['Fairy'],baseAtk:70,baseDef:73,baseSpd:60,rarity:'rare',moves:['Métronome','Plaquage','Berceuse','Éclat Magique']},
+  {en:'vulpix',fr:'Goupix',dex:37,types:['Fire'],baseAtk:41,baseDef:40,baseSpd:65,rarity:'uncommon',moves:['Flammèche','Vive-Attaque','Danse-Flamme','Hurlement']},
+  {en:'ninetales',fr:'Feunard',dex:38,types:['Fire'],baseAtk:76,baseDef:75,baseSpd:100,rarity:'rare',moves:['Lance-Flamme','Vive-Attaque','Onde Folie','Feu Follet']},
+  {en:'jigglypuff',fr:'Rondoudou',dex:39,types:['Normal','Fairy'],baseAtk:45,baseDef:20,baseSpd:20,rarity:'uncommon',moves:['Berceuse','Torgnoles','Charge','Roulade']},
+  {en:'wigglytuff',fr:'Grodoudou',dex:40,types:['Normal','Fairy'],baseAtk:70,baseDef:45,baseSpd:45,rarity:'rare',moves:['Plaquage','Berceuse','Torgnoles','Éclat Magique']},
+  {en:'zubat',fr:'Nosferapti',dex:41,types:['Poison','Flying'],baseAtk:45,baseDef:35,baseSpd:55,rarity:'common',moves:['Vampirisme','Ultrason','Morsure','Onde Folie']},
+  {en:'golbat',fr:'Nosferalto',dex:42,types:['Poison','Flying'],baseAtk:80,baseDef:70,baseSpd:90,rarity:'uncommon',moves:['Vampirisme','Cru-Aile','Morsure','Onde Folie']},
+  {en:'oddish',fr:'Mystherbe',dex:43,types:['Grass','Poison'],baseAtk:50,baseDef:55,baseSpd:30,rarity:'common',moves:['Méga-Sangsue','Poudre Toxik','Acide','Poudre Dodo']},
+  {en:'gloom',fr:'Ortide',dex:44,types:['Grass','Poison'],baseAtk:65,baseDef:70,baseSpd:40,rarity:'uncommon',moves:['Méga-Sangsue','Acide','Danse-Fleur','Poudre Toxik']},
+  {en:'vileplume',fr:'Rafflesia',dex:45,types:['Grass','Poison'],baseAtk:80,baseDef:85,baseSpd:50,rarity:'rare',moves:['Danse-Fleur','Méga-Sangsue','Poudre Dodo','Acide']},
+  {en:'paras',fr:'Paras',dex:46,types:['Bug','Grass'],baseAtk:70,baseDef:55,baseSpd:25,rarity:'common',moves:['Griffe','Spore','Vampigraine','Tranche']},
+  {en:'parasect',fr:'Parasect',dex:47,types:['Bug','Grass'],baseAtk:95,baseDef:80,baseSpd:30,rarity:'uncommon',moves:['Spore','Tranche','Vampigraine','Coupe']},
+  {en:'venonat',fr:'Mimitoss',dex:48,types:['Bug','Poison'],baseAtk:55,baseDef:50,baseSpd:45,rarity:'common',moves:['Choc Mental','Poudre Toxik','Ultrason','Psyko']},
+  {en:'venomoth',fr:'Aéromite',dex:49,types:['Bug','Poison'],baseAtk:65,baseDef:60,baseSpd:90,rarity:'uncommon',moves:['Psyko','Poudre Toxik','Cyclone','Ultrason']},
+  {en:'diglett',fr:'Taupiqueur',dex:50,types:['Ground'],baseAtk:55,baseDef:25,baseSpd:95,rarity:'common',moves:['Tunnel','Griffe','Tranche','Séisme']},
+  {en:'dugtrio',fr:'Triopikeur',dex:51,types:['Ground'],baseAtk:80,baseDef:50,baseSpd:120,rarity:'uncommon',moves:['Séisme','Tunnel','Tranche','Piège de Roc']},
+  {en:'meowth',fr:'Miaouss',dex:52,types:['Normal'],baseAtk:45,baseDef:35,baseSpd:90,rarity:'common',moves:['Griffe','Morsure','Jackpot','Bluff']},
+  {en:'persian',fr:'Persian',dex:53,types:['Normal'],baseAtk:70,baseDef:60,baseSpd:115,rarity:'uncommon',moves:['Tranche','Jackpot','Morsure','Vive-Attaque']},
+  {en:'psyduck',fr:'Psykokwak',dex:54,types:['Water'],baseAtk:52,baseDef:48,baseSpd:55,rarity:'common',moves:['Griffe','Choc Mental','Pistolet à O','Amnésie']},
+  {en:'golduck',fr:'Akwakwak',dex:55,types:['Water'],baseAtk:82,baseDef:78,baseSpd:85,rarity:'uncommon',moves:['Surf','Psyko','Hydrocanon','Amnésie']},
+  {en:'mankey',fr:'Férosinge',dex:56,types:['Fighting'],baseAtk:80,baseDef:35,baseSpd:70,rarity:'common',moves:['Griffe','Poing-Karaté','Frénésie','Balayage']},
+  {en:'primeape',fr:'Colossinge',dex:57,types:['Fighting'],baseAtk:105,baseDef:60,baseSpd:95,rarity:'uncommon',moves:['Poing-Karaté','Frénésie','Balayage','Mania']},
+  {en:'growlithe',fr:'Caninos',dex:58,types:['Fire'],baseAtk:70,baseDef:45,baseSpd:60,rarity:'uncommon',moves:['Flammèche','Morsure','Roue de Feu','Grondement']},
+  {en:'arcanine',fr:'Arcanin',dex:59,types:['Fire'],baseAtk:110,baseDef:80,baseSpd:95,rarity:'rare',moves:['Lance-Flamme','Vitesse Extrême','Morsure','Déflagration']},
+  {en:'poliwag',fr:'Ptitard',dex:60,types:['Water'],baseAtk:50,baseDef:40,baseSpd:90,rarity:'common',moves:['Pistolet à O','Hypnose','Torgnoles','Bulles d\'O']},
+  {en:'poliwhirl',fr:'Têtarte',dex:61,types:['Water'],baseAtk:65,baseDef:65,baseSpd:90,rarity:'uncommon',moves:['Surf','Hypnose','Plaquage','Bulles d\'O']},
+  {en:'poliwrath',fr:'Tartard',dex:62,types:['Water','Fighting'],baseAtk:85,baseDef:95,baseSpd:70,rarity:'rare',moves:['Surf','Soumission','Hypnose','Séisme']},
+  {en:'abra',fr:'Abra',dex:63,types:['Psychic'],baseAtk:20,baseDef:15,baseSpd:90,rarity:'uncommon',moves:['Téléport','Choc Mental','Téléport','Choc Mental']},
+  {en:'kadabra',fr:'Kadabra',dex:64,types:['Psychic'],baseAtk:35,baseDef:30,baseSpd:105,rarity:'rare',moves:['Psyko','Choc Mental','Téléport','Soin']},
+  {en:'alakazam',fr:'Alakazam',dex:65,types:['Psychic'],baseAtk:50,baseDef:45,baseSpd:120,rarity:'very_rare',moves:['Psyko','Soin','Laser Glace','Tonnerre']},
+  {en:'machop',fr:'Machoc',dex:66,types:['Fighting'],baseAtk:80,baseDef:50,baseSpd:35,rarity:'common',moves:['Poing-Karaté','Balayage','Frappe Atlas','Vendetta']},
+  {en:'machoke',fr:'Machopeur',dex:67,types:['Fighting'],baseAtk:100,baseDef:70,baseSpd:45,rarity:'uncommon',moves:['Poing-Karaté','Soumission','Frappe Atlas','Balayage']},
+  {en:'machamp',fr:'Mackogneur',dex:68,types:['Fighting'],baseAtk:130,baseDef:80,baseSpd:55,rarity:'rare',moves:['Soumission','Poing-Karaté','Séisme','Frappe Atlas']},
+  {en:'bellsprout',fr:'Chétiflor',dex:69,types:['Grass','Poison'],baseAtk:75,baseDef:35,baseSpd:40,rarity:'common',moves:['Fouet Lianes','Acide','Vampigraine','Ligotage']},
+  {en:'weepinbell',fr:'Boustiflor',dex:70,types:['Grass','Poison'],baseAtk:90,baseDef:50,baseSpd:55,rarity:'uncommon',moves:['Tranch\'Herbe','Acide','Ligotage','Poudre Dodo']},
+  {en:'victreebel',fr:'Empiflor',dex:71,types:['Grass','Poison'],baseAtk:105,baseDef:65,baseSpd:70,rarity:'rare',moves:['Tranch\'Herbe','Acide','Lance-Soleil','Ligotage']},
+  {en:'tentacool',fr:'Tentacool',dex:72,types:['Water','Poison'],baseAtk:40,baseDef:35,baseSpd:70,rarity:'common',moves:['Dard-Venin','Acide','Surf','Ultrason']},
+  {en:'tentacruel',fr:'Tentacruel',dex:73,types:['Water','Poison'],baseAtk:70,baseDef:65,baseSpd:100,rarity:'uncommon',moves:['Surf','Dard-Venin','Acide','Siphon']},
+  {en:'geodude',fr:'Racaillou',dex:74,types:['Rock','Ground'],baseAtk:80,baseDef:100,baseSpd:20,rarity:'common',moves:['Charge','Jet-Pierres','Séisme','Armure']},
+  {en:'graveler',fr:'Gravalanch',dex:75,types:['Rock','Ground'],baseAtk:95,baseDef:115,baseSpd:35,rarity:'uncommon',moves:['Jet-Pierres','Séisme','Charge','Destruction']},
+  {en:'golem',fr:'Golem',dex:76,types:['Rock','Ground'],baseAtk:110,baseDef:130,baseSpd:45,rarity:'rare',moves:['Séisme','Jet-Pierres','Explosion','Plaquage']},
+  {en:'ponyta',fr:'Ponyta',dex:77,types:['Fire'],baseAtk:85,baseDef:55,baseSpd:90,rarity:'uncommon',moves:['Flammèche','Charge','Roue de Feu','Hâte']},
+  {en:'rapidash',fr:'Galopa',dex:78,types:['Fire'],baseAtk:100,baseDef:70,baseSpd:105,rarity:'rare',moves:['Lance-Flamme','Mégacorne','Roue de Feu','Hâte']},
+  {en:'slowpoke',fr:'Ramoloss',dex:79,types:['Water','Psychic'],baseAtk:65,baseDef:65,baseSpd:15,rarity:'common',moves:['Choc Mental','Pistolet à O','Amnésie','Bâillement']},
+  {en:'slowbro',fr:'Flagadoss',dex:80,types:['Water','Psychic'],baseAtk:75,baseDef:110,baseSpd:30,rarity:'uncommon',moves:['Psyko','Surf','Amnésie','Lance-Flamme']},
+  {en:'magnemite',fr:'Magnéti',dex:81,types:['Electric','Steel'],baseAtk:35,baseDef:70,baseSpd:45,rarity:'common',moves:['Cage Éclair','Étincelle','Ultrason','Tonnerre']},
+  {en:'magneton',fr:'Magnéton',dex:82,types:['Electric','Steel'],baseAtk:60,baseDef:95,baseSpd:70,rarity:'uncommon',moves:['Tonnerre','Étincelle','Cage Éclair','Tri Attaque']},
+  {en:'farfetchd',fr:'Canarticho',dex:83,types:['Normal','Flying'],baseAtk:65,baseDef:55,baseSpd:60,rarity:'rare',moves:['Tranche','Cru-Aile','Danse Lames','Hâte']},
+  {en:'doduo',fr:'Doduo',dex:84,types:['Normal','Flying'],baseAtk:85,baseDef:45,baseSpd:75,rarity:'common',moves:['Picpic','Furie','Poursuite','Bec Vrille']},
+  {en:'dodrio',fr:'Dodrio',dex:85,types:['Normal','Flying'],baseAtk:110,baseDef:70,baseSpd:100,rarity:'uncommon',moves:['Bec Vrille','Furie','Tri Attaque','Hâte']},
+  {en:'seel',fr:'Otaria',dex:86,types:['Water'],baseAtk:45,baseDef:55,baseSpd:45,rarity:'common',moves:['Laser Glace','Aqua-Jet','Plaquage','Repos']},
+  {en:'dewgong',fr:'Lamantine',dex:87,types:['Water','Ice'],baseAtk:70,baseDef:80,baseSpd:70,rarity:'uncommon',moves:['Laser Glace','Surf','Aqua-Jet','Repos']},
+  {en:'grimer',fr:'Tadmorv',dex:88,types:['Poison'],baseAtk:80,baseDef:50,baseSpd:25,rarity:'common',moves:['Détritus','Acide','Plaquage','Direct Toxik']},
+  {en:'muk',fr:'Grotadmorv',dex:89,types:['Poison'],baseAtk:105,baseDef:75,baseSpd:50,rarity:'uncommon',moves:['Détritus','Direct Toxik','Acide','Plaquage']},
+  {en:'shellder',fr:'Kokiyas',dex:90,types:['Water'],baseAtk:65,baseDef:100,baseSpd:40,rarity:'common',moves:['Pistolet à O','Repli','Laser Glace','Claquoir']},
+  {en:'cloyster',fr:'Crustabri',dex:91,types:['Water','Ice'],baseAtk:95,baseDef:180,baseSpd:70,rarity:'rare',moves:['Laser Glace','Surf','Picanon','Repli']},
+  {en:'gastly',fr:'Fantominus',dex:92,types:['Ghost','Poison'],baseAtk:35,baseDef:30,baseSpd:80,rarity:'uncommon',moves:['Léchouille','Hypnose','Ombre Nocturne','Onde Folie']},
+  {en:'haunter',fr:'Spectrum',dex:93,types:['Ghost','Poison'],baseAtk:50,baseDef:45,baseSpd:95,rarity:'rare',moves:['Ball\'Ombre','Hypnose','Ombre Nocturne','Onde Folie']},
+  {en:'gengar',fr:'Ectoplasma',dex:94,types:['Ghost','Poison'],baseAtk:65,baseDef:60,baseSpd:110,rarity:'very_rare',moves:['Ball\'Ombre','Hypnose','Cauchemar','Tonnerre']},
+  {en:'onix',fr:'Onix',dex:95,types:['Rock','Ground'],baseAtk:45,baseDef:160,baseSpd:70,rarity:'uncommon',moves:['Jet-Pierres','Ligotage','Tunnel','Charge']},
+  {en:'drowzee',fr:'Soporifik',dex:96,types:['Psychic'],baseAtk:48,baseDef:45,baseSpd:42,rarity:'common',moves:['Choc Mental','Hypnose','Psyko','Coup d\'Boule']},
+  {en:'hypno',fr:'Hypnomade',dex:97,types:['Psychic'],baseAtk:73,baseDef:70,baseSpd:67,rarity:'uncommon',moves:['Psyko','Hypnose','Cauchemar','Onde Folie']},
+  {en:'krabby',fr:'Crabe',dex:98,types:['Water'],baseAtk:105,baseDef:90,baseSpd:50,rarity:'common',moves:['Pince-Masse','Bulles d\'O','Armure','Guillotine']},
+  {en:'kingler',fr:'Krabboss',dex:99,types:['Water'],baseAtk:130,baseDef:115,baseSpd:75,rarity:'uncommon',moves:['Pince-Masse','Surf','Guillotine','Armure']},
+  {en:'voltorb',fr:'Voltorbe',dex:100,types:['Electric'],baseAtk:30,baseDef:50,baseSpd:100,rarity:'common',moves:['Étincelle','Destruction','Cage Éclair','Roulade']},
+  {en:'electrode',fr:'Électrode',dex:101,types:['Electric'],baseAtk:50,baseDef:70,baseSpd:140,rarity:'uncommon',moves:['Tonnerre','Explosion','Cage Éclair','Roulade']},
+  {en:'exeggcute',fr:'Nœunœuf',dex:102,types:['Grass','Psychic'],baseAtk:40,baseDef:80,baseSpd:40,rarity:'uncommon',moves:['Choc Mental','Vampigraine','Pilonnage','Hypnose']},
+  {en:'exeggutor',fr:'Noadkoko',dex:103,types:['Grass','Psychic'],baseAtk:95,baseDef:85,baseSpd:55,rarity:'rare',moves:['Psyko','Lance-Soleil','Pilonnage','Hypnose']},
+  {en:'cubone',fr:'Osselait',dex:104,types:['Ground'],baseAtk:50,baseDef:95,baseSpd:35,rarity:'common',moves:['Osmerang','Coup d\'Boule','Charge','Frénésie']},
+  {en:'marowak',fr:'Ossatueur',dex:105,types:['Ground'],baseAtk:80,baseDef:110,baseSpd:45,rarity:'uncommon',moves:['Osmerang','Séisme','Coup d\'Boule','Danse Lames']},
+  {en:'hitmonlee',fr:'Tygnon',dex:106,types:['Fighting'],baseAtk:120,baseDef:53,baseSpd:87,rarity:'rare',moves:['Mawashi Geri','Pied Brûleur','Balayage','Pied Voltige']},
+  {en:'hitmonchan',fr:'Kicklee',dex:107,types:['Fighting'],baseAtk:105,baseDef:79,baseSpd:76,rarity:'rare',moves:['Mach Punch','Poing de Feu','Poing Éclair','Poing Glace']},
+  {en:'lickitung',fr:'Excelangue',dex:108,types:['Normal'],baseAtk:55,baseDef:75,baseSpd:30,rarity:'rare',moves:['Léchouille','Ligotage','Plaquage','Tranche']},
+  {en:'koffing',fr:'Smogo',dex:109,types:['Poison'],baseAtk:65,baseDef:95,baseSpd:35,rarity:'common',moves:['Détritus','Purédpois','Destruction','Charge']},
+  {en:'weezing',fr:'Smogogo',dex:110,types:['Poison'],baseAtk:90,baseDef:120,baseSpd:60,rarity:'uncommon',moves:['Détritus','Purédpois','Explosion','Lance-Flamme']},
+  {en:'rhyhorn',fr:'Rhinocorne',dex:111,types:['Ground','Rock'],baseAtk:85,baseDef:95,baseSpd:25,rarity:'uncommon',moves:['Charge','Koud\'Korne','Piétisol','Séisme']},
+  {en:'rhydon',fr:'Rhinoféros',dex:112,types:['Ground','Rock'],baseAtk:130,baseDef:120,baseSpd:40,rarity:'rare',moves:['Séisme','Mégacorne','Surf','Jet-Pierres']},
+  {en:'chansey',fr:'Leveinard',dex:113,types:['Normal'],baseAtk:5,baseDef:5,baseSpd:50,rarity:'rare',moves:['Torgnoles','Œuf Mimique','E-Coque','Tonnerre']},
+  {en:'tangela',fr:'Saquedeneu',dex:114,types:['Grass'],baseAtk:55,baseDef:115,baseSpd:60,rarity:'uncommon',moves:['Fouet Lianes','Étreinte','Vampigraine','Poudre Dodo']},
+  {en:'kangaskhan',fr:'Kangourex',dex:115,types:['Normal'],baseAtk:95,baseDef:80,baseSpd:90,rarity:'rare',moves:['Mégacorne','Plaquage','Séisme','Tranche']},
+  {en:'horsea',fr:'Hypotrempe',dex:116,types:['Water'],baseAtk:40,baseDef:70,baseSpd:60,rarity:'common',moves:['Pistolet à O','Cyclone','Bulles d\'O','Brouillard']},
+  {en:'seadra',fr:'Hypocéan',dex:117,types:['Water'],baseAtk:65,baseDef:95,baseSpd:85,rarity:'uncommon',moves:['Hydrocanon','Laser Glace','Cyclone','Bulles d\'O']},
+  {en:'goldeen',fr:'Poissirène',dex:118,types:['Water'],baseAtk:67,baseDef:60,baseSpd:63,rarity:'common',moves:['Koud\'Korne','Cascade','Hâte','Furie']},
+  {en:'seaking',fr:'Poissoroy',dex:119,types:['Water'],baseAtk:92,baseDef:65,baseSpd:68,rarity:'uncommon',moves:['Cascade','Koud\'Korne','Mégacorne','Surf']},
+  {en:'staryu',fr:'Stari',dex:120,types:['Water'],baseAtk:45,baseDef:55,baseSpd:85,rarity:'common',moves:['Pistolet à O','Vive-Attaque','Soin','Tonnerre']},
+  {en:'starmie',fr:'Staross',dex:121,types:['Water','Psychic'],baseAtk:75,baseDef:85,baseSpd:115,rarity:'rare',moves:['Psyko','Surf','Tonnerre','Soin']},
+  {en:'mr-mime',fr:'M. Mime',dex:122,types:['Psychic','Fairy'],baseAtk:45,baseDef:65,baseSpd:90,rarity:'rare',moves:['Choc Mental','Mur Lumière','Protection','Psyko']},
+  {en:'scyther',fr:'Insécateur',dex:123,types:['Bug','Flying'],baseAtk:110,baseDef:80,baseSpd:105,rarity:'rare',moves:['Tranche','Cru-Aile','Danse Lames','Vive-Attaque']},
+  {en:'jynx',fr:'Lippoutou',dex:124,types:['Ice','Psychic'],baseAtk:50,baseDef:35,baseSpd:95,rarity:'rare',moves:['Psyko','Laser Glace','Grobisou','Berceuse']},
+  {en:'electabuzz',fr:'Élektabuzz',dex:125,types:['Electric'],baseAtk:83,baseDef:57,baseSpd:105,rarity:'rare',moves:['Tonnerre','Poing Éclair','Vive-Attaque','Cage Éclair']},
+  {en:'magmar',fr:'Magmar',dex:126,types:['Fire'],baseAtk:95,baseDef:57,baseSpd:93,rarity:'rare',moves:['Lance-Flamme','Poing de Feu','Brouillard','Déflagration']},
+  {en:'pinsir',fr:'Scarabrute',dex:127,types:['Bug'],baseAtk:125,baseDef:100,baseSpd:85,rarity:'rare',moves:['Plaie-Croix','Guillotine','Tranche','Soumission']},
+  {en:'tauros',fr:'Tauros',dex:128,types:['Normal'],baseAtk:100,baseDef:95,baseSpd:110,rarity:'rare',moves:['Plaquage','Séisme','Bélier','Frénésie']},
+  {en:'magikarp',fr:'Magicarpe',dex:129,types:['Water'],baseAtk:10,baseDef:55,baseSpd:80,rarity:'common',moves:['Trempette','Charge','Trempette','Charge']},
+  {en:'gyarados',fr:'Léviator',dex:130,types:['Water','Flying'],baseAtk:125,baseDef:79,baseSpd:81,rarity:'very_rare',moves:['Hydrocanon','Morsure','Tonnerre','Ouragan']},
+  {en:'lapras',fr:'Lokhlass',dex:131,types:['Water','Ice'],baseAtk:85,baseDef:80,baseSpd:60,rarity:'very_rare',moves:['Surf','Laser Glace','Plaquage','Berceuse']},
+  {en:'ditto',fr:'Métamorph',dex:132,types:['Normal'],baseAtk:48,baseDef:48,baseSpd:48,rarity:'rare',moves:['Morphing','Morphing','Morphing','Morphing']},
+  {en:'eevee',fr:'Évoli',dex:133,types:['Normal'],baseAtk:55,baseDef:50,baseSpd:55,rarity:'rare',moves:['Charge','Vive-Attaque','Morsure','Jet de Sable']},
+  {en:'vaporeon',fr:'Aquali',dex:134,types:['Water'],baseAtk:65,baseDef:60,baseSpd:65,rarity:'very_rare',moves:['Surf','Laser Glace','Vive-Attaque','Brouillard']},
+  {en:'jolteon',fr:'Voltali',dex:135,types:['Electric'],baseAtk:65,baseDef:60,baseSpd:130,rarity:'very_rare',moves:['Tonnerre','Vive-Attaque','Cage Éclair','Double Pied']},
+  {en:'flareon',fr:'Pyroli',dex:136,types:['Fire'],baseAtk:130,baseDef:60,baseSpd:65,rarity:'very_rare',moves:['Lance-Flamme','Vive-Attaque','Morsure','Brouillard']},
+  {en:'porygon',fr:'Porygon',dex:137,types:['Normal'],baseAtk:60,baseDef:70,baseSpd:40,rarity:'rare',moves:['Tri Attaque','Psyko','Tonnerre','Laser Glace']},
+  {en:'omanyte',fr:'Amonita',dex:138,types:['Rock','Water'],baseAtk:40,baseDef:100,baseSpd:35,rarity:'rare',moves:['Pistolet à O','Morsure','Repli','Surf']},
+  {en:'omastar',fr:'Amonistar',dex:139,types:['Rock','Water'],baseAtk:60,baseDef:125,baseSpd:55,rarity:'very_rare',moves:['Surf','Jet-Pierres','Laser Glace','Picanon']},
+  {en:'kabuto',fr:'Kabuto',dex:140,types:['Rock','Water'],baseAtk:80,baseDef:90,baseSpd:55,rarity:'rare',moves:['Griffe','Pistolet à O','Armure','Tranche']},
+  {en:'kabutops',fr:'Kabutops',dex:141,types:['Rock','Water'],baseAtk:115,baseDef:105,baseSpd:80,rarity:'very_rare',moves:['Tranche','Surf','Séisme','Danse Lames']},
+  {en:'aerodactyl',fr:'Ptéra',dex:142,types:['Rock','Flying'],baseAtk:105,baseDef:65,baseSpd:130,rarity:'very_rare',moves:['Cru-Aile','Morsure','Hâte','Bec Vrille']},
+  {en:'snorlax',fr:'Ronflex',dex:143,types:['Normal'],baseAtk:110,baseDef:65,baseSpd:30,rarity:'rare',moves:['Plaquage','Repos','Séisme','Coup d\'Boule']},
+  {en:'articuno',fr:'Artikodin',dex:144,types:['Ice','Flying'],baseAtk:85,baseDef:100,baseSpd:85,rarity:'legendary',moves:['Blizzard','Laser Glace','Cru-Aile','Brume']},
+  {en:'zapdos',fr:'Électhor',dex:145,types:['Electric','Flying'],baseAtk:90,baseDef:85,baseSpd:100,rarity:'legendary',moves:['Fatal-Foudre','Tonnerre','Bec Vrille','Cage Éclair']},
+  {en:'moltres',fr:'Sulfura',dex:146,types:['Fire','Flying'],baseAtk:100,baseDef:90,baseSpd:90,rarity:'legendary',moves:['Déflagration','Lance-Flamme','Cru-Aile','Hâte']},
+  {en:'dratini',fr:'Minidraco',dex:147,types:['Dragon'],baseAtk:64,baseDef:45,baseSpd:50,rarity:'rare',moves:['Ligotage','Cage Éclair','Surf','Hâte']},
+  {en:'dragonair',fr:'Draco',dex:148,types:['Dragon'],baseAtk:84,baseDef:65,baseSpd:70,rarity:'very_rare',moves:['Draco-Rage','Surf','Tonnerre','Hâte']},
+  {en:'dragonite',fr:'Dracolosse',dex:149,types:['Dragon','Flying'],baseAtk:134,baseDef:95,baseSpd:80,rarity:'very_rare',moves:['Draco-Rage','Surf','Tonnerre','Déflagration']},
+  {en:'mewtwo',fr:'Mewtwo',dex:150,types:['Psychic'],baseAtk:110,baseDef:90,baseSpd:130,rarity:'legendary',moves:['Psyko','Laser Glace','Tonnerre','Soin']},
+  {en:'mew',fr:'Mew',dex:151,types:['Psychic'],baseAtk:100,baseDef:100,baseSpd:100,rarity:'legendary',moves:['Psyko','Métronome','Surf','Lance-Flamme']},
+];
+
+// Quick lookup maps
+const SPECIES_BY_EN = {};
+const SPECIES_BY_DEX = {};
+POKEMON_GEN1.forEach(s => { SPECIES_BY_EN[s.en] = s; SPECIES_BY_DEX[s.dex] = s; });
+
+// FR→EN / EN→FR name maps
+const FR_TO_EN = {};
+const EN_TO_FR = {};
+POKEMON_GEN1.forEach(s => {
+  FR_TO_EN[s.fr.toLowerCase()] = s.en;
+  EN_TO_FR[s.en] = s.fr;
+});
+
+// ── Natures (10) ─────────────────────────────────────────────
+const NATURES = {
+  hardy:   { fr:'Hardi',    en:'Hardy',   atk:1,   def:1,   spd:1   },
+  brave:   { fr:'Brave',    en:'Brave',   atk:1.1, def:1,   spd:0.9 },
+  timid:   { fr:'Timide',   en:'Timid',   atk:0.9, def:1,   spd:1.1 },
+  bold:    { fr:'Assuré',   en:'Bold',    atk:0.9, def:1.1, spd:1   },
+  jolly:   { fr:'Jovial',   en:'Jolly',   atk:1,   def:0.9, spd:1.1 },
+  adamant: { fr:'Rigide',   en:'Adamant', atk:1.1, def:1,   spd:0.9 },
+  calm:    { fr:'Calme',    en:'Calm',    atk:1,   def:1.1, spd:0.9 },
+  modest:  { fr:'Modeste',  en:'Modest',  atk:0.9, def:1,   spd:1.1 },
+  careful: { fr:'Prudent',  en:'Careful', atk:1,   def:1.1, spd:0.9 },
+  naive:   { fr:'Naïf',     en:'Naive',   atk:1,   def:0.9, spd:1.1 },
 };
-function T(key) { return UI_TEXT[lang]?.[key] || UI_TEXT.fr[key] || key; }
+const NATURE_KEYS = Object.keys(NATURES);
 
-// ── SETTINGS (doit être déclaré avant loadSettings) ─────
-const DEFAULT_SETTINGS = { llmEnabled:false, baseUrl:'http://localhost:11434', model:'gemma3:4b' };
-
-// ── SAVE / LOAD (slot-aware) ──────────────────────────────
-function saveState() {
-  const data = { ...state, savedAt: Date.now(), lang };
-  localStorage.setItem(SAVE_KEY, JSON.stringify(data));
-}
-function loadState() {
-  const r = localStorage.getItem(SAVE_KEY);
-  if (!r) return null;
-  try { return JSON.parse(r); } catch { return null; }
-}
-function loadSettings() {
-  const r = localStorage.getItem('pf.settings');
-  if (!r) return { ...DEFAULT_SETTINGS };
-  try { return { ...DEFAULT_SETTINGS, ...JSON.parse(r) }; } catch { return { ...DEFAULT_SETTINGS }; }
-}
-
-// ============================================================
-// POKEFORGE — ROCKET HQ  app.js  v3  (Full FR + Gameplay+)
-// ============================================================
-
-// ── CONSTANTES GLOBALES ──────────────────────────────────
-const AGENT_XP_THRESHOLDS = [0, 50, 120, 250, 500]; // index = level-1
-
-// ── SPRITES ─────────────────────────────────────────────
-const TRAINER_SPRITES = [
-  'https://play.pokemonshowdown.com/sprites/trainers/rocketgrunt.png',
-  'https://play.pokemonshowdown.com/sprites/trainers/rocketgruntf.png',
-  'https://play.pokemonshowdown.com/sprites/trainers/giovanni.png',
-  'https://play.pokemonshowdown.com/sprites/trainers/archer.png',
-  'https://play.pokemonshowdown.com/sprites/trainers/ariana.png',
-  'https://play.pokemonshowdown.com/sprites/trainers/proton.png',
-  'https://play.pokemonshowdown.com/sprites/trainers/scientist.png',
-  'https://play.pokemonshowdown.com/sprites/trainers/scientistf.png',
-];
-
-// ── POKÉDEX FR — GEN 1 & 2 (noms officiels) ─────────────
-// Mapping EN→FR pour Showdown sprites (Showdown utilise l'EN)
-const POKEMON_FR = {
-  // Gen 1
-  'bulbizarre':'bulbasaur','herbizarre':'ivysaur','florizarre':'venusaur',
-  'salamèche':'charmander','reptincel':'charmeleon','dracaufeu':'charizard',
-  'carapuce':'squirtle','carabaffe':'wartortle','tortank':'blastoise',
-  'chenipan':'caterpie','chrysacier':'metapod','papilusion':'butterfree',
-  'aspicot':'weedle','coconfort':'kakuna','dardargnan':'beedrill',
-  'rattata':'rattata','rattatac':'raticate',
-  'roucool':'pidgey','roucoups':'pidgeotto','roucarnage':'pidgeot','ronflex':'snorlax',
-  'piafabec':'spearow','rapasdepic':'fearow',
-  'abo':'ekans','arbok':'arbok','pikachu':'pikachu','raichu':'raichu',
-  'sabelette':'sandshrew','sablaireau':'sandslash',
-  'nidoran♀':'nidoran-f','nidorina':'nidorina','nidoqueen':'nidoqueen',
-  'nidoran♂':'nidoran-m','nidorino':'nidorino','nidoking':'nidoking',
-  'mélofée':'clefairy','méloféé':'clefable','goupix':'vulpix','feunard':'ninetales',
-  'rondoudou':'jigglypuff','grodoudou':'wigglytuff',
-  'nosferapti':'zubat','nosferalto':'golbat',
-  'mystherbe':'oddish','ortide':'gloom','rafflesia':'vileplume',
-  'paras':'paras','parasect':'parasect',
-  'mimitoss':'venonat','aéromite':'venomoth',
-  'taupiqueur':'diglett','triopikeur':'dugtrio',
-  'miaouss':'meowth','persian':'persian',
-  'psykokwak':'psyduck','akwakwak':'golduck',
-  'férosinge':'mankey','colossinge':'primeape',
-  'caninos':'growlithe','arcanin':'arcanine',
-  'ptitard':'poliwag','têtarte':'poliwhirl','tartard':'poliwrath',
-  'abra':'abra','kadabra':'kadabra','alakazam':'alakazam',
-  'machoc':'machop','machopeur':'machoke','mackogneur':'machamp',
-  'chétiflor':'bellsprout','boustiflor':'weepinbell','empiflor':'victreebel',
-  'tentacool':'tentacool','tentacruel':'tentacruel',
-  'racaillou':'geodude','gravalanch':'graveler','golem':'golem',
-  'ponyta':'ponyta','galopa':'rapidash',
-  'ramoloss':'slowpoke','flagadoss':'slowbro',
-  'magneti':'magnemite','magnéton':'magneton',
-  'canarticho':'farfetchd','doduo':'doduo','dodrio':'dodrio',
-  'otaria':'seel','lamantine':'dewgong',
-  'tadmorv':'grimer','grotadmorv':'muk',
-  'kokiyas':'shellder','crustabri':'cloyster',
-  'fantominus':'gastly','spectrum':'haunter','ectoplasma':'gengar',
-  'onix':'onix','soporifik':'drowzee','hypnomade':'hypno',
-  'crabe':'krabby','krabboss':'kingler',
-  'voltorbe':'voltorb','électrode':'electrode',
-  'nœunoœuf':'exeggcute','noadkoko':'exeggutor',
-  'osselait':'cubone','ossatueur':'marowak',
-  'tygnon':'hitmonlee','kicklee':'hitmonchan',
-  'excelangue':'lickitung','smogo':'koffing','smogogo':'weezing',
-  'rhinocorne':'rhyhorn','rhinoféros':'rhydon',
-  'leveinard':'chansey','kangourex':'kangaskhan',
-  'hypotrempe':'horsea','hypocéan':'seadra',
-  'poissirène':'goldeen','poissoroy':'seaking',
-  'stari':'staryu','staross':'starmie',
-  'm. mime':'mr-mime','insécateur':'scyther','lippoutou':'jynx',
-  'électabuzz':'electabuzz','magmar':'magmar',
-  'scarabeug':'pinsir','tauros':'tauros',
-  'magicarpe':'magikarp','léviator':'gyarados',
-  'lokhlass':'lapras','métamorph':'ditto',
-  'évoli':'eevee','aquali':'vaporeon','voltali':'jolteon','pyroli':'flareon',
-  'porygon':'porygon','amonita':'omanyte','amonistar':'omastar',
-  'kabuto':'kabuto','kabutops':'kabutops',
-  'ptéra':'aerodactyl',
-  'artikodin':'articuno','électhor':'zapdos','sulfura':'moltres',
-  'minidraco':'dratini','draco':'dragonair','dracolosse':'dragonite',
-  'mewtwo':'mewtwo','mew':'mew',
-
-  // Gen 2
-  'germignon':'chikorita','macronium':'bayleef','méganium':'meganium',
-  'héricendre':'cyndaquil','feurisson':'quilava','typhlosion':'typhlosion',
-  'kaiminus':'totodile','crocrodil':'croconaw','aligatueur':'feraligatr',
-  'fouinette':'sentret','fouinar':'furret',
-  'hululia':'hoothoot','noarfang':'noctowl',
-  'coxy':'ledyba','coxyclaque':'ledian',
-  'arakdo':'spinarak','migalos':'ariados',
-  'nostenfer':'crobat',
-  'loupiotte':'chinchou','lanturn':'lanturn',
-  'pichu':'pichu','mélo':'cleffa','toudoudou':'igglybuff',
-  'togepi':'togepi','togetic':'togetic',
-  'natu':'natu','xatu':'xatu',
-  'wattouat':'mareep','lainergie':'flaaffy','pharamp':'ampharos',
-  'marill':'marill','azumarill':'azumarill',
-  'granivol':'hoppip','entobulle':'skiploom','cotovol':'jumpluff',
-  'capumain':'aipom',
-  'tournegrin':'sunkern','héliatronc':'sunflora',
-  'yanma':'yanma',
-  'phanpy':'phanpy','donphan':'donphan',
-  'mentali':'espeon','noctali':'umbreon',
-  'cornèbre':'murkrow',
-  'roigada':'slowking','feuforêve':'misdreavus',
-  'farfuret':'sneasel',
-  'magby':'magby','élekid':'elekid','lippouti':'smoochum',
-  'rémoraid':'remoraid','octillery':'octillery',
-  'corayon':'corsola','qwilfish':'qwilfish',
-  'cizayox':'scizor','caratroc':'shuckle','malosse':'houndour','démolosse':'houndoom',
-  'magnéton':'magneton',
-  'porygon2':'porygon2',
-  'steelix':'steelix',
-  'scarhino':'heracross',
-  'ursaring':'ursaring',
-  'teddiursa':'teddiursa',
-  'swinub':'swinub','piloswine':'piloswine',
-  'girafarig':'girafarig',
-  'forretress':'forretress',
-  'blissey':'blissey',
-  'raikou':'raikou','entei':'entei','suicune':'suicune',
-  'embrylex':'larvitar','ymphect':'pupitar','tyranocif':'tyranitar',
-  'lugia':'lugia','ho-oh':'ho-oh','celebi':'celebi',
+// ── Zones ────────────────────────────────────────────────────
+// Showdown background sprites
+const ZONE_BG_URL = (name) => `https://play.pokemonshowdown.com/sprites/gen5-back/${name}.png`;
+const ZONE_BGS = {
+  route1:          'url(https://play.pokemonshowdown.com/fx/bg-meadow.png)',
+  viridian_forest: 'url(https://play.pokemonshowdown.com/fx/bg-forest.png)',
+  diglett_cave:    'url(https://play.pokemonshowdown.com/fx/bg-cave.png)',
+  nugget_bridge:   'url(https://play.pokemonshowdown.com/fx/bg-river.png)',
+  pallet_town:     'url(https://play.pokemonshowdown.com/fx/bg-meadow.png)',
+  safari_zone:     'url(https://play.pokemonshowdown.com/fx/bg-forest.png)',
+  celadon_casino:  'url(https://play.pokemonshowdown.com/fx/bg-city.png)',
+  pokemon_tower:   'url(https://play.pokemonshowdown.com/fx/bg-space.png)',
+  seafoam_islands: 'url(https://play.pokemonshowdown.com/fx/bg-beach.png)',
+  silph_co:        'url(https://play.pokemonshowdown.com/fx/bg-city.png)',
+  unknown_cave:    'url(https://play.pokemonshowdown.com/fx/bg-cave.png)',
 };
 
-// Dictionnaire inversé FR→EN pour pokeSprite
-const FR_TO_EN = Object.fromEntries(Object.entries(POKEMON_FR));
+const ZONES = [
+  { id:'route1',        fr:'Route 1',           en:'Route 1',           rep:0,   spawnRate:0.15,
+    pool:['rattata','pidgey','caterpie','weedle','spearow','nidoran-f','nidoran-m'],
+    trainers:['youngster','lass'], eliteTrainer:'acetrainer', investCost:0 },
+  { id:'viridian_forest',fr:'Forêt de Jade',    en:'Viridian Forest',   rep:10,  spawnRate:0.12,
+    pool:['pikachu','caterpie','metapod','butterfree','weedle','kakuna','beedrill'],
+    trainers:['bugcatcher','youngster'], eliteTrainer:'acetrainer', investCost:3000 },
+  { id:'diglett_cave',  fr:'Grotte Taupiqueur', en:'Diglett\'s Cave',   rep:25,  spawnRate:0.10,
+    pool:['diglett','dugtrio','geodude','zubat','onix'],
+    trainers:['hiker','camper'], eliteTrainer:'hiker', investCost:5000 },
+  { id:'nugget_bridge', fr:'Pont Pépite',       en:'Nugget Bridge',     rep:35,  spawnRate:0.12,
+    pool:['abra','pidgey','oddish','bellsprout','mankey','goldeen'],
+    trainers:['youngster','lass','acetrainer'], eliteTrainer:'acetrainer', investCost:6000 },
+  { id:'pallet_town',   fr:'Bourg Palette',     en:'Pallet Town',       rep:40,  spawnRate:0.08,
+    pool:['rattata','pidgey','bulbasaur','charmander','squirtle'],
+    trainers:['acetrainer'], eliteTrainer:'acetrainer', investCost:8000 },
+  { id:'safari_zone',   fr:'Parc Safari',       en:'Safari Zone',       rep:50,  spawnRate:0.10,
+    pool:['kangaskhan','tauros','scyther','pinsir','nidoran-f','nidoran-m','chansey','dratini'],
+    trainers:['acetrainer','gentleman'], eliteTrainer:'gentleman', investCost:12000 },
+  { id:'celadon_casino',fr:'Casino de Céladopole',en:'Celadon Casino',  rep:60,  spawnRate:0.10,
+    pool:['porygon','abra','clefairy','meowth','voltorb'],
+    trainers:['rocketgrunt','rocketgruntf','gentleman'], eliteTrainer:'rocketgrunt', investCost:15000 },
+  { id:'pokemon_tower', fr:'Tour Pokémon',      en:'Pokémon Tower',     rep:75,  spawnRate:0.08,
+    pool:['gastly','haunter','cubone','zubat'],
+    trainers:['psychic','rocketgrunt'], eliteTrainer:'psychic', investCost:18000 },
+  { id:'seafoam_islands',fr:'Îles Écume',       en:'Seafoam Islands',   rep:80,  spawnRate:0.10,
+    pool:['tentacool','shellder','staryu','seel','horsea','lapras'],
+    trainers:['swimmer','acetrainer'], eliteTrainer:'acetrainer', investCost:20000 },
+  { id:'silph_co',      fr:'Sylphe SARL',       en:'Silph Co.',         rep:90,  spawnRate:0.12,
+    pool:['porygon','electrode','magnemite','magneton','voltorb'],
+    trainers:['rocketgrunt','rocketgruntf','scientist'], eliteTrainer:'giovanni', investCost:30000 },
+  { id:'unknown_cave',  fr:'Grotte Inconnue',   en:'Unknown Cave',      rep:100, spawnRate:0.05,
+    pool:['mewtwo','ditto','kadabra','alakazam','electrode'],
+    trainers:[], eliteTrainer:'giovanni', investCost:50000 },
+];
 
-// Pools FR par type (noms français)
-const POKEMON_FR_POOL_BY_TYPE = {
-  poison:   ['abo','arbok','nosferapti','nosferalto','smogo','smogogo','tadmorv','grotadmorv'],
-  dark:     ['cornèbre','farfuret','malosse','démolosse'],
-  electric: ['magneti','magnéton','voltorbe','électrode','électabuzz'],
-  psychic:  ['abra','kadabra','soporifik','hypnomade','m. mime'],
-  fighting: ['férosinge','colossinge','machoc','machopeur','mackogneur','tygnon','kicklee'],
-  normal:   ['miaouss','persian','ronflex','métamorph','tauros','fouinette','fouinar'],
-  feu:      ['salamèche','reptincel','dracaufeu','caninos','arcanin','ponyta','galopa','magmar'],
-  eau:      ['carapuce','carabaffe','tortank','ptitard','têtarte','psykokwak','akwakwak'],
-  plante:   ['bulbizarre','herbizarre','florizarre','mystherbe','ortide','rafflesia'],
-  roche:    ['racaillou','gravalanch','golem','rhinocorne','rhinoféros'],
-  sol:      ['taupiqueur','triopikeur','sabelette','sablaireau','osselait','ossatueur'],
+// ── Special Events ────────────────────────────────────────────
+const SPECIAL_EVENTS = [
+  { id:'rocket_invasion', fr:'Invasion Rocket !', en:'Rocket Invasion!', icon:'🚀',
+    trainerKey:'giovanni', chance:0.03, minRep:40,
+    reward: { money:[3000,8000], rep:15, unlockZone:null },
+    desc_fr:'Giovanni envoie ses meilleurs sbires ! Battez-le pour un gros bonus.',
+    desc_en:'Giovanni sends his best grunts! Defeat him for a big bonus.' },
+  { id:'shiny_swarm', fr:'Nuée Shiny !', en:'Shiny Swarm!', icon:'✨',
+    trainerKey:null, chance:0.04, minRep:20,
+    reward: { shinyBoost:60000 }, // 60s of shiny boost
+    desc_fr:'Les Pokémon brillent dans cette zone ! Taux Shiny x10 pendant 60s.',
+    desc_en:'Pokémon sparkle in this zone! Shiny rate x10 for 60s.' },
+  { id:'rare_migration', fr:'Migration Rare !', en:'Rare Migration!', icon:'🦅',
+    trainerKey:null, chance:0.05, minRep:15,
+    reward: { rareBoost:60000 }, // 60s of rare boost
+    desc_fr:'Des Pokémon rares migrent ici ! Spawns rares x5 pendant 60s.',
+    desc_en:'Rare Pokémon are migrating here! Rare spawns x5 for 60s.' },
+  { id:'treasure_rain', fr:'Pluie de Trésors !', en:'Treasure Rain!', icon:'💎',
+    trainerKey:null, chance:0.04, minRep:10,
+    reward: { chestBoost:45000 }, // 45s of extra chests
+    desc_fr:'Des coffres apparaissent partout pendant 45s !',
+    desc_en:'Treasure chests appear everywhere for 45s!' },
+  { id:'elite_challenge', fr:'Défi Élite !', en:'Elite Challenge!', icon:'🏆',
+    trainerKey:null, chance:0.03, minRep:30, // uses zone's eliteTrainer
+    reward: { money:[2000,5000], rep:10, xpBonus:50 },
+    desc_fr:'Un dresseur d\'élite vous défie ! Récompenses doublées.',
+    desc_en:'An elite trainer challenges you! Double rewards.' },
+];
+
+// ── Treasure Chest Loot Table ──────────────────────────────────
+const CHEST_LOOT = [
+  { weight:30, type:'balls',    qty:[3,8],   ballType:'pokeball',  fr:'Poké Balls',     en:'Poké Balls'     },
+  { weight:20, type:'balls',    qty:[2,5],   ballType:'greatball', fr:'Super Balls',    en:'Great Balls'    },
+  { weight:10, type:'balls',    qty:[1,3],   ballType:'ultraball', fr:'Hyper Balls',    en:'Ultra Balls'    },
+  { weight:15, type:'money',    qty:[500,2000],                    fr:'PokéDollars',    en:'PokéDollars'    },
+  { weight:10, type:'rare_pokemon',                                fr:'Pokémon Rare !', en:'Rare Pokémon!'  },
+  { weight:8,  type:'item',     itemId:'incense',  qty:1,         fr:'Encens Chance',  en:'Lucky Incense'  },
+  { weight:4,  type:'item',     itemId:'rarescope', qty:1,        fr:'Rarioscope',     en:'Rare Scope'     },
+  { weight:2,  type:'item',     itemId:'aura',     qty:1,         fr:'Aura Shiny',     en:'Shiny Aura'     },
+  { weight:1,  type:'event',                                       fr:'Événement !',    en:'Event!'         },
+];
+const ZONE_BY_ID = {};
+ZONES.forEach(z => ZONE_BY_ID[z.id] = z);
+
+// ── Trainers ──────────────────────────────────────────────────
+const TRAINER_TYPES = {
+  youngster:    { fr:'Gamin',        en:'Youngster',    sprite:'youngster',    diff:1, reward:[50,150],   rep:1  },
+  lass:         { fr:'Fillette',     en:'Lass',         sprite:'lass',         diff:1, reward:[50,150],   rep:1  },
+  bugcatcher:   { fr:'Chasseur',     en:'Bug Catcher',  sprite:'bugcatcher',   diff:1, reward:[50,150],   rep:1  },
+  camper:       { fr:'Campeur',      en:'Camper',       sprite:'camper',       diff:1, reward:[80,200],   rep:1  },
+  hiker:        { fr:'Montagnard',   en:'Hiker',        sprite:'hiker',        diff:2, reward:[200,500],  rep:3  },
+  swimmer:      { fr:'Nageur',       en:'Swimmer',      sprite:'swimmer',      diff:2, reward:[200,500],  rep:3  },
+  psychic:      { fr:'Médium',       en:'Psychic',      sprite:'psychic',      diff:2, reward:[200,500],  rep:3  },
+  gentleman:    { fr:'Gentleman',    en:'Gentleman',    sprite:'gentleman',    diff:2, reward:[300,800],  rep:3  },
+  acetrainer:   { fr:'Topdresseur',  en:'Ace Trainer',  sprite:'acetrainer',   diff:3, reward:[500,1500], rep:5  },
+  scientist:    { fr:'Scientifique', en:'Scientist',    sprite:'scientist',    diff:3, reward:[500,1500], rep:5  },
+  rocketgrunt:  { fr:'Sbire Rocket', en:'Rocket Grunt', sprite:'rocketgrunt',  diff:4, reward:[1000,3000],rep:10 },
+  rocketgruntf: { fr:'Sbire Rocket', en:'Rocket Grunt', sprite:'rocketgruntf', diff:4, reward:[1000,3000],rep:10 },
+  giovanni:     { fr:'Giovanni',     en:'Giovanni',     sprite:'giovanni',     diff:5, reward:[5000,10000],rep:25},
 };
 
-const POKEDEX_POOL_FR = [
-  'abo','smogo','nosferapti','tadmorv','miaouss','arbok','smogogo','magneti','voltorbe',
-  'fantominus','soporifik','munja','farfuret','feuforêve','racaillou','osselait','métamorph','porygon',
+// ── Items & Balls ─────────────────────────────────────────────
+const BALLS = {
+  pokeball:  { fr:'Poké Ball',  en:'Poké Ball',  cost:200,  potential:[40,30,20,8,2]  },
+  greatball: { fr:'Super Ball', en:'Great Ball',  cost:600,  potential:[15,30,30,18,7] },
+  ultraball: { fr:'Hyper Ball', en:'Ultra Ball',  cost:2000, potential:[5,15,30,30,20] },
+  duskball:  { fr:'Sombre Ball',en:'Dusk Ball',   cost:1500, potential:[20,20,20,20,20]},
+};
+
+const SHOP_ITEMS = [
+  { id:'pokeball',  qty:10, cost:2000,  icon:'⚪' },
+  { id:'greatball', qty:10, cost:6000,  icon:'🔵' },
+  { id:'ultraball', qty:5,  cost:10000, icon:'🟡' },
+  { id:'duskball',  qty:5,  cost:7500,  icon:'🟣' },
+  { id:'lure',      qty:1,  cost:500,   icon:'🪝', fr:'Leurre',     en:'Lure',       desc_fr:'x2 spawns 60s', desc_en:'x2 spawns 60s' },
+  { id:'superlure', qty:1,  cost:2000,  icon:'🪝', fr:'Super Leurre',en:'Super Lure', desc_fr:'x3 spawns 60s', desc_en:'x3 spawns 60s' },
+  { id:'potion',    qty:1,  cost:300,   icon:'💊', fr:'Potion',     en:'Potion',     desc_fr:'Retire cooldown', desc_en:'Remove cooldown' },
+  { id:'incense',   qty:1,  cost:1500,  icon:'🔮', fr:'Encens Chance',en:'Lucky Incense', desc_fr:'★+1 potentiel 90s', desc_en:'★+1 potential 90s' },
+  { id:'rarescope', qty:1,  cost:3000,  icon:'🔭', fr:'Rarioscope', en:'Rare Scope',   desc_fr:'Spawns rares x3 90s', desc_en:'Rare spawns x3 90s' },
+  { id:'aura',      qty:1,  cost:5000,  icon:'✨', fr:'Aura Shiny', en:'Shiny Aura',   desc_fr:'Shiny x5 90s',        desc_en:'Shiny x5 90s' },
 ];
 
-// ── NOMS FR ─────────────────────────────────────────────
-const NPC_FIRST_NAMES_M = [
-  'Albert','Arthur','Auguste','Alain','Antoine','Alfred','Armand','Arnold','Andy','Anthony',
-  'Bernard','Bill','Bob','Ben','Bruno','Bertrand','Bruce','Barry','Brian','Bastien',
-  'Claude','Charles','Calvin','Chad','Carl','Colin','Clement','Corentin','Christian','Cyril',
-  'Denis','Dan','Don','David','Damien','Didier','Daniel','Dylan','Dexter','Dustin',
-  'Edouard','Emile','Earl','Edward','Eric','Etienne','Eugene','Ernest','Evan','Edgar',
-  'Francois','Felix','Fred','Frank','Fabien','Florent','Fernand','Fabrice','Floyd','Fletcher',
-  'Georges','Gaston','Guy','Gene','George','Gilles','Gerard','Guillaume','Gordon','Gary',
-  'Henri','Harry','Howard','Harold','Hugo','Hector','Harvey','Hubert','Homer','Harrison',
-  'Jacques','Jean','Joey','James','Jim','Joe','Jack','Jay','Jules','Justin',
-  'Louis','Laurent','Lucien','Lee','Liam','Leo','Lucas','Leon','Lance','Lester',
-];
-const NPC_FIRST_NAMES_F = [
-  'Alice','Anne','Agnes','Amelie','Audrey','Aurore','Anita','April','Amanda','Abigail',
-  'Brigitte','Beatrice','Blandine','Betty','Bonnie','Barbara','Brenda','Blanche','Bessie','Bernice',
-  'Catherine','Chantal','Christiane','Claire','Colette','Celine','Carol','Cindy','Chloe','Clara',
-  'Danielle','Denise','Diane','Delphine','Dorothee','Daisy','Donna','Doris','Diana','Darlene',
-  'Edith','Elisabeth','Elodie','Emilie','Estelle','Emma','Emily','Evelyn','Eleanor','Edna',
-  'Francine','Francoise','Florence','Fabienne','Fanny','Flora','Faye','Felicia','Fern','Fiona',
-  'Genevieve','Gisele','Gaelle','Grace','Gloria','Gladys','Gail','Gwendolyn','Gwen','Georgia',
-  'Helene','Hortense','Henriette','Hazel','Helen','Heather','Holly','Heidi','Hilda','Hope',
-  'Jacqueline','Jeanne','Josiane','Juliette','Justine','Jane','Judy','Joyce','Joan','Janet',
-  'Louise','Lucie','Laurence','Laura','Linda','Lucy','Lois','Lillian','Loretta','Lynn',
-];
-const NPC_LAST_NAMES = [
-  'Dubois','Dupont','Durand','Martin','Bernard','Thomas','Petit','Robert','Richard','Moreau',
-  'Laurent','Simon','Michel','Lefevre','Leroy','Roux','David','Bertrand','Morel','Fournier',
-  'Girard','Bonnet','Lambert','Fontaine','Rousseau','Vincent','Muller','Faure','Andre','Mercier',
-  'Blanc','Guerin','Boyer','Garnier','Chevalier','Francois','Legrand','Gauthier','Garcia','Perrin',
-  'Robin','Clement','Morin','Nicolas','Henry','Roussel','Mathieu','Gautier','Masson','Marchand',
-  'Duval','Denis','Dumont','Marie','Lemaire','Noel','Meyer','Dufour','Meunier','Brun',
-  'Blanchard','Giraud','Joly','Lucas','Brunet','Gaillard','Barbier','Arnaud','Martinez','Gerard',
-  'Roche','Renard','Schmitt','Roy','Leroux','Colin','Vidal','Caron','Picard','Roger',
-  'Chen','Seko','Orme','Sorbier','Rocher','Caillou','Bois','Riviere','Montagne','Foret',
+// ── Potential multipliers (for market price) ─────────────────
+const POTENTIAL_MULT = [0.5, 1, 2, 5, 15]; // index 0=★1 .. 4=★5
+
+// ── Base prices by rarity ─────────────────────────────────────
+const BASE_PRICE = { common:100, uncommon:250, rare:600, very_rare:1500, legendary:5000 };
+
+// ── Boss sprites to pick from ─────────────────────────────────
+const BOSS_SPRITES = [
+  'rocketgrunt','rocketgruntf','giovanni','archer','ariana','proton',
+  'scientist','red','silver','blue',
 ];
 
-const NPC_ROLES = [
-  { id:'Infiltration',   faction:'team_rocket', traits:['discret','loyal','nerveux'],      types:['poison','dark'],    sprites:['rocketgrunt','rocketgruntf'] },
-  { id:'Science',        faction:'team_rocket', traits:['intelligent','froid','précis'],   types:['electric','psychic'],sprites:['scientist','scientistf'] },
-  { id:'Combat',         faction:'team_rocket', traits:['agressif','courageux','brutal'],  types:['fighting','poison'],sprites:['rocketgrunt'] },
-  { id:'Logistique',     faction:'team_rocket', traits:['organisé','méfiant','fiable'],    types:['normal','dark'],    sprites:['rocketgruntf'] },
-  { id:'Renseignement',  faction:'team_rocket', traits:['observateur','calme','rusé'],     types:['psychic','dark'],   sprites:['scientist'] },
-];
+// ── Agent name pools ──────────────────────────────────────────
+const AGENT_NAMES_M = ['Marco','Léo','Jin','Viktor','Dante','Axel','Zane','Kai','Nero','Blaze','Rex','Ash','Saul','Ren','Hugo'];
+const AGENT_NAMES_F = ['Mira','Luna','Jade','Nova','Aria','Ivy','Nyx','Zara','Kira','Elsa','Rosa','Saki','Lena','Yuki','Tess'];
+const AGENT_SPRITES = ['rocketgrunt','rocketgruntf','scientist','archer','ariana','proton','camper','picnicker','acetrainer','psychic'];
+const AGENT_PERSONALITIES = ['loyal','nervous','reckless','calm','cunning','lazy','fierce','quiet','greedy','brave','curious','stubborn'];
 
-const NPC_CATCHPHRASES = [
-  "Je ne me bats pas pour perdre.",
-  "La Team Rocket ne pardonne pas.",
-  "Tu veux jouer ? Très bien.",
-  "J'ai des ordres. Tu es dans mon chemin.",
-  "Ne prends pas ça personnellement.",
-  "Tu aurais dû rester chez toi.",
-  "On ne plaisante pas avec la Team Rocket.",
-  "Ton Pokémon sera bientôt à moi.",
-  "La faiblesse n'a pas sa place ici.",
-  "Prêt à perdre ?",
-];
+const TITLE_REQUIREMENTS = {
+  lieutenant: { level: 50, combatsWon: 25 },
+  captain:    { level: 75, combatsWon: 200 },
+};
+const TITLE_BONUSES = { grunt: 0, lieutenant: 0.15, captain: 0.30 };
 
-// ── MISSIONS ─────────────────────────────────────────────
-const MISSIONS = [
-  { id:'m1', nom:'Vol dans le Centre Pokémon',    recompense:{ pokedollars:400, intel:2 },   duree:2, risque:'faible',  description:'S\'infiltrer et voler les ressources médicales du Centre.' },
-  { id:'m2', nom:'Sabotage de la Mine Taupiqueur',recompense:{ pokedollars:600, capturePoints:3 }, duree:3, risque:'moyen',  description:'Perturber l\'exploitation minière de la région.' },
-  { id:'m3', nom:'Capture forcée – Zone Safari',  recompense:{ pokedollars:200, capturePoints:5 }, duree:2, risque:'moyen',  description:'Infiltrer la Zone Safari pour capturer des Pokémon rares.' },
-  { id:'m4', nom:'Opération Silph Co.',            recompense:{ pokedollars:1000, intel:5 },  duree:4, risque:'élevé', description:'Prendre le contrôle d\'un étage de la tour Silph.' },
-  { id:'m5', nom:'Racket de dresseurs',            recompense:{ pokedollars:300, breedingPoints:2 }, duree:1, risque:'faible',  description:'Racketter les dresseurs débutants de la Route 1.' },
-  { id:'m6', nom:'Trafic de Fossiles',             recompense:{ pokedollars:700, capturePoints:2, intel:1 }, duree:3, risque:'moyen', description:'Revendre des fossiles volés au Musée de Jadielle.' },
-];
+// ── I18N ──────────────────────────────────────────────────────
+const I18N = {
+  // Tabs
+  gang_tab:      { fr:'💀 Gang',     en:'💀 Gang'     },
+  zones_tab:     { fr:'🗺️ Zones',   en:'🗺️ Zones'   },
+  market_tab:    { fr:'💰 Marché',   en:'💰 Market'   },
+  pc_tab:        { fr:'💻 PC',       en:'💻 PC'       },
+  pokedex_tab:   { fr:'📖 Pokédex',  en:'📖 Pokédex'  },
+  // Gang
+  boss:          { fr:'Boss',        en:'Boss'        },
+  reputation:    { fr:'Réputation',  en:'Reputation'  },
+  agents:        { fr:'Agents',      en:'Agents'      },
+  no_agents:     { fr:'Aucun agent recruté', en:'No agents recruited' },
+  recruit_agent: { fr:'Recruter',    en:'Recruit'     },
+  promote:       { fr:'Promouvoir',  en:'Promote'     },
+  // Zone
+  mastery:       { fr:'Maîtrise',    en:'Mastery'     },
+  fights_won:    { fr:'Combats gagnés', en:'Fights won' },
+  locked:        { fr:'🔒 Verrouillé (rep {rep})', en:'🔒 Locked (rep {rep})' },
+  open_zone:     { fr:'Ouvrir',      en:'Open'        },
+  close_zone:    { fr:'Fermer',      en:'Close'       },
+  zone_mastered: { fr:'Zone maîtrisée !', en:'Zone mastered!' },
+  // Capture
+  catch_success: { fr:'{name} capturé !', en:'{name} caught!' },
+  catch_shiny:   { fr:'✨ {name} SHINY capturé !', en:'✨ SHINY {name} caught!' },
+  no_balls:      { fr:'Plus de {ball} !', en:'No {ball} left!' },
+  // Combat
+  combat_win:    { fr:'Victoire ! +{money}₽ +{rep} rep', en:'Victory! +{money}₽ +{rep} rep' },
+  combat_lose:   { fr:'Défaite...', en:'Defeat...' },
+  combat_title:  { fr:'Combat',     en:'Combat'     },
+  // Market
+  sell:          { fr:'Vendre',      en:'Sell'        },
+  buy:           { fr:'Acheter',     en:'Buy'         },
+  sold:          { fr:'Vendu {n} Pokémon pour {price}₽', en:'Sold {n} Pokémon for {price}₽' },
+  bought:        { fr:'{item} acheté !', en:'{item} purchased!' },
+  not_enough:    { fr:'Pas assez de ₽', en:'Not enough ₽' },
+  // PC
+  level:         { fr:'Niv.',        en:'Lv.'         },
+  nature:        { fr:'Nature',      en:'Nature'      },
+  potential:     { fr:'Potentiel',   en:'Potential'    },
+  moves:         { fr:'Capacités',   en:'Moves'       },
+  zone_caught:   { fr:'Zone',        en:'Zone'        },
+  assign:        { fr:'Assigner',    en:'Assign'      },
+  release:       { fr:'Relâcher',    en:'Release'     },
+  // Agent
+  agent_catch:   { fr:'{agent} a capturé {pokemon} !', en:'{agent} caught {pokemon}!' },
+  agent_win:     { fr:'{agent} a vaincu un dresseur !', en:'{agent} defeated a trainer!' },
+  agent_lose:    { fr:'{agent} a perdu un combat...', en:'{agent} lost a fight...' },
+  agent_promo:   { fr:'{agent} promu {title} !', en:'{agent} promoted to {title}!' },
+  // Stats
+  total_caught:  { fr:'Capturés',    en:'Caught'      },
+  total_sold:    { fr:'Vendus',      en:'Sold'        },
+  total_fights:  { fr:'Combats',     en:'Fights'      },
+  total_money:   { fr:'₽ gagnés',    en:'₽ earned'    },
+  shiny_caught:  { fr:'Shinies',     en:'Shinies'     },
+  // Settings
+  settings:      { fr:'Paramètres',  en:'Settings'    },
+  language:      { fr:'Langue',      en:'Language'    },
+  save_export:   { fr:'Exporter',    en:'Export'      },
+  save_import:   { fr:'Importer',    en:'Import'      },
+  reset_all:     { fr:'Tout effacer',en:'Reset all'   },
+  reset_confirm: { fr:'Vraiment tout supprimer ?', en:'Really delete everything?' },
+  // Intro
+  intro_title:   { fr:'PokéForge',   en:'PokéForge'   },
+  intro_sub:     { fr:'Crée ton gang. Conquiers Kanto.', en:'Build your gang. Conquer Kanto.' },
+  boss_name:     { fr:'Nom du Boss', en:'Boss Name'   },
+  gang_name:     { fr:'Nom du Gang', en:'Gang Name'   },
+  avatar:        { fr:'Avatar',      en:'Avatar'      },
+  start_game:    { fr:'Commencer',   en:'Start'       },
+  // LLM
+  llm_connected: { fr:'LLM connecté', en:'LLM connected' },
+  llm_off:       { fr:'LLM hors-ligne', en:'LLM offline' },
+  // Misc
+  pokedex_progress:{ fr:'{caught}/{total} capturés', en:'{caught}/{total} caught' },
+};
 
-// ── BASE STATE ───────────────────────────────────────────
-const BASE_STATE = {
-  turn: 1,
-  profile: { initialized:false, team:'Team Rocket', firstName:'Ari', lastName:'Voss', sprite:TRAINER_SPRITES[0] },
-  resources: { pokedollars:1800, capturePoints:0, breedingPoints:0, intel:0 },
-  reputation: 10, // 0→100, influence sur les recrutements et événements
-  pokemonStandby: [], // surplus Pokémon au-delà du cap
-  rooms: {
-    command:  { nom:'Salle de commandement', level:1, baseIncome:120, upgradeCost:700 },
-    capture:  { nom:'Salle de capture',      level:1, baseIncome:2,   upgradeCost:550 },
-    breeding: { nom:'Nurserie / Élevage',    level:1, baseIncome:2,   upgradeCost:550 },
-    training: { nom:'Salle d\'entraînement', level:1, baseIncome:1,   upgradeCost:600 },
+function t(key, vars = {}) {
+  const entry = I18N[key];
+  if (!entry) return key;
+  let str = entry[state.lang] || entry.fr || key;
+  for (const [k, v] of Object.entries(vars)) {
+    str = str.replace(`{${k}}`, v);
+  }
+  return str;
+}
+
+// ════════════════════════════════════════════════════════════════
+//  2.  STATE MANAGEMENT
+// ════════════════════════════════════════════════════════════════
+
+const SAVE_KEY = 'pokeforge.v6';
+
+const DEFAULT_STATE = {
+  version: '6.0.0',
+  lang: 'fr',
+  gang: {
+    name: 'Team ???',
+    bossName: 'Boss',
+    bossSprite: '',
+    bossZone: null, // the zone the boss is currently in
+    reputation: 0,
+    money: 5000,
+    initialized: false,
   },
-  agents: [
-    { id:'ag-1', name:'Mira',   rank:'Agent',        team:[], sprite:TRAINER_SPRITES[1], personality:['loyal','discret'],      catch_phrases:['Ordre reçu.'],    pokemon_preferences:['poison'],   missions:[] },
-    { id:'ag-2', name:'Nox',    rank:'Scientifique',  team:[], sprite:TRAINER_SPRITES[6], personality:['intelligent','froid'],  catch_phrases:['Fascinant.'],     pokemon_preferences:['psychic'],  missions:[] },
-  ],
-  npcs: [
-    { name:'Riko',  mood:'méfiant', sprite:TRAINER_SPRITES[0], catch_phrases:['Je ne fais confiance à personne.'] },
-    { name:'Vera',  mood:'calme',   sprite:TRAINER_SPRITES[1], catch_phrases:['Tout est sous contrôle.'] },
-  ],
-  pokemons: [
-    { id:'pk-1', species_fr:'abo',    species_en:'ekans',   level:9,  assignedAgentId:null },
-    { id:'pk-2', species_fr:'smogo',  species_en:'koffing', level:10, assignedAgentId:null },
-    { id:'pk-3', species_fr:'nosferapti', species_en:'zubat', level:8, assignedAgentId:null },
-  ],
-  newPokemonsThisTurn: [],
-  breedingQueue: [],
-  missions: [],         // missions en cours : { missionId, agentId, turnsLeft, recompense }
-  availableMissions: [],// missions disponibles ce tour
-  recruit: null,
-  selectedNpc: 'Riko',
-  events: [],           // file d'événements narratifs
+  inventory: {
+    pokeball: 20,
+    greatball: 0,
+    ultraball: 0,
+    duskball: 0,
+    lure: 0,
+    superlure: 0,
+    potion: 0,
+    incense: 0,
+    rarescope: 0,
+    aura: 0,
+  },
+  activeBall: 'pokeball',
+  activeBoosts: {
+    incense:   0, // timestamp when expires (0 = inactive)
+    rarescope: 0,
+    aura:      0,
+    lure:      0,
+    superlure: 0,
+    chestBoost:0,
+  },
+  pokemons: [],
+  agents: [],
+  zones: {},
+  pokedex: {},
+  activeEvents: {}, // zoneId -> { eventId, expiresAt, data }
+  stats: {
+    totalCaught: 0,
+    totalSold: 0,
+    totalFights: 0,
+    totalFightsWon: 0,
+    totalMoneyEarned: 0,
+    totalMoneySpent: 0,
+    shinyCaught: 0,
+    rocketDefeated: 0,
+    chestsOpened: 0,
+    eventsCompleted: 0,
+  },
+  settings: {
+    llmEnabled: false,
+    llmProvider: 'none',
+    llmUrl: 'http://localhost:11434',
+    llmModel: 'llama3',
+    llmApiKey: '',
+    sfxEnabled: true,
+    musicEnabled: false,
+  },
   log: [],
 };
 
-// ── UI ───────────────────────────────────────────────────
-const ui = {
-  turnValue:          document.getElementById('turnValue'),
-  llmBadge:           document.getElementById('llmBadge'),
-  nextTurnBtn:        document.getElementById('nextTurnBtn'),
-  playerSprite:       document.getElementById('playerSprite'),
-  playerName:         document.getElementById('playerName'),
-  teamName:           document.getElementById('teamName'),
-  resourcesGrid:      document.getElementById('resourcesGrid'),
-  roomsList:          document.getElementById('roomsList'),
-  pokemonOwnedList:   document.getElementById('pokemonOwnedList'),
-  pokemonNewList:     document.getElementById('pokemonNewList'),
-  agentSelect:        document.getElementById('agentSelect'),
-  pokemonSelect:      document.getElementById('pokemonSelect'),
-  assignTeamBtn:      document.getElementById('assignTeamBtn'),
-  agentTeams:         document.getElementById('agentTeams'),
-  difficultySelect:   document.getElementById('difficultySelect'),
-  startTrainingFightBtn: document.getElementById('startTrainingFightBtn'),
-  trainingResult:     document.getElementById('trainingResult'),
-  agentsList:         document.getElementById('agentsList'),
-  recruitCandidate:   document.getElementById('recruitCandidate'),
-  recruitTranscript:  document.getElementById('recruitTranscript'),
-  recruitMessage:     document.getElementById('recruitMessage'),
-  sendRecruitBtn:     document.getElementById('sendRecruitBtn'),
-  npcList:            document.getElementById('npcList'),
-  npcMessage:         document.getElementById('npcMessage'),
-  npcSendBtn:         document.getElementById('npcSendBtn'),
-  logOutput:          document.getElementById('logOutput'),
-  introOverlay:       document.getElementById('introOverlay'),
-  teamInput:          document.getElementById('teamInput'),
-  firstNameInput:     document.getElementById('firstNameInput'),
-  lastNameInput:      document.getElementById('lastNameInput'),
-  spriteSelect:       document.getElementById('spriteSelect'),
-  spritePreview:      document.getElementById('spritePreview'),
-  introStartBtn:      document.getElementById('introStartBtn'),
-  challengeOverlay:   document.getElementById('challengeOverlay'),
-  challengeBody:      document.getElementById('challengeBody'),
-  challengeYesBtn:    document.getElementById('challengeYesBtn'),
-  challengeNoBtn:     document.getElementById('challengeNoBtn'),
-  settingsOverlay:    document.getElementById('settingsOverlay'),
-  openSettingsBtn:    document.getElementById('openSettingsBtn'),
-  closeSettingsBtn:   document.getElementById('closeSettingsBtn'),
-  llmEnabledToggle:   document.getElementById('llmEnabledToggle'),
-  baseUrlInput:       document.getElementById('baseUrlInput'),
-  modelInput:         document.getElementById('modelInput'),
-  testOllamaBtn:      document.getElementById('testOllamaBtn'),
-  llmStatus:          document.getElementById('llmStatus'),
-  saveBtn:            document.getElementById('saveBtn'),
-  loadBtn:            document.getElementById('loadBtn'),
-  resetBtn:           document.getElementById('resetBtn'),
-  exportSaveBtn:      document.getElementById('exportSaveBtn'),
-  importSaveBtn:      document.getElementById('importSaveBtn'),
-  saveFileInput:      document.getElementById('saveFileInput'),
-  exportCodeBtn:      document.getElementById('exportCodeBtn'),
-  importCodeBtn:      document.getElementById('importCodeBtn'),
-  exportLogsBtn:      document.getElementById('exportLogsBtn'),
+let state = structuredClone(DEFAULT_STATE);
+
+function saveState() {
+  localStorage.setItem(SAVE_KEY, JSON.stringify(state));
+}
+
+function loadState() {
+  const raw = localStorage.getItem(SAVE_KEY);
+  if (!raw) return null;
+  try {
+    const saved = JSON.parse(raw);
+    return migrate(saved);
+  } catch { return null; }
+}
+
+function migrate(saved) {
+  if (!saved.version) saved.version = '6.0.0';
+  const merged = { ...structuredClone(DEFAULT_STATE), ...saved };
+  merged.gang = { ...structuredClone(DEFAULT_STATE.gang), ...saved.gang };
+  merged.inventory = { ...structuredClone(DEFAULT_STATE.inventory), ...saved.inventory };
+  merged.stats = { ...structuredClone(DEFAULT_STATE.stats), ...saved.stats };
+  merged.settings = { ...structuredClone(DEFAULT_STATE.settings), ...saved.settings };
+  merged.activeBoosts = { ...structuredClone(DEFAULT_STATE.activeBoosts), ...(saved.activeBoosts || {}) };
+  merged.activeEvents = saved.activeEvents || {};
+  return merged;
+}
+
+function exportSave() {
+  const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `pokeforge-v6-save-${Date.now()}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importSave(file) {
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      state = migrate(JSON.parse(e.target.result));
+      saveState();
+      renderAll();
+      notify(t('save_import'), 'success');
+    } catch {
+      notify('Import failed', 'error');
+    }
+  };
+  reader.readAsText(file);
+}
+
+// ════════════════════════════════════════════════════════════════
+//  3.  CORE UTILS
+// ════════════════════════════════════════════════════════════════
+
+function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+function randInt(a, b) { return Math.floor(Math.random() * (b - a + 1)) + a; }
+function uid() { return `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`; }
+function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+
+function addLog(msg) {
+  state.log.unshift({ msg, ts: Date.now() });
+  if (state.log.length > 50) state.log.length = 50;
+}
+
+function sanitizeSpriteName(en) {
+  // Showdown sprites use no hyphens for nidoran: nidoranf, nidoranm
+  // and some others like mr-mime -> mrmime, farfetchd, etc.
+  return en.replace(/[^a-z0-9]/g, '');
+}
+
+function pokeSprite(en, shiny = false) {
+  const base = shiny ? 'gen5-shiny' : 'gen5';
+  return `https://play.pokemonshowdown.com/sprites/${base}/${sanitizeSpriteName(en)}.png`;
+}
+
+function pokeSpriteBack(en, shiny = false) {
+  const base = shiny ? 'gen5-back-shiny' : 'gen5-back';
+  return `https://play.pokemonshowdown.com/sprites/${base}/${sanitizeSpriteName(en)}.png`;
+}
+
+function trainerSprite(name) {
+  return `https://play.pokemonshowdown.com/sprites/trainers/${name}.png`;
+}
+
+function speciesName(en) {
+  if (!SPECIES_BY_EN[en]) return en;
+  return state.lang === 'fr' ? SPECIES_BY_EN[en].fr : en.charAt(0).toUpperCase() + en.slice(1);
+}
+
+// ── Boost helpers ─────────────────────────────────────────────
+function isBoostActive(boostId) {
+  return (state.activeBoosts[boostId] || 0) > Date.now();
+}
+function boostRemaining(boostId) {
+  const exp = state.activeBoosts[boostId] || 0;
+  return Math.max(0, Math.ceil((exp - Date.now()) / 1000));
+}
+function activateBoost(boostId) {
+  if ((state.inventory[boostId] || 0) <= 0) return false;
+  state.inventory[boostId]--;
+  state.activeBoosts[boostId] = Date.now() + 90000; // 90 seconds
+  saveState();
+  return true;
+}
+
+// Ball sprites from Showdown
+const BALL_SPRITES = {
+  pokeball:  'https://play.pokemonshowdown.com/sprites/itemicons/poke-ball.png',
+  greatball: 'https://play.pokemonshowdown.com/sprites/itemicons/great-ball.png',
+  ultraball: 'https://play.pokemonshowdown.com/sprites/itemicons/ultra-ball.png',
+  duskball:  'https://play.pokemonshowdown.com/sprites/itemicons/dusk-ball.png',
 };
 
-let state    = loadState() || structuredClone(BASE_STATE);
-let settings = loadSettings();
-let pendingNpcChallenge = null;
-
-// ── UTILS ────────────────────────────────────────────────
-function pokeSprite(species_en) {
-  return `https://play.pokemonshowdown.com/sprites/gen5/${species_en}.png`;
-}
-function pokeSpriteFromFR(species_fr) {
-  const en = FR_TO_EN[species_fr.toLowerCase()] || species_fr;
-  return `https://play.pokemonshowdown.com/sprites/gen5/${en}.png`;
-}
-function pick(list)   { return list[Math.floor(Math.random() * list.length)]; }
-function addLog(text) { state.log.unshift(`[T${state.turn}] ${text}`); state.log = state.log.slice(0, 200); }
-// saveState/loadState/loadSettings → voir bloc slot-aware en haut du fichier
-function saveSettings() { localStorage.setItem('pf.settings', JSON.stringify(settings)); }
-
-// Capacités par espèce (EN) — 4 moves Gen1, on en attribue 2 aléatoirement
-const POKEMON_MOVES = {
-  bulbasaur:   ['Fouet Lianes','Vampigraine','Charge','Poudre Dodo'],
-  ivysaur:     ['Fouet Lianes','Tranch\'Herbe','Vampigraine','Poudre Toxik'],
-  venusaur:    ['Lance-Soleil','Danse-Fleur','Tranch\'Herbe','Poudre Dodo'],
-  charmander:  ['Griffe','Flammèche','Brouillard','Frénésie'],
-  charmeleon:  ['Lance-Flamme','Tranche','Griffe','Frénésie'],
-  charizard:   ['Lance-Flamme','Déflagration','Danse Lames','Cru-Aile'],
-  squirtle:    ['Pistolet à O','Repli','Charge','Morsure'],
-  wartortle:   ['Pistolet à O','Morsure','Abri','Surf'],
-  blastoise:   ['Hydrocanon','Surf','Laser Glace','Morsure'],
-  caterpie:    ['Charge','Sécrétion','Charge','Sécrétion'],
-  metapod:     ['Armure','Charge','Armure','Charge'],
-  butterfree:  ['Choc Mental','Poudre Dodo','Cyclone','Ultrason'],
-  weedle:      ['Dard-Venin','Sécrétion','Dard-Venin','Sécrétion'],
-  kakuna:      ['Armure','Dard-Venin','Armure','Dard-Venin'],
-  beedrill:    ['Dard-Venin','Double-Dard','Furie','Hâte'],
-  pidgey:      ['Charge','Tornade','Vive-Attaque','Jet de Sable'],
-  pidgeotto:   ['Cru-Aile','Vive-Attaque','Cyclone','Tornade'],
-  pidgeot:     ['Cru-Aile','Lame d\'Air','Cyclone','Vive-Attaque'],
-  rattata:     ['Charge','Vive-Attaque','Croc de Mort','Morsure'],
-  raticate:    ['Croc de Mort','Vive-Attaque','Plaquage','Poursuite'],
-  spearow:     ['Picpic','Furie','Poursuite','Bec Vrille'],
-  fearow:      ['Bec Vrille','Furie','Aéropique','Poursuite'],
-  ekans:       ['Morsure','Ligotage','Acide','Regard Médusant'],
-  arbok:       ['Morsure','Acide','Crocs Venin','Intimidation'],
-  pikachu:     ['Tonnerre','Vive-Attaque','Cage Éclair','Queue de Fer'],
-  raichu:      ['Tonnerre','Fatal-Foudre','Vive-Attaque','Surf'],
-  sandshrew:   ['Griffe','Jet de Sable','Tranche','Tunnel'],
-  sandslash:   ['Tranche','Tunnel','Séisme','Tempête de Sable'],
-  'nidoran-f': ['Griffe','Dard-Venin','Morsure','Double Pied'],
-  nidorina:    ['Morsure','Dard-Venin','Griffe','Plaquage'],
-  nidoqueen:   ['Plaquage','Séisme','Surf','Laser Glace'],
-  'nidoran-m': ['Koud\'Korne','Dard-Venin','Double Pied','Furie'],
-  nidorino:    ['Koud\'Korne','Dard-Venin','Morsure','Furie'],
-  nidoking:    ['Séisme','Mégacorne','Surf','Lance-Flamme'],
-  clefairy:    ['Métronome','Torgnoles','Berceuse','Reflet'],
-  clefable:    ['Métronome','Plaquage','Berceuse','Éclat Magique'],
-  vulpix:      ['Flammèche','Vive-Attaque','Danse-Flamme','Hurlement'],
-  ninetales:   ['Lance-Flamme','Vive-Attaque','Onde Folie','Feu Follet'],
-  jigglypuff:  ['Berceuse','Torgnoles','Charge','Roulade'],
-  wigglytuff:  ['Plaquage','Berceuse','Torgnoles','Éclat Magique'],
-  zubat:       ['Vampirisme','Ultrason','Morsure','Onde Folie'],
-  golbat:      ['Vampirisme','Cru-Aile','Morsure','Onde Folie'],
-  oddish:      ['Méga-Sangsue','Poudre Toxik','Acide','Poudre Dodo'],
-  gloom:       ['Méga-Sangsue','Acide','Danse-Fleur','Poudre Toxik'],
-  vileplume:   ['Danse-Fleur','Méga-Sangsue','Poudre Dodo','Acide'],
-  paras:       ['Griffe','Spore','Vampigraine','Tranche'],
-  parasect:    ['Spore','Tranche','Vampigraine','Coupe'],
-  venonat:     ['Choc Mental','Poudre Toxik','Ultrason','Psyko'],
-  venomoth:    ['Psyko','Poudre Toxik','Cyclone','Ultrason'],
-  diglett:     ['Tunnel','Griffe','Tranche','Séisme'],
-  dugtrio:     ['Séisme','Tunnel','Tranche','Piège de Roc'],
-  meowth:      ['Griffe','Morsure','Jackpot','Bluff'],
-  persian:     ['Tranche','Jackpot','Morsure','Vive-Attaque'],
-  psyduck:     ['Griffe','Choc Mental','Pistolet à O','Amnésie'],
-  golduck:     ['Surf','Psyko','Hydrocanon','Amnésie'],
-  mankey:      ['Griffe','Poing-Karaté','Frénésie','Balayage'],
-  primeape:    ['Poing-Karaté','Frénésie','Balayage','Mania'],
-  growlithe:   ['Flammèche','Morsure','Roue de Feu','Grondement'],
-  arcanine:    ['Lance-Flamme','Vitesse Extrême','Morsure','Déflagration'],
-  poliwag:     ['Pistolet à O','Hypnose','Torgnoles','Bulles d\'O'],
-  poliwhirl:   ['Surf','Hypnose','Plaquage','Bulles d\'O'],
-  poliwrath:   ['Surf','Soumission','Hypnose','Séisme'],
-  abra:        ['Téléport','Choc Mental','Téléport','Choc Mental'],
-  kadabra:     ['Psyko','Choc Mental','Téléport','Soin'],
-  alakazam:    ['Psyko','Soin','Laser Glace','Tonnerre'],
-  machop:      ['Poing-Karaté','Balayage','Frappe Atlas','Vendetta'],
-  machoke:     ['Poing-Karaté','Soumission','Frappe Atlas','Balayage'],
-  machamp:     ['Soumission','Poing-Karaté','Séisme','Frappe Atlas'],
-  bellsprout:  ['Fouet Lianes','Acide','Vampigraine','Ligotage'],
-  weepinbell:  ['Tranch\'Herbe','Acide','Ligotage','Poudre Dodo'],
-  victreebel:  ['Tranch\'Herbe','Acide','Lance-Soleil','Ligotage'],
-  tentacool:   ['Dard-Venin','Acide','Surf','Ultrason'],
-  tentacruel:  ['Surf','Dard-Venin','Acide','Siphon'],
-  geodude:     ['Charge','Jet-Pierres','Séisme','Armure'],
-  graveler:    ['Jet-Pierres','Séisme','Charge','Destruction'],
-  golem:       ['Séisme','Jet-Pierres','Explosion','Plaquage'],
-  ponyta:      ['Flammèche','Charge','Roue de Feu','Hâte'],
-  rapidash:    ['Lance-Flamme','Mégacorne','Roue de Feu','Hâte'],
-  slowpoke:    ['Choc Mental','Pistolet à O','Amnésie','Bâillement'],
-  slowbro:     ['Psyko','Surf','Amnésie','Lance-Flamme'],
-  magnemite:   ['Cage Éclair','Étincelle','Ultrason','Tonnerre'],
-  magneton:    ['Tonnerre','Étincelle','Cage Éclair','Tri Attaque'],
-  farfetchd:   ['Tranche','Cru-Aile','Danse Lames','Hâte'],
-  doduo:       ['Picpic','Furie','Poursuite','Bec Vrille'],
-  dodrio:      ['Bec Vrille','Furie','Tri Attaque','Hâte'],
-  seel:        ['Laser Glace','Aqua-Jet','Plaquage','Repos'],
-  dewgong:     ['Laser Glace','Surf','Aqua-Jet','Repos'],
-  grimer:      ['Détritus','Acide','Plaquage','Direct Toxik'],
-  muk:         ['Détritus','Direct Toxik','Acide','Plaquage'],
-  shellder:    ['Pistolet à O','Repli','Laser Glace','Claquoir'],
-  cloyster:    ['Laser Glace','Surf','Picanon','Repli'],
-  gastly:      ['Léchouille','Hypnose','Ombre Nocturne','Onde Folie'],
-  haunter:     ['Ball\'Ombre','Hypnose','Ombre Nocturne','Onde Folie'],
-  gengar:      ['Ball\'Ombre','Hypnose','Cauchemar','Tonnerre'],
-  onix:        ['Jet-Pierres','Ligotage','Tunnel','Charge'],
-  drowzee:     ['Choc Mental','Hypnose','Psyko','Coup d\'Boule'],
-  hypno:       ['Psyko','Hypnose','Cauchemar','Onde Folie'],
-  krabby:      ['Pince-Masse','Bulles d\'O','Armure','Guillotine'],
-  kingler:     ['Pince-Masse','Surf','Guillotine','Armure'],
-  voltorb:     ['Étincelle','Destruction','Cage Éclair','Roulade'],
-  electrode:   ['Tonnerre','Explosion','Cage Éclair','Roulade'],
-  exeggcute:   ['Choc Mental','Vampigraine','Pilonnage','Hypnose'],
-  exeggutor:   ['Psyko','Lance-Soleil','Pilonnage','Hypnose'],
-  cubone:      ['Osmerang','Coup d\'Boule','Charge','Frénésie'],
-  marowak:     ['Osmerang','Séisme','Coup d\'Boule','Danse Lames'],
-  hitmonlee:   ['Mawashi Geri','Pied Brûleur','Balayage','Pied Voltige'],
-  hitmonchan:  ['Mach Punch','Poing de Feu','Poing Éclair','Poing Glace'],
-  lickitung:   ['Léchouille','Ligotage','Plaquage','Tranche'],
-  koffing:     ['Détritus','Purédpois','Destruction','Charge'],
-  weezing:     ['Détritus','Purédpois','Explosion','Lance-Flamme'],
-  rhyhorn:     ['Charge','Koud\'Korne','Piétisol','Séisme'],
-  rhydon:      ['Séisme','Mégacorne','Surf','Jet-Pierres'],
-  chansey:     ['Torgnoles','Œuf Mimique','E-Coque','Tonnerre'],
-  tangela:     ['Fouet Lianes','Étreinte','Vampigraine','Poudre Dodo'],
-  kangaskhan:  ['Mégacorne','Plaquage','Séisme','Tranche'],
-  horsea:      ['Pistolet à O','Cyclone','Bulles d\'O','Brouillard'],
-  seadra:      ['Hydrocanon','Laser Glace','Cyclone','Bulles d\'O'],
-  goldeen:     ['Koud\'Korne','Cascade','Hâte','Furie'],
-  seaking:     ['Cascade','Koud\'Korne','Mégacorne','Surf'],
-  staryu:      ['Pistolet à O','Vive-Attaque','Soin','Tonnerre'],
-  starmie:     ['Psyko','Surf','Tonnerre','Soin'],
-  'mr-mime':   ['Choc Mental','Mur Lumière','Protection','Psyko'],
-  scyther:     ['Tranche','Cru-Aile','Danse Lames','Vive-Attaque'],
-  jynx:        ['Psyko','Laser Glace','Grobisou','Berceuse'],
-  electabuzz:  ['Tonnerre','Poing Éclair','Vive-Attaque','Cage Éclair'],
-  magmar:      ['Lance-Flamme','Poing de Feu','Brouillard','Déflagration'],
-  pinsir:      ['Plaie-Croix','Guillotine','Tranche','Soumission'],
-  tauros:      ['Plaquage','Séisme','Bélier','Frénésie'],
-  magikarp:    ['Trempette','Charge','Trempette','Charge'],
-  gyarados:    ['Hydrocanon','Morsure','Tonnerre','Ouragan'],
-  lapras:      ['Surf','Laser Glace','Plaquage','Berceuse'],
-  ditto:       ['Morphing','Morphing','Morphing','Morphing'],
-  eevee:       ['Charge','Vive-Attaque','Morsure','Jet de Sable'],
-  vaporeon:    ['Surf','Laser Glace','Vive-Attaque','Brouillard'],
-  jolteon:     ['Tonnerre','Vive-Attaque','Cage Éclair','Double Pied'],
-  flareon:     ['Lance-Flamme','Vive-Attaque','Morsure','Brouillard'],
-  porygon:     ['Tri Attaque','Psyko','Tonnerre','Laser Glace'],
-  omanyte:     ['Pistolet à O','Morsure','Repli','Surf'],
-  omastar:     ['Surf','Jet-Pierres','Laser Glace','Picanon'],
-  kabuto:      ['Griffe','Pistolet à O','Armure','Tranche'],
-  kabutops:    ['Tranche','Surf','Séisme','Danse Lames'],
-  aerodactyl:  ['Cru-Aile','Morsure','Hâte','Bec Vrille'],
-  snorlax:     ['Plaquage','Repos','Séisme','Coup d\'Boule'],
-  articuno:    ['Blizzard','Laser Glace','Cru-Aile','Brume'],
-  zapdos:      ['Fatal-Foudre','Tonnerre','Bec Vrille','Cage Éclair'],
-  moltres:     ['Déflagration','Lance-Flamme','Cru-Aile','Hâte'],
-  dratini:     ['Ligotage','Cage Éclair','Surf','Hâte'],
-  dragonair:   ['Draco-Rage','Surf','Tonnerre','Hâte'],
-  dragonite:   ['Draco-Rage','Surf','Tonnerre','Déflagration'],
-  mewtwo:      ['Psyko','Laser Glace','Tonnerre','Soin'],
-  mew:         ['Psyko','Métronome','Surf','Lance-Flamme'],
-};
-
-// Crée un objet Pokémon à partir d'un nom FR
-function makePokemon(species_fr, level) {
-  const species_en = FR_TO_EN[species_fr.toLowerCase()] || species_fr;
-  // Attribue 2 capacités aléatoires parmi les 4 possibles
-  const movePool = POKEMON_MOVES[species_en.toLowerCase()] || ['Charge','Griffe','Morsure','Plaquage'];
-  const shuffled = [...movePool].sort(() => Math.random() - 0.5);
-  const moves = [shuffled[0], shuffled[1]];
+// ── SFX Engine (Web Audio API) ────────────────────────────────
+const SFX = (() => {
+  let ctx;
+  function getCtx() {
+    if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+    return ctx;
+  }
+  function playTone(freq, duration, type = 'square', volume = 0.15) {
+    const c = getCtx();
+    const osc = c.createOscillator();
+    const gain = c.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, c.currentTime);
+    gain.gain.setValueAtTime(volume, c.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, c.currentTime + duration);
+    osc.connect(gain);
+    gain.connect(c.destination);
+    osc.start();
+    osc.stop(c.currentTime + duration);
+  }
   return {
-    id:`pk-${Date.now()}-${Math.floor(Math.random()*9999)}`,
-    species_fr, species_en,
-    level: level || 5+Math.floor(Math.random()*8),
-    moves,
-    assignedAgentId: null,
-    stars: 0,       // 0-3 étoiles (fusion)
+    ballThrow() {
+      // Whoosh sound: descending noise
+      playTone(800, 0.15, 'sawtooth', 0.08);
+      setTimeout(() => playTone(400, 0.1, 'sawtooth', 0.06), 80);
+    },
+    capture(potential, shiny) {
+      // Base capture jingle
+      const base = 520;
+      playTone(base, 0.12, 'square', 0.12);
+      setTimeout(() => playTone(base * 1.25, 0.12, 'square', 0.12), 100);
+      setTimeout(() => playTone(base * 1.5, 0.15, 'square', 0.12), 200);
+      // Extra notes for high potential
+      if (potential >= 4) {
+        setTimeout(() => playTone(base * 2, 0.2, 'square', 0.15), 320);
+      }
+      if (potential >= 5 || shiny) {
+        setTimeout(() => playTone(base * 2.5, 0.25, 'sine', 0.18), 440);
+        setTimeout(() => playTone(base * 3, 0.3, 'sine', 0.15), 580);
+      }
+      if (shiny) {
+        // Sparkle effect
+        setTimeout(() => {
+          for (let i = 0; i < 5; i++) {
+            setTimeout(() => playTone(1200 + i * 200, 0.08, 'sine', 0.1), i * 60);
+          }
+        }, 700);
+      }
+    },
+    error() {
+      playTone(200, 0.2, 'sawtooth', 0.1);
+    },
+  };
+})();
+
+// ════════════════════════════════════════════════════════════════
+//  4.  POKEMON MODULE
+// ════════════════════════════════════════════════════════════════
+
+function rollNature() { return pick(NATURE_KEYS); }
+
+function rollPotential(ballType) {
+  const dist = BALLS[ballType]?.potential || BALLS.pokeball.potential;
+  const r = Math.random() * 100;
+  let acc = 0;
+  let result = 1;
+  for (let i = 0; i < dist.length; i++) {
+    acc += dist[i];
+    if (r < acc) { result = i + 1; break; }
+  }
+  // Lucky Incense: +1 potential (capped at 5)
+  if (isBoostActive('incense') && result < 5) result++;
+  return result;
+}
+
+function rollShiny() {
+  // Shiny Aura: x5 rate (1/40 instead of 1/200)
+  const rate = isBoostActive('aura') ? 0.025 : 0.005;
+  return Math.random() < rate;
+}
+
+function rollMoves(speciesEN) {
+  const sp = SPECIES_BY_EN[speciesEN];
+  if (!sp) return ['Charge', 'Griffe'];
+  const pool = [...sp.moves];
+  // Shuffle and pick 2 unique (or as many as available)
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  const unique = [...new Set(pool)];
+  return unique.slice(0, 2);
+}
+
+function calculateStats(pokemon) {
+  const sp = SPECIES_BY_EN[pokemon.species_en];
+  if (!sp) return { atk: 10, def: 10, spd: 10 };
+  const nat = NATURES[pokemon.nature] || NATURES.hardy;
+  const potMult = 1 + pokemon.potential * 0.1;
+  const lvlMult = 1 + pokemon.level / 100;
+  return {
+    atk: Math.round(sp.baseAtk * potMult * nat.atk * lvlMult),
+    def: Math.round(sp.baseDef * potMult * nat.def * lvlMult),
+    spd: Math.round(sp.baseSpd * potMult * nat.spd * lvlMult),
+  };
+}
+
+function makePokemon(speciesEN, zoneId, ballType = 'pokeball') {
+  const sp = SPECIES_BY_EN[speciesEN];
+  if (!sp) return null;
+  const nature = rollNature();
+  const potential = rollPotential(ballType);
+  const shiny = rollShiny();
+  const level = randInt(3, 12);
+  const pokemon = {
+    id: `pk-${uid()}`,
+    species_fr: sp.fr,
+    species_en: sp.en,
+    dex: sp.dex,
+    level,
+    xp: 0,
+    nature,
+    potential,
+    shiny,
+    moves: rollMoves(speciesEN),
+    capturedIn: zoneId,
+    stats: {},
+    assignedTo: null,
     cooldown: 0,
   };
+  pokemon.stats = calculateStats(pokemon);
+  return pokemon;
 }
 
-// ============================================================
-// POKÉMON CAP + STANDBY + FUSION
-// ============================================================
-
-// Cap = 5 de base, +5 tous les 3 tours
-function getPokemonCap() {
-  const baseCap = 5;
-  const bonusPerCycle = 5;
-  const cycleLength = 3;
-  return baseCap + Math.floor((state.turn - 1) / cycleLength) * bonusPerCycle;
+function getPokemonPower(pokemon) {
+  const s = pokemon.stats;
+  return s.atk + s.def + s.spd;
 }
 
-// Ajoute un Pokémon en respectant le cap — surplus → standby
-function addPokemonWithCap(pok) {
-  if (!state.pokemonStandby) state.pokemonStandby = [];
-  const cap = getPokemonCap();
-  if (state.pokemons.length < cap) {
-    state.pokemons.push(pok);
-    state.newPokemonsThisTurn.push(pok);
-  } else {
-    state.pokemonStandby.push(pok);
-    addLog(lang === 'fr'
-      ? `📦 ${pok.species_fr} mis en attente (limite ${cap} atteinte).`
-      : `📦 ${pok.species_fr} put on standby (cap ${cap} reached).`);
+function levelUpPokemon(pokemon, xpGain) {
+  pokemon.xp += xpGain;
+  const xpNeeded = pokemon.level * 20;
+  let leveled = false;
+  while (pokemon.xp >= xpNeeded && pokemon.level < 100) {
+    pokemon.xp -= xpNeeded;
+    pokemon.level++;
+    leveled = true;
   }
+  if (leveled) pokemon.stats = calculateStats(pokemon);
+  return leveled;
 }
 
-// Appelé à chaque augmentation de cap : récupère les standby
-function releaseStandbyPokemon() {
-  if (!state.pokemonStandby?.length) return;
-  const cap = getPokemonCap();
-  while (state.pokemons.length < cap && state.pokemonStandby.length > 0) {
-    const pok = state.pokemonStandby.shift();
-    state.pokemons.push(pok);
-    state.newPokemonsThisTurn.push(pok);
-    addLog(lang === 'fr'
-      ? `📦→ ${pok.species_fr} récupéré depuis le standby !`
-      : `📦→ ${pok.species_fr} released from standby!`);
+// ════════════════════════════════════════════════════════════════
+//  5.  ZONE MODULE
+// ════════════════════════════════════════════════════════════════
+
+function initZone(zoneId) {
+  if (!state.zones[zoneId]) {
+    state.zones[zoneId] = {
+      unlocked: false,
+      combatsWon: 0,
+      assignedAgents: [],
+      invested: false, // zone investment (unlock elite + events)
+      investPower: 0,  // total pokemon power committed
+    };
   }
+  // Migration: add fields if missing
+  if (state.zones[zoneId].invested === undefined) state.zones[zoneId].invested = false;
+  if (state.zones[zoneId].investPower === undefined) state.zones[zoneId].investPower = 0;
+  return state.zones[zoneId];
 }
 
-// ── FUSION : combat même espèce ─────────────────────────
-// ★0 + ★0 → ★1 (2 Pokémon)
-// ★1 + ★1 → ★2 (besoin de 2 ★1)
-// ★2 + ★2 + ★2 → ★3 (besoin de 3 ★2)
-const STAR_BONUSES = {
-  1: { label:'★',   bonusLevel: 2, trait: null },
-  2: { label:'★★',  bonusLevel: 4, trait: 'résistant' },
-  3: { label:'★★★', bonusLevel: 8, trait: 'élite' },
-};
-
-// Combien de Pokémon même espèce/même étoile faut-il pour monter ?
-function fusionCost(currentStars) {
-  if (currentStars === 0) return 2; // 2x ★0 → ★1
-  if (currentStars === 1) return 2; // 2x ★1 → ★2
-  if (currentStars === 2) return 3; // 3x ★2 → ★3
-  return Infinity;
+function isZoneUnlocked(zoneId) {
+  const zone = ZONE_BY_ID[zoneId];
+  return zone && state.gang.reputation >= zone.rep;
 }
 
-// Trouve les doublons fusionnables (même espèce, même étoile)
-function findFusionCandidates(pkm) {
-  const stars = pkm.stars || 0;
-  if (stars >= 3) return [];
-  const needed = fusionCost(stars);
-  return state.pokemons.filter(p =>
-    p.id !== pkm.id &&
-    p.species_fr?.toLowerCase() === pkm.species_fr?.toLowerCase() &&
-    (p.stars || 0) === stars
-  ).slice(0, needed - 1);
-}
-
-function canFuse(pkm) {
-  if (!pkm) return false;
-  const stars = pkm.stars || 0;
-  if (stars >= 3) return false;
-  const candidates = findFusionCandidates(pkm);
-  return candidates.length >= (fusionCost(stars) - 1);
-}
-
-function fusePokemon(winnerId) {
-  const winner = state.pokemons.find(p => p.id === winnerId);
-  if (!winner || !canFuse(winner)) return false;
-
-  const stars = winner.stars || 0;
-  const needed = fusionCost(stars) - 1; // combien sacrifier
-  const sacrifices = findFusionCandidates(winner).slice(0, needed);
-  if (sacrifices.length < needed) return false;
-
-  // Sacrifier les doublons
-  const sacrificeIds = sacrifices.map(s => s.id);
-  sacrificeIds.forEach(sId => {
-    state.agents.forEach(a => { a.team = (a.team||[]).filter(id => id !== sId); });
-    const lost = state.pokemons.find(p => p.id === sId);
-    if (lost) markPokedexLost(lost.species_fr);
-  });
-  state.pokemons = state.pokemons.filter(p => !sacrificeIds.includes(p.id));
-
-  // Promotion
-  winner.stars = stars + 1;
-  const starData = STAR_BONUSES[winner.stars];
-  winner.level += starData.bonusLevel;
-
-  if (starData.trait) {
-    if (!winner.fusionTraits) winner.fusionTraits = [];
-    if (!winner.fusionTraits.includes(starData.trait)) {
-      winner.fusionTraits.push(starData.trait);
-    }
-  }
-
-  const starLabel = '★'.repeat(winner.stars);
-  const costLabel = `${needed + 1}× ${sacrifices[0]?.species_fr||'?'}`;
-  addLog(lang === 'fr'
-    ? `⚔️ Fusion ${costLabel} → ${winner.species_fr} ${starLabel} (Niv.${winner.level}) !`
-    : `⚔️ Fusion ${costLabel} → ${winner.species_fr} ${starLabel} (Lv.${winner.level})!`);
-
-  saveState(); render();
-  return true;
-}
-
-// ── LLM ─────────────────────────────────────────────────
-async function callOllama(prompt, fallback) {
-  if (!settings.llmEnabled) return fallback;
-  try {
-    const res = await fetch(`${settings.baseUrl.replace(/\/$/,'')}/api/generate`, {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ model:settings.model, prompt, stream:false }),
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-    return data.response?.trim() || fallback;
-  } catch { return fallback; }
-}
-
-function buildNpcSystemPrompt(npc) {
-  return `Tu incarnes un personnage dans un jeu de gestion criminelle inspiré de Pokémon.
-
-Fiche personnage :
-Nom : ${npc.name}
-Rôle : ${npc.role || npc.rank || 'PNJ'}
-Faction : ${npc.faction || 'Team Rocket'}
-Personnalité : ${(npc.personality||[]).join(', ')}
-Valeurs : ${(npc.values||[]).join(', ')}
-Style : ton ${npc.speech_style?.tone || 'neutre'}
-Réplique type : "${(npc.catch_phrases||['...'])[0]}"
-Pokémon préférés (noms FR) : ${(npc.possible_pokemon||[]).join(', ')}
-
-Réponds toujours en français. Reste dans le personnage. Maximum deux phrases.`;
-}
-
-// ── NPC GENERATOR ────────────────────────────────────────
-function generateNPC() {
-  const gender   = Math.random() > 0.5 ? 'male' : 'female';
-  const firstName= pick(gender === 'male' ? NPC_FIRST_NAMES_M : NPC_FIRST_NAMES_F);
-  const lastName = pick(NPC_LAST_NAMES);
-  const role     = pick(NPC_ROLES);
-  const primaryType = pick(role.types);
-  const pool = POKEMON_FR_POOL_BY_TYPE[primaryType] || POKEMON_FR_POOL_BY_TYPE.poison;
-  const possible_pokemon = [...new Set([pick(pool), pick(pool), pick(pool)])];
-  const sprite = `https://play.pokemonshowdown.com/sprites/trainers/${pick(role.sprites)}.png`;
-
-  return {
-    id: `npc-${Date.now()}-${Math.floor(Math.random()*9999)}`,
-    name: `${firstName} ${lastName}`,
-    firstName, lastName, gender,
-    age: 14 + Math.floor(Math.random() * 38),
-    role: role.id, faction: role.faction,
-    personality: [pick(role.traits), pick(role.traits)],
-    orientation: 'villain',
-    trust_level: 1 + Math.floor(Math.random() * 4),
-    goals: { short_term:'Survivre et servir.', long_term:'Monter en grade.' },
-    values: [pick(['argent','pouvoir','loyauté','survie']), pick(['ordre','chaos','respect','force'])],
-    speech_style: { tone: pick(['froid','nerveux','confiant','agressif']), verbosity:'medium', formality:'low' },
-    catch_phrases: [pick(NPC_CATCHPHRASES)],
-    pokemon_preferences: [primaryType],
-    possible_pokemon,
-    sprite,
-    missions: [],
-    memories: [], relationships: {}, events_history: [],
-    hiddenScore: 3 + Math.floor(Math.random() * 5),
-  };
-}
-
-function initRecruit() {
-  const npc = generateNPC();
-  state.recruit = { npc, candidateName:npc.name, candidateRole:npc.role, interactions:0, hiddenScore:npc.hiddenScore, transcript:[], finished:false };
-}
-
-// Missions v3 supprimées — voir MISSIONS_V2 / rollAvailableMissionsV2 / resolveMissionV2
-
-// ── ÉVÉNEMENTS ALÉATOIRES ─────────────────────────────────
-const RANDOM_EVENTS = [
-  { id:'ev1', texte:'Un dresseur perdu débarque dans votre base. Il veut rejoindre.', effet: (s) => { s.reputation = Math.min(100, s.reputation+1); }},
-  { id:'ev2', texte:'Inspection de la police ! Vous perdez 200 Pokédollars en pots-de-vin.', effet: (s) => { s.resources.pokedollars = Math.max(0, s.resources.pokedollars-200); }},
-  { id:'ev3', texte:'Un Magicarpe s\'est faufilé dans les réserves d\'eau. +1 point d\'élevage.', effet: (s) => { s.resources.breedingPoints += 1; }},
-  { id:'ev4', texte:'Trafic d\'informations : +3 Intel récupérés discrètement.', effet: (s) => { s.resources.intel += 3; }},
-  { id:'ev5', texte:'Rivalité interne : deux agents se disputent. Réputation -1.', effet: (s) => { s.reputation = Math.max(0, s.reputation-1); }},
-  { id:'ev6', texte:'Don anonyme de la Team Rocket centrale : +500 Pokédollars.', effet: (s) => { s.resources.pokedollars += 500; }},
-];
-
-function rollRandomEvent() {
-  if (Math.random() < 0.35) {
-    const ev = pick(RANDOM_EVENTS);
-    ev.effet(state);
-    addLog(`⚡ Événement : ${ev.texte}`);
-  }
-}
-
-// ── RENDER ───────────────────────────────────────────────
-function renderResources() {
-  const labels = { pokedollars:'💰 Pokédollars', capturePoints:'🎣 Capture', breedingPoints:'🥚 Élevage', intel:'🔍 Intel' };
-  ui.resourcesGrid.innerHTML = Object.entries(state.resources)
-    .map(([k,v]) => `<div class="stat"><strong>${labels[k]||k}</strong><div>${v}</div></div>`)
-    .join('') + `<div class="stat"><strong>⭐ Réputation</strong><div>${state.reputation||0}/100</div></div>`;
-}
-
-// renderRooms v3 supprimée — voir renderRoomsV2
-
-function renderPokemonPanels() {
-  const cap = getPokemonCap();
-  const standbyCount = (state.pokemonStandby||[]).length;
-  const capLabel = lang === 'fr'
-    ? `<div style="font-size:.7em;color:var(--muted);margin-bottom:6px">Pokémon : ${state.pokemons.length}/${cap}${standbyCount ? ` · 📦 ${standbyCount} en attente` : ''}</div>`
-    : `<div style="font-size:.7em;color:var(--muted);margin-bottom:6px">Pokémon: ${state.pokemons.length}/${cap}${standbyCount ? ` · 📦 ${standbyCount} standby` : ''}</div>`;
-
-  ui.pokemonOwnedList.innerHTML = capLabel + state.pokemons.map(p => {
-    const agent = state.agents.find(a => a.id === p.assignedAgentId);
-    const spFR = p.species_fr || p.species_en || p.species;
-    const spEN = p.species_en || FR_TO_EN[spFR?.toLowerCase()] || spFR;
-    const starStr = (p.stars||0) > 0 ? `<span style="color:#ffcc5a">${'★'.repeat(p.stars)}</span>` : '';
-    const traitStr = (p.fusionTraits||[]).length ? `<span style="color:#70e0a4;font-size:.7em">[${p.fusionTraits.join(',')}]</span>` : '';
-    const cdStr = (p.cooldown||0) > 0 ? `<span style="color:#7060a8;font-size:.7em"> [${p.cooldown}t]</span>` : '';
-
-    // Cherche si ce Pokémon peut fusionner (assez de doublons même étoile)
-    const canFuseThis = canFuse(p);
-    const needed = fusionCost(p.stars||0);
-    const fuseBtn = canFuseThis
-      ? `<button class="small" style="font-size:.6em;padding:2px 6px" onclick="fusePokemon('${p.id}')">${lang==='fr'?`⚔️ Fusionner (${needed}x)`:`⚔️ Fuse (${needed}x)`}</button>`
-      : '';
-
-    return `<div class="card pokemon" style="flex-wrap:wrap;gap:4px">
-      <img class="poke-sprite" src="${pokeSprite(spEN)}" alt="${spFR}">
-      <div>
-        <div>${spFR} Niv.${p.level} ${starStr} ${traitStr}${cdStr}</div>
-        <small>${agent ? `→ ${agent.name}` : (lang==='fr'?'Non assigné':'Unassigned')}</small>
-      </div>
-      ${fuseBtn}
-    </div>`;
-  }).join('');
-
-  ui.pokemonNewList.innerHTML = state.newPokemonsThisTurn.length
-    ? state.newPokemonsThisTurn.map(p => {
-        const spFR = p.species_fr || p.species_en || p.species;
-        const spEN = p.species_en || FR_TO_EN[spFR?.toLowerCase()] || spFR;
-        return `<div class="card pokemon">
-          <img class="poke-sprite" src="${pokeSprite(spEN)}" alt="${spFR}">
-          <div>${spFR} Niv.${p.level}</div>
-        </div>`;
-      }).join('')
-    : `<div class="card">${lang==='fr'?'Aucun nouveau Pokémon ce tour.':'No new Pokémon this turn.'}</div>`;
-}
-
-// ── PC-STYLE POKÉMON MANAGEMENT ──────────────────────────
-function renderPokemonPC() {
-  const el = document.getElementById('pokemonPC');
-  if (!el) return;
-
-  const cap = getPokemonCap();
-  const standbyCount = (state.pokemonStandby||[]).length;
-
-  // Header avec compteur
-  const headerFr = `Pokémon : ${state.pokemons.length}/${cap}${standbyCount ? ` · 📦 ${standbyCount} en attente` : ''}`;
-  const headerEn = `Pokémon: ${state.pokemons.length}/${cap}${standbyCount ? ` · 📦 ${standbyCount} standby` : ''}`;
-
-  // Nouveaux ce tour
-  const newPkm = state.newPokemonsThisTurn || [];
-  const newBadge = newPkm.length ? ` <span style="color:#70e0a4;font-size:.8em">+${newPkm.length} new</span>` : '';
-
-  // Grille de tous les Pokémon
-  const grid = state.pokemons.map(p => {
-    const spFR = p.species_fr || p.species_en || p.species;
-    const spEN = p.species_en || FR_TO_EN[spFR?.toLowerCase()] || spFR;
-    const agent = state.agents.find(a => (a.team||[]).includes(p.id));
-    const inTraining = (state.rooms?.pkm_train?.assignedPokemonIds||[]).includes(p.id);
-    const cd = (p.cooldown||0) > 0;
-    const stars = (p.stars||0) > 0 ? `<div class="pc-stars">${'★'.repeat(p.stars)}</div>` : '';
-    const isNew = newPkm.some(np => np.id === p.id);
-
-    let badgeHtml = '';
-    if (agent) badgeHtml = `<span class="pc-badge" style="background:#3a5a2a;color:#aaffaa">→${agent.name.slice(0,3)}</span>`;
-    else if (inTraining) badgeHtml = `<span class="pc-badge" style="background:#2a3a5a;color:#aaaaff">🏋️</span>`;
-    else if (cd) badgeHtml = `<span class="pc-badge" style="background:#3a2a5a;color:#aaaaff">${p.cooldown}t</span>`;
-
-    const classes = ['pc-slot', agent?'assigned':'', cd?'cooldown':''].filter(Boolean).join(' ');
-
-    return `<div class="${classes}" onclick="openPokemonContext(event,'${p.id}')" ${isNew?'style="border-color:#70e0a4;box-shadow:0 0 8px rgba(112,224,164,.3)"':''}>
-      ${badgeHtml}
-      <img src="${pokeSprite(spEN)}" alt="${spFR}">
-      <div class="pc-name">${spFR}</div>
-      <div class="pc-info">Nv.${p.level}${(p.moves||[]).length?` · ${p.moves.join(' / ')}`:''}</div>
-      ${stars}
-    </div>`;
-  }).join('');
-
-  // Équipes des agents
-  const teams = state.agents.map(a => {
-    const sprite = a.sprite ? `<img class="agent-sprite" src="${a.sprite}" onerror="this.style.display='none'">` : '';
-    const agentCd = (a.cooldown||0) > 0 ? ` <span style="color:#7060a8">[${a.cooldown}t]</span>` : '';
-    const teamPkm = (a.team||[]).map(id => {
-      const p = state.pokemons.find(x => x.id === id);
-      if (!p) return '';
-      const en = FR_TO_EN[(p.species_fr||'').toLowerCase()] || p.species_en || 'pikachu';
-      return `<img src="${pokeSprite(en)}" title="${p.species_fr} Nv.${p.level}">`;
-    }).join('');
-    const teamLabel = (a.team||[]).length ? '' : `<span style="color:var(--muted)">${lang==='fr'?'Aucun Pokémon':'No Pokémon'}</span>`;
-    return `<div class="pc-team-row">
-      ${sprite}<strong>${a.name}</strong>${agentCd}
-      <div class="team-pkm">${teamPkm}${teamLabel}</div>
-    </div>`;
-  }).join('');
-
-  // Fusion candidates count
-  const fusable = state.pokemons.filter(p => canFuse(p)).length;
-  const fuseInfo = fusable ? `<span style="color:#ffcc5a;font-size:.7em"> · ⚔️ ${fusable} ${lang==='fr'?'fusionnable(s)':'fusable'}</span>` : '';
-
-  el.innerHTML = `
-    <div class="pc-header">
-      <span>${lang==='fr'?headerFr:headerEn}${newBadge}${fuseInfo}</span>
-    </div>
-    <div class="pc-grid">${grid || `<div style="color:var(--muted);font-size:.6em;grid-column:1/-1;text-align:center;padding:16px">${lang==='fr'?'Aucun Pokémon':'No Pokémon'}</div>`}</div>
-    <div style="font-size:.55em;color:var(--accent);margin-top:10px;letter-spacing:.05em">${lang==='fr'?'ÉQUIPES':'TEAMS'}</div>
-    <div class="pc-teams">${teams}</div>
-  `;
-}
-
-// Menu contextuel Pokémon (clic sur un slot du PC)
-function openPokemonContext(event, pkmId) {
-  // Ferme un menu existant
-  document.getElementById('pcContextMenu')?.remove();
-  event.stopPropagation();
-
-  const p = state.pokemons.find(x => x.id === pkmId);
-  if (!p) return;
-
-  const spFR = p.species_fr || p.species;
-  const currentAgent = state.agents.find(a => (a.team||[]).includes(p.id));
-  const inTraining = (state.rooms?.pkm_train?.assignedPokemonIds||[]).includes(p.id);
-  const cd = (p.cooldown||0) > 0;
-  const canFuseThis = canFuse(p);
-
-  const menu = document.createElement('div');
-  menu.id = 'pcContextMenu';
-  menu.className = 'pc-context';
-
-  // Position near click
-  const x = Math.min(event.clientX, window.innerWidth - 200);
-  const y = Math.min(event.clientY, window.innerHeight - 250);
-  menu.style.left = x + 'px';
-  menu.style.top = y + 'px';
-
-  const stars = (p.stars||0) > 0 ? ` ${'★'.repeat(p.stars)}` : '';
-  let btns = '';
-
-  // Assigner à un agent
-  const freeAgents = state.agents.filter(a => (a.team||[]).length < 3 && a.id !== currentAgent?.id);
-  if (freeAgents.length) {
-    freeAgents.forEach(a => {
-      btns += `<button onclick="pcAssignTo('${pkmId}','${a.id}')">${lang==='fr'?'→ Équipe de':'→ Team'} ${a.name}</button>`;
-    });
-  }
-
-  // Retirer de l'équipe
-  if (currentAgent) {
-    btns += `<button onclick="pcUnassign('${pkmId}','${currentAgent.id}')">${lang==='fr'?'✕ Retirer de':'✕ Remove from'} ${currentAgent.name}</button>`;
-  }
-
-  // Salle d'entraînement
-  const ptr = state.rooms?.pkm_train;
-  if (ptr && !inTraining) {
-    const slots = pkmTrainSlots(ptr);
-    if ((ptr.assignedPokemonIds||[]).length < slots) {
-      btns += `<button onclick="pcSendTraining('${pkmId}')">${lang==='fr'?'🏋️ Salle d\'entraînement':'🏋️ Training Room'}</button>`;
-    }
-  }
-  if (inTraining) {
-    btns += `<button onclick="pcRemoveTraining('${pkmId}')">${lang==='fr'?'✕ Retirer entraînement':'✕ Remove training'}</button>`;
-  }
-
-  // Fusion
-  if (canFuseThis) {
-    const cost = fusionCost(p.stars||0);
-    btns += `<button onclick="fusePokemon('${pkmId}');document.getElementById('pcContextMenu')?.remove();render();">⚔️ ${lang==='fr'?`Fusionner (${cost}x)`:`Fuse (${cost}x)`}</button>`;
-  }
-
-  // Repos forcé / Relâcher
-  btns += `<button onclick="pcRelease('${pkmId}')" style="color:#ff6666">${lang==='fr'?'🔓 Relâcher':'🔓 Release'}</button>`;
-
-  menu.innerHTML = `
-    <div class="pc-ctx-header">${spFR} Nv.${p.level}${stars}${cd?' [repos]':''}
-      ${(p.moves||[]).length ? `<div style="font-size:.85em;color:#aaa;margin-top:3px">💥 ${p.moves.join(' / ')}</div>` : ''}
-    </div>
-    ${btns}
-  `;
-  document.body.appendChild(menu);
-
-  // Ferme sur clic extérieur
-  setTimeout(() => {
-    const close = (e) => { if (!menu.contains(e.target)) { menu.remove(); document.removeEventListener('click', close); } };
-    document.addEventListener('click', close);
-  }, 10);
-}
-
-// Actions du PC
-function pcAssignTo(pkmId, agentId) {
-  const agent = state.agents.find(a => a.id === agentId);
-  const p = state.pokemons.find(x => x.id === pkmId);
-  if (!agent || !p) return;
-  // Retire d'un autre agent si déjà assigné
-  state.agents.forEach(a => { a.team = (a.team||[]).filter(id => id !== pkmId); });
-  if ((agent.team||[]).length >= 3) { addLog(lang==='fr'?'Équipe pleine (3 max).':'Team full (3 max).'); }
-  else {
-    agent.team.push(pkmId);
-    p.assignedAgentId = agentId;
-    if ((p.cooldown||0)>0) addLog(`⚠️ ${p.species_fr} ${lang==='fr'?'est en repos':'is resting'} (${p.cooldown}t)`);
-    addLog(`${p.species_fr} → ${agent.name}`);
-  }
-  document.getElementById('pcContextMenu')?.remove();
-  saveState(); render();
-}
-
-function pcUnassign(pkmId, agentId) {
-  const agent = state.agents.find(a => a.id === agentId);
-  if (agent) agent.team = (agent.team||[]).filter(id => id !== pkmId);
-  const p = state.pokemons.find(x => x.id === pkmId);
-  if (p) p.assignedAgentId = null;
-  document.getElementById('pcContextMenu')?.remove();
-  saveState(); render();
-}
-
-function pcSendTraining(pkmId) {
-  const ptr = state.rooms?.pkm_train;
-  if (!ptr) return;
-  ptr.assignedPokemonIds = [...(ptr.assignedPokemonIds||[]), pkmId];
-  addLog(`🏋️ ${state.pokemons.find(p=>p.id===pkmId)?.species_fr} ${lang==='fr'?'envoyé en entraînement':'sent to training'}`);
-  document.getElementById('pcContextMenu')?.remove();
-  saveState(); render();
-}
-
-function pcRemoveTraining(pkmId) {
-  const ptr = state.rooms?.pkm_train;
-  if (ptr) ptr.assignedPokemonIds = (ptr.assignedPokemonIds||[]).filter(id => id !== pkmId);
-  document.getElementById('pcContextMenu')?.remove();
-  saveState(); render();
-}
-
-function pcRelease(pkmId) {
-  const p = state.pokemons.find(x => x.id === pkmId);
-  if (!p) return;
-  if (!confirm(lang==='fr' ? `Relâcher ${p.species_fr} ? Cette action est irréversible.` : `Release ${p.species_fr}? This cannot be undone.`)) return;
-  state.agents.forEach(a => { a.team = (a.team||[]).filter(id => id !== pkmId); });
-  if (state.rooms?.pkm_train) state.rooms.pkm_train.assignedPokemonIds = (state.rooms.pkm_train.assignedPokemonIds||[]).filter(id => id !== pkmId);
-  markPokedexLost(p.species_fr);
-  state.pokemons = state.pokemons.filter(x => x.id !== pkmId);
-  addLog(`🔓 ${p.species_fr} ${lang==='fr'?'a été relâché.':'has been released.'}`);
-  document.getElementById('pcContextMenu')?.remove();
-  saveState(); render();
-}
-
-function renderTeamBuilder() {
-  ui.agentSelect.innerHTML  = state.agents.map(a => {
-    const onMission = (state.missions||[]).some(mi => mi.agentId === a.id);
-    const cd = (a.cooldown||0) > 0;
-    const tag = onMission ? ` ⏳` : cd ? ` [${a.cooldown}t]` : '';
-    return `<option value="${a.id}" ${cd||onMission?'style="color:#7060a8"':''}>${a.name} – ${a.rank}${tag}</option>`;
-  }).join('');
-  // Filtre : ne montre que les Pokémon non déjà assignés à un autre agent
-  const assignedIds = new Set(state.agents.flatMap(a => a.team||[]));
-  const selectedAgentId = ui.agentSelect?.value;
-  const selectedAgentTeam = new Set((state.agents.find(a=>a.id===selectedAgentId)?.team||[]));
-  const availablePkm = state.pokemons.filter(p => !assignedIds.has(p.id) || selectedAgentTeam.has(p.id));
-  ui.pokemonSelect.innerHTML = availablePkm.map(p => {
-    const spFR = p.species_fr || p.species;
-    const cd = (p.cooldown||0) > 0;
-    const cdTag = cd ? ` [${lang==='fr'?'repos':'rest'} ${p.cooldown}t]` : '';
-    const starTag = (p.stars||0) > 0 ? ` ${'★'.repeat(p.stars)}` : '';
-    return `<option value="${p.id}" ${cd?'style="color:#7060a8"':''}>${spFR} Nv.${p.level}${starTag}${cdTag}</option>`;
-  }).join('');
-  ui.agentTeams.innerHTML = state.agents.map(a => {
-    const pkmInfo = a.team.map(id => {
-      const p = state.pokemons.find(x => x.id === id);
-      if (!p) return null;
-      const name = p.species_fr || p.species;
-      const cd = (p.cooldown||0) > 0 ? ` <span style="color:#7060a8;font-size:.85em">[${p.cooldown}t]</span>` : '';
-      const en = FR_TO_EN[(p.species_fr||'').toLowerCase()] || p.species_en || 'pikachu';
-      return `<span style="display:inline-flex;align-items:center;gap:2px"><img src="https://play.pokemonshowdown.com/sprites/gen5/${en}.png" style="width:24px;image-rendering:pixelated">${name}${cd}</span>`;
-    }).filter(Boolean);
-    const sprite = a.sprite ? `<img src="${a.sprite}" style="height:40px;vertical-align:middle;margin-right:6px;">` : '';
-    const agentCd = (a.cooldown||0) > 0 ? ` <span style="color:#7060a8;font-size:.75em">[repos ${a.cooldown}t]</span>` : '';
-    return `<div class="card">${sprite}<strong>${a.name}</strong> — ${a.rank}${agentCd}
-      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px"><small>${pkmInfo.length ? pkmInfo.join('') : (lang==='fr'?'Aucune équipe':'No team')}</small></div>
-    </div>`;
-  }).join('');
-}
-
-function renderAgentsAndRecruitment() {
-  ui.agentsList.innerHTML = state.agents.map(a => {
-    const enMission = (state.missions||[]).some(mi => mi.agentId === a.id);
-    const sprite = a.sprite ? `<img src="${a.sprite}" style="height:36px;vertical-align:middle;margin-right:6px;">` : '';
-    const traits = (a.personality||[]).join(', ');
-    return `<div class="card">${sprite}<strong>${a.name}</strong> — ${a.rank}
-      ${enMission ? '<span style="color:#e53"> [en mission]</span>' : ''}
-      <div><small>${traits}</small></div>
-    </div>`;
-  }).join('');
-
-  if (!state.recruit) initRecruit();
-  if (!state.recruit.npc) initRecruit();
-  const r = state.recruit;
-  const npc = r.npc;
-
-  const spriteImg = npc?.sprite ? `<img src="${npc.sprite}" style="height:48px;vertical-align:middle;margin-right:8px;">` : '';
-  const traits = (npc?.personality||[]).join(', ');
-  const pkmnFR  = (npc?.possible_pokemon||[]).join(', ');
-  const phrase  = (npc?.catch_phrases||['...'])[0];
-
-  ui.recruitCandidate.innerHTML = r.finished
-    ? `<div class="card"><em>Recrutement terminé. Un nouveau candidat au prochain tour.</em></div>`
-    : `<div class="card" style="display:flex;align-items:center;gap:8px;">
-        ${spriteImg}
-        <div>
-          <strong>${r.candidateName}</strong> — ${r.candidateRole}<br>
-          <small>Traits : ${traits}</small><br>
-          <small>Pokémon : ${pkmnFR}</small><br>
-          <small><em>"${phrase}"</em></small><br>
-          <small>Interaction ${r.interactions}/5 — Score caché : ${'★'.repeat(Math.round(r.hiddenScore/2))}</small>
-        </div>
-      </div>`;
-
-  ui.recruitTranscript.innerHTML = r.transcript.length
-    ? r.transcript.map(line => `<div class="logline">${line}</div>`).join('')
-    : '<div class="log">Démarre une discussion de recrutement.</div>';
-}
-
-function renderNpcs() {
-  ui.npcList.innerHTML = state.npcs.map(npc => {
-    const sprite = npc.sprite ? `<img src="${npc.sprite}" style="height:32px;vertical-align:middle;margin-right:6px;">` : '';
-    return `<button class="card" ${npc.name===state.selectedNpc?'style="outline:2px solid #e53"':''} data-npc="${npc.name}">
-      ${sprite}${npc.name} <small>${npc.mood}</small>
-    </button>`;
-  }).join('');
-  ui.npcList.querySelectorAll('[data-npc]').forEach(btn => {
-    btn.onclick = () => { state.selectedNpc = btn.dataset.npc; render(); };
-  });
-}
-
-// render() et processTurn() → voir versions V5 en bas du fichier
-
-// ── TEAM ASSIGNMENT ──────────────────────────────────────
-function assignTeam() {
-  const agentId = ui.agentSelect.value;
-  const selectedIds = Array.from(ui.pokemonSelect.selectedOptions).map(o => o.value).slice(0,3);
-  const agent = state.agents.find(a => a.id === agentId);
-  if (!agent) return;
-
-  // Warn if agent is on cooldown
-  if ((agent.cooldown||0) > 0) {
-    addLog(lang==='fr'
-      ? `⚠️ ${agent.name} est en repos (${agent.cooldown} tour(s) restant(s)).`
-      : `⚠️ ${agent.name} is resting (${agent.cooldown} turn(s) left).`);
-  }
-
-  // Warn about Pokémon on cooldown
-  const cdPkm = selectedIds.map(id => state.pokemons.find(x=>x.id===id)).filter(p => p && (p.cooldown||0)>0);
-  if (cdPkm.length) {
-    const names = cdPkm.map(p => `${p.species_fr||p.species} (${p.cooldown}t)`).join(', ');
-    addLog(lang==='fr'
-      ? `⚠️ Pokémon en repos : ${names}`
-      : `⚠️ Pokémon resting: ${names}`);
-  }
-
-  agent.team.forEach(id => { const p = state.pokemons.find(x => x.id===id); if (p) p.assignedAgentId=null; });
-  agent.team = selectedIds;
-  selectedIds.forEach(id => { const p = state.pokemons.find(x => x.id===id); if (p) p.assignedAgentId=agent.id; });
-  addLog(lang==='fr'
-    ? `Équipe assignée à ${agent.name} (${agent.team.length}/3).`
-    : `Team assigned to ${agent.name} (${agent.team.length}/3).`);
-  saveState(); render();
-}
-
-// ── TRAINING BATTLE ──────────────────────────────────────
-async function runTrainingBattle() {
-  const difficulty = ui.difficultySelect.value;
-  const agent = state.agents.find(a => a.id === ui.agentSelect.value) || state.agents[0];
-  const teamEN = agent.team.map(id => { const p = state.pokemons.find(x => x.id===id); return p?.species_en || (p ? FR_TO_EN[p.species_fr?.toLowerCase()] : null); }).filter(Boolean);
-  if (!teamEN.length) { ui.trainingResult.textContent = 'Assigne au moins un Pokémon à un agent.'; return; }
-  let summary;
-  try {
-    const res = await fetch('http://localhost:8081/api/pokellmon/resolve', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ difficulty, mode:'training-room', player:{name:agent.name,team:teamEN}, npc:{name:`Training-${difficulty}`,team:difficulty==='hard'?['alakazam','starmie','snorlax']:difficulty==='normal'?['raichu','arbok','golbat']:['rattata','pidgey','oddish']} }),
-    });
-    if (res.ok) summary = (await res.json()).summary;
-  } catch {}
-  if (!summary) summary = pick({ easy:['Victoire nette en salle d\'entraînement.','Victoire avec quelques dégâts.'], normal:['Match serré, victoire tactique.','Défaite serrée, progrès notable.'], hard:['Défaite lourde.','Victoire surprise !'] }[difficulty]);
-  ui.trainingResult.textContent = summary;
-  addLog(`Combat entraînement (${difficulty}) : ${summary}`);
-  saveState(); render();
-}
-
-// ── RECRUITMENT ──────────────────────────────────────────
-async function recruitStep() {
-  const r = state.recruit;
-  if (!r || r.finished) return;
-  const message = ui.recruitMessage.value.trim();
-  if (!message) return;
-  ui.recruitMessage.value = '';
-  r.interactions += 1;
-  r.transcript.push(`Vous : ${message}`);
-
-  const npc = r.npc;
-  const systemPrompt = buildNpcSystemPrompt(npc);
-  const fullPrompt = `${systemPrompt}\n\nMessage du recruteur : "${message}"\n\nRéponds en JSON strict : {"reply":"...","scoreDelta":-2..2}`;
-  const fallback = JSON.stringify({ reply:`${r.candidateName} : Je t'écoute, mais je veux des garanties.`, scoreDelta: message.length > 25 ? 1 : 0 });
-  const llmOutput = await callOllama(fullPrompt, fallback);
-
-  let reply = `${r.candidateName} : Je t'écoute, mais je veux des garanties.`;
-  let delta  = 0;
-  try {
-    const jsonText = llmOutput.includes('{') ? llmOutput.slice(llmOutput.indexOf('{'), llmOutput.lastIndexOf('}')+1) : llmOutput;
-    const parsed = JSON.parse(jsonText);
-    reply = parsed.reply || reply;
-    delta = Math.max(-2, Math.min(2, Number(parsed.scoreDelta)||0));
-  } catch {
-    delta = message.includes('ressources')||message.includes('team')||message.includes('Rocket') ? 1 : 0;
-  }
-
-  r.hiddenScore = Math.max(1, Math.min(10, r.hiddenScore + delta));
-  r.transcript.push(`${r.candidateName} : ${reply}`);
-
-  if (r.interactions >= 5) {
-    r.finished = true;
-    if (r.hiddenScore >= 5) {
-      const newAgent = { id:`ag-${Date.now()}`, name:r.candidateName, rank:r.candidateRole, team:[], sprite:npc.sprite, personality:npc.personality, catch_phrases:npc.catch_phrases, pokemon_preferences:npc.pokemon_preferences, missions:[] };
-      state.agents.push(newAgent);
-      npc.possible_pokemon.forEach(spFR => addPokemonWithCap(makePokemon(spFR)));
-      state.npcs.push({ name:`${r.candidateName}-contact`, mood:'loyal', sprite:npc.sprite, catch_phrases:npc.catch_phrases });
-      state.reputation = Math.min(100, (state.reputation||0)+3);
-      addLog(`✅ Recrutement réussi : ${r.candidateName} rejoint la team.`);
-    } else {
-      addLog(`❌ Recrutement échoué : ${r.candidateName} refuse l'offre.`);
-    }
-  }
-  saveState(); render();
-}
-
-// ── NPC CHAT ─────────────────────────────────────────────
-async function talkToNpc() {
-  const msg = ui.npcMessage.value.trim();
-  if (!msg) return;
-  ui.npcMessage.value = '';
-  const npc = state.npcs.find(n => n.name===state.selectedNpc) || state.npcs[0];
-  if (/défi|dfi|combat|duel|challenge/i.test(msg)) {
-    pendingNpcChallenge = npc;
-    ui.challengeBody.textContent = `Acceptez-vous le défi de ${npc.name} ?`;
-    ui.challengeOverlay.classList.remove('hidden');
-    return;
-  }
-  const fallback = `${npc.name} : La base tourne, reste efficace.`;
-  const answer = await callOllama(`${buildNpcSystemPrompt(npc)}\n\nMessage reçu : "${msg}"\nRéponds en une phrase.`, fallback);
-  addLog(`CHAT → ${msg}`); addLog(answer);
-  saveState(); render();
-}
-
-async function acceptNpcChallenge() {
-  ui.challengeOverlay.classList.add('hidden');
-  const npc = pendingNpcChallenge; pendingNpcChallenge = null;
-  if (!npc) return;
-  addLog(`Défi accepté contre ${npc.name}.`);
-  let result;
-  try {
-    const res = await fetch('http://localhost:8081/api/pokellmon/resolve', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ mode:'npc-challenge', player:{name:`${state.profile.firstName} ${state.profile.lastName}`,team:['ekans','koffing','zubat']}, npc:{name:npc.name,team:['pikachu','pidgeotto','rattata']} }),
-    });
-    if (res.ok) result = (await res.json()).summary;
-  } catch {}
-  if (!result) result = pick(['Victoire Rocket au tour 7.','Défaite Rocket, repli stratégique.','Match nul brutal.']);
-  addLog(`Résultat : ${result}`);
-  saveState(); render();
-}
-function refuseNpcChallenge() {
-  ui.challengeOverlay.classList.add('hidden');
-  if (pendingNpcChallenge) addLog(`Défi refusé. ${pendingNpcChallenge.name} se moque de toi.`);
-  pendingNpcChallenge = null; saveState(); render();
-}
-
-// ── SAVE/EXPORT ──────────────────────────────────────────
-function exportFile(filename, content) {
-  const blob = new Blob([content],{type:'text/plain;charset=utf-8'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a'); a.href=url; a.download=filename; a.click(); URL.revokeObjectURL(url);
-}
-
-function openIntro() {
-  ui.spriteSelect.innerHTML = TRAINER_SPRITES.map((src,i) => `<option value="${src}">Sprite ${i+1}</option>`).join('');
-  ui.teamInput.value=state.profile.team; ui.firstNameInput.value=state.profile.firstName;
-  ui.lastNameInput.value=state.profile.lastName; ui.spriteSelect.value=state.profile.sprite;
-  ui.spritePreview.src=state.profile.sprite;
-}
-
-function bindEvents() {
-  // Helper: safe bind — skip if element is null
-  const on = (el, evt, fn) => { if (el) el[evt] = fn; };
-  const listen = (el, evt, fn) => { if (el) el.addEventListener(evt, fn); };
-
-  on(ui.nextTurnBtn,           'onclick', processTurn);
-  on(ui.assignTeamBtn,         'onclick', assignTeam);
-  on(ui.startTrainingFightBtn, 'onclick', runTrainingBattle);
-  on(ui.sendRecruitBtn,        'onclick', recruitStep);
-  listen(ui.recruitMessage, 'keydown', e => { if(e.key==='Enter') recruitStep(); });
-  on(ui.npcSendBtn, 'onclick', talkToNpc);
-  listen(ui.npcMessage, 'keydown', e => { if(e.key==='Enter') talkToNpc(); });
-  on(ui.challengeYesBtn,  'onclick', acceptNpcChallenge);
-  on(ui.challengeNoBtn,   'onclick', refuseNpcChallenge);
-  on(ui.openSettingsBtn,  'onclick', () => ui.settingsOverlay.classList.remove('hidden'));
-  on(ui.closeSettingsBtn, 'onclick', () => ui.settingsOverlay.classList.add('hidden'));
-
-  // Purge cache (sprites + assets)
-  const purgeBtn = document.getElementById('purgeCacheBtn');
-  if (purgeBtn) purgeBtn.onclick = async () => {
-    if ('caches' in window) {
-      const names = await caches.keys();
-      await Promise.all(names.map(n => caches.delete(n)));
-    }
-    addLog(lang==='fr' ? '🗑️ Cache purgé. Rechargement…' : '🗑️ Cache purged. Reloading…');
-    saveState();
-    location.reload(true);
-  };
-  on(ui.spriteSelect, 'onchange', () => { ui.spritePreview.src = ui.spriteSelect.value; });
-  on(ui.introStartBtn, 'onclick', () => {
-    state.profile.team=ui.teamInput.value.trim()||'Team Rocket';
-    state.profile.firstName=ui.firstNameInput.value.trim()||'Ari';
-    state.profile.lastName=ui.lastNameInput.value.trim()||'Voss';
-    state.profile.sprite=ui.spriteSelect.value;
-    state.profile.initialized=true;
-    addLog(`Profil créé : ${state.profile.firstName} ${state.profile.lastName} — ${state.profile.team}`);
-    saveState(); render();
-  });
-  on(ui.llmEnabledToggle, 'onchange', () => { settings.llmEnabled=ui.llmEnabledToggle.checked; saveSettings(); render(); });
-  on(ui.baseUrlInput, 'onchange', () => { settings.baseUrl=ui.baseUrlInput.value.trim(); saveSettings(); });
-  on(ui.modelInput,   'onchange', () => { settings.model=ui.modelInput.value.trim(); saveSettings(); });
-  if (ui.testOllamaBtn) ui.testOllamaBtn.onclick = async () => {
-    try {
-      const r = await fetch(`${settings.baseUrl.replace(/\/$/,'')}/api/tags`);
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      const data = await r.json();
-      ui.llmStatus.textContent = `OK — ${data.models?.map(m=>m.name.slice(0,8)).join(', ')}`;
-    } catch(e) { ui.llmStatus.textContent = `Erreur Ollama : ${e.message}`; }
-  };
-  on(ui.saveBtn,       'onclick', () => { saveState(); if(ui.llmStatus) ui.llmStatus.textContent='Save locale OK'; });
-  on(ui.loadBtn,       'onclick', () => { const l=loadState(); if(l){state=l;render();} });
-  on(ui.resetBtn,      'onclick', () => { localStorage.removeItem('pokeforge.rocket-hq.state'); state=structuredClone(BASE_STATE); openIntro(); addLog('Bienvenue dans Rocket HQ.'); render(); });
-  on(ui.exportSaveBtn, 'onclick', () => exportFile('rocket-hq-save.txt', JSON.stringify(state,null,2)));
-  on(ui.importSaveBtn, 'onclick', () => ui.saveFileInput?.click());
-  if (ui.saveFileInput) ui.saveFileInput.onchange = () => {
-    const file = ui.saveFileInput.files?.[0]; if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => { try { state={...structuredClone(BASE_STATE),...JSON.parse(reader.result)}; addLog('Save importée.'); saveState(); render(); } catch { if(ui.llmStatus) ui.llmStatus.textContent='Fichier invalide.'; } };
-    reader.readAsText(file); ui.saveFileInput.value='';
-  };
-  on(ui.exportCodeBtn, 'onclick', () => { const code=btoa(unescape(encodeURIComponent(JSON.stringify(state)))); navigator.clipboard?.writeText(code); if(ui.llmStatus) ui.llmStatus.textContent=`Code copié : ${code.slice(0,36)}…`; });
-  on(ui.importCodeBtn, 'onclick', () => { const code=prompt('Colle le code :'); if(!code) return; try { state={...structuredClone(BASE_STATE),...JSON.parse(decodeURIComponent(escape(atob(code.trim()))))}; addLog('Save importée via code.'); saveState(); render(); } catch { if(ui.llmStatus) ui.llmStatus.textContent='Code invalide.'; } });
-  on(ui.exportLogsBtn, 'onclick', () => exportFile('rocket-hq-logs.txt', state.log.join('\n')));
-}
-
-// ── BOOT (déplacé en fin de fichier pour éviter les erreurs de hoisting) ──
-
-
-// ============================================================
-// MODULE v4.01 — WORLD VIEW
-// ============================================================
-
-// ============================================================
-// PATCH v4.01 — WORLD VIEW MODULE
-// À injecter dans app.js après les déclarations de constantes
-// ============================================================
-
-// ── WORLD VIEW CONFIG ────────────────────────────────────
-const WORLD_POKEMON_POOL = [
-  { fr:'abo',       en:'ekans',    rarity:0.6 },
-  { fr:'nosferapti',en:'zubat',    rarity:0.6 },
-  { fr:'smogo',     en:'koffing',  rarity:0.5 },
-  { fr:'miaouss',   en:'meowth',   rarity:0.5 },
-  { fr:'fantominus',en:'gastly',   rarity:0.3 },
-  { fr:'magneti',   en:'magnemite',rarity:0.3 },
-  { fr:'voltorbe',  en:'voltorb',  rarity:0.25 },
-  { fr:'soporifik', en:'drowzee',  rarity:0.2 },
-  { fr:'osselait',  en:'cubone',   rarity:0.2 },
-  { fr:'magicarpe', en:'magikarp', rarity:0.15 },
-  { fr:'nidoran♀',  en:'nidoran-f',rarity:0.15 },
-  { fr:'ptéra',     en:'aerodactyl',rarity:0.04 },
-  { fr:'mewtwo',    en:'mewtwo',   rarity:0.01 },
-];
-
-const ZONE_BACKGROUNDS = {
-  default:   'linear-gradient(160deg,#1a0a2e 0%,#0d1a0d 60%,#0a0a1a 100%)',
-  marais:    'linear-gradient(160deg,#0a1a0a 0%,#1a2a10 50%,#0a2a0a 100%)',
-  grotte:    'linear-gradient(160deg,#1a1010 0%,#2a1a10 50%,#1a0808 100%)',
-  silph:     'linear-gradient(160deg,#0a0a2a 0%,#1a1a3a 50%,#2a0a2a 100%)',
-  safari:    'linear-gradient(160deg,#1a2a00 0%,#2a3a10 50%,#1a2a08 100%)',
-  route:     'linear-gradient(160deg,#0a1a0a 0%,#1a2a1a 50%,#0a2a0a 100%)',
-};
-
-// ── WORLD VIEW STATE ─────────────────────────────────────
-// Ajouté au BASE_STATE :
-// worldPokemon: []  ← liste des pkm visibles dans la vue monde
-
-function initWorldView() {
-  if (!state.worldPokemon) state.worldPokemon = [];
-}
-
-// Spawn d'un Pokémon sauvage toutes les ~8s
-let worldSpawnInterval = null;
-function startWorldSpawner() {
-  if (worldSpawnInterval) clearInterval(worldSpawnInterval);
-  worldSpawnInterval = setInterval(() => {
-    if (!state.profile.initialized) return;
-    // Max 3 Pokémon à la fois dans la zone
-    if ((state.worldPokemon||[]).length >= 3) return;
-    spawnWorldPokemon();
-  }, 16000);
-}
-
-function spawnWorldPokemon() {
-  // Tirage pondéré par rareté
-  const total = WORLD_POKEMON_POOL.reduce((s,p) => s+p.rarity, 0);
-  let r = Math.random() * total;
-  let chosen = WORLD_POKEMON_POOL[0];
-  for (const p of WORLD_POKEMON_POOL) { r -= p.rarity; if (r <= 0) { chosen = p; break; } }
-
-  const entry = {
-    uid:    `wp-${Date.now()}-${Math.floor(Math.random()*9999)}`,
-    fr:     chosen.fr,
-    en:     chosen.en,
-    x:      15 + Math.random() * 70, // % de la largeur de la bande
-    level:  3 + Math.floor(Math.random() * 12),
-    spawnedAt: Date.now(),
-    ttl:    12000, // disparaît après 12s
-  };
-  state.worldPokemon = [...(state.worldPokemon||[]), entry];
-  renderWorldView();
-
-  // Auto-disparition
-  setTimeout(() => {
-    state.worldPokemon = (state.worldPokemon||[]).filter(p => p.uid !== entry.uid);
-    renderWorldView();
-  }, entry.ttl);
-}
-
-function tryCapture(uid) {
-  const pkm = (state.worldPokemon||[]).find(p => p.uid === uid);
-  if (!pkm) return;
-
-  const cost = 50; // Pokédollars
-  if (state.resources.pokedollars < cost) {
-    addLog(lang==='fr' ? `Pas assez de Pokédollars pour capturer ! (50₽ requis)` : `Not enough Pokédollars to capture! (50₽ needed)`);
-    return;
-  }
-
-  state.resources.pokedollars -= cost;
-  state.worldPokemon = (state.worldPokemon||[]).filter(p => p.uid !== uid);
-
-  // Taux de succès : 40% + 1% par point de réputation
-  const chance = 40 + (state.reputation || 0);
-  const success = Math.random() * 100 < chance;
-
-  if (success) {
-    const newPkm = makePokemon(pkm.fr, pkm.level);
-    state.pokemons.push(newPkm);
-    state.newPokemonsThisTurn.push(newPkm);
-    updatePokedex(pkm.fr);
-    addLog(lang==='fr'
-      ? `⚡ Capture réussie : ${pkm.fr} Nv.${pkm.level} !`
-      : `⚡ Captured: ${pkm.fr} Lv.${pkm.level}!`);
-    showCaptureFlash(true, pkm.fr);
-  } else {
-    addLog(lang==='fr'
-      ? `💨 ${pkm.fr} a fui ! (-50₽)`
-      : `💨 ${pkm.fr} fled! (-50₽)`);
-    showCaptureFlash(false, pkm.fr);
-  }
-  saveState(); render();
-}
-
-function showCaptureFlash(success, name) {
-  const band = document.getElementById('worldBand');
-  if (!band) return;
-  const flash = document.createElement('div');
-  flash.style.cssText = `
-    position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
-    background:${success?'rgba(112,224,164,0.9)':'rgba(255,68,102,0.85)'};
-    color:#000;font-family:'Press Start 2P',monospace;font-size:.65em;
-    padding:8px 14px;border-radius:8px;z-index:20;pointer-events:none;
-    animation:flashFade 1.5s forwards;
-  `;
-  flash.textContent = success ? `✓ ${name} !` : `✗ ${name} fuit !`;
-  band.appendChild(flash);
-  setTimeout(() => flash.remove(), 1500);
-}
-
-function renderWorldView() {
-  const band = document.getElementById('worldBand');
-  if (!band) return;
-
-  // Fond dynamique selon mission active
-  const activeMission = (state.missions||[]).find(m => m.turnsLeft > 0);
-  const activeDef = activeMission ? MISSIONS.find(x => x.id === activeMission.missionId) : null;
-  const zoneBg = ZONE_BACKGROUNDS[activeDef?.zone || 'default'];
-  band.style.background = zoneBg;
-
-  // Nettoie les sprites existants (garder QG)
-  band.querySelectorAll('.world-pokemon,.world-capture-anim').forEach(el => el.remove());
-
-  // Pokémon dans la bande
-  (state.worldPokemon||[]).forEach(pkm => {
-    const el = document.createElement('div');
-    el.className = 'world-pokemon';
-    el.style.cssText = `left:${pkm.x}%;`;
-    el.innerHTML = `
-      <img src="https://play.pokemonshowdown.com/sprites/gen5/${pkm.en}.png"
-           style="width:48px;height:48px;image-rendering:pixelated;">
-      <div style="font-size:.45em;text-align:center;margin-top:2px;color:#ffcc5a">${pkm.fr}<br>Nv.${pkm.level}</div>
-    `;
-    el.onclick = () => tryCapture(pkm.uid);
-    band.appendChild(el);
-  });
-}
-
-
-// ============================================================
-// MODULE v4.02 — MISSION SIMULATION
-// ============================================================
-
-// ============================================================
-// PATCH v4.02 — MISSION SIMULATION MODULE
-// ============================================================
-
-const ZONE_BG_STYLES = {
-  default: { bg:'#0d1a0d', label:'Kanto', stars:true },
-  marais:  { bg:'linear-gradient(160deg,#0a1a06 0%,#142a08 100%)', label:'Marais Cramois', stars:false },
-  grotte:  { bg:'linear-gradient(160deg,#140a06 0%,#2a1408 100%)', label:'Grotte Sombre', stars:false },
-  silph:   { bg:'linear-gradient(160deg,#06060a 0%,#14143a 100%)', label:'Tour Silph Co.', stars:true },
-  safari:  { bg:'linear-gradient(160deg,#0a1a00 0%,#1a2a08 100%)', label:'Zone Safari', stars:false },
-  route:   { bg:'linear-gradient(160deg,#0a1a0a 0%,#182a18 100%)', label:'Route 1', stars:false },
-  centre:  { bg:'linear-gradient(160deg,#180a1a 0%,#0a0a18 100%)', label:'Centre Pokémon', stars:true },
-  labo:    { bg:'linear-gradient(160deg,#0a0f1a 0%,#1a2a3a 100%)', label:'Laboratoire Chen', stars:false },
-  arene:   { bg:'linear-gradient(160deg,#1a0a06 0%,#3a1a08 100%)', label:'Arène de Jadielle', stars:false },
-  sommet:  { bg:'linear-gradient(160deg,#1a1a2a 0%,#0a0a1a 60%,#020208 100%)', label:'Mont Argenté', stars:true },
-};
-
-const MISSION_ZONE_MAP = {
-  m1:'centre', m2:'grotte', m3:'safari', m4:'silph', m5:'route', m6:'grotte',
-  m_vol_centre:'centre', m_vol_dresseur:'route',
-  m_raid_marais:'marais', m_raid_safari:'safari', m_raid_grotte:'grotte',
-  m_trafic_fossiles:'grotte', m_silph:'silph',
-  m_event_legendaire:'default',
-  // Antagonistes
-  m_antag_chen_labo:'labo', m_antag_chen_conf:'centre',
-  m_antag_silver_embu:'route', m_antag_silver_vol:'grotte',
-  m_antag_blue_arene:'arene',
-  // Boss
-  m_boss_red:'sommet',
-};
-
-// Dialogues de simulation par phase (FR/EN)
-const SIM_DIALOGUES = {
-  fr: {
-    approach: [
-      "On approche de la zone. Silence.",
-      "La cible est en vue. On reste groupés.",
-      "Aucun agent ennemi détecté. On y va.",
-    ],
-    combat: [
-      "Allez, montre-leur ce qu'on vaut !",
-      "Fonce ! Ne leur laisse pas le temps !",
-      "Tiens bon ! On n'abandonne pas !",
-    ],
-    success: [
-      "Mission accomplie. Repli immédiat.",
-      "Bien joué. Giovanni sera satisfait.",
-      "On a ce qu'on est venu chercher.",
-    ],
-    failure: [
-      "Retraite ! On se retrouve au QG.",
-      "Maudit soit ce jour. On se replie.",
-      "On reviendra. Mais pas aujourd'hui.",
-    ],
-    jenny: [
-      "L'Agent Jenny ! Vite, fuyez !",
-      "Police ! Abandonnez le butin et courez !",
-    ],
-    pkm_appears: [
-      "Un Pokémon sauvage surgit !",
-      "Attention, Pokémon hostile !",
-    ],
-  },
-  en: {
-    approach: [
-      "Approaching the zone. Silence.",
-      "Target in sight. Stay together.",
-      "No enemy agents detected. Let's go.",
-    ],
-    combat: [
-      "Go, show them what we're worth!",
-      "Charge! Don't give them time!",
-      "Hold on! We don't give up!",
-    ],
-    success: [
-      "Mission complete. Immediate retreat.",
-      "Well done. Giovanni will be pleased.",
-      "We got what we came for.",
-    ],
-    failure: [
-      "Retreat! Meet at HQ.",
-      "Damn this day. We fall back.",
-      "We'll be back. But not today.",
-    ],
-    jenny: [
-      "Officer Jenny! Run!",
-      "Police! Drop everything and run!",
-    ],
-    pkm_appears: [
-      "A wild Pokémon appears!",
-      "Hostile Pokémon!",
-    ],
-  },
-};
-
-// ── POPUP MISSION RÉSOLUTION ──────────────────────────
-function showMissionPopup(missionDef, agentObj, result) {
-  const L = SIM_DIALOGUES[lang] || SIM_DIALOGUES.fr;
-  const zone = MISSION_ZONE_MAP[missionDef.id] || 'default';
-  const zoneDef = ZONE_BG_STYLES[zone] || ZONE_BG_STYLES.default;
-  const steps = buildSimSteps(missionDef, agentObj, result, L);
-
-  const popup = document.createElement('div');
-  popup.id = 'missionSimPopup';
-  popup.style.cssText = `
-    position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:100;
-    display:flex;flex-direction:column;align-items:center;justify-content:center;
-    padding:16px;font-family:'Press Start 2P',monospace;
-  `;
-
-  popup.innerHTML = `
-    <div style="width:min(900px,98vw);background:#0f0c1e;border:2px solid #7866d1;border-radius:12px;overflow:hidden;">
-      <!-- Bande de simulation -->
-      <div id="simBand" style="
-        width:100%;height:170px;position:relative;
-        background:${zoneDef.bg};transition:background 0.8s;
-        border-bottom:2px solid #4a3a8a;overflow:hidden;
-      ">
-        <div style="position:absolute;top:8px;left:12px;font-size:.45em;color:#ffcc5a;letter-spacing:.1em">${zoneDef.label}</div>
-        <!-- Agent sprite -->
-        ${agentObj?.sprite ? `<img id="simAgentSprite" src="${agentObj.sprite}"
-          style="position:absolute;bottom:16px;left:14%;width:56px;image-rendering:pixelated;
-          animation:simFloat 2.5s ease-in-out infinite;">` : ''}
-        <!-- Pokémon slot allié (back sprites) -->
-        <div id="simAllySlot" style="position:absolute;bottom:16px;left:28%;display:flex;gap:6px;"></div>
-        <!-- Pokémon slot ennemi -->
-        <div id="simEnemySlot" style="position:absolute;bottom:16px;right:14%;display:flex;gap:8px;"></div>
-        <!-- Bulle de dialogue -->
-        <div id="simBubble" style="
-          position:absolute;top:10px;left:50%;transform:translateX(-50%);
-          background:rgba(255,255,255,0.92);color:#0a0812;
-          padding:6px 12px;border-radius:8px;font-size:.42em;
-          max-width:55%;text-align:center;white-space:normal;line-height:1.6;
-          display:none;
-        "></div>
-      </div>
-      <!-- Corps -->
-      <div style="padding:16px;display:grid;gap:10px;">
-        <div style="font-size:.6em;color:#ffcc5a;letter-spacing:.1em">${missionDef.nom?.[lang]||missionDef.nom?.fr||missionDef.id}</div>
-        <div id="simLog" style="font-size:.42em;color:#b9adff;line-height:2;min-height:60px;"></div>
-        <div id="simRewards" style="display:none;font-size:.48em;color:#70e0a4;line-height:2;"></div>
-        <div id="simContinueBtn" style="display:none;text-align:center;">
-          <button onclick="closeMissionPopup()" style="
-            font-family:'Press Start 2P',monospace;font-size:.55em;
-            background:#ffcc5a;border:2px solid #000;padding:10px 24px;
-            border-radius:8px;cursor:pointer;
-          ">${lang==='fr'?'CONTINUER':'CONTINUE'} →</button>
-        </div>
-      </div>
-    </div>
-  `;
-  document.body.appendChild(popup);
-
-  // Injection CSS animation si absente
-  if (!document.getElementById('simAnimStyle')) {
-    const s = document.createElement('style');
-    s.id = 'simAnimStyle';
-    s.textContent = `
-      @keyframes simFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
-      @keyframes simPop{0%{transform:scale(0)}60%{transform:scale(1.15)}100%{transform:scale(1)}}
-      @keyframes simShake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
-    `;
-    document.head.appendChild(s);
-  }
-
-  // Joue les étapes de simulation
-  playSimSteps(steps, 0);
-}
-
-// Génère une réplique personnalisée basée sur la personnalité de l'agent
-function agentLine(agentObj, phase, L) {
-  const name = agentObj?.name || '???';
-  const phrases = agentObj?.catch_phrases || [];
-  const traits = agentObj?.personality || [];
-
-  const PERSONALITY_LINES = {
-    fr: {
-      approach: {
-        loyal:        "Je ne vous décevrai pas, chef.",
-        discret:      "Pas un bruit. On avance.",
-        intelligent:  "J'ai analysé la zone. On est prêts.",
-        froid:        "Aucune émotion. Juste l'objectif.",
-        brutal:       "J'ai hâte d'en découdre.",
-        rusé:         "Ils ne nous verront pas venir.",
-        courageux:    "Pas de peur. En avant.",
-        nerveux:      "J-j'espère que ça va aller…",
-        ambitieux:    "Cette mission fera ma réputation.",
-        calculateur:  "Tout est en place. Exécution.",
-      },
-      combat: {
-        loyal:        "Pour la Team Rocket !",
-        discret:      "Vite, avant qu'on nous repère !",
-        intelligent:  "Exploitons leur point faible.",
-        froid:        "Pas de pitié.",
-        brutal:       "CHARGEZ !!!",
-        rusé:         "Feinte à droite, attaque à gauche.",
-        courageux:    "On n'abandonne jamais !",
-        nerveux:      "T-tenez bon !",
-        ambitieux:    "Je vais leur montrer !",
-        calculateur:  "Phase deux. Maintenant.",
-      },
-      success: {
-        loyal:        "Mission accomplie. Le boss sera fier.",
-        discret:      "On s'éclipse avant d'être repérés.",
-        intelligent:  "Résultat optimal, comme prévu.",
-        froid:        "Objectif atteint. On rentre.",
-        brutal:       "Haha ! Trop facile.",
-        rusé:         "Ils n'ont rien compris. Parfait.",
-        courageux:    "On l'a fait ! Bien joué !",
-        nerveux:      "O-ouf… on a réussi.",
-        ambitieux:    "Une victoire de plus à mon palmarès.",
-        calculateur:  "Exactement selon le plan.",
-      },
-      failure: {
-        loyal:        "Je suis désolé, chef…",
-        discret:      "Repli silencieux. On recommencera.",
-        intelligent:  "Il faut revoir notre stratégie.",
-        froid:        "Échec. Inutile de s'attarder.",
-        brutal:       "Raaah ! Ils me le paieront !",
-        rusé:         "Hmm… je n'avais pas prévu ça.",
-        courageux:    "On se relève et on repart.",
-        nerveux:      "J-je savais que ça tournerait mal…",
-        ambitieux:    "Ce n'est qu'un revers temporaire.",
-        calculateur:  "Erreur de calcul. À corriger.",
-      },
-    },
-    en: {
-      approach: {
-        loyal:        "I won't let you down, boss.",
-        discret:      "Not a sound. Move forward.",
-        intelligent:  "I've analyzed the zone. We're ready.",
-        froid:        "No emotions. Just the target.",
-        brutal:       "I can't wait to fight.",
-        rusé:         "They won't see us coming.",
-        courageux:    "No fear. Let's go.",
-        nerveux:      "I-I hope this goes well…",
-        ambitieux:    "This mission will make my name.",
-        calculateur:  "Everything is in place. Execute.",
-      },
-      combat: {
-        loyal:        "For Team Rocket!",
-        discret:      "Quick, before they spot us!",
-        intelligent:  "Let's exploit their weakness.",
-        froid:        "No mercy.",
-        brutal:       "CHARGE!!!",
-        rusé:         "Feint right, strike left.",
-        courageux:    "We never give up!",
-        nerveux:      "H-hold on!",
-        ambitieux:    "I'll show them!",
-        calculateur:  "Phase two. Now.",
-      },
-      success: {
-        loyal:        "Mission complete. The boss will be proud.",
-        discret:      "Let's vanish before they notice.",
-        intelligent:  "Optimal result, as expected.",
-        froid:        "Target acquired. Heading back.",
-        brutal:       "Haha! Too easy.",
-        rusé:         "They didn't see it coming. Perfect.",
-        courageux:    "We did it! Well done!",
-        nerveux:      "P-phew… we made it.",
-        ambitieux:    "Another victory for my record.",
-        calculateur:  "Exactly according to plan.",
-      },
-      failure: {
-        loyal:        "I'm sorry, boss…",
-        discret:      "Silent retreat. We'll try again.",
-        intelligent:  "We need to rethink our strategy.",
-        froid:        "Failed. No point dwelling on it.",
-        brutal:       "Grrr! They'll pay for this!",
-        rusé:         "Hmm… I didn't see that coming.",
-        courageux:    "We get back up and try again.",
-        nerveux:      "I-I knew this would go wrong…",
-        ambitieux:    "Just a temporary setback.",
-        calculateur:  "Miscalculation. Needs correction.",
-      },
-    },
-  };
-
-  const pLines = PERSONALITY_LINES[lang] || PERSONALITY_LINES.fr;
-  const phaseLines = pLines[phase] || {};
-
-  // Cherche une réplique basée sur le premier trait reconnu
-  for (const trait of traits) {
-    if (phaseLines[trait]) return `${name} : "${phaseLines[trait]}"`;
-  }
-
-  // Fallback: catch phrase ou dialogue générique
-  if (phrases.length && (phase === 'approach' || phase === 'combat')) {
-    return `${name} : "${pick(phrases)}"`;
-  }
-  return `${name} : "${pick(L[phase])}"`;
-}
-
-// Dresseurs croisés en mission — NPCs aléatoires rencontrés
-const ROUTE_TRAINERS = {
-  fr: [
-    { name:'Gamin Yohan',     sprite:'youngster',   line:"Hé ! Mon Rattata est parmi les meilleurs !" },
-    { name:'Fillette Lucie',   sprite:'lass',        line:"Tu ne battras jamais mes Pokémon !" },
-    { name:'Pêcheur Marcel',   sprite:'fisherman',   line:"Patience… la pêche, c'est tout un art." },
-    { name:'Campeur Denis',    sprite:'camper',       line:"J'adore dormir à la belle étoile !" },
-    { name:'Scout Emma',       sprite:'picnicker',    line:"Tu veux goûter mes riceballs ?" },
-    { name:'Montagnard René',  sprite:'hiker',        line:"Les roches sont mes meilleures amies." },
-    { name:'Karatéka Ryu',     sprite:'blackbelt',    line:"Le combat, c'est une philosophie !" },
-    { name:'Dresseur Alex',    sprite:'acetrainer',   line:"Je m'entraîne depuis tout petit !" },
-    { name:'Kinésiste Clara',  sprite:'psychic',      line:"Je lis dans tes pensées…" },
-    { name:'Gentleman Pierre', sprite:'gentleman',    line:"Un combat entre gens de bonne compagnie ?" },
-    { name:'Nageur Thomas',    sprite:'swimmer',      line:"L'eau, c'est la vie !" },
-    { name:'Bug Catcher Léo',  sprite:'bugcatcher',   line:"Mon Chenipan va t'écraser !" },
-  ],
-  en: [
-    { name:'Youngster Joey',   sprite:'youngster',   line:"Hey! My Rattata is in the top percentage!" },
-    { name:'Lass Jenny',       sprite:'lass',        line:"You'll never beat my Pokémon!" },
-    { name:'Fisherman Marco',  sprite:'fisherman',   line:"Patience… fishing is an art." },
-    { name:'Camper Dennis',    sprite:'camper',       line:"I love sleeping under the stars!" },
-    { name:'Picnicker Emma',   sprite:'picnicker',    line:"Want to try my riceballs?" },
-    { name:'Hiker Brock',      sprite:'hiker',        line:"Rocks are my best friends." },
-    { name:'Black Belt Ryu',   sprite:'blackbelt',    line:"Fighting is a philosophy!" },
-    { name:'Ace Trainer Alex',  sprite:'acetrainer',   line:"I've been training since I was a kid!" },
-    { name:'Psychic Clara',    sprite:'psychic',      line:"I can read your mind…" },
-    { name:'Gentleman Pierre', sprite:'gentleman',    line:"A battle between gentlemen?" },
-    { name:'Swimmer Thomas',   sprite:'swimmer',      line:"Water is life!" },
-    { name:'Bug Catcher Leo',  sprite:'bugcatcher',   line:"My Caterpie will crush you!" },
-  ],
-};
-
-function getRandomTrainer() {
-  const pool = ROUTE_TRAINERS[lang] || ROUTE_TRAINERS.fr;
-  return pick(pool);
-}
-
-function buildSimSteps(missionDef, agentObj, result, L) {
-  const steps = [];
-  const enemies = getMissionEnemyPokemon(missionDef);
-  const name = agentObj?.name || '???';
-
-  // Approche : dialogue générique + réplique perso de l'agent
-  steps.push({ type:'log',    text: pick(L.approach) });
-  steps.push({ type:'bubble', text: agentLine(agentObj, 'approach', L), speaker: name });
-
-  // Dresseur croisé en route (50% de chance)
-  if (Math.random() < 0.5) {
-    const trainer = getRandomTrainer();
-    const trainerAppearFr = `🧑‍🤝‍🧑 ${trainer.name} croise votre chemin !`;
-    const trainerAppearEn = `🧑‍🤝‍🧑 ${trainer.name} crosses your path!`;
-    steps.push({ type:'log', text: lang==='fr' ? trainerAppearFr : trainerAppearEn });
-    steps.push({ type:'showTrainer', sprite: trainer.sprite, name: trainer.name });
-    steps.push({ type:'bubble', text: `${trainer.name} : "${trainer.line}"`, speaker: trainer.name });
-  }
-
-  if (enemies.length) {
-    steps.push({ type:'log',     text: pick(L.pkm_appears) });
-    steps.push({ type:'showPkm', pokemons: enemies });
-    // Affiche aussi les Pokémon alliés de l'agent
-    if (agentObj?.team?.length) {
-      const allyPkm = agentObj.team.map(id => {
-        const p = state.pokemons.find(x => x.id === id);
-        return p ? (FR_TO_EN[(p.species_fr||'').toLowerCase()] || p.species_en || 'pikachu') : null;
-      }).filter(Boolean);
-      if (allyPkm.length) steps.push({ type:'showAllyPkm', pokemons: allyPkm });
-    }
-  }
-
-  // Combat tour par tour simulé
-  const agentLevel = agentObj?.level || 1;
-  const teamSize = agentObj?.team?.length || 0;
-
-  steps.push({ type:'bubble', text: agentLine(agentObj, 'combat', L), speaker: name });
-  steps.push({ type:'log',    text: pick(L.combat) });
-
-  // Simulation de rounds de combat — utilise les vrais moves des Pokémon
-  const allyPkmNames = (agentObj?.team||[]).map(id => {
-    const p = state.pokemons.find(x => x.id === id);
-    if (!p) return null;
-    const en = FR_TO_EN[(p.species_fr||'').toLowerCase()]||p.species_en||'pikachu';
-    return { fr: p.species_fr||'???', en, level: p.level||1, moves: p.moves||[] };
-  }).filter(Boolean);
-
-  const FALLBACK_ATTACKS = ['Charge','Griffe','Morsure','Plaquage'];
-
-  // Simule 2-4 rounds de combat
-  const rounds = Math.min(2 + Math.floor(Math.random()*3), Math.max(enemies.length, allyPkmNames.length, 2));
-  const willWin = result.success;
-  let enemiesKO = 0;
-  let alliesKO = 0;
-
-  for (let round = 0; round < rounds; round++) {
-    const allyIdx = round % Math.max(1, allyPkmNames.length);
-    const enemyIdx = round % Math.max(1, enemies.length);
-    const ally = allyPkmNames[allyIdx];
-    const enemy = enemies[enemyIdx];
-
-    if (ally && enemy) {
-      // Utilise les vrais moves du Pokémon allié, sinon fallback
-      const allyAtk = ally.moves.length ? pick(ally.moves) : pick(FALLBACK_ATTACKS);
-      // Moves de l'ennemi depuis le dictionnaire
-      const enemyMoves = POKEMON_MOVES[enemy] || FALLBACK_ATTACKS;
-      const enemyAtk = pick(enemyMoves);
-
-      // Allié attaque
-      steps.push({ type:'log', text: `⚔️ ${ally.fr} ${lang==='fr'?'utilise':'uses'} ${allyAtk} !` });
-      steps.push({ type:'shake' });
-
-      // Ennemi attaque
-      steps.push({ type:'log', text: `💥 ${enemy} ${lang==='fr'?'riposte avec':'counters with'} ${enemyAtk} !` });
-
-      // KO ennemi (sur les derniers rounds si victoire)
-      if (willWin && round >= rounds - enemies.length + enemiesKO) {
-        steps.push({ type:'faintPkm', side:'enemy', index: enemyIdx });
-        steps.push({ type:'log', text: `✨ ${enemy} ${lang==='fr'?'est K.O. !':'is knocked out!'}` });
-        enemiesKO++;
-      }
-      // KO allié (si défaite, sur les derniers rounds)
-      else if (!willWin && round >= rounds - 1 && alliesKO < allyPkmNames.length) {
-        steps.push({ type:'faintPkm', side:'ally', index: allyIdx });
-        steps.push({ type:'log', text: `💀 ${ally.fr} ${lang==='fr'?'tombe au combat !':'falls in battle!'}` });
-        alliesKO++;
-      }
-    }
-  }
-
-  // ── Antagoniste ─────────────────────────────────────
-  if (result.antagonist) {
-    const antag = result.antagonist;
-    const antagName = antag.name[lang] || antag.name.fr;
-    const antagPhrases = antag.catch_phrases[lang] || antag.catch_phrases.fr;
-    const antagPkm = antag.possible_pokemon || [];
-
-    // Apparition de l'antagoniste
-    steps.push({ type:'shake' });
-    const appearMsg = lang === 'fr'
-      ? `⚔️ ${antagName} apparaît et bloque le chemin !`
-      : `⚔️ ${antagName} appears and blocks the way!`;
-    steps.push({ type:'log', text: appearMsg });
-    steps.push({ type:'showAntagonist', sprite: antag.sprite, name: antagName });
-    steps.push({ type:'bubble', text: `${antagName} : "${pick(antagPhrases)}"`, speaker: antagName });
-
-    // Pokémon de l'antagoniste
-    if (antagPkm.length) {
-      const enPkm = antagPkm.map(fr => FR_TO_EN[fr] || fr);
-      steps.push({ type:'showPkm', pokemons: enPkm.slice(0, 3) });
-    }
-
-    // Réplique de combat de l'antagoniste
-    steps.push({ type:'bubble', text: `${antagName} : "${pick(antagPhrases)}"`, speaker: antagName });
-
-    // Réaction de notre agent
-    const reactMsg = result.success
-      ? (lang==='fr' ? `${name} : "On ne se laissera pas faire !"` : `${name}: "We won't back down!"`)
-      : (lang==='fr' ? `${name} : "Il est trop fort… Repli !"` : `${name}: "Too strong… Fall back!"`);
-    steps.push({ type:'bubble', text: reactMsg, speaker: name });
-
-    // Boss Red : dialogue spécial
-    if (result.isBoss && result.bossVictory) {
-      steps.push({ type:'shake' });
-      const bossMsg = lang === 'fr'
-        ? '🏆 RED EST VAINCU ! La Team Rocket triomphe !'
-        : '🏆 RED IS DEFEATED! Team Rocket triumphs!';
-      steps.push({ type:'log', text: bossMsg });
-      steps.push({ type:'bubble', text: 'Red : "…"', speaker: 'Red' });
-    }
-  }
-
-  // Jenny
-  if (result.jennyEvent) {
-    steps.push({ type:'log',    text: pick(L.jenny) });
-    steps.push({ type:'bubble', text: pick(L.jenny), speaker: 'Jenny' });
-    steps.push({ type:'shake' });
-  }
-
-  // Résultat
-  const phase = result.success ? 'success' : 'failure';
-  steps.push({ type:'log',    text: pick(L[phase]) });
-  steps.push({ type:'bubble', text: agentLine(agentObj, phase, L), speaker: name });
-  steps.push({ type:'rewards', result });
-
-  return steps;
-}
-
-function getMissionEnemyPokemon(missionDef) {
-  const zone = MISSION_ZONE_MAP[missionDef.id] || 'default';
-  const pools = {
-    marais:  ['poliwag','psyduck','tentacool','grimer','koffing','ekans','oddish'],
-    grotte:  ['geodude','zubat','onix','machop','cubone','rhyhorn','diglett'],
-    silph:   ['porygon','electrode','magneton','voltorb','magnemite','alakazam'],
-    safari:  ['tauros','kangaskhan','scyther','pinsir','nidoran-f','nidoran-m','chansey'],
-    route:   ['pidgey','rattata','spearow','caterpie','weedle','pikachu','mankey'],
-    centre:  ['chansey','clefairy','jigglypuff','happiny','wigglytuff','audino'],
-    labo:    ['eevee','porygon','bulbasaur','charmander','squirtle','ditto'],
-    arene:   ['arcanine','machamp','alakazam','gyarados','pidgeot','exeggutor'],
-    sommet:  ['pikachu','charizard','blastoise','venusaur','snorlax','lapras'],
-    default: ['rattata','pidgey','zubat','meowth'],
-  };
-  const pool = pools[zone] || pools.default;
-  // 1 à 2 Pokémon ennemis selon la difficulté
-  const count = (missionDef.risque === 'élevé') ? 2 : 1;
-  const result = [];
-  for (let i = 0; i < count; i++) result.push(pick(pool));
-  return result;
-}
-
-let simStepTimeout = null;
-function playSimSteps(steps, idx) {
-  if (idx >= steps.length) return;
-  const step = steps[idx];
-  const delay = 1200;
-
-  const logEl    = document.getElementById('simLog');
-  const bubbleEl = document.getElementById('simBubble');
-  const enemyEl  = document.getElementById('simEnemySlot');
-
-  if (step.type === 'log' && logEl) {
-    logEl.innerHTML += `<div>▶ ${step.text}</div>`;
-  }
-  if (step.type === 'bubble' && bubbleEl) {
-    const speakerTag = step.speaker ? `<span style="color:#ffcc5a;font-size:.9em;font-weight:bold">${step.speaker}</span><br>` : '';
-    bubbleEl.innerHTML = speakerTag + step.text;
-    bubbleEl.style.display = 'block';
-    setTimeout(() => { if (bubbleEl) bubbleEl.style.display = 'none'; }, 2800);
-  }
-  if (step.type === 'showPkm' && enemyEl) {
-    enemyEl.innerHTML = step.pokemons.map(en => `
-      <div style="display:flex;flex-direction:column;align-items:center;animation:simPop .4s">
-        <img src="https://play.pokemonshowdown.com/sprites/gen5/${en}.png"
-             style="width:48px;image-rendering:pixelated;">
-        <span style="font-size:.35em;color:#ff6b6b;margin-top:2px">${en}</span>
-      </div>`).join('');
-  }
-  if (step.type === 'showAllyPkm') {
-    // Affiche les Pokémon alliés côté gauche
-    const allyEl = document.getElementById('simAllySlot');
-    if (allyEl) {
-      allyEl.innerHTML = step.pokemons.map(en => `
-        <div style="display:flex;flex-direction:column;align-items:center;animation:simPop .4s">
-          <img src="https://play.pokemonshowdown.com/sprites/gen5-back/${en}.png"
-               style="width:48px;image-rendering:pixelated;">
-          <span style="font-size:.35em;color:#70e0a4;margin-top:2px">${en}</span>
-        </div>`).join('');
-    }
-  }
-  if (step.type === 'faintPkm') {
-    // Fait "tomber" un sprite Pokémon (KO animation)
-    const slotId = step.side === 'enemy' ? 'simEnemySlot' : 'simAllySlot';
-    const slotEl = document.getElementById(slotId);
-    if (slotEl) {
-      const sprites = slotEl.querySelectorAll('div');
-      const target = sprites[step.index];
-      if (target) {
-        target.style.transition = 'all 0.6s ease-in';
-        target.style.opacity = '0.2';
-        target.style.transform = 'translateY(30px) rotate(15deg)';
-        target.style.filter = 'grayscale(1)';
-      }
-    }
-  }
-  if (step.type === 'showTrainer') {
-    // Affiche un dresseur croisé côté droit temporairement
-    const band = document.getElementById('simBand');
-    if (band) {
-      let trainerEl = document.getElementById('simTrainerSprite');
-      if (!trainerEl) {
-        trainerEl = document.createElement('div');
-        trainerEl.id = 'simTrainerSprite';
-        trainerEl.style.cssText = 'position:absolute;bottom:16px;right:20%;display:flex;flex-direction:column;align-items:center;animation:simPop .5s;';
-        band.appendChild(trainerEl);
-      }
-      trainerEl.innerHTML = `
-        <img src="https://play.pokemonshowdown.com/sprites/trainers/${step.sprite}.png"
-             style="width:48px;image-rendering:pixelated;"
-             onerror="this.style.display='none'">
-        <span style="font-size:.35em;color:#ffcc5a;margin-top:2px">${step.name}</span>
-      `;
-      // Disparaît après 3s
-      setTimeout(() => { if (trainerEl) trainerEl.remove(); }, 3000);
-    }
-  }
-  if (step.type === 'showAntagonist') {
-    // Affiche le sprite de l'antagoniste côté droit, au-dessus des Pokémon
-    const band = document.getElementById('simBand');
-    if (band) {
-      let antagEl = document.getElementById('simAntagSprite');
-      if (!antagEl) {
-        antagEl = document.createElement('div');
-        antagEl.id = 'simAntagSprite';
-        antagEl.style.cssText = 'position:absolute;bottom:16px;right:5%;display:flex;flex-direction:column;align-items:center;animation:simPop .5s;';
-        band.appendChild(antagEl);
-      }
-      antagEl.innerHTML = `
-        <img src="${step.sprite}" style="width:64px;image-rendering:pixelated;">
-        <span style="font-size:.4em;color:#ff4444;margin-top:2px;font-weight:bold">${step.name}</span>
-      `;
-    }
-  }
-  if (step.type === 'shake') {
-    const band = document.getElementById('simBand');
-    if (band) { band.style.animation='simShake .5s'; setTimeout(()=>{band.style.animation='';},600); }
-  }
-  if (step.type === 'rewards') {
-    const rewardEl = document.getElementById('simRewards');
-    const contBtn  = document.getElementById('simContinueBtn');
-    if (rewardEl) {
-      const r = step.result;
-      let html = '';
-
-      // Boss victory banner
-      if (r.bossVictory) {
-        html += `<div style="color:#ffcc5a;font-size:1.2em;margin-bottom:8px">🏆 ${lang==='fr'?'VICTOIRE ULTIME !':'ULTIMATE VICTORY!'}</div>`;
-      }
-
-      html += r.success
-        ? `<div style="color:#70e0a4;font-size:1.1em;margin-bottom:4px">${lang==='fr' ? '✅ MISSION RÉUSSIE' : '✅ MISSION SUCCESS'}</div>`
-        : `<div style="color:#ff4466;font-size:1.1em;margin-bottom:4px">${lang==='fr' ? '❌ MISSION ÉCHOUÉE' : '❌ MISSION FAILED'}</div>`;
-
-      // Antagoniste info
-      if (r.antagonist) {
-        const antagName = r.antagonist.name[lang] || r.antagonist.name.fr;
-        html += r.success
-          ? `<div>⚔️ ${antagName} ${lang==='fr'?'repoussé !':'driven back!'} <span style="color:#70e0a4">+5 rep, +30 XP</span></div>`
-          : `<div>⚔️ ${antagName} ${lang==='fr'?'vous a dominé.':'overpowered you.'}</div>`;
-      }
-
-      // Giovanni bonus
-      if (r.giovanniComment) {
-        html += `<div style="color:#ffcc5a">👔 ${r.giovanniComment}</div>`;
-        if (r.giovanniBonus) html += `<div style="color:#70e0a4">💰 Bonus Giovanni : +${r.giovanniBonus}₽</div>`;
-      }
-
-      // Rewards breakdown
-      html += '<div style="margin-top:6px;border-top:1px solid #4a3a8a;padding-top:4px">';
-      if (r.pokedollars) html += `<div>💰 +${r.pokedollars} Pokédollars</div>`;
-      if (r.intel)       html += `<div>🔍 +${r.intel} Intel</div>`;
-      if (r.pokemon?.length) {
-        r.pokemon.forEach(p => {
-          const stars = (p.stars||0) > 0 ? ` ${'★'.repeat(p.stars)}` : '';
-          html += `<div>🎯 ${lang==='fr'?'Capturé':'Captured'} : ${p.species_fr} Nv.${p.level}${stars}</div>`;
-        });
-      }
-      if (r.losses?.length) {
-        r.losses.forEach(l => {
-          html += `<div style="color:#ff4466">💀 ${lang==='fr'?'Perdu':'Lost'} : ${l}</div>`;
-        });
-      }
-      // Reputation change
-      html += r.success
-        ? `<div style="color:#70e0a4">📈 ${lang==='fr'?'Réputation':'Reputation'} +2</div>`
-        : `<div style="color:#ff4466">📉 ${lang==='fr'?'Réputation':'Reputation'} -3</div>`;
-      html += '</div>';
-      rewardEl.innerHTML = html;
-      rewardEl.style.display = 'block';
-    }
-    if (contBtn) contBtn.style.display = 'block';
-    return; // stop auto-advance
-  }
-
-  simStepTimeout = setTimeout(() => playSimSteps(steps, idx+1), delay);
-}
-
-function closeMissionPopup() {
-  if (simStepTimeout) clearTimeout(simStepTimeout);
-  const popup = document.getElementById('missionSimPopup');
-  if (popup) popup.remove();
-  // Joue le popup suivant s'il y en a dans la queue
-  setTimeout(() => playNextMissionPopup(), 300);
-}
-
-
-// ============================================================
-// MODULE v4.03 — MISSIONS V2
-// ============================================================
-
-// ============================================================
-// PATCH v4.03 — MISSIONS V2
-// Nouvelles missions, récompenses Pokémon, mort/capture Jenny
-// Retrait salle de capture
-// ============================================================
-
-// ── MISSIONS V2 — CATALOGUE COMPLET ─────────────────────
-const MISSIONS_V2 = [
-  // ── VOL DE POKÉMON ────────────────────────────────────
-  { id:'m_vol_centre',    zone:'centre', categorie:'vol',
-    nom:      { fr:'Vol au Centre Pokémon',          en:'Pokémon Center Theft' },
-    desc:     { fr:'Subtiliser les Pokémon hospitalisés.', en:'Steal hospitalized Pokémon.' },
-    recompense:{ pokedollars:200, pokemon:['chansey','clefairy'], intel:1 },
-    duree:2, risque:'faible', jennyRisk:0.15,
-    pkmRewardPool: ['chansey','clefairy','jigglypuff'],
-  },
-  { id:'m_vol_dresseur',  zone:'route',  categorie:'vol',
-    nom:      { fr:'Racket de dresseurs Route 1',    en:'Route 1 Trainer Mugging' },
-    desc:     { fr:'Forcer les dresseurs à abandonner leurs Pokémon.', en:'Force trainers to surrender their Pokémon.' },
-    recompense:{ pokedollars:300, pokemon:['pidgey','rattata'] },
-    duree:1, risque:'faible', jennyRisk:0.1,
-    pkmRewardPool: ['pidgey','rattata','spearow','ekans'],
-  },
-
-  // ── RAID DE ZONE ──────────────────────────────────────
-  { id:'m_raid_marais',   zone:'marais', categorie:'raid',
-    nom:      { fr:'Raid — Marais Cramois',           en:'Raid — Crimson Swamp' },
-    desc:     { fr:'Capturer les Pokémon aquatiques du marais.', en:'Capture aquatic Pokémon from the swamp.' },
-    recompense:{ pokedollars:400, capturePoints:2 },
-    duree:2, risque:'moyen', jennyRisk:0.2,
-    pkmRewardPool: ['psyduck','poliwag','tentacool','goldeen','slowpoke'],
-  },
-  { id:'m_raid_safari',   zone:'safari', categorie:'raid',
-    nom:      { fr:'Infiltration — Zone Safari',     en:'Infiltration — Safari Zone' },
-    desc:     { fr:'Braconner des espèces rares sous couverture.', en:'Poach rare species undercover.' },
-    recompense:{ pokedollars:500, capturePoints:3 },
-    duree:3, risque:'moyen', jennyRisk:0.3,
-    pkmRewardPool: ['tauros','kangaskhan','scyther','pinsir','rhyhorn'],
-  },
-  { id:'m_raid_grotte',   zone:'grotte', categorie:'raid',
-    nom:      { fr:'Fouille — Grotte Azurée',         en:'Sweep — Cerulean Cave' },
-    desc:     { fr:"Explorer la grotte pour capturer ce qui s'y trouve.", en:'Explore the cave and capture whatever lurks.' },
-    recompense:{ pokedollars:600, intel:2 },
-    duree:3, risque:'élevé', jennyRisk:0.2,
-    pkmRewardPool: ['zubat','geodude','onix','cubone','drowzee'],
-  },
-
-  // ── TRAFIC / CONTREBANDE ──────────────────────────────
-  { id:'m_trafic_fossiles', zone:'grotte', categorie:'trafic',
-    nom:      { fr:'Trafic de Fossiles',              en:'Fossil Trafficking' },
-    desc:     { fr:'Revendre des fossiles volés au Musée de Jadielle.', en:'Resell stolen fossils at Pewter Museum.' },
-    recompense:{ pokedollars:700, intel:2 },
-    duree:3, risque:'moyen', jennyRisk:0.25,
-    pkmRewardPool: [],
-  },
-  { id:'m_silph',           zone:'silph',  categorie:'trafic',
-    nom:      { fr:'Opération Silph Co.',             en:'Silph Co. Operation' },
-    desc:     { fr:"Prendre le contrôle d'un étage de la Tour Silph.", en:'Take control of one floor of Silph Tower.' },
-    recompense:{ pokedollars:1000, intel:5, capturePoints:2 },
-    duree:4, risque:'élevé', jennyRisk:0.35,
-    pkmRewardPool: ['porygon','electrode','lapras'],
-  },
-
-  // ── ÉVÉNEMENTS SPÉCIAUX ───────────────────────────────
-  { id:'m_event_legendaire', zone:'default', categorie:'event',
-    nom:       { fr:'Rumeur — Signal Inconnu',        en:'Rumor — Unknown Signal' },
-    desc:      { fr:"Un signal étrange vient d'une île au large...", en:'A strange signal from a distant island...' },
-    recompense: { pokedollars:1500, intel:8 },
-    duree:5, risque:'élevé', jennyRisk:0.4,
-    pkmRewardPool: ['mew','mewtwo'],
-    rare:true,
-  },
-
-  // ── MISSIONS ANTAGONISTES — Prof. Chen ────────────────
-  { id:'m_antag_chen_labo', zone:'labo', categorie:'antagoniste',
-    nom:      { fr:'Infiltration — Labo du Prof. Chen',     en:'Infiltration — Prof. Oak\'s Lab' },
-    desc:     { fr:'Voler les données de recherche du Professeur Chen.', en:'Steal research data from Professor Oak\'s lab.' },
-    recompense:{ pokedollars:600, intel:5 },
-    duree:3, risque:'élevé', jennyRisk:0.3,
-    pkmRewardPool: ['eevee','bulbasaur','charmander','squirtle'],
-    antagonist: 'oak',
-    antagonistChance: 0.6,
-    rare: true,
-  },
-  { id:'m_antag_chen_conf', zone:'centre', categorie:'antagoniste',
-    nom:      { fr:'Sabotage — Conférence Pokémon',         en:'Sabotage — Pokémon Conference' },
-    desc:     { fr:'Perturber la conférence de Chen pour voler des prototypes.', en:'Disrupt Oak\'s conference to steal prototypes.' },
-    recompense:{ pokedollars:800, intel:3 },
-    duree:2, risque:'moyen', jennyRisk:0.25,
-    pkmRewardPool: ['porygon','magnemite'],
-    antagonist: 'oak',
-    antagonistChance: 0.8,
-    rare: true,
-  },
-
-  // ── MISSIONS ANTAGONISTES — Silver ────────────────────
-  { id:'m_antag_silver_embu', zone:'route', categorie:'antagoniste',
-    nom:      { fr:'Embuscade — Silver rôde',                en:'Ambush — Silver Lurks' },
-    desc:     { fr:'Silver attaque nos agents sur la route. Ripostez.', en:'Silver is attacking our agents on the route. Strike back.' },
-    recompense:{ pokedollars:500, intel:2 },
-    duree:2, risque:'élevé', jennyRisk:0.1,
-    pkmRewardPool: ['nidorino','kadabra','gastly'],
-    antagonist: 'silver',
-    antagonistChance: 1.0,
-    rare: true,
-  },
-  { id:'m_antag_silver_vol', zone:'grotte', categorie:'antagoniste',
-    nom:      { fr:'Représailles — Silver vole nos Pokémon', en:'Retaliation — Silver Steals Our Pokémon' },
-    desc:     { fr:"Silver s'est introduit dans notre planque.", en:'Silver broke into our hideout.' },
-    recompense:{ pokedollars:400, intel:1 },
-    duree:1, risque:'élevé', jennyRisk:0.05,
-    pkmRewardPool: [],
-    antagonist: 'silver',
-    antagonistChance: 1.0,
-    rare: true,
-  },
-
-  // ── MISSIONS ANTAGONISTES — Blue ──────────────────────
-  { id:'m_antag_blue_arene', zone:'arene', categorie:'antagoniste',
-    nom:      { fr:'Défi — Arène de Jadielle',              en:'Challenge — Viridian Gym' },
-    desc:     { fr:"Prendre le contrôle de l'Arène de Blue.", en:"Take control of Blue's Gym." },
-    recompense:{ pokedollars:1200, intel:5, capturePoints:3 },
-    duree:4, risque:'élevé', jennyRisk:0.35,
-    pkmRewardPool: ['arcanine','alakazam','machamp'],
-    antagonist: 'blue',
-    antagonistChance: 1.0,
-    rare: true,
-  },
-
-  // ── MISSION BOSS — Red ────────────────────────────────
-  { id:'m_boss_red', zone:'sommet', categorie:'boss',
-    nom:      { fr:'Assaut Final — Le Mont Argenté',         en:'Final Assault — Mt. Silver' },
-    desc:     { fr:'Affronter Red au sommet du Mont Argenté. La victoire ultime.', en:'Face Red atop Mt. Silver. The ultimate victory.' },
-    recompense:{ pokedollars:5000, intel:20, capturePoints:10 },
-    duree:5, risque:'élevé', jennyRisk:0.1,
-    pkmRewardPool: ['pikachu','charizard','blastoise','venusaur','snorlax','lapras'],
-    antagonist: 'red',
-    antagonistChance: 1.0,
-    rare: true,
-    boss: true,
-  },
-];
-
-// Retire la salle de capture du state (migration douce)
-function migrateRemoveCapture() {
-  if (state.rooms && state.rooms.capture) {
-    const pts = state.rooms.capture.level * 2;
-    state.resources.pokedollars = (state.resources.pokedollars||0) + pts * 50;
-    delete state.rooms.capture;
-    addLog(lang==='fr'
-      ? `Salle de Capture retirée — conversion : +${pts*50} Pokédollars.`
-      : `Capture Room removed — converted to +${pts*50} Pokédollars.`);
-  }
-}
-
-// Pool de missions disponibles — tirage parmi MISSIONS_V2
-function rollAvailableMissionsV2() {
-  const pool = MISSIONS_V2.filter(m => !m.rare);
-  const shuffled = [...pool].sort(() => Math.random()-0.5);
-
-  // Événement rare : 15% de chance d'apparaître
-  const rares = MISSIONS_V2.filter(m => m.rare && !m.antagonist && !m.boss);
-  if (Math.random() < 0.15 && rares.length) shuffled.unshift(pick(rares));
-
-  // Missions antagonistes : injection conditionnelle
-  const antagMissions = MISSIONS_V2.filter(m => m.antagonist && !m.boss);
-  antagMissions.forEach(m => {
-    const npcDef = LORE_NPCS[m.antagonist];
-    if (!npcDef) return;
-    const cond = npcDef.activation || {};
-    // Conditions d'activation de l'antagoniste
-    if (cond.minReputation !== undefined && (state.reputation||0) < cond.minReputation) return;
-    if (cond.minTurn !== undefined && state.turn < cond.minTurn) return;
-    // 20% de chance par tour qu'une mission antagoniste apparaisse
-    if (Math.random() < 0.20) shuffled.unshift(m);
-  });
-
-  // Mission Boss Red : injection si conditions remplies et pas déjà vaincue
-  if (!state.bossRedDefeated) {
-    const bossMission = MISSIONS_V2.find(m => m.boss && m.antagonist === 'red');
-    const redNpc = LORE_NPCS.red;
-    if (bossMission && redNpc) {
-      const cond = redNpc.activation || {};
-      const repOk = cond.minReputation === undefined || (state.reputation||0) >= cond.minReputation;
-      const turnOk = cond.minTurn === undefined || state.turn >= cond.minTurn;
-      // 10% de chance par tour quand conditions remplies
-      if (repOk && turnOk && Math.random() < 0.10) {
-        shuffled.unshift(bossMission);
-        addLog(lang==='fr'
-          ? '⚠️ RED a été repéré au Mont Argenté ! Mission spéciale disponible.'
-          : '⚠️ RED has been spotted on Mt. Silver! Special mission available.');
-      }
-    }
-  }
-
-  state.availableMissions = shuffled.slice(0, 4); // 4 slots pour laisser place aux missions spéciales
-}
-
-// Résolution d'une mission V2
-function resolveMissionV2(mi) {
-  const mDef = MISSIONS_V2.find(x => x.id === mi.missionId) || MISSIONS.find(x => x.id === mi.missionId);
-  if (!mDef) return;
-  const agent = state.agents.find(a => a.id === mi.agentId);
-
-  // Succès basé sur réputation + level agent
-  const agentLevel = agent?.level || 1;
-  let baseChance = 35 + (state.reputation||0) * 0.6 + agentLevel * 5;
-
-  // Malus antagoniste : les missions antagonistes sont plus dures
-  const hasAntagonist = mDef.antagonist && Math.random() < (mDef.antagonistChance || 0.5);
-  const antagonistNpc = hasAntagonist ? LORE_NPCS[mDef.antagonist] : null;
-  if (hasAntagonist) {
-    baseChance -= mDef.boss ? 25 : 15; // Boss Red est beaucoup plus dur
-  }
-
-  const success = Math.random() * 100 < Math.min(90, Math.max(5, baseChance));
-
-  // Risque Jenny
-  const jennyRisk = mDef.jennyRisk || 0.1;
-  const jennyEvent = Math.random() < jennyRisk;
-
-  const result = { success, jennyEvent, pokedollars:0, intel:0, pokemon:[], losses:[] };
-
-  if (success) {
-    // Pokédollars
-    result.pokedollars = mDef.recompense?.pokedollars || 0;
-    state.resources.pokedollars += result.pokedollars;
-    // Intel
-    result.intel = mDef.recompense?.intel || 0;
-    state.resources.intel += result.intel;
-    // CapturePoints
-    if (mDef.recompense?.capturePoints) state.resources.capturePoints += mDef.recompense.capturePoints;
-
-    // Pokémon en récompense
-    const pkmPool = mDef.pkmRewardPool || [];
-    if (pkmPool.length) {
-      const numPkm = 1 + Math.floor(Math.random() * Math.min(2, pkmPool.length));
-      for (let i=0; i<numPkm; i++) {
-        const spEN = pick(pkmPool);
-        const spFR = Object.keys(FR_TO_EN).find(k => FR_TO_EN[k]===spEN) || spEN;
-        const pok = makePokemon(spFR, 8 + Math.floor(Math.random()*10));
-        addPokemonWithCap(pok);
-        updatePokedex(spFR);
-        result.pokemon.push(pok);
-      }
-    }
-    // XP agent
-    if (agent) {
-      const xpGain = mDef.risque==='élevé' ? 50 : mDef.risque==='moyen' ? 30 : 15;
-      grantAgentXP(agent, xpGain);
-    }
-    state.reputation = Math.min(100, (state.reputation||0) + 2);
-    addLog(`✅ ${mDef.nom?.[lang]||mDef.nom?.fr||mDef.id} — ${lang==='fr'?'Succès':'Success'} (${agent?.name})`);
-  } else {
-    state.reputation = Math.max(0, (state.reputation||0) - 3);
-    addLog(`❌ ${mDef.nom?.[lang]||mDef.nom?.fr||mDef.id} — ${lang==='fr'?'Échec':'Failure'} (${agent?.name})`);
-  }
-
-  // Événement Jenny : peut saisir un Pokémon de l'équipe de l'agent
-  if (jennyEvent && agent?.team?.length) {
-    const pkmId = pick(agent.team);
-    const pkmObj = state.pokemons.find(p => p.id===pkmId);
-    if (pkmObj) {
-      result.losses.push(pkmObj.species_fr || pkmObj.species_en);
-      markPokedexLost(pkmObj.species_fr || pkmObj.species_en);
-      state.pokemons = state.pokemons.filter(p => p.id !== pkmId);
-      agent.team = agent.team.filter(id => id !== pkmId);
-      addLog(`🚔 Jenny a saisi ${pkmObj.species_fr || pkmObj.species_en} !`);
-    }
-  }
-
-  // Mort en mission : risque selon difficulté
-  const deathRisk = mDef.risque==='élevé' ? 0.12 : mDef.risque==='moyen' ? 0.05 : 0.01;
-  if (!success && agent?.team?.length && Math.random() < deathRisk) {
-    const pkmId = pick(agent.team);
-    const pkmObj = state.pokemons.find(p => p.id===pkmId);
-    if (pkmObj) {
-      result.losses.push(`${pkmObj.species_fr||pkmObj.species_en} (${lang==='fr'?'mort':'died'})`);
-      markPokedexLost(pkmObj.species_fr || pkmObj.species_en);
-      state.pokemons = state.pokemons.filter(p => p.id !== pkmId);
-      agent.team = agent.team.filter(id => id !== pkmId);
-      addLog(`💀 ${pkmObj.species_fr||pkmObj.species_en} est mort en mission.`);
-    }
-  }
-
-  // Cooldown post-mission
-  if (agent) {
-    const hasBourreau = (agent.traits||[]).includes('bourreau_de_travail');
-    agent.cooldown = hasBourreau ? 0 : 1;
-  }
-  // Cooldown Pokémon
-  if (agent?.team) {
-    agent.team.forEach(pkmId => {
-      const pkmObj = state.pokemons.find(p => p.id===pkmId);
-      if (pkmObj) {
-        const hasBourreau = (agent.traits||[]).includes('bourreau_de_travail');
-        pkmObj.cooldown = hasBourreau ? 1 : 2;
-      }
-    });
-  }
-
-  // Antagoniste : infos supplémentaires pour le popup
-  result.antagonist = antagonistNpc || null;
-  result.isBoss = !!mDef.boss;
-
-  // Boss Red : victoire spéciale
-  if (mDef.boss && mDef.antagonist === 'red' && success) {
-    state.bossRedDefeated = true;
-    state.reputation = 100;
-    result.bossVictory = true;
-    addLog(lang==='fr'
-      ? '🏆 VICTOIRE ULTIME ! Red a été vaincu au Mont Argenté !'
-      : '🏆 ULTIMATE VICTORY! Red has been defeated on Mt. Silver!');
-  }
-
-  // Antagoniste vaincu : bonus réputation + XP
-  if (antagonistNpc && success && !mDef.boss) {
-    const bonusRep = 5;
-    state.reputation = Math.min(100, (state.reputation||0) + bonusRep);
-    if (agent) grantAgentXP(agent, 30);
-    addLog(lang==='fr'
-      ? `⚔️ ${antagonistNpc.name[lang]||antagonistNpc.name.fr} a été repoussé ! +${bonusRep} réputation`
-      : `⚔️ ${antagonistNpc.name[lang]||antagonistNpc.name.en} has been driven back! +${bonusRep} reputation`);
-  }
-
-  // Giovanni supervise les missions élevées s'il est actif
-  if (state.giovanniActive && mDef.risque === 'élevé') {
-    result.giovanniComment = getGiovanniComment(mDef.id, result.success);
-    addLog(`👔 ${result.giovanniComment}`);
-    // Giovanni bonus : +100₽ sur succès de missions élevées
-    if (result.success) {
-      state.resources.pokedollars += 100;
-      result.giovanniBonus = 100;
-    }
-  }
-
-  // Popup de résolution (via queue pour éviter chevauchement)
-  queueMissionPopup(mDef, agent, result);
-
-  return result;
-}
-
-// File d'attente de popups missions — joue un à un, pas simultanément
-let missionPopupQueue = [];
-let missionPopupActive = false;
-
-function queueMissionPopup(missionDef, agentObj, result) {
-  missionPopupQueue.push({ missionDef, agentObj, result });
-  if (!missionPopupActive) playNextMissionPopup();
-}
-
-function playNextMissionPopup() {
-  if (!missionPopupQueue.length) { missionPopupActive = false; return; }
-  missionPopupActive = true;
-  const { missionDef, agentObj, result } = missionPopupQueue.shift();
-  showMissionPopup(missionDef, agentObj, result);
-}
-
-// Remplacement de processMissions par processMissionsV2
-function processMissionsV2() {
-  if (!state.missions) state.missions = [];
-  state.missions.forEach(mi => mi.turnsLeft -= 1);
-  const done = state.missions.filter(mi => mi.turnsLeft <= 0);
-  state.missions = state.missions.filter(mi => mi.turnsLeft > 0);
-  done.forEach(mi => resolveMissionV2(mi));
-
-  // Décrémente cooldowns agents
-  state.agents.forEach(a => { if (a.cooldown > 0) a.cooldown -= 1; });
-  // Décrémente cooldowns pokémons
-  state.pokemons.forEach(p => { if (p.cooldown > 0) p.cooldown -= 1; });
-}
-
-function renderMissionsV2() {
-  const el = document.getElementById('missionsList');
-  if (!el) return;
-  const T = {
-    fr:{ avail:'Missions disponibles', ongoing:'Missions en cours', none:'Aucune.', send:'Envoyer', noAgent:'Aucun agent libre', turns:'tour(s)', risk:'risque', reward:'Récompense' },
-    en:{ avail:'Available Missions', ongoing:'Ongoing Missions', none:'None.', send:'Send', noAgent:'No free agent', turns:'turn(s)', risk:'risk', reward:'Reward' },
-  }[lang];
-
-  let html = `<h4>${T.avail}</h4>`;
-  if (!state.availableMissions?.length) html += `<div class="mission-card">${T.none}</div>`;
-  else html += state.availableMissions.map(m => {
-    const agentLibre = state.agents.find(a =>
-      !(state.missions||[]).some(mi => mi.agentId === a.id) && !(a.cooldown > 0)
-    );
-    const nom = m.nom?.[lang] || m.nom || m.id;
-    const desc = m.desc?.[lang] || m.desc || '';
-    const rwStr = Object.entries(m.recompense||{}).map(([k,v])=>`${v} ${k}`).join(', ');
-
-    // Badges spéciaux pour antagonistes/boss
-    const isAntag = !!m.antagonist;
-    const isBoss = !!m.boss;
-    const antagNpc = isAntag ? LORE_NPCS[m.antagonist] : null;
-    const borderColor = isBoss ? '#ff2222' : isAntag ? '#ff8800' : '#4a3a8a';
-    const antagBadge = isBoss
-      ? '<span style="color:#ff2222;font-size:.75em;font-weight:bold"> ★ BOSS</span>'
-      : isAntag
-        ? `<span style="color:#ff8800;font-size:.75em"> ⚔️ ${antagNpc?.name?.[lang]||m.antagonist}</span>`
-        : '';
-    const antagSprite = antagNpc?.sprite
-      ? `<img src="${antagNpc.sprite}" style="width:32px;image-rendering:pixelated;float:right;margin:-4px 0 4px 8px">`
-      : '';
-
-    return `<div class="mission-card" style="border-color:${borderColor}">
-      ${antagSprite}
-      <strong>${nom}</strong>${antagBadge}
-      <span class="badge-mission">${m.risque||'?'}</span>
-      <small>${desc}</small>
-      <small>${m.duree} ${T.turns} — ${T.reward} : ${rwStr}</small>
-      ${agentLibre
-        ? `<button class="small" onclick="assignMissionV2('${m.id}','${agentLibre.id}')">${T.send} ${agentLibre.name}</button>`
-        : `<small><em>${T.noAgent}</em></small>`}
-    </div>`;
-  }).join('');
-
-  html += `<h4>${T.ongoing}</h4>`;
-  if (!state.missions?.length) html += `<div class="mission-card">${T.none}</div>`;
-  else html += state.missions.map(mi => {
-    const agent = state.agents.find(a => a.id === mi.agentId);
-    const mDef = MISSIONS_V2.find(x => x.id === mi.missionId) || MISSIONS.find(x => x.id === mi.missionId);
-    const nom = mDef?.nom?.[lang] || mDef?.nom || mi.missionId;
-    return `<div class="mission-card"><strong>${nom}</strong> — ${agent?.name||'?'} — ${mi.turnsLeft} ${T.turns}</div>`;
-  }).join('');
-  el.innerHTML = html;
-}
-
-function assignMissionV2(missionId, agentId) {
-  const m = MISSIONS_V2.find(x => x.id === missionId) || MISSIONS.find(x => x.id === missionId);
-  const agent = state.agents.find(a => a.id === agentId);
-  if (!m || !agent) return;
-  if (!state.missions) state.missions = [];
-  state.missions.push({ missionId, agentId, turnsLeft:m.duree, recompense:m.recompense });
-  state.availableMissions = state.availableMissions.filter(x => x.id !== missionId);
-  addLog(`${lang==='fr'?'Mission lancée':'Mission started'} : "${m.nom?.[lang]||m.nom}" — ${agent.name}`);
-  saveState(); render();
-}
-
-
-// ============================================================
-// MODULE v4.04 — RECRUTEMENT V2
-// ============================================================
-
-// ============================================================
-// PATCH v4.04 — RECRUTEMENT V2
-// 3 interactions max, coût 100₽ chacune
-// ============================================================
-
-const RECRUIT_MAX_INTERACTIONS = 3;
-const RECRUIT_COST_PER_STEP    = 100; // Pokédollars
-
-// Override de recruitStep (remplace la version v3)
-async function recruitStepV2() {
-  const r = state.recruit;
-  if (!r || r.finished) return;
-
-  const message = ui.recruitMessage.value.trim();
-  if (!message) return;
-
-  // Coût
-  if (state.resources.pokedollars < RECRUIT_COST_PER_STEP) {
-    const msg = lang==='fr'
-      ? `Pas assez de Pokédollars pour cette interaction. (${RECRUIT_COST_PER_STEP}₽ requis)`
-      : `Not enough Pokédollars for this interaction. (${RECRUIT_COST_PER_STEP}₽ needed)`;
-    ui.recruitTranscript.innerHTML += `<div class="logline" style="color:var(--danger)">${msg}</div>`;
-    return;
-  }
-
-  state.resources.pokedollars -= RECRUIT_COST_PER_STEP;
-  ui.recruitMessage.value = '';
-  r.interactions += 1;
-  r.transcript.push(`${lang==='fr'?'Vous':'You'} : ${message}`);
-
-  const npc = r.npc;
-  const systemPrompt = buildNpcSystemPrompt(npc);
-  const fullPrompt   = `${systemPrompt}\n\n${lang==='fr'?'Message du recruteur':'Recruiter message'} : "${message}"\n\nRéponds en JSON strict : {"reply":"...","scoreDelta":-2..2}`;
-  const fallback     = JSON.stringify({ reply:`${r.candidateName} : ${lang==='fr'?'Continue...':'Go on...'}`, scoreDelta: message.length > 20 ? 1 : 0 });
-  const llmOut       = await callOllama(fullPrompt, fallback);
-
-  let reply = `${r.candidateName} : ${lang==='fr'?"Je t'écoute.":"I'm listening."}`;
-  let delta  = 0;
-  try {
-    const jsonText = llmOut.includes('{') ? llmOut.slice(llmOut.indexOf('{'), llmOut.lastIndexOf('}')+1) : llmOut;
-    const parsed   = JSON.parse(jsonText);
-    reply = parsed.reply || reply;
-    delta = Math.max(-2, Math.min(2, Number(parsed.scoreDelta)||0));
-  } catch {
-    delta = message.includes('Rocket')||message.includes('ressource')||message.includes('resource') ? 1 : 0;
-  }
-
-  r.hiddenScore = Math.max(1, Math.min(10, r.hiddenScore + delta));
-  r.transcript.push(reply);
-
-  // Fin à 3 interactions
-  if (r.interactions >= RECRUIT_MAX_INTERACTIONS) {
-    r.finished = true;
-    if (r.hiddenScore >= 5) {
-      const hasBourreau = Math.random() < 0.15; // 15% de chance d'avoir ce trait
-      const newAgent = {
-        id:      `ag-${Date.now()}`,
-        name:    r.candidateName,
-        rank:    r.candidateRole,
-        level:   1, xp:0, cooldown:0,
-        team:    [],
-        traits:  hasBourreau ? ['bourreau_de_travail'] : [],
-        sprite:  npc.sprite,
-        personality:      npc.personality,
-        catch_phrases:    npc.catch_phrases,
-        pokemon_preferences: npc.pokemon_preferences,
-        missions:[],
-      };
-      state.agents.push(newAgent);
-      npc.possible_pokemon.forEach(spFR => addPokemonWithCap(makePokemon(spFR)));
-      state.reputation = Math.min(100, (state.reputation||0) + 3);
-      const traitMsg = hasBourreau ? (lang==='fr' ? ' [Bourreau de travail !]' : ' [Workaholic!]') : '';
-      addLog(`✅ ${lang==='fr'?'Recrutement réussi':'Recruitment successful'} : ${r.candidateName}${traitMsg}`);
-      r.transcript.push(`--- ${lang==='fr'?'Recrutement réussi':'Recruitment successful'} ---`);
-    } else {
-      addLog(`❌ ${lang==='fr'?'Recrutement échoué':'Recruitment failed'} : ${r.candidateName}`);
-      r.transcript.push(`--- ${lang==='fr'?'Refus':'Refused'} ---`);
-    }
-  }
-
-  saveState(); render();
-}
-
-// Mise à jour du render de recrutement pour afficher les 3 étapes
-function renderRecruitV2() {
-  if (!state.recruit) initRecruit();
-  const r    = state.recruit;
-  const npc  = r.npc;
-  const T = {
-    fr:{ inter:'Interaction', max:'max', cost:'coût', score:'Score', finished:'Recrutement terminé.', newNext:'Nouveau candidat au prochain tour.', send:'Envoyer', placeholder:'Argumente pour recruter…' },
-    en:{ inter:'Interaction', max:'max', cost:'cost', score:'Score', finished:'Recruitment over.', newNext:'New candidate next turn.', send:'Send', placeholder:'Make your pitch…' },
-  }[lang];
-
-  const spriteImg = npc?.sprite ? `<img src="${npc.sprite}" style="height:48px;vertical-align:middle;margin-right:8px;">` : '';
-  const traits   = (npc?.personality||[]).join(', ');
-  const pkmnFR   = (npc?.possible_pokemon||[]).join(', ');
-  const phrase   = (npc?.catch_phrases||['...'])[0];
-  const stepsLeft = RECRUIT_MAX_INTERACTIONS - (r.interactions||0);
-
-  // Barre de progression des interactions
-  const stepBar = [1,2,3].map(i =>
-    `<span style="display:inline-block;width:18px;height:18px;border-radius:50%;margin:0 3px;
-      background:${i <= (r.interactions||0) ? '#ffcc5a' : '#4b3e83'};
-      border:2px solid ${i <= (r.interactions||0) ? '#ffcc5a' : '#4b3e83'}"></span>`
-  ).join('');
-
-  const recruitCandidateEl = document.getElementById('recruitCandidate');
-  if (!recruitCandidateEl) return;
-
-  if (r.finished) {
-    recruitCandidateEl.innerHTML = `<div class="card"><em>${T.finished}<br>${T.newNext}</em></div>`;
-  } else {
-    recruitCandidateEl.innerHTML = `
-      <div class="card" style="display:flex;align-items:center;gap:8px;">
-        ${spriteImg}
-        <div style="flex:1">
-          <strong>${r.candidateName}</strong> — ${r.candidateRole}<br>
-          <small>Traits : ${traits}</small><br>
-          <small>Pokémon : ${pkmnFR}</small><br>
-          <small style="color:rgba(255,255,255,.5)">"${phrase}"</small><br>
-          <div style="margin-top:6px">${stepBar}
-            <span style="font-size:.65em;color:var(--muted);margin-left:6px">
-              ${r.interactions}/${RECRUIT_MAX_INTERACTIONS} — ${RECRUIT_COST_PER_STEP}₽/${T.cost}
-            </span>
-          </div>
-          ${!r.finished && stepsLeft>0
-            ? `<small style="color:var(--accent)">${lang==='fr'?'Reste':'Remaining'} : ${stepsLeft} — Total : ${stepsLeft*RECRUIT_COST_PER_STEP}₽</small>`
-            : ''}
-        </div>
-      </div>`;
-  }
-
-  const transcriptEl = document.getElementById('recruitTranscript');
-  if (transcriptEl) {
-    transcriptEl.innerHTML = r.transcript.length
-      ? r.transcript.map(line => `<div class="logline">${line}</div>`).join('')
-      : `<div class="log">${lang==='fr'?'Démarre une discussion.':'Start a conversation.'}</div>`;
-  }
-
-  // Mise à jour placeholder
-  const inp = document.getElementById('recruitMessage');
-  if (inp) inp.placeholder = T.placeholder;
-  const btn = document.getElementById('sendRecruitBtn');
-  if (btn) btn.textContent = T.send;
-}
-
-
-// ============================================================
-// MODULE v4.05 — NIVEAUX AGENTS
-// ============================================================
-
-// ============================================================
-// PATCH v4.05 — NIVEAUX AGENTS + COOLDOWN
-// ============================================================
-
-function grantAgentXP(agent, xp) {
-  if (!agent) return;
-  agent.xp = (agent.xp||0) + xp;
-  const prevLevel = agent.level || 1;
-  // Calcul du nouveau level
-  let newLevel = 1;
-  for (let i = AGENT_XP_THRESHOLDS.length-1; i>=0; i--) {
-    if (agent.xp >= AGENT_XP_THRESHOLDS[i]) { newLevel = i+1; break; }
-  }
-  agent.level = newLevel;
-  if (newLevel > prevLevel) {
-    addLog(`⬆ ${agent.name} ${lang==='fr'?'passe au niveau':'reached level'} ${newLevel} !`);
-  }
-}
-
-function agentMissionSuccessRate(agent) {
-  const lvlBonus  = (agent?.level||1) * 5;
-  const repBonus  = (state.reputation||0) * 0.6;
-  return Math.min(90, 35 + lvlBonus + repBonus);
-}
-
-function renderAgentsV2() {
-  const el = document.getElementById('agentsList');
-  if (!el) return;
-  const T = {
-    fr:{ cd:'Repos', turns:'tour(s)', noTeam:'Aucune équipe', mission:'en mission', trait:'Bourreau de travail', xpTo:'XP suivant niveau' },
-    en:{ cd:'Rest',  turns:'turn(s)', noTeam:'No team',       mission:'on mission', trait:'Workaholic',          xpTo:'XP to next level' },
-  }[lang];
-
-  el.innerHTML = state.agents.map(a => {
-    const enMission = (state.missions||[]).some(mi => mi.agentId === a.id);
-    const inCooldown = (a.cooldown||0) > 0;
-    const sprite = a.sprite ? `<img src="${a.sprite}" style="height:36px;vertical-align:middle;margin-right:6px;">` : '';
-    const traits  = (a.personality||[]).join(', ');
-    const isBourreau = (a.traits||[]).includes('bourreau_de_travail');
-
-    // Barre XP
-    const currThreshold = AGENT_XP_THRESHOLDS[(a.level||1)-1] || 0;
-    const nextThreshold = AGENT_XP_THRESHOLDS[a.level]  || AGENT_XP_THRESHOLDS[AGENT_XP_THRESHOLDS.length-1];
-    const xpProgress = nextThreshold > currThreshold
-      ? Math.min(100, Math.round(((a.xp||0)-currThreshold)/(nextThreshold-currThreshold)*100))
-      : 100;
-
-    return `<div class="card">
-      ${sprite}
-      <strong>${a.name}</strong> — ${a.rank}
-      <span style="font-size:.7em;color:var(--accent);margin-left:6px">Nv.${a.level||1}</span>
-      ${enMission ? `<span style="color:#e53;font-size:.7em"> [${T.mission}]</span>` : ''}
-      ${inCooldown ? `<span style="color:#7060a8;font-size:.7em"> [${T.cd} ${a.cooldown} ${T.turns}]</span>` : ''}
-      <div style="font-size:.68em;color:var(--muted);margin-top:2px">${traits}</div>
-      ${isBourreau ? `<div style="font-size:.62em;color:var(--ok)">★ ${T.trait}</div>` : ''}
-      <div style="margin-top:4px">
-        <div style="font-size:.6em;color:var(--muted)">${T.xpTo} : ${(a.xp||0)}/${nextThreshold} XP</div>
-        <div class="rep-bar" style="margin-top:3px">
-          <div class="rep-fill" style="width:${xpProgress}%;background:var(--line)"></div>
-        </div>
-      </div>
-    </div>`;
-  }).join('');
-}
-
-
-// ============================================================
-// MODULE v4.06 — NIVEAUX POKÉMON + ÉVOLUTION
-// ============================================================
-
-// ============================================================
-// PATCH v4.06 — NIVEAUX POKÉMON + ÉVOLUTION + EVENTS SPÉCIAUX
-// ============================================================
-
-// Table d'évolution Gen1/Gen2 (niveau minimal + espèce FR cible)
-const EVOLUTION_TABLE = {
-  'abo':          { level:22, into_fr:'arbok',       into_en:'arbok' },
-  'nosferapti':   { level:22, into_fr:'nosferalto',  into_en:'golbat' },
-  'smogo':        { level:35, into_fr:'smogogo',     into_en:'weezing' },
-  'voltorbe':     { level:30, into_fr:'électrode',   into_en:'electrode' },
-  'fantominus':   { level:25, into_fr:'spectrum',    into_en:'haunter' },
-  'magneti':      { level:30, into_fr:'magnéton',    into_en:'magneton' },
-  'osselait':     { level:28, into_fr:'ossatueur',   into_en:'marowak' },
-  'soporifik':    { level:26, into_fr:'hypnomade',   into_en:'hypno' },
-  'miaouss':      { level:28, into_fr:'persian',     into_en:'persian' },
-  'magicarpe':    { level:20, into_fr:'léviator',    into_en:'gyarados' },
-  'ptitard':      { level:25, into_fr:'têtarte',     into_en:'poliwhirl' },
-  'feuforêve':    { level:24, into_fr:'démolosse',   into_en:'houndoom' },
-  'munja':        { level:1,  into_fr:'munja',       into_en:'murkrow' }, // pas d'évolution Gen2
-  'farfuret':     { level:1,  into_fr:'farfuret',    into_en:'sneasel' },
-  'abra':         { level:16, into_fr:'kadabra',     into_en:'kadabra' },
-  'racaillou':    { level:25, into_fr:'gravalanch',  into_en:'graveler' },
-  'héricendre':   { level:14, into_fr:'feurisson',   into_en:'quilava' },
-  'germignon':    { level:16, into_fr:'macronium',   into_en:'bayleef' },
-  'kaiminus':     { level:18, into_fr:'crocrodil',   into_en:'croconaw' },
-};
-
-// Événements spéciaux d'entraînement
-const TRAINING_EVENTS = {
-  fr: [
-    { id:'ev_atk',  label:'Percée offensive !',   effect:{ stat:'atk',  delta:+5 }, positive:true },
-    { id:'ev_def',  label:'Carapace renforcée !',  effect:{ stat:'def',  delta:+5 }, positive:true },
-    { id:'ev_hp',   label:'Endurance décuplée !',  effect:{ stat:'hp',   delta:+10 }, positive:true },
-    { id:'ev_fear', label:'Traumatisme de combat.', effect:{ stat:'accuracy', delta:-10 }, positive:false },
-    { id:'ev_weak', label:'Blessure chronique.',   effect:{ stat:'hp',   delta:-5  }, positive:false },
-  ],
-  en: [
-    { id:'ev_atk',  label:'Offensive breakthrough!', effect:{ stat:'atk',  delta:+5 }, positive:true },
-    { id:'ev_def',  label:'Reinforced shell!',        effect:{ stat:'def',  delta:+5 }, positive:true },
-    { id:'ev_hp',   label:'Increased endurance!',     effect:{ stat:'hp',   delta:+10 }, positive:true },
-    { id:'ev_fear', label:'Battle trauma.',           effect:{ stat:'accuracy', delta:-10 }, positive:false },
-    { id:'ev_weak', label:'Chronic injury.',          effect:{ stat:'hp',   delta:-5  }, positive:false },
-  ],
-};
-
-function grantPokemonXP(pkm, xp) {
-  if (!pkm) return;
-  pkm.xp    = (pkm.xp||0) + xp;
-  // Chaque tranche de 30 XP = +1 niveau
-  const newLevel = 1 + Math.floor(pkm.xp / 30);
-  if (newLevel > (pkm.level||1)) {
-    pkm.level = newLevel;
-    addLog(`⬆ ${pkm.species_fr||pkm.species_en} ${lang==='fr'?'passe':'reached'} Nv.${pkm.level} !`);
-  }
-}
-
-function checkEvolution(pkm) {
-  const key = (pkm.species_fr||'').toLowerCase();
-  const evo = EVOLUTION_TABLE[key];
-  if (!evo) return false;
-  if (evo.level <= 1) return false; // pas d'évolution
-  if ((pkm.level||1) < evo.level) return false;
-  if (pkm.evolved) return false; // déjà évolué une fois
-
-  // Évolution !
-  const oldName = pkm.species_fr;
-  pkm.species_fr = evo.into_fr;
-  pkm.species_en = evo.into_en;
-  pkm.evolved    = true;
-  updatePokedex(evo.into_fr);
-  addLog(`✨ ${oldName} a évolué en ${evo.into_fr} !`);
-  return true;
-}
-
-function rollTrainingEvent(salle) {
-  const eventChance = 0.05 + 0.03 * (salle.level||1);
-  if (Math.random() > eventChance) return null;
-  const events = TRAINING_EVENTS[lang] || TRAINING_EVENTS.fr;
-  return pick(events);
-}
-
-function applyTrainingEvent(pkm, event) {
-  if (!pkm || !event) return;
-  if (!pkm.bonuses) pkm.bonuses = {};
-  pkm.bonuses[event.effect.stat] = (pkm.bonuses[event.effect.stat]||0) + event.effect.delta;
-  const sign = event.effect.delta > 0 ? '+' : '';
-  addLog(`⚡ [Événement] ${pkm.species_fr||pkm.species_en} : ${event.label} (${sign}${event.effect.delta} ${event.effect.stat})`);
-}
-
-
-// ============================================================
-// MODULE v4.07 — SALLES V2
-// ============================================================
-
-// ============================================================
-// PATCH v4.07 — SALLES V2
-// Salle d'apprentissage du combat + Salle d'entraînement Pokémon
-// ============================================================
-
-// ── STATE ADDITIONS ───────────────────────────────────────
-// Ajouté dans BASE_STATE.rooms :
-// learning:  { nom, level, assignedAgentId, upgradeCost }
-// pkm_train: { nom, level, assignedPokemonIds:[], upgradeCost }
-
-const LEARNING_ROOM_DEFAULTS = {
-  nom:            { fr:"Salle d'apprentissage", en:'Learning Room' },
-  level:          1,
-  assignedAgentId:null,
-  upgradeCost:    600,
-  baseXpPerFight: 5,   // XP agent par combat simulé
-  pkmXpPerFight:  2,   // XP Pokémon par combat simulé
-};
-
-const PKM_TRAIN_ROOM_DEFAULTS = {
-  nom:                { fr:"Salle d'entraînement Pokémon", en:'Pokémon Training Room' },
-  level:              1,
-  assignedPokemonIds: [],
-  upgradeCost:        600,
-  baseXpPerTurn:      12,   // XP Pokémon/tour au niveau 1
-};
-
-function initRoomsV2() {
-  if (!state.rooms.learning) {
-    state.rooms.learning  = { ...LEARNING_ROOM_DEFAULTS };
-  }
-  if (!state.rooms.pkm_train) {
-    state.rooms.pkm_train = { ...PKM_TRAIN_ROOM_DEFAULTS, assignedPokemonIds:[] };
-  }
-}
-
-// Slots Pokémon disponibles dans la salle d'entraînement selon son level
-function pkmTrainSlots(room) {
-  if ((room.level||1) >= 5) return 3;
-  if ((room.level||1) >= 3) return 2;
+function getZoneMastery(zoneId) {
+  const z = state.zones[zoneId];
+  if (!z) return 0;
+  if (z.combatsWon >= 50) return 3;
+  if (z.combatsWon >= 10) return 2;
   return 1;
 }
 
-// ── PROCESSING ────────────────────────────────────────────
-function processLearningRoom() {
-  const room = state.rooms.learning;
-  if (!room || !room.assignedAgentId) return;
-  const agent = state.agents.find(a => a.id === room.assignedAgentId);
-  if (!agent) return;
-  if ((agent.cooldown||0) > 0) return; // agent en repos
-
-  const fights = 5;
-  const agentXP = fights * room.baseXpPerFight;
-  grantAgentXP(agent, agentXP);
-
-  // XP pour les Pokémon de l'agent
-  agent.team.forEach(pkmId => {
-    const pkm = state.pokemons.find(p => p.id === pkmId);
-    if (pkm && !(pkm.cooldown > 0)) {
-      grantPokemonXP(pkm, fights * room.pkmXpPerFight);
-    }
-  });
-  addLog(`📚 ${agent.name} ${lang==='fr'?'a fait':'did'} ${fights} ${lang==='fr'?'combats simulés':'simulated fights'} (+${agentXP} XP)`);
+function getZoneAgentSlots(zoneId) {
+  const m = getZoneMastery(zoneId);
+  if (m >= 3) return 2;
+  if (m >= 2) return 1;
+  return 0;
 }
 
-function processPkmTrainingRoom() {
-  const room = state.rooms.pkm_train;
-  if (!room || !room.assignedPokemonIds?.length) return;
+// Open zone windows tracking
+const openZones = new Set();
+const zoneSpawnTimers = {};
+const zoneSpawns = {}; // zoneId -> [{ type, data, el, timeout }]
 
-  const xpPerTurn = (room.baseXpPerTurn||12) * (room.level||1);
-
-  room.assignedPokemonIds.forEach(pkmId => {
-    const pkm = state.pokemons.find(p => p.id === pkmId);
-    if (!pkm || (pkm.cooldown||0) > 0) return;
-
-    // XP
-    grantPokemonXP(pkm, xpPerTurn);
-
-    // Évolution ?
-    checkEvolution(pkm);
-
-    // Événement spécial ?
-    const ev = rollTrainingEvent(room);
-    if (ev) {
-      applyTrainingEvent(pkm, ev);
-      // Flash visuel dans la bande des salles
-      flashRoomSprite(pkmId, ev.positive);
-    }
-  });
+function makeTrainerTeam(zone, trainerKey) {
+  const trainer = TRAINER_TYPES[trainerKey];
+  if (!trainer) return [];
+  const teamSize = clamp(trainer.diff, 1, 3);
+  const team = [];
+  for (let i = 0; i < teamSize; i++) {
+    const sp = pick(zone.pool);
+    const level = randInt(5 + trainer.diff * 3, 10 + trainer.diff * 5);
+    team.push({ species_en: sp, level, stats: calculateStats({ species_en: sp, level, nature: 'hardy', potential: 2 }) });
+  }
+  return team;
 }
 
-function flashRoomSprite(pkmId, positive) {
-  const el = document.getElementById(`room-sprite-${pkmId}`);
-  if (!el) return;
-  el.style.filter = positive ? 'drop-shadow(0 0 10px #70e0a4)' : 'drop-shadow(0 0 10px #ff4466)';
-  el.style.animation = 'simShake .5s';
-  setTimeout(() => {
-    el.style.filter = '';
-    el.style.animation = '';
-  }, 800);
-}
+function spawnInZone(zoneId) {
+  const zone = ZONE_BY_ID[zoneId];
+  if (!zone) return null;
+  const zState = initZone(zoneId);
+  const isChestBoosted = isBoostActive('chestBoost');
+  const r = Math.random();
 
-// ── RENDER SALLES V2 ─────────────────────────────────────
-function renderRoomsV2() {
-  const el = document.getElementById('roomsList');
-  if (!el) return;
-
-  const T = {
-    fr:{ upgrade:'Améliorer', level:'Niv.', prod:'Prod./tour', assign:'Assigner', unassign:'Retirer', agent:'Agent assigné', none:'Aucun', pkm:'Pokémon assignés', slots:'slots', fights:'5 combats/tour' },
-    en:{ upgrade:'Upgrade',   level:'Lv.',  prod:'Prod/turn',  assign:'Assign',   unassign:'Remove',  agent:'Assigned agent',  none:'None',  pkm:'Assigned Pokémon', slots:'slots', fights:'5 fights/turn' },
-  }[lang];
-
-  let html = '';
-
-  // Salles standard (command, breeding, training)
-  const standardRooms = ['command','breeding','training'];
-  standardRooms.filter(k => state.rooms[k]).forEach(roomId => {
-    const room = state.rooms[roomId];
-    const nom = typeof room.nom === 'object' ? (room.nom[lang]||room.nom.fr) : room.nom;
-    html += `<div class="room">
-      <div><strong>${nom}</strong> ${T.level}${room.level}</div>
-      <div class="row">
-        <small>${T.prod} : ${room.baseIncome * room.level}</small>
-        <button data-room="${roomId}">${T.upgrade} ${room.upgradeCost}₽</button>
-      </div>
-    </div>`;
-  });
-
-  // Salle d'apprentissage
-  const lr = state.rooms.learning;
-  if (lr) {
-    const nom = lr.nom?.[lang] || lr.nom?.fr || "Salle d'apprentissage";
-    const assignedAgent = lr.assignedAgentId ? state.agents.find(a => a.id === lr.assignedAgentId) : null;
-    const freeAgents = state.agents.filter(a => !(state.missions||[]).some(mi=>mi.agentId===a.id) && !(a.cooldown>0));
-
-    html += `<div class="room">
-      <div><strong>${nom}</strong> ${T.level}${lr.level} <small>(${T.fights})</small></div>
-      <div><small>${T.agent} : ${assignedAgent ? assignedAgent.name : T.none}</small></div>
-      ${assignedAgent
-        ? `<button data-unassign-learning>✕ ${T.unassign}</button>`
-        : `<select id="learningAgentSelect">${freeAgents.map(a=>`<option value="${a.id}">${a.name}</option>`).join('')}</select>
-           <button data-assign-learning>${T.assign}</button>`}
-      <div class="row" style="margin-top:4px">
-        <button data-room="learning">${T.upgrade} ${lr.upgradeCost}₽</button>
-      </div>
-    </div>`;
+  // 1. Treasure chest (5% base, 25% during chest event)
+  const chestChance = isChestBoosted ? 0.25 : 0.05;
+  if (r < chestChance) {
+    return { type: 'chest' };
   }
 
-  // Salle d'entraînement Pokémon
-  const ptr = state.rooms.pkm_train;
-  if (ptr) {
-    const nom   = ptr.nom?.[lang] || ptr.nom?.fr || "Salle d'entraînement Pokémon";
-    const slots = pkmTrainSlots(ptr);
-    const assignedPkm = (ptr.assignedPokemonIds||[]).map(id => state.pokemons.find(p=>p.id===id)).filter(Boolean);
-    const freePkm = state.pokemons.filter(p => !(ptr.assignedPokemonIds||[]).includes(p.id) && !(p.cooldown>0));
-    const canAdd  = assignedPkm.length < slots;
+  // 2. Special event (3-5% each, only in invested zones or high mastery)
+  const canEvent = zState.invested || getZoneMastery(zoneId) >= 2;
+  if (canEvent && r < chestChance + 0.08) {
+    const eligible = SPECIAL_EVENTS.filter(ev =>
+      state.gang.reputation >= ev.minRep &&
+      !state.activeEvents[zoneId] // no stacking
+    );
+    if (eligible.length > 0) {
+      const event = pick(eligible);
+      return { type: 'event', event };
+    }
+  }
 
-    html += `<div class="room">
-      <div><strong>${nom}</strong> ${T.level}${ptr.level} <small>(${slots} ${T.slots})</small></div>
-      <div style="font-size:.75em;color:var(--muted)">${T.pkm} (${assignedPkm.length}/${slots}) :</div>
-      ${assignedPkm.map(p => `
-        <div style="display:flex;align-items:center;gap:4px;font-size:.75em">
-          <img src="https://play.pokemonshowdown.com/sprites/gen5/${p.species_en}.png" id="room-sprite-${p.id}"
-               style="width:28px;image-rendering:pixelated">
-          ${p.species_fr} Nv.${p.level||1}
-          ${p.cooldown>0 ? `<span style="color:#7060a8">[repos ${p.cooldown}t]</span>` : ''}
-          <button class="small" data-unassign-pkm="${p.id}">✕</button>
-        </div>`).join('')}
-      ${canAdd && freePkm.length
-        ? `<select id="pkmTrainSelect">${freePkm.map(p=>`<option value="${p.id}">${p.species_fr} Nv.${p.level||1}</option>`).join('')}</select>
-           <button data-assign-pkm>${T.assign}</button>`
-        : ''}
-      <div class="row" style="margin-top:4px">
-        <button data-room="pkm_train">${T.upgrade} ${ptr.upgradeCost}₽</button>
-      </div>
+  // 3. Elite trainer (in invested zones, 5% chance, harder)
+  if (zState.invested && zone.eliteTrainer && r < chestChance + 0.13) {
+    const trainerKey = zone.eliteTrainer;
+    const trainer = TRAINER_TYPES[trainerKey];
+    if (trainer) {
+      // Elite: boosted difficulty (diff+2), bigger team, better rewards
+      const eliteDiff = trainer.diff + 2;
+      const teamSize = clamp(eliteDiff, 2, 4);
+      const team = [];
+      for (let i = 0; i < teamSize; i++) {
+        const sp = pick(zone.pool);
+        const level = randInt(10 + eliteDiff * 4, 20 + eliteDiff * 6);
+        team.push({ species_en: sp, level, stats: calculateStats({ species_en: sp, level, nature: 'hardy', potential: 3 }) });
+      }
+      const eliteTrainer = {
+        ...trainer,
+        fr: '⭐ ' + trainer.fr,
+        en: '⭐ ' + trainer.en,
+        diff: eliteDiff,
+        reward: [trainer.reward[0] * 3, trainer.reward[1] * 3],
+        rep: trainer.rep * 2,
+      };
+      return { type: 'trainer', trainerKey, trainer: eliteTrainer, team, elite: true };
+    }
+  }
+
+  // 4. Normal trainer (20%)
+  if (r < 0.30 && zone.trainers.length > 0) {
+    const trainerKey = pick(zone.trainers);
+    const trainer = TRAINER_TYPES[trainerKey];
+    const team = makeTrainerTeam(zone, trainerKey);
+    return { type: 'trainer', trainerKey, trainer, team };
+  }
+
+  // 5. Pokemon spawn — Rare Scope triples chance of rare+ species
+  let speciesEN;
+  if (isBoostActive('rarescope') && Math.random() < 0.5) {
+    const rarePool = zone.pool.filter(en => {
+      const sp = SPECIES_BY_EN[en];
+      return sp && (sp.rarity === 'rare' || sp.rarity === 'very_rare' || sp.rarity === 'legendary');
+    });
+    speciesEN = rarePool.length > 0 ? pick(rarePool) : pick(zone.pool);
+  } else {
+    speciesEN = pick(zone.pool);
+  }
+  return { type: 'pokemon', species_en: speciesEN };
+}
+
+// ── Chest loot resolution ─────────────────────────────────────
+function rollChestLoot(zoneId) {
+  const totalWeight = CHEST_LOOT.reduce((s, l) => s + l.weight, 0);
+  let roll = Math.random() * totalWeight;
+  let loot = CHEST_LOOT[0];
+  for (const l of CHEST_LOOT) {
+    roll -= l.weight;
+    if (roll <= 0) { loot = l; break; }
+  }
+  const zone = ZONE_BY_ID[zoneId];
+  const name = state.lang === 'fr' ? loot.fr : loot.en;
+
+  switch (loot.type) {
+    case 'balls': {
+      const qty = randInt(loot.qty[0], loot.qty[1]);
+      state.inventory[loot.ballType] = (state.inventory[loot.ballType] || 0) + qty;
+      return { msg: `📦 ${qty}x ${name}`, type: 'success' };
+    }
+    case 'money': {
+      const amount = randInt(loot.qty[0], loot.qty[1]);
+      state.gang.money += amount;
+      state.stats.totalMoneyEarned += amount;
+      return { msg: `📦 ${amount}₽`, type: 'gold' };
+    }
+    case 'rare_pokemon': {
+      if (zone) {
+        const rarePool = zone.pool.filter(en => {
+          const sp = SPECIES_BY_EN[en];
+          return sp && sp.rarity !== 'common';
+        });
+        const speciesEN = rarePool.length > 0 ? pick(rarePool) : pick(zone.pool);
+        const pokemon = makePokemon(speciesEN, zoneId, 'ultraball');
+        if (pokemon) {
+          pokemon.potential = Math.max(pokemon.potential, 3); // guaranteed 3+ stars
+          pokemon.stats = calculateStats(pokemon);
+          state.pokemons.push(pokemon);
+          state.stats.totalCaught++;
+          const pName = speciesName(pokemon.species_en);
+          const stars = '★'.repeat(pokemon.potential);
+          if (!state.pokedex[pokemon.species_en]) {
+            state.pokedex[pokemon.species_en] = { seen: true, caught: true, shiny: pokemon.shiny, count: 1 };
+          } else {
+            state.pokedex[pokemon.species_en].caught = true;
+            state.pokedex[pokemon.species_en].count++;
+          }
+          return { msg: `📦 ${pName} ${stars}${pokemon.shiny ? ' ✨' : ''}!`, type: 'gold' };
+        }
+      }
+      // Fallback
+      state.gang.money += 1000;
+      return { msg: `📦 1000₽`, type: 'gold' };
+    }
+    case 'item': {
+      state.inventory[loot.itemId] = (state.inventory[loot.itemId] || 0) + loot.qty;
+      return { msg: `📦 ${name}`, type: 'gold' };
+    }
+    case 'event': {
+      // Trigger a random event
+      const eligible = SPECIAL_EVENTS.filter(ev => state.gang.reputation >= ev.minRep);
+      if (eligible.length > 0 && zone) {
+        const event = pick(eligible);
+        activateEvent(zoneId, event);
+        return { msg: `📦 ${state.lang === 'fr' ? event.fr : event.en}`, type: 'gold' };
+      }
+      state.gang.money += 2000;
+      return { msg: `📦 2000₽`, type: 'gold' };
+    }
+    default:
+      state.gang.money += 500;
+      return { msg: `📦 500₽`, type: 'success' };
+  }
+}
+
+// ── Event activation/resolution ───────────────────────────────
+function activateEvent(zoneId, event) {
+  const reward = event.reward;
+  state.stats.eventsCompleted++;
+
+  if (reward.shinyBoost) {
+    state.activeBoosts.aura = Math.max(state.activeBoosts.aura || 0, Date.now() + reward.shinyBoost);
+    notify(`${event.icon} ${state.lang === 'fr' ? event.fr : event.en}`, 'gold');
+  }
+  if (reward.rareBoost) {
+    state.activeBoosts.rarescope = Math.max(state.activeBoosts.rarescope || 0, Date.now() + reward.rareBoost);
+    notify(`${event.icon} ${state.lang === 'fr' ? event.fr : event.en}`, 'gold');
+  }
+  if (reward.chestBoost) {
+    if (!state.activeBoosts.chestBoost) state.activeBoosts.chestBoost = 0;
+    state.activeBoosts.chestBoost = Math.max(state.activeBoosts.chestBoost, Date.now() + reward.chestBoost);
+    notify(`${event.icon} ${state.lang === 'fr' ? event.fr : event.en}`, 'gold');
+  }
+  if (reward.money) {
+    const amount = randInt(reward.money[0], reward.money[1]);
+    state.gang.money += amount;
+    state.stats.totalMoneyEarned += amount;
+    if (reward.rep) state.gang.reputation += reward.rep;
+    notify(`${event.icon} ${state.lang === 'fr' ? event.fr : event.en} +${amount}₽`, 'gold');
+  }
+  if (reward.xpBonus) {
+    // Grant XP to all pokemon in zone agents
+    for (const agent of state.agents) {
+      if (agent.assignedZone === zoneId) {
+        grantAgentXP(agent, reward.xpBonus);
+        for (const pkId of agent.team) {
+          const p = state.pokemons.find(pk => pk.id === pkId);
+          if (p) levelUpPokemon(p, reward.xpBonus);
+        }
+      }
+    }
+  }
+
+  // Track active event on zone
+  state.activeEvents[zoneId] = { eventId: event.id, expiresAt: Date.now() + 60000 };
+  saveState();
+}
+
+// ── Zone Investment ───────────────────────────────────────────
+function investInZone(zoneId) {
+  const zone = ZONE_BY_ID[zoneId];
+  if (!zone) return false;
+  const zState = initZone(zoneId);
+  if (zState.invested) return false;
+  const cost = zone.investCost || 0;
+  if (state.gang.money < cost) {
+    notify(state.lang === 'fr' ? 'Pas assez d\'argent !' : 'Not enough money!');
+    try { SFX.error(); } catch {}
+    return false;
+  }
+  // Need minimum team power in zone
+  const minPower = zone.rep * 10;
+  let zonePower = 0;
+  for (const agent of state.agents) {
+    if (agent.assignedZone === zoneId) {
+      zonePower += getAgentCombatPower(agent);
+    }
+  }
+  if (zonePower < minPower && minPower > 0) {
+    notify(state.lang === 'fr'
+      ? `Puissance insuffisante ! (${zonePower}/${minPower}) Assignez des agents avec des Pokémon.`
+      : `Not enough power! (${zonePower}/${minPower}) Assign agents with Pokémon.`);
+    try { SFX.error(); } catch {}
+    return false;
+  }
+  state.gang.money -= cost;
+  state.stats.totalMoneySpent += cost;
+  zState.invested = true;
+  zState.investPower = zonePower;
+  notify(state.lang === 'fr'
+    ? `🏴 Zone investie ! Événements & élites débloqués.`
+    : `🏴 Zone invested! Events & elites unlocked.`, 'gold');
+  saveState();
+  return true;
+}
+
+// ════════════════════════════════════════════════════════════════
+//  6.  CAPTURE MODULE
+// ════════════════════════════════════════════════════════════════
+
+function tryCapture(zoneId, speciesEN) {
+  const ball = state.activeBall;
+  if ((state.inventory[ball] || 0) <= 0) {
+    notify(t('no_balls', { ball: BALLS[ball]?.fr || ball }));
+    try { SFX.error(); } catch {}
+    return null;
+  }
+  state.inventory[ball]--;
+  const pokemon = makePokemon(speciesEN, zoneId, ball);
+  if (!pokemon) return null;
+  state.pokemons.push(pokemon);
+  state.stats.totalCaught++;
+  // Pokedex
+  if (!state.pokedex[pokemon.species_en]) {
+    state.pokedex[pokemon.species_en] = { seen: true, caught: true, shiny: pokemon.shiny, count: 1 };
+  } else {
+    state.pokedex[pokemon.species_en].caught = true;
+    state.pokedex[pokemon.species_en].count++;
+    if (pokemon.shiny) state.pokedex[pokemon.species_en].shiny = true;
+  }
+  if (pokemon.shiny) state.stats.shinyCaught++;
+  const name = speciesName(pokemon.species_en);
+  const stars = '★'.repeat(pokemon.potential) + '☆'.repeat(5 - pokemon.potential);
+  const shinyTag = pokemon.shiny ? ' ✨SHINY✨' : '';
+  if (pokemon.shiny) {
+    notify(`${name} ${stars}${shinyTag}`, 'gold');
+  } else {
+    notify(`${name} ${stars}`, pokemon.potential >= 4 ? 'gold' : 'success');
+  }
+  addLog(t('catch_success', { name }) + ` [${stars}]`);
+  // SFX
+  try { SFX.capture(pokemon.potential, pokemon.shiny); } catch {}
+  saveState();
+  return pokemon;
+}
+
+// ════════════════════════════════════════════════════════════════
+//  7.  COMBAT MODULE
+// ════════════════════════════════════════════════════════════════
+
+function getTeamPower(pokemonIds) {
+  let power = 0;
+  for (const id of pokemonIds) {
+    const p = state.pokemons.find(pk => pk.id === id);
+    if (p && p.cooldown <= 0) power += getPokemonPower(p);
+  }
+  return power;
+}
+
+function resolveCombat(playerTeamIds, trainerData) {
+  const playerPower = getTeamPower(playerTeamIds);
+  let enemyPower = 0;
+  for (const t of trainerData.team) {
+    enemyPower += (t.stats.atk + t.stats.def + t.stats.spd);
+  }
+  // Add some randomness (±20%)
+  const pRoll = playerPower * (0.8 + Math.random() * 0.4);
+  const eRoll = enemyPower * (0.8 + Math.random() * 0.4);
+  const win = pRoll >= eRoll;
+  const reward = win ? randInt(trainerData.trainer.reward[0], trainerData.trainer.reward[1]) : 0;
+  const repGain = win ? trainerData.trainer.rep : -1;
+  return { win, playerPower, enemyPower, reward, repGain };
+}
+
+function applyCombatResult(result, playerTeamIds, trainerData) {
+  state.stats.totalFights++;
+  if (result.win) {
+    state.stats.totalFightsWon++;
+    state.gang.money += result.reward;
+    state.gang.reputation += result.repGain;
+    state.stats.totalMoneyEarned += result.reward;
+    if (trainerData.trainerKey === 'rocketgrunt' || trainerData.trainerKey === 'rocketgruntf' || trainerData.trainerKey === 'giovanni') {
+      state.stats.rocketDefeated++;
+    }
+    // XP to team
+    const xpEach = 10 + trainerData.trainer.diff * 5;
+    for (const id of playerTeamIds) {
+      const p = state.pokemons.find(pk => pk.id === id);
+      if (p) levelUpPokemon(p, xpEach);
+    }
+  } else {
+    state.gang.reputation = Math.max(0, state.gang.reputation + result.repGain);
+    // Cooldown on team
+    for (const id of playerTeamIds) {
+      const p = state.pokemons.find(pk => pk.id === id);
+      if (p) p.cooldown = 3;
+    }
+  }
+  saveState();
+}
+
+// ════════════════════════════════════════════════════════════════
+//  8.  AGENT MODULE
+// ════════════════════════════════════════════════════════════════
+
+function rollNewAgent() {
+  const isFemale = Math.random() < 0.5;
+  const name = pick(isFemale ? AGENT_NAMES_F : AGENT_NAMES_M);
+  const sprite = pick(AGENT_SPRITES);
+  const personality = [];
+  const pool = [...AGENT_PERSONALITIES];
+  for (let i = 0; i < 2; i++) {
+    const idx = Math.floor(Math.random() * pool.length);
+    personality.push(pool.splice(idx, 1)[0]);
+  }
+  return {
+    id: `ag-${uid()}`,
+    name,
+    sprite: trainerSprite(sprite),
+    spriteKey: sprite,
+    title: 'grunt',
+    level: 1,
+    xp: 0,
+    combatsWon: 0,
+    stats: {
+      capture: randInt(3, 18),
+      combat: randInt(3, 18),
+      luck: randInt(1, 12),
+    },
+    personality,
+    team: [],
+    assignedZone: null,
+  };
+}
+
+function recruitAgent(agentData) {
+  state.agents.push(agentData);
+  addLog(t('recruit_agent') + ': ' + agentData.name);
+  saveState();
+}
+
+function assignAgentToZone(agentId, zoneId) {
+  const agent = state.agents.find(a => a.id === agentId);
+  if (!agent) return;
+  // Remove from old zone
+  if (agent.assignedZone) {
+    const oldZ = state.zones[agent.assignedZone];
+    if (oldZ) {
+      oldZ.assignedAgents = oldZ.assignedAgents.filter(id => id !== agentId);
+    }
+  }
+  agent.assignedZone = zoneId;
+  if (zoneId) {
+    const z = initZone(zoneId);
+    if (!z.assignedAgents.includes(agentId)) {
+      z.assignedAgents.push(agentId);
+    }
+  }
+  saveState();
+}
+
+function grantAgentXP(agent, amount) {
+  agent.xp += amount;
+  const needed = agent.level * 30;
+  while (agent.xp >= needed && agent.level < 100) {
+    agent.xp -= needed;
+    agent.level++;
+  }
+  checkPromotion(agent);
+}
+
+function checkPromotion(agent) {
+  if (agent.title === 'grunt' &&
+      agent.level >= TITLE_REQUIREMENTS.lieutenant.level &&
+      agent.combatsWon >= TITLE_REQUIREMENTS.lieutenant.combatsWon) {
+    agent.title = 'lieutenant';
+    notify(t('agent_promo', { agent: agent.name, title: 'Lieutenant' }), 'gold');
+    addLog(t('agent_promo', { agent: agent.name, title: 'Lieutenant' }));
+  }
+  if (agent.title === 'lieutenant' &&
+      agent.level >= TITLE_REQUIREMENTS.captain.level &&
+      agent.combatsWon >= TITLE_REQUIREMENTS.captain.combatsWon) {
+    agent.title = 'captain';
+    notify(t('agent_promo', { agent: agent.name, title: 'Captain' }), 'gold');
+    addLog(t('agent_promo', { agent: agent.name, title: 'Captain' }));
+  }
+}
+
+function getAgentCombatPower(agent) {
+  const bonus = 1 + (TITLE_BONUSES[agent.title] || 0);
+  let teamPower = 0;
+  for (const pkId of agent.team) {
+    const p = state.pokemons.find(pk => pk.id === pkId);
+    if (p) teamPower += getPokemonPower(p);
+  }
+  return Math.round((agent.stats.combat * 10 + teamPower) * bonus);
+}
+
+// Agent automation tick
+function agentTick() {
+  for (const agent of state.agents) {
+    if (!agent.assignedZone) continue;
+    const zone = ZONE_BY_ID[agent.assignedZone];
+    if (!zone) continue;
+    // Auto-capture (chance per tick based on capture stat)
+    const captureChance = agent.stats.capture / 200;
+    if (Math.random() < captureChance) {
+      const speciesEN = pick(zone.pool);
+      const pokemon = makePokemon(speciesEN, agent.assignedZone, 'pokeball');
+      if (pokemon) {
+        // Luck affects potential — reroll if lucky
+        if (agent.stats.luck > 8 && pokemon.potential < 3 && Math.random() < 0.3) {
+          pokemon.potential = randInt(3, 5);
+          pokemon.stats = calculateStats(pokemon);
+        }
+        state.pokemons.push(pokemon);
+        state.stats.totalCaught++;
+        if (!state.pokedex[pokemon.species_en]) {
+          state.pokedex[pokemon.species_en] = { seen: true, caught: true, shiny: pokemon.shiny, count: 1 };
+        } else {
+          state.pokedex[pokemon.species_en].caught = true;
+          state.pokedex[pokemon.species_en].count++;
+        }
+        if (pokemon.shiny) state.stats.shinyCaught++;
+        notify(t('agent_catch', { agent: agent.name, pokemon: speciesName(pokemon.species_en) }), 'success');
+      }
+    }
+    // Auto-combat (chance per tick)
+    if (Math.random() < 0.05 && zone.trainers.length > 0) {
+      const trainerKey = pick(zone.trainers);
+      const trainer = TRAINER_TYPES[trainerKey];
+      const agentPower = getAgentCombatPower(agent);
+      const enemyPower = trainer.diff * 80 + randInt(0, 50);
+      const win = agentPower * (0.8 + Math.random() * 0.4) >= enemyPower * (0.8 + Math.random() * 0.4);
+      state.stats.totalFights++;
+      if (win) {
+        state.stats.totalFightsWon++;
+        const reward = randInt(trainer.reward[0], trainer.reward[1]);
+        state.gang.money += reward;
+        state.gang.reputation += trainer.rep;
+        state.stats.totalMoneyEarned += reward;
+        agent.combatsWon++;
+        const z = state.zones[agent.assignedZone];
+        if (z) z.combatsWon++;
+        grantAgentXP(agent, 5 + trainer.diff * 3);
+        // XP to agent's pokemon
+        for (const pkId of agent.team) {
+          const p = state.pokemons.find(pk => pk.id === pkId);
+          if (p) levelUpPokemon(p, 5 + trainer.diff * 2);
+        }
+        if (trainerKey === 'rocketgrunt' || trainerKey === 'rocketgruntf') state.stats.rocketDefeated++;
+        notify(t('agent_win', { agent: agent.name }), 'success');
+      } else {
+        notify(t('agent_lose', { agent: agent.name }));
+      }
+    }
+  }
+  saveState();
+}
+
+// ════════════════════════════════════════════════════════════════
+//  9.  MARKET MODULE
+// ════════════════════════════════════════════════════════════════
+
+function calculatePrice(pokemon) {
+  const sp = SPECIES_BY_EN[pokemon.species_en];
+  if (!sp) return 50;
+  const base = BASE_PRICE[sp.rarity] || 100;
+  const potMult = POTENTIAL_MULT[pokemon.potential - 1] || 1;
+  const shinyMult = pokemon.shiny ? 10 : 1;
+  const nat = NATURES[pokemon.nature];
+  const natMult = nat ? (nat.atk + nat.def + nat.spd) / 3 : 1;
+  return Math.round(base * potMult * shinyMult * natMult);
+}
+
+function sellPokemon(pokemonIds) {
+  let total = 0;
+  const toRemove = new Set(pokemonIds);
+  // Unassign from agents
+  for (const agent of state.agents) {
+    agent.team = agent.team.filter(id => !toRemove.has(id));
+  }
+  for (const id of pokemonIds) {
+    const idx = state.pokemons.findIndex(p => p.id === id);
+    if (idx === -1) continue;
+    total += calculatePrice(state.pokemons[idx]);
+    state.pokemons.splice(idx, 1);
+    state.stats.totalSold++;
+  }
+  state.gang.money += total;
+  state.stats.totalMoneyEarned += total;
+  notify(t('sold', { n: pokemonIds.length, price: total }), 'gold');
+  addLog(t('sold', { n: pokemonIds.length, price: total }));
+  saveState();
+  return total;
+}
+
+function buyItem(itemDef) {
+  if (state.gang.money < itemDef.cost) {
+    notify(t('not_enough'));
+    return false;
+  }
+  state.gang.money -= itemDef.cost;
+  state.stats.totalMoneySpent += itemDef.cost;
+  state.inventory[itemDef.id] = (state.inventory[itemDef.id] || 0) + itemDef.qty;
+  // Auto-activate boost items
+  if (['incense', 'rarescope', 'aura', 'lure', 'superlure'].includes(itemDef.id)) {
+    activateBoost(itemDef.id);
+  }
+  const name = itemDef.fr || itemDef.id;
+  notify(t('bought', { item: `${itemDef.qty}x ${name}` }), 'success');
+  saveState();
+  return true;
+}
+
+// ════════════════════════════════════════════════════════════════
+// 10.  LLM MODULE
+// ════════════════════════════════════════════════════════════════
+
+async function detectLLM() {
+  if (state.settings.llmProvider === 'none') {
+    state.settings.llmEnabled = false;
+    return;
+  }
+  if (state.settings.llmProvider === 'local') {
+    try {
+      const res = await fetch(`${state.settings.llmUrl}/api/tags`, { signal: AbortSignal.timeout(2000) });
+      if (res.ok) {
+        state.settings.llmEnabled = true;
+        addLog(t('llm_connected'));
+        return;
+      }
+    } catch { /* ignore */ }
+  }
+  if ((state.settings.llmProvider === 'openai' || state.settings.llmProvider === 'anthropic') && state.settings.llmApiKey) {
+    state.settings.llmEnabled = true;
+    addLog(t('llm_connected'));
+    return;
+  }
+  state.settings.llmEnabled = false;
+}
+
+const FALLBACK_DIALOGUES = {
+  fr: [
+    'Prépare-toi à avoir des problèmes !',
+    'Tu oses défier notre gang ?',
+    'Tes Pokémon ne font pas le poids !',
+    'La Team Rocket va t\'écraser !',
+    'Tu n\'as aucune chance contre nous !',
+    'Ton gang est une blague !',
+    'Je vais te montrer la vraie puissance !',
+  ],
+  en: [
+    'Prepare for trouble!',
+    'You dare challenge our gang?',
+    'Your Pokémon don\'t stand a chance!',
+    'Team Rocket will crush you!',
+    'You have no chance against us!',
+    'Your gang is a joke!',
+    'I\'ll show you real power!',
+  ],
+};
+
+function getTrainerDialogue() {
+  return pick(FALLBACK_DIALOGUES[state.lang] || FALLBACK_DIALOGUES.fr);
+}
+
+// ════════════════════════════════════════════════════════════════
+// 11.  UI — NOTIFICATIONS
+// ════════════════════════════════════════════════════════════════
+
+function notify(msg, type = '') {
+  const container = document.getElementById('notifications');
+  if (!container) return;
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.textContent = msg;
+  container.appendChild(el);
+  setTimeout(() => {
+    el.classList.add('leaving');
+    setTimeout(() => el.remove(), 300);
+  }, 3000);
+}
+
+// ════════════════════════════════════════════════════════════════
+// 12.  UI — TABS & LAYOUT
+// ════════════════════════════════════════════════════════════════
+
+let activeTab = 'tabGang';
+
+function switchTab(tabId) {
+  activeTab = tabId;
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.tab === tabId);
+  });
+  document.querySelectorAll('.tab-pane').forEach(pane => {
+    pane.classList.toggle('active', pane.id === tabId);
+  });
+  renderActiveTab();
+}
+
+function updateTopBar() {
+  const gangEl = document.getElementById('gangNameDisplay');
+  const moneyEl = document.getElementById('moneyDisplay');
+  if (gangEl) gangEl.textContent = state.gang.name;
+  if (moneyEl) moneyEl.innerHTML = `<span>₽</span> ${state.gang.money.toLocaleString()}`;
+}
+
+function renderAll() {
+  updateTopBar();
+  renderActiveTab();
+}
+
+function renderActiveTab() {
+  switch (activeTab) {
+    case 'tabGang':   renderGangTab(); break;
+    case 'tabZones':  renderZonesTab(); break;
+    case 'tabMarket': renderMarketTab(); break;
+    case 'tabPC':     renderPCTab(); break;
+    case 'tabPokedex':renderPokedexTab(); break;
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
+// 13.  UI — GANG TAB
+// ════════════════════════════════════════════════════════════════
+
+function renderGangTab() {
+  // Boss profile
+  const prof = document.getElementById('bossProfile');
+  if (prof) {
+    const spriteDiv = prof.querySelector('.boss-sprite');
+    if (spriteDiv && state.gang.bossSprite) {
+      spriteDiv.innerHTML = `<img src="${trainerSprite(state.gang.bossSprite)}" style="width:100%;height:100%;object-fit:contain">`;
+    }
+    const nameEl = prof.querySelector('.boss-name');
+    if (nameEl) nameEl.textContent = state.gang.bossName;
+    const gangEl = prof.querySelector('.boss-gang');
+    if (gangEl) gangEl.textContent = state.gang.name;
+    const repFill = prof.querySelector('.rep-fill');
+    if (repFill) {
+      const pct = Math.min(100, state.gang.reputation);
+      repFill.style.width = pct + '%';
+    }
+  }
+  // Agent list
+  const agentListEl = document.getElementById('agentList');
+  if (agentListEl) {
+    const RECRUIT_COST = 2000 + state.agents.length * 1500; // escalating cost
+    let html = '';
+    // Recruit button
+    html += `<div class="stat-card" style="text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;cursor:pointer;border:2px dashed var(--border-light)" id="btnRecruitAgent">
+      <div style="font-size:28px">➕</div>
+      <div style="font-family:var(--font-pixel);font-size:9px;color:var(--text)">${state.lang === 'fr' ? 'Recruter' : 'Recruit'}</div>
+      <div style="font-size:10px;color:var(--gold)">₽ ${RECRUIT_COST.toLocaleString()}</div>
     </div>`;
+    // Existing agents
+    const unlockedZones = ZONES.filter(z => isZoneUnlocked(z.id));
+    html += state.agents.map(a => {
+      const zoneName = a.assignedZone ? (ZONE_BY_ID[a.assignedZone]?.[state.lang === 'fr' ? 'fr' : 'en'] || a.assignedZone) : '—';
+      const zoneOptions = unlockedZones.map(z =>
+        `<option value="${z.id}" ${a.assignedZone === z.id ? 'selected' : ''}>${state.lang === 'fr' ? z.fr : z.en}</option>`
+      ).join('');
+      return `
+        <div class="stat-card" style="text-align:left;display:flex;gap:10px;align-items:center" data-agent-id="${a.id}">
+          <img src="${a.sprite}" style="width:48px;height:48px;image-rendering:pixelated" alt="${a.name}">
+          <div style="flex:1;min-width:0">
+            <div style="font-family:var(--font-pixel);font-size:10px;color:var(--text)">${a.name}</div>
+            <div style="font-size:10px;color:var(--gold);text-transform:uppercase">${a.title} — Lv.${a.level}</div>
+            <div style="font-size:10px;color:var(--text-dim)">⚔${a.stats.combat} 🎯${a.stats.capture} 🍀${a.stats.luck}</div>
+            <div style="font-size:9px;margin-top:4px">
+              <select class="agent-zone-select" data-agent-id="${a.id}" style="background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;font-size:9px;padding:2px 4px;width:100%">
+                <option value="">— ${state.lang === 'fr' ? 'Aucune zone' : 'No zone'} —</option>
+                ${zoneOptions}
+              </select>
+            </div>
+          </div>
+        </div>`;
+    }).join('');
+    agentListEl.innerHTML = html;
+
+    // Recruit button handler
+    document.getElementById('btnRecruitAgent')?.addEventListener('click', () => {
+      const cost = 2000 + (state.agents.length) * 1500;
+      if (state.gang.money < cost) {
+        notify(state.lang === 'fr' ? 'Pas assez d\'argent !' : 'Not enough money!');
+        try { SFX.error(); } catch {}
+        return;
+      }
+      state.gang.money -= cost;
+      const agent = rollNewAgent();
+      recruitAgent(agent);
+      notify(`${state.lang === 'fr' ? 'Recruté' : 'Recruited'}: ${agent.name}!`, 'gold');
+      updateTopBar();
+      renderGangTab();
+    });
+
+    // Zone assignment dropdowns
+    agentListEl.querySelectorAll('.agent-zone-select').forEach(sel => {
+      sel.addEventListener('change', (e) => {
+        const agentId = e.target.dataset.agentId;
+        const zoneId = e.target.value || null;
+        assignAgentToZone(agentId, zoneId);
+        if (activeTab === 'tabZones') renderZoneWindows();
+      });
+    });
+  }
+  // Gang stats
+  const statsEl = document.getElementById('gangStats');
+  if (statsEl) {
+    const s = state.stats;
+    statsEl.innerHTML = [
+      [s.totalCaught, t('total_caught')],
+      [s.totalSold, t('total_sold')],
+      [s.totalFightsWon + '/' + s.totalFights, t('total_fights')],
+      [s.totalMoneyEarned.toLocaleString(), t('total_money')],
+      [s.shinyCaught, t('shiny_caught')],
+      [state.gang.reputation, t('reputation')],
+    ].map(([val, label]) => `
+      <div class="stat-card">
+        <div class="stat-value">${val}</div>
+        <div class="stat-label">${label}</div>
+      </div>
+    `).join('');
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
+// 14.  UI — ZONES TAB
+// ════════════════════════════════════════════════════════════════
+
+function renderZonesTab() {
+  renderZoneSelector();
+  renderZoneWindows();
+}
+
+function renderZoneSelector() {
+  const el = document.getElementById('zoneSelector');
+  if (!el) return;
+  el.innerHTML = ZONES.map(z => {
+    const unlocked = isZoneUnlocked(z.id);
+    const isOpen = openZones.has(z.id);
+    const name = state.lang === 'fr' ? z.fr : z.en;
+    return `<button class="zone-btn ${isOpen ? 'active' : ''} ${!unlocked ? 'locked' : ''}"
+      data-zone="${z.id}" ${!unlocked ? 'disabled' : ''}>
+      ${unlocked ? name : `🔒 ${z.rep}`}
+    </button>`;
+  }).join('');
+  // Click handlers
+  el.querySelectorAll('.zone-btn:not(.locked)').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const zid = btn.dataset.zone;
+      if (openZones.has(zid)) {
+        closeZoneWindow(zid);
+      } else {
+        openZoneWindow(zid);
+      }
+    });
+  });
+}
+
+function openZoneWindow(zoneId) {
+  openZones.add(zoneId);
+  initZone(zoneId);
+  zoneSpawns[zoneId] = [];
+  // Boss auto-moves to first opened zone if not set
+  if (!state.gang.bossZone || !openZones.has(state.gang.bossZone)) {
+    state.gang.bossZone = zoneId;
+  }
+  // Start spawn timer
+  const zone = ZONE_BY_ID[zoneId];
+  if (zone) {
+    const interval = Math.round(1000 / zone.spawnRate);
+    zoneSpawnTimers[zoneId] = setInterval(() => tickZoneSpawn(zoneId), interval);
+  }
+  renderZonesTab();
+}
+
+function closeZoneWindow(zoneId) {
+  openZones.delete(zoneId);
+  if (zoneSpawnTimers[zoneId]) {
+    clearInterval(zoneSpawnTimers[zoneId]);
+    delete zoneSpawnTimers[zoneId];
+  }
+  // Clean up spawns
+  if (zoneSpawns[zoneId]) {
+    for (const s of zoneSpawns[zoneId]) {
+      if (s.timeout) clearTimeout(s.timeout);
+    }
+    delete zoneSpawns[zoneId];
+  }
+  renderZonesTab();
+}
+
+function renderZoneWindows() {
+  const container = document.getElementById('zoneWindows');
+  if (!container) return;
+  if (openZones.size === 0) {
+    container.innerHTML = '<div style="color:var(--text-dim);padding:40px;text-align:center">Sélectionnez une zone pour commencer</div>';
+    return;
+  }
+  container.innerHTML = '';
+  for (const zoneId of openZones) {
+    const zone = ZONE_BY_ID[zoneId];
+    if (!zone) continue;
+    const zState = state.zones[zoneId] || {};
+    const mastery = getZoneMastery(zoneId);
+    const name = state.lang === 'fr' ? zone.fr : zone.en;
+
+    const win = document.createElement('div');
+    win.className = 'zone-window';
+    win.id = `zw-${zoneId}`;
+    // Use Showdown background or fallback gradient
+    const bgImg = ZONE_BGS[zoneId];
+    if (bgImg) {
+      win.style.backgroundImage = bgImg;
+      win.style.backgroundSize = 'cover';
+      win.style.backgroundPosition = 'center bottom';
+    }
+    // Active boosts
+    const boosts = [];
+    if (isBoostActive('incense'))   boosts.push('🔮');
+    if (isBoostActive('rarescope')) boosts.push('🔭');
+    if (isBoostActive('aura'))      boosts.push('✨');
+    if (isBoostActive('chestBoost')) boosts.push('💎');
+
+    // Active event on zone?
+    const activeEvt = state.activeEvents[zoneId];
+    const eventActive = activeEvt && activeEvt.expiresAt > Date.now();
+    const eventDef = eventActive ? SPECIAL_EVENTS.find(e => e.id === activeEvt.eventId) : null;
+
+    // Agents assigned to this zone
+    const assignedAgents = state.agents.filter(a => a.assignedZone === zoneId);
+    const invested = zState.invested;
+
+    win.innerHTML = `
+      ${boosts.length ? `<div class="zone-boosts">${boosts.map(b => `<span class="boost-badge">${b}</span>`).join('')}</div>` : ''}
+      ${eventActive && eventDef ? `<div class="zone-event-banner">${eventDef.icon} ${state.lang === 'fr' ? eventDef.fr : eventDef.en}</div>` : ''}
+      <div class="zone-timers" id="zt-${zoneId}"></div>
+      ${assignedAgents.map((a, i) => `
+        <div class="zone-agent" style="left:${8 + i * 44}px">
+          <img src="${a.sprite}" alt="${a.name}">
+          <span class="agent-label">${a.name}</span>
+        </div>
+      `).join('')}
+      ${state.gang.bossSprite && state.gang.bossZone === zoneId ? `<div class="zone-boss"><img src="${trainerSprite(state.gang.bossSprite)}" alt="Boss"></div>` : ''}
+      <div class="zone-info">
+        <span class="zone-name">${invested ? '🏴 ' : ''}${name}</span>
+        <span class="zone-level">${'★'.repeat(mastery)} ${zState.combatsWon || 0}W</span>
+        ${!invested && zone.investCost > 0 ? `<button class="zone-invest-btn" data-zone="${zoneId}" title="${state.lang === 'fr' ? 'Investir' : 'Invest'}: ${zone.investCost}₽">🏴 ${zone.investCost}₽</button>` : ''}
+      </div>
+    `;
+    container.appendChild(win);
+
+    // Click zone to move boss there
+    win.addEventListener('dblclick', (e) => {
+      if (e.target.closest('.zone-spawn') || e.target.closest('.zone-invest-btn')) return;
+      state.gang.bossZone = zoneId;
+      saveState();
+      renderZoneWindows();
+    });
+
+    // Invest button
+    const investBtn = win.querySelector('.zone-invest-btn');
+    if (investBtn) {
+      investBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (investInZone(zoneId)) {
+          updateTopBar();
+          renderZoneWindows();
+        }
+      });
+    }
+
+    // Initial timer render
+    updateZoneTimers(zoneId);
+
+    // Render existing spawns
+    if (zoneSpawns[zoneId]) {
+      for (const spawn of zoneSpawns[zoneId]) {
+        renderSpawnInWindow(zoneId, spawn);
+      }
+    }
+  }
+}
+
+// ── Zone timers & probability display ─────────────────────────
+const zoneNextSpawn = {}; // zoneId -> { countdown, lastSpawnType }
+const zoneSpawnHistory = {}; // zoneId -> { pokemon:N, trainer:N, total:N }
+
+function updateZoneTimers(zoneId) {
+  const el = document.getElementById(`zt-${zoneId}`);
+  if (!el) return;
+  const zone = ZONE_BY_ID[zoneId];
+  if (!zone) return;
+
+  const history = zoneSpawnHistory[zoneId] || { pokemon: 0, trainer: 0, total: 0 };
+  const lureActive = isBoostActive('lure') || isBoostActive('superlure');
+  const lureMult = isBoostActive('superlure') ? 3 : (isBoostActive('lure') ? 2 : 1);
+  const interval = Math.round(1000 / (zone.spawnRate * lureMult));
+  const nextIn = zoneNextSpawn[zoneId]?.countdown || 0;
+
+  // Rarity breakdown of the pool
+  const poolStats = { common: 0, uncommon: 0, rare: 0, very_rare: 0, legendary: 0 };
+  for (const en of zone.pool) {
+    const sp = SPECIES_BY_EN[en];
+    if (sp) poolStats[sp.rarity]++;
+  }
+  const total = zone.pool.length;
+  const rareChance = ((poolStats.rare + poolStats.very_rare + poolStats.legendary) / total * 100).toFixed(0);
+  const rareScopeOn = isBoostActive('rarescope');
+
+  // Last spawn type
+  const last = zoneNextSpawn[zoneId]?.lastSpawnType || '';
+  const isEventNow = last === 'event' || last === 'trainer';
+  const isChestNow = last === 'chest';
+  const zState = initZone(zoneId);
+  const invested = zState.invested;
+  const chestChance = isBoostActive('chestBoost') ? 25 : 5;
+
+  let html = `
+    <div class="timer-row">
+      <span class="timer-label">Spawn</span>
+      <span class="timer-val">${(interval / 1000).toFixed(1)}s${lureActive ? ' ⚡' : ''}</span>
+    </div>
+    <div class="timer-row">
+      <span class="timer-label">🎯 Rare</span>
+      <span class="timer-chance">${rareScopeOn ? '~' + Math.min(99, rareChance * 3) + '%' : rareChance + '%'}</span>
+    </div>
+    <div class="timer-row ${isEventNow ? 'event-now' : ''}">
+      <span class="timer-label">⚔ Combat</span>
+      <span class="timer-chance">${invested ? '30%+⭐' : '30%'}</span>
+    </div>
+    <div class="timer-row ${isChestNow ? 'event-now' : ''}">
+      <span class="timer-label">📦 Coffre</span>
+      <span class="timer-chance">${chestChance}%</span>
+    </div>`;
+
+  // Active event on zone
+  const activeEvt = state.activeEvents[zoneId];
+  if (activeEvt && activeEvt.expiresAt > Date.now()) {
+    const evtDef = SPECIAL_EVENTS.find(e => e.id === activeEvt.eventId);
+    const rem = Math.ceil((activeEvt.expiresAt - Date.now()) / 1000);
+    if (evtDef) {
+      html += `<div class="timer-row event-now"><span class="timer-label">${evtDef.icon}</span><span class="timer-val">${rem}s</span></div>`;
+    }
+  }
+
+  // Active boosts remaining
+  for (const bid of ['incense', 'rarescope', 'aura', 'chestBoost']) {
+    if (isBoostActive(bid)) {
+      const rem = boostRemaining(bid);
+      const icons = { incense: '🔮', rarescope: '🔭', aura: '✨', chestBoost: '💎' };
+      html += `<div class="timer-row"><span class="timer-label">${icons[bid]}</span><span class="timer-val">${rem}s</span></div>`;
+    }
+  }
+
+  // Player odds this session
+  if (history.total > 0) {
+    html += `<div class="timer-row"><span class="timer-label">Session</span><span class="timer-chance">${history.pokemon}🟢 ${history.trainer}⚔ ${history.chest || 0}📦</span></div>`;
   }
 
   el.innerHTML = html;
+}
 
-  // Events
-  el.querySelectorAll('button[data-room]').forEach(btn => {
-    btn.onclick = () => {
-      const room = state.rooms[btn.dataset.room];
-      if (!room) return;
-      if (state.resources.pokedollars < room.upgradeCost) {
-        addLog(lang==='fr' ? 'Pas assez de Pokédollars.' : 'Not enough Pokédollars.');
-        return;
+function tickZoneSpawn(zoneId) {
+  if (!openZones.has(zoneId)) return;
+  const spawns = zoneSpawns[zoneId];
+  if (!spawns) return;
+  // Max 5 spawns at once
+  if (spawns.length >= 5) { updateZoneTimers(zoneId); return; }
+
+  const entry = spawnInZone(zoneId);
+  if (!entry) return;
+
+  // Track history
+  if (!zoneSpawnHistory[zoneId]) zoneSpawnHistory[zoneId] = { pokemon: 0, trainer: 0, chest: 0, event: 0, total: 0 };
+  zoneSpawnHistory[zoneId].total++;
+  if (entry.type === 'pokemon') zoneSpawnHistory[zoneId].pokemon++;
+  else if (entry.type === 'trainer') zoneSpawnHistory[zoneId].trainer++;
+  else if (entry.type === 'chest') zoneSpawnHistory[zoneId].chest++;
+  else if (entry.type === 'event') zoneSpawnHistory[zoneId].event++;
+
+  // Track for timer
+  if (!zoneNextSpawn[zoneId]) zoneNextSpawn[zoneId] = {};
+  zoneNextSpawn[zoneId].lastSpawnType = entry.type;
+
+  const spawnObj = { ...entry, id: uid() };
+  spawns.push(spawnObj);
+
+  // TTL: 10-15 seconds
+  const ttl = randInt(10000, 15000);
+  spawnObj.timeout = setTimeout(() => {
+    removeSpawn(zoneId, spawnObj.id);
+  }, ttl);
+
+  renderSpawnInWindow(zoneId, spawnObj);
+  updateZoneTimers(zoneId);
+}
+
+function renderSpawnInWindow(zoneId, spawnObj) {
+  const win = document.getElementById(`zw-${zoneId}`);
+  if (!win) return;
+
+  const el = document.createElement('div');
+  el.className = 'zone-spawn pop';
+  el.dataset.spawnId = spawnObj.id;
+
+  // Random position
+  const x = randInt(10, 250);
+  const y = randInt(10, 150);
+  el.style.left = x + 'px';
+  el.style.top = y + 'px';
+
+  if (spawnObj.type === 'pokemon') {
+    const sp = SPECIES_BY_EN[spawnObj.species_en];
+    el.innerHTML = `<img src="${pokeSprite(spawnObj.species_en)}" style="width:56px;height:56px" alt="${sp?.fr || spawnObj.species_en}">`;
+    el.title = sp ? (state.lang === 'fr' ? sp.fr : sp.en) : spawnObj.species_en;
+    el.addEventListener('click', () => {
+      if (el.classList.contains('catching')) return;
+      el.classList.add('catching');
+      animateCapture(zoneId, spawnObj, el);
+    });
+  } else if (spawnObj.type === 'trainer') {
+    const eliteTag = spawnObj.elite ? ' style="filter:drop-shadow(0 0 6px gold)"' : '';
+    el.innerHTML = `<img src="${trainerSprite(spawnObj.trainer.sprite)}"${eliteTag} style="width:56px;height:56px${spawnObj.elite ? ';filter:drop-shadow(0 0 6px gold)' : ''}" alt="${spawnObj.trainer.fr}">`;
+    el.title = (state.lang === 'fr' ? spawnObj.trainer.fr : spawnObj.trainer.en) + (spawnObj.elite ? ' ⭐' : '');
+    if (spawnObj.elite) el.style.animation = 'glow 1.5s ease-in-out infinite, float 3s ease-in-out infinite';
+    el.addEventListener('click', () => {
+      openCombatPopup(zoneId, spawnObj);
+    });
+  } else if (spawnObj.type === 'chest') {
+    el.innerHTML = `<div style="font-size:36px;line-height:1;filter:drop-shadow(0 0 4px rgba(255,204,90,.6))">📦</div>`;
+    el.title = state.lang === 'fr' ? 'Coffre au trésor !' : 'Treasure Chest!';
+    el.style.animation = 'float 2s ease-in-out infinite';
+    el.addEventListener('click', () => {
+      if (el.classList.contains('catching')) return;
+      el.classList.add('catching');
+      // Opening animation
+      el.innerHTML = `<div style="font-size:36px;line-height:1;animation:pop .3s ease-out">🎁</div>`;
+      state.stats.chestsOpened = (state.stats.chestsOpened || 0) + 1;
+      setTimeout(() => {
+        const loot = rollChestLoot(zoneId);
+        notify(loot.msg, loot.type);
+        try { SFX.capture(3, false); } catch {} // Loot jingle
+        removeSpawn(zoneId, spawnObj.id);
+        updateTopBar();
+        updateZoneTimers(zoneId);
+        saveState();
+      }, 400);
+    });
+  } else if (spawnObj.type === 'event') {
+    const evt = spawnObj.event;
+    el.innerHTML = `<div style="font-size:32px;line-height:1;filter:drop-shadow(0 0 8px rgba(255,204,90,.8))">${evt.icon}</div>`;
+    el.title = state.lang === 'fr' ? evt.fr : evt.en;
+    el.style.animation = 'glow 1s ease-in-out infinite, float 2s ease-in-out infinite';
+    el.addEventListener('click', () => {
+      if (el.classList.contains('catching')) return;
+      el.classList.add('catching');
+      if (evt.trainerKey) {
+        // Event with combat
+        const trainer = TRAINER_TYPES[evt.trainerKey];
+        if (trainer) {
+          const zone = ZONE_BY_ID[zoneId];
+          const team = makeTrainerTeam(zone, evt.trainerKey);
+          // Boosted difficulty
+          team.forEach(t => {
+            t.level += 10;
+            t.stats = calculateStats({ species_en: t.species_en, level: t.level, nature: 'hardy', potential: 4 });
+          });
+          const combatSpawn = {
+            ...spawnObj,
+            type: 'trainer',
+            trainerKey: evt.trainerKey,
+            trainer: { ...trainer, fr: evt.icon + ' ' + trainer.fr, en: evt.icon + ' ' + trainer.en, diff: trainer.diff + 2, reward: [trainer.reward[0] * 4, trainer.reward[1] * 4], rep: trainer.rep * 3 },
+            team,
+            elite: true,
+          };
+          openCombatPopup(zoneId, combatSpawn);
+        }
+      } else {
+        // Non-combat event: activate immediately
+        activateEvent(zoneId, evt);
+        removeSpawn(zoneId, spawnObj.id);
+        updateZoneTimers(zoneId);
       }
-      state.resources.pokedollars -= room.upgradeCost;
-      room.level = (room.level||1) + 1;
-      room.upgradeCost = Math.round(room.upgradeCost * 1.5);
-      addLog(`${typeof room.nom==='object'?room.nom[lang]:room.nom} ${lang==='fr'?'améliorée':'upgraded'} — Nv.${room.level}`);
-      saveState(); render();
-    };
+    });
+  }
+
+  win.appendChild(el);
+}
+
+function removeSpawn(zoneId, spawnId) {
+  const spawns = zoneSpawns[zoneId];
+  if (!spawns) return;
+  const idx = spawns.findIndex(s => s.id === spawnId);
+  if (idx !== -1) {
+    if (spawns[idx].timeout) clearTimeout(spawns[idx].timeout);
+    spawns.splice(idx, 1);
+  }
+  // Remove DOM
+  const el = document.querySelector(`[data-spawn-id="${spawnId}"]`);
+  if (el) {
+    el.classList.add('leaving');
+    setTimeout(() => el.remove(), 300);
+  }
+}
+
+// ── Ball throw + capture burst animation ──────────────────────
+
+function animateCapture(zoneId, spawnObj, spawnEl) {
+  const win = document.getElementById(`zw-${zoneId}`);
+  if (!win) return;
+
+  // Find thrower position (boss or agent sprite in zone)
+  const bossEl = win.querySelector('.zone-boss');
+  const agentEl = win.querySelector('.zone-agent');
+  const thrower = bossEl || agentEl;
+  let startX, startY;
+  if (thrower) {
+    const r = thrower.getBoundingClientRect();
+    const wr = win.getBoundingClientRect();
+    startX = r.left - wr.left + r.width / 2;
+    startY = r.top - wr.top;
+  } else {
+    // Default: bottom-right corner
+    startX = 280;
+    startY = 180;
+  }
+  const targetX = parseInt(spawnEl.style.left) + 28;
+  const targetY = parseInt(spawnEl.style.top) + 28;
+
+  // Create ball projectile
+  const ball = document.createElement('div');
+  ball.className = 'ball-projectile';
+  ball.innerHTML = `<img src="${BALL_SPRITES[state.activeBall] || BALL_SPRITES.pokeball}">`;
+  ball.style.left = startX + 'px';
+  ball.style.top = startY + 'px';
+  win.appendChild(ball);
+
+  // Animate ball flight with CSS transition + SFX
+  try { SFX.ballThrow(); } catch {}
+  requestAnimationFrame(() => {
+    ball.style.transition = 'left .35s ease-out, top .35s ease-in';
+    ball.style.left = targetX + 'px';
+    ball.style.top = targetY + 'px';
   });
-  el.querySelectorAll('[data-unassign-learning]').forEach(btn => {
-    btn.onclick = () => { state.rooms.learning.assignedAgentId=null; saveState(); render(); };
+
+  setTimeout(() => {
+    ball.remove();
+    // Try capture
+    const caught = tryCapture(zoneId, spawnObj.species_en);
+    if (caught) {
+      showCaptureBurst(win, targetX, targetY, caught.potential, caught.shiny);
+      removeSpawn(zoneId, spawnObj.id);
+      updateTopBar();
+      if (activeTab === 'tabPC') renderPCTab();
+      // Update zone timers display
+      updateZoneTimers(zoneId);
+    } else {
+      // No balls — just un-freeze the spawn
+      spawnEl.classList.remove('catching');
+    }
+  }, 380);
+}
+
+function showCaptureBurst(container, x, y, potential, shiny) {
+  const burst = document.createElement('div');
+  burst.className = 'capture-burst';
+  if (shiny) burst.classList.add('shiny');
+  else if (potential >= 5) burst.classList.add('stars-5');
+  else if (potential >= 4) burst.classList.add('stars-4');
+  else if (potential >= 3) burst.classList.add('stars-3');
+  burst.style.left = x + 'px';
+  burst.style.top = y + 'px';
+
+  // Ring
+  const ring = document.createElement('div');
+  ring.className = 'burst-ring';
+  burst.appendChild(ring);
+
+  // Particles
+  const numParticles = shiny ? 16 : (potential >= 4 ? 12 : 8);
+  for (let i = 0; i < numParticles; i++) {
+    const p = document.createElement('div');
+    p.className = 'burst-particle';
+    const angle = (i / numParticles) * Math.PI * 2;
+    const dist = 30 + Math.random() * 30;
+    p.style.setProperty('--bx', Math.cos(angle) * dist + 'px');
+    p.style.setProperty('--by', Math.sin(angle) * dist + 'px');
+    burst.appendChild(p);
+  }
+
+  container.appendChild(burst);
+  setTimeout(() => burst.remove(), 800);
+}
+
+// ════════════════════════════════════════════════════════════════
+// 15.  UI — COMBAT POPUP
+// ════════════════════════════════════════════════════════════════
+
+let currentCombat = null;
+
+function openCombatPopup(zoneId, spawnObj) {
+  // Pick player team (up to 3 best non-cooldown pokemon)
+  const available = state.pokemons
+    .filter(p => p.cooldown <= 0)
+    .sort((a, b) => getPokemonPower(b) - getPokemonPower(a))
+    .slice(0, 3);
+
+  if (available.length === 0) {
+    notify(state.lang === 'fr' ? 'Aucun Pokémon disponible !' : 'No Pokémon available!');
+    return;
+  }
+
+  currentCombat = { zoneId, spawnObj, playerTeam: available };
+
+  const popup = document.getElementById('combatPopup');
+  if (!popup) return;
+
+  const dialogue = getTrainerDialogue();
+  const trainerName = state.lang === 'fr' ? spawnObj.trainer.fr : spawnObj.trainer.en;
+
+  // Show ally (first pokemon) vs enemy (first enemy)
+  const ally = available[0];
+  const enemy = spawnObj.team[0];
+  const enemySp = SPECIES_BY_EN[enemy.species_en];
+
+  const allyImg = popup.querySelector('#combatAlly img');
+  const enemyImg = popup.querySelector('#combatEnemy img');
+  if (allyImg) allyImg.src = pokeSpriteBack(ally.species_en, ally.shiny);
+  if (enemyImg && enemySp) enemyImg.src = pokeSprite(enemy.species_en);
+
+  // Reset HP bars
+  popup.querySelectorAll('.hp-fill').forEach(f => f.style.width = '100%');
+
+  const titleEl = popup.querySelector('.combat-title');
+  if (titleEl) titleEl.textContent = `⚔ ${trainerName}`;
+
+  const logEl = document.getElementById('combatLog');
+  if (logEl) logEl.innerHTML = `<div>"${dialogue}"</div>`;
+
+  const actionsEl = document.getElementById('combatActions');
+  if (actionsEl) {
+    actionsEl.innerHTML = `<button id="btnFight">${state.lang === 'fr' ? '⚔ Combattre' : '⚔ Fight'}</button>
+      <button id="btnFlee">${state.lang === 'fr' ? '🏃 Fuir' : '🏃 Flee'}</button>`;
+    document.getElementById('btnFight')?.addEventListener('click', executeCombat);
+    document.getElementById('btnFlee')?.addEventListener('click', closeCombatPopup);
+  }
+
+  popup.classList.add('active');
+}
+
+function executeCombat() {
+  if (!currentCombat) return;
+  const { zoneId, spawnObj, playerTeam } = currentCombat;
+  const teamIds = playerTeam.map(p => p.id);
+  const result = resolveCombat(teamIds, spawnObj);
+  applyCombatResult(result, teamIds, spawnObj);
+
+  // Update zone combats
+  if (result.win) {
+    const z = state.zones[zoneId];
+    if (z) z.combatsWon = (z.combatsWon || 0) + 1;
+  }
+
+  // Animate
+  const popup = document.getElementById('combatPopup');
+  const logEl = document.getElementById('combatLog');
+  const actionsEl = document.getElementById('combatActions');
+
+  if (result.win) {
+    // Animate enemy defeat
+    const enemyCombatant = popup?.querySelector('#combatEnemy');
+    if (enemyCombatant) enemyCombatant.classList.add('shake');
+    const enemyHp = popup?.querySelector('#combatEnemy .hp-fill');
+    if (enemyHp) { enemyHp.style.width = '0%'; enemyHp.classList.add('critical'); }
+
+    if (logEl) logEl.innerHTML += `<div style="color:var(--green)">${t('combat_win', { money: result.reward, rep: result.repGain })}</div>`;
+  } else {
+    const allyCombatant = popup?.querySelector('#combatAlly');
+    if (allyCombatant) allyCombatant.classList.add('shake');
+    const allyHp = popup?.querySelector('#combatAlly .hp-fill');
+    if (allyHp) { allyHp.style.width = '0%'; allyHp.classList.add('critical'); }
+
+    if (logEl) logEl.innerHTML += `<div style="color:var(--red)">${t('combat_lose')}</div>`;
+  }
+
+  if (actionsEl) {
+    actionsEl.innerHTML = `<button id="btnCloseCombat">OK</button>`;
+    document.getElementById('btnCloseCombat')?.addEventListener('click', () => {
+      closeCombatPopup();
+      removeSpawn(zoneId, spawnObj.id);
+      updateTopBar();
+      if (activeTab === 'tabGang') renderGangTab();
+    });
+  }
+}
+
+function closeCombatPopup() {
+  const popup = document.getElementById('combatPopup');
+  if (popup) popup.classList.remove('active');
+  // Reset shake
+  popup?.querySelectorAll('.shake').forEach(el => el.classList.remove('shake'));
+  currentCombat = null;
+}
+
+// ════════════════════════════════════════════════════════════════
+// 16.  UI — MARKET TAB
+// ════════════════════════════════════════════════════════════════
+
+const selectedForSale = new Set();
+
+function renderMarketTab() {
+  renderSellPanel();
+  renderShopPanel();
+}
+
+let sellSort = 'price'; // price, name, level, potential, recent
+
+function renderSellPanel() {
+  const panel = document.querySelector('#sellPanel .sell-list');
+  if (!panel) return;
+
+  if (state.pokemons.length === 0) {
+    panel.innerHTML = '<div style="color:var(--text-dim);padding:12px">Aucun Pokémon à vendre</div>';
+    return;
+  }
+
+  const sortFns = {
+    price:     (a, b) => calculatePrice(b) - calculatePrice(a),
+    name:      (a, b) => speciesName(a.species_en).localeCompare(speciesName(b.species_en)),
+    level:     (a, b) => b.level - a.level,
+    potential: (a, b) => (b.potential + (b.shiny ? 10 : 0)) - (a.potential + (a.shiny ? 10 : 0)),
+    recent:    (a, b) => state.pokemons.indexOf(b) - state.pokemons.indexOf(a),
+  };
+  const sorted = [...state.pokemons].sort(sortFns[sellSort] || sortFns.price);
+
+  // Sort bar
+  const sortLabels = state.lang === 'fr'
+    ? { price: 'Prix', name: 'Nom', level: 'Niveau', potential: 'Potentiel', recent: 'Récent' }
+    : { price: 'Price', name: 'Name', level: 'Level', potential: 'Potential', recent: 'Recent' };
+  let sortBar = '<div style="display:flex;gap:4px;padding:4px 4px 8px;border-bottom:1px solid var(--border);flex-wrap:wrap">';
+  for (const [key, label] of Object.entries(sortLabels)) {
+    sortBar += `<button class="sell-sort-btn" data-sort="${key}" style="font-size:9px;padding:3px 8px;border-radius:4px;border:1px solid ${sellSort === key ? 'var(--red)' : 'var(--border)'};background:${sellSort === key ? 'var(--red-dark)' : 'var(--bg)'};color:var(--text);cursor:pointer">${label}</button>`;
+  }
+  sortBar += `<button class="sell-sort-btn" data-sort="select-all" style="font-size:9px;padding:3px 8px;border-radius:4px;border:1px solid var(--border);background:var(--bg);color:var(--gold);cursor:pointer;margin-left:auto">${state.lang === 'fr' ? '☑ Tout' : '☑ All'}</button>`;
+  sortBar += '</div>';
+  panel.innerHTML = sortBar + sorted.map(p => {
+    const price = calculatePrice(p);
+    const sel = selectedForSale.has(p.id);
+    return `<div style="display:flex;align-items:center;gap:8px;padding:6px 4px;border-bottom:1px solid var(--border);cursor:pointer;background:${sel ? 'var(--bg-hover)' : 'transparent'}"
+      data-sell-id="${p.id}">
+      <img src="${pokeSprite(p.species_en, p.shiny)}" style="width:40px;height:40px">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12px">${speciesName(p.species_en)} ${'★'.repeat(p.potential)}${p.shiny ? ' ✨' : ''}</div>
+        <div style="font-size:10px;color:var(--text-dim)">Lv.${p.level}</div>
+      </div>
+      <div style="font-family:var(--font-pixel);font-size:10px;color:var(--gold)">${price}₽</div>
+    </div>`;
+  }).join('');
+
+  // Total + sell button
+  let total = 0;
+  for (const id of selectedForSale) {
+    const p = state.pokemons.find(pk => pk.id === id);
+    if (p) total += calculatePrice(p);
+  }
+  panel.innerHTML += `
+    <div style="padding:10px;text-align:center;border-top:2px solid var(--border);margin-top:8px">
+      <div style="font-family:var(--font-pixel);font-size:12px;color:var(--gold);margin-bottom:8px">
+        ${selectedForSale.size > 0 ? `${selectedForSale.size} sélectionné(s) — ${total}₽` : 'Cliquez pour sélectionner'}
+      </div>
+      ${selectedForSale.size > 0 ? `<button style="font-family:var(--font-pixel);font-size:10px;padding:8px 20px;background:var(--red-dark);border:1px solid var(--red);border-radius:var(--radius);color:var(--text);cursor:pointer" id="btnSellSelected">${t('sell')}</button>` : ''}
+    </div>`;
+
+  // Click handlers
+  panel.querySelectorAll('[data-sell-id]').forEach(el => {
+    el.addEventListener('click', () => {
+      const id = el.dataset.sellId;
+      if (selectedForSale.has(id)) selectedForSale.delete(id);
+      else selectedForSale.add(id);
+      renderSellPanel();
+    });
   });
-  el.querySelectorAll('[data-assign-learning]').forEach(btn => {
-    btn.onclick = () => {
-      const sel = document.getElementById('learningAgentSelect');
-      if (sel) { state.rooms.learning.assignedAgentId = sel.value; saveState(); render(); }
-    };
+  document.getElementById('btnSellSelected')?.addEventListener('click', () => {
+    if (selectedForSale.size > 0) {
+      sellPokemon([...selectedForSale]);
+      selectedForSale.clear();
+      updateTopBar();
+      renderMarketTab();
+    }
   });
-  el.querySelectorAll('[data-unassign-pkm]').forEach(btn => {
-    btn.onclick = () => {
-      state.rooms.pkm_train.assignedPokemonIds =
-        (state.rooms.pkm_train.assignedPokemonIds||[]).filter(id => id !== btn.dataset.unassignPkm);
-      saveState(); render();
-    };
-  });
-  el.querySelectorAll('[data-assign-pkm]').forEach(btn => {
-    btn.onclick = () => {
-      const sel = document.getElementById('pkmTrainSelect');
-      const slots = pkmTrainSlots(state.rooms.pkm_train);
-      if (sel && (state.rooms.pkm_train.assignedPokemonIds||[]).length < slots) {
-        state.rooms.pkm_train.assignedPokemonIds = [...(state.rooms.pkm_train.assignedPokemonIds||[]), sel.value];
-        saveState(); render();
+
+  // Sort button handlers
+  panel.querySelectorAll('.sell-sort-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const s = btn.dataset.sort;
+      if (s === 'select-all') {
+        // Toggle select all
+        if (selectedForSale.size === state.pokemons.length) {
+          selectedForSale.clear();
+        } else {
+          state.pokemons.forEach(p => selectedForSale.add(p.id));
+        }
+      } else {
+        sellSort = s;
       }
-    };
+      renderSellPanel();
+    });
   });
 }
 
+function renderShopPanel() {
+  const panel = document.querySelector('#shopPanel .shop-list');
+  if (!panel) return;
 
-// ============================================================
-// MODULE v4.08 — SPRITES SALLES
-// ============================================================
+  panel.innerHTML = SHOP_ITEMS.map(item => {
+    const ballInfo = BALLS[item.id];
+    const name = ballInfo ? (state.lang === 'fr' ? ballInfo.fr : ballInfo.en) : (state.lang === 'fr' ? (item.fr || item.id) : (item.en || item.id));
+    const desc = item.desc_fr ? (state.lang === 'fr' ? item.desc_fr : item.desc_en) : `x${item.qty}`;
+    const owned = state.inventory[item.id] || 0;
+    return `<div style="display:flex;align-items:center;gap:8px;padding:8px 4px;border-bottom:1px solid var(--border)">
+      <span style="font-size:20px">${item.icon}</span>
+      <div style="flex:1">
+        <div style="font-size:12px">${name} <span style="color:var(--text-dim)">(${desc})</span></div>
+        <div style="font-size:10px;color:var(--text-dim)">En stock: ${owned}</div>
+      </div>
+      <button style="font-family:var(--font-pixel);font-size:9px;padding:6px 12px;background:var(--bg);border:1px solid var(--gold-dim);border-radius:var(--radius-sm);color:var(--gold);cursor:pointer"
+        data-shop-idx="${SHOP_ITEMS.indexOf(item)}">${item.cost}₽</button>
+    </div>`;
+  }).join('');
 
-// ============================================================
-// PATCH v4.08 — BANDE SALLES EN BAS DE PAGE (Sprites animés)
-// ============================================================
+  // Active ball selector
+  panel.innerHTML += `
+    <div style="padding:10px;border-top:2px solid var(--border);margin-top:8px">
+      <div style="font-family:var(--font-pixel);font-size:9px;color:var(--gold);margin-bottom:8px">Ball active</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        ${Object.entries(BALLS).map(([key, ball]) => `
+          <button style="font-size:10px;padding:4px 10px;border-radius:var(--radius-sm);cursor:pointer;
+            background:${state.activeBall === key ? 'var(--red-dark)' : 'var(--bg)'};
+            border:1px solid ${state.activeBall === key ? 'var(--red)' : 'var(--border)'};
+            color:var(--text)" data-ball="${key}">
+            ${state.lang === 'fr' ? ball.fr : ball.en} (${state.inventory[key] || 0})
+          </button>
+        `).join('')}
+      </div>
+    </div>`;
 
-function renderRoomsBand() {
-  const el = document.getElementById('roomsBand');
-  if (!el) return;
+  // Click handlers
+  panel.querySelectorAll('[data-shop-idx]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const item = SHOP_ITEMS[parseInt(btn.dataset.shopIdx)];
+      if (item) {
+        buyItem(item);
+        updateTopBar();
+        renderShopPanel();
+      }
+    });
+  });
+  panel.querySelectorAll('[data-ball]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.activeBall = btn.dataset.ball;
+      saveState();
+      renderShopPanel();
+    });
+  });
+}
 
-  const rooms = [
-    {
-      key: 'command',
-      icon: '🏢',
-      label: { fr:'Commandement', en:'Command' },
-      getSprites: () => [
-        state.profile.sprite,
-        ...(state.agents.slice(0,2).map(a=>a.sprite).filter(Boolean)),
-      ],
-    },
-    {
-      key: 'breeding',
-      icon: '🥚',
-      label: { fr:'Nurserie', en:'Nursery' },
-      getSprites: () => {
-        const bpkm = state.breedingQueue.slice(0,3).map(e => {
-          const en = FR_TO_EN[(e.species_fr||'').toLowerCase()] || e.species_fr;
-          return `https://play.pokemonshowdown.com/sprites/gen5/${en}.png`;
-        });
-        return bpkm;
-      },
-    },
-    {
-      key: 'learning',
-      icon: '📚',
-      label: { fr:'Apprentissage', en:'Learning' },
-      getSprites: () => {
-        const lr = state.rooms.learning;
-        if (!lr?.assignedAgentId) return [];
-        const agent = state.agents.find(a => a.id === lr.assignedAgentId);
-        const sprites = agent?.sprite ? [agent.sprite] : [];
-        (agent?.team||[]).slice(0,2).forEach(pkmId => {
-          const p = state.pokemons.find(x=>x.id===pkmId);
-          if (p) sprites.push(`https://play.pokemonshowdown.com/sprites/gen5/${p.species_en}.png`);
-        });
-        return sprites;
-      },
-    },
-    {
-      key: 'pkm_train',
-      icon: '⚔️',
-      label: { fr:'Entraînement', en:'Training' },
-      getSprites: () => {
-        const ptr = state.rooms.pkm_train;
-        return (ptr?.assignedPokemonIds||[]).map(id => {
-          const p = state.pokemons.find(x=>x.id===id);
-          return p ? `https://play.pokemonshowdown.com/sprites/gen5/${p.species_en}.png` : null;
-        }).filter(Boolean);
-      },
-    },
-  ];
+// ════════════════════════════════════════════════════════════════
+// 17.  UI — PC TAB
+// ════════════════════════════════════════════════════════════════
 
-  el.innerHTML = rooms.map(r => {
-    const room = state.rooms[r.key];
-    if (!room) return '';
-    const nom = r.label[lang];
-    const sprites = r.getSprites();
-    const spriteHtml = sprites.length
-      ? sprites.map((src,i) => `
-          <img src="${src}"
-               style="width:36px;height:36px;image-rendering:pixelated;object-fit:contain;
-                      animation:bandFloat ${2.5+i*0.4}s ease-in-out infinite;
-                      animation-delay:${i*0.3}s;">`
-        ).join('')
-      : `<span style="font-size:.55em;color:var(--muted)">${lang==='fr'?'Vide':'Empty'}</span>`;
+let pcSelectedId = null;
 
-    return `<div class="room-band-card" id="band-${r.key}">
-      <div class="room-band-title">${r.icon} ${nom} <span style="color:var(--muted)">Nv.${room.level||1}</span></div>
-      <div class="room-band-sprites">${spriteHtml}</div>
+function renderPCTab() {
+  renderPokemonGrid();
+  renderPokemonDetail();
+}
+
+function renderPokemonGrid() {
+  const grid = document.getElementById('pokemonGrid');
+  if (!grid) return;
+
+  let list = [...state.pokemons];
+
+  // Search filter
+  const search = document.getElementById('pcSearch')?.value?.toLowerCase() || '';
+  if (search) {
+    list = list.filter(p => {
+      const name = speciesName(p.species_en).toLowerCase();
+      return name.includes(search) || p.species_en.includes(search);
+    });
+  }
+
+  // Type filter
+  const filter = document.getElementById('pcFilter')?.value || 'all';
+  if (filter === 'shiny') list = list.filter(p => p.shiny);
+
+  // Sort
+  const sort = document.getElementById('pcSort')?.value || 'recent';
+  switch (sort) {
+    case 'id':   list.sort((a, b) => a.dex - b.dex); break;
+    case 'name': list.sort((a, b) => speciesName(a.species_en).localeCompare(speciesName(b.species_en))); break;
+    case 'cp':   list.sort((a, b) => getPokemonPower(b) - getPokemonPower(a)); break;
+    case 'recent': break; // Already in insertion order
+  }
+
+  grid.innerHTML = list.map(p => `
+    <div class="pc-pokemon ${p.shiny ? 'shiny' : ''} ${pcSelectedId === p.id ? 'selected' : ''}" data-pk-id="${p.id}">
+      <img src="${pokeSprite(p.species_en, p.shiny)}" alt="${speciesName(p.species_en)}">
+    </div>
+  `).join('');
+
+  grid.querySelectorAll('.pc-pokemon').forEach(el => {
+    el.addEventListener('click', () => {
+      pcSelectedId = el.dataset.pkId;
+      renderPCTab();
+    });
+  });
+}
+
+function renderPokemonDetail() {
+  const panel = document.getElementById('pokemonDetail');
+  if (!panel) return;
+
+  if (!pcSelectedId) {
+    panel.classList.add('hidden');
+    return;
+  }
+
+  const p = state.pokemons.find(pk => pk.id === pcSelectedId);
+  if (!p) {
+    panel.classList.add('hidden');
+    pcSelectedId = null;
+    return;
+  }
+
+  panel.classList.remove('hidden');
+  const sp = SPECIES_BY_EN[p.species_en];
+  const nat = NATURES[p.nature];
+  const natName = nat ? (state.lang === 'fr' ? nat.fr : nat.en) : p.nature;
+  const zoneDef = ZONE_BY_ID[p.capturedIn];
+  const zoneName = zoneDef ? (state.lang === 'fr' ? zoneDef.fr : zoneDef.en) : p.capturedIn;
+  const power = getPokemonPower(p);
+  const price = calculatePrice(p);
+
+  panel.innerHTML = `
+    <div style="text-align:center;margin-bottom:12px">
+      <img src="${pokeSprite(p.species_en, p.shiny)}" style="width:96px;height:96px;${p.shiny ? 'filter:drop-shadow(0 0 6px var(--gold))' : ''}">
+      <div style="font-family:var(--font-pixel);font-size:12px;margin-top:4px">${speciesName(p.species_en)}${p.shiny ? ' ✨' : ''}</div>
+      <div style="font-size:10px;color:var(--text-dim)">#${String(p.dex).padStart(3, '0')} — ${sp?.types.join('/') || '?'}</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:11px;margin-bottom:12px">
+      <div>${t('level')}: <b>${p.level}</b></div>
+      <div>${t('nature')}: <b>${natName}</b></div>
+      <div>${t('potential')}: <b style="color:var(--gold)">${'★'.repeat(p.potential)}</b></div>
+      <div>PC: <b>${power}</b></div>
+    </div>
+    <div style="font-size:11px;margin-bottom:8px">
+      <div style="color:var(--text-dim);margin-bottom:4px">${t('moves')}:</div>
+      ${p.moves.map(m => `<div style="padding:2px 0">▸ ${m}</div>`).join('')}
+    </div>
+    <div style="font-size:11px;margin-bottom:8px">
+      <div>ATK: <b>${p.stats.atk}</b> — DEF: <b>${p.stats.def}</b> — SPD: <b>${p.stats.spd}</b></div>
+    </div>
+    <div style="font-size:10px;color:var(--text-dim);margin-bottom:12px">${t('zone_caught')}: ${zoneName}</div>
+    <div style="font-size:10px;color:var(--gold);margin-bottom:12px">Valeur: ${price}₽</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap">
+      <button style="flex:1;font-size:10px;padding:6px;background:var(--red-dark);border:1px solid var(--red);border-radius:var(--radius-sm);color:var(--text);cursor:pointer" id="btnSellOne">${t('sell')} (${price}₽)</button>
+      <button style="flex:1;font-size:10px;padding:6px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-dim);cursor:pointer" id="btnRelease">${t('release')}</button>
+    </div>
+  `;
+
+  document.getElementById('btnSellOne')?.addEventListener('click', () => {
+    sellPokemon([p.id]);
+    pcSelectedId = null;
+    updateTopBar();
+    renderPCTab();
+  });
+  document.getElementById('btnRelease')?.addEventListener('click', () => {
+    // Unassign from agent
+    for (const agent of state.agents) {
+      agent.team = agent.team.filter(id => id !== p.id);
+    }
+    state.pokemons = state.pokemons.filter(pk => pk.id !== p.id);
+    pcSelectedId = null;
+    saveState();
+    renderPCTab();
+  });
+}
+
+// ════════════════════════════════════════════════════════════════
+// 18.  UI — POKEDEX TAB
+// ════════════════════════════════════════════════════════════════
+
+function renderPokedexTab() {
+  const grid = document.getElementById('pokedexGrid');
+  if (!grid) return;
+
+  grid.innerHTML = POKEMON_GEN1.map(sp => {
+    const entry = state.pokedex[sp.en];
+    const caught = entry?.caught;
+    const seen = entry?.seen;
+    return `<div class="dex-entry ${caught ? 'caught' : ''} ${!seen && !caught ? 'unseen' : ''}">
+      ${caught || seen
+        ? `<img src="${pokeSprite(sp.en, entry?.shiny)}" style="width:40px;height:40px;${!caught ? 'filter:brightness(0)' : ''}">`
+        : `<div style="width:40px;height:40px;display:flex;align-items:center;justify-content:center;color:var(--text-dim)">?</div>`
+      }
+      <div class="dex-number">#${String(sp.dex).padStart(3, '0')}</div>
     </div>`;
   }).join('');
 }
 
+// ════════════════════════════════════════════════════════════════
+// 19.  UI — INTRO OVERLAY
+// ════════════════════════════════════════════════════════════════
 
-// ============================================================
-// MODULE v4.09 — POKÉDEX + COMBO DEX
-// ============================================================
+function showIntro() {
+  const overlay = document.getElementById('introOverlay');
+  if (!overlay) return;
+  overlay.classList.add('active');
 
-// ============================================================
-// PATCH v4.09 — POKÉDEX + COMBO DEX
-// ============================================================
-
-// ── POKÉDEX ──────────────────────────────────────────────
-// state.pokedex = { [species_fr]: { count:N, lost:N, firstSeen:turn } }
-function updatePokedex(species_fr) {
-  if (!state.pokedex) state.pokedex = {};
-  if (!state.pokedex[species_fr]) {
-    state.pokedex[species_fr] = { count:0, lost:0, firstSeen: state.turn };
-    addLog(`📖 ${lang==='fr'?'Pokédex':'Pokédex'} : ${species_fr} ${lang==='fr'?'enregistré !':'registered!'}`);
-  }
-  state.pokedex[species_fr].count += 1;
-}
-
-function markPokedexLost(species_fr) {
-  if (!state.pokedex) return;
-  if (!state.pokedex[species_fr]) return;
-  state.pokedex[species_fr].lost = (state.pokedex[species_fr].lost||0) + 1;
-}
-
-function renderPokedex() {
-  // Le Pokédex s'ouvre via un bouton overlay — rien à rendre inline
-  const btn = document.getElementById('openPokedexBtn');
-  if (btn) {
-    const count = Object.keys(state.pokedex||{}).length;
-    btn.textContent = `📖 POKÉDEX (${count})`;
-    btn.onclick = openPokedexOverlay;
-  }
-}
-
-function openPokedexOverlay() {
-  // Ferme s'il existe déjà
-  const existing = document.getElementById('pokedexOverlay');
-  if (existing) { existing.remove(); return; }
-
-  const dex = state.pokedex || {};
-  const entries = Object.entries(dex);
-  const comboDex = state.comboDex || {};
-  const comboEntries = Object.entries(comboDex);
-  const T = {
-    fr:{ title:'POKÉDEX', seen:'obtenus', lost:'perdus', empty:'Aucun Pokémon enregistré.', combo:'COMBO DEX', noCombo:'Aucun combo.', close:'FERMER', wins:'victoires' },
-    en:{ title:'POKÉDEX', seen:'obtained', lost:'lost',  empty:'No Pokémon registered.',  combo:'COMBO DEX', noCombo:'No combo.',   close:'CLOSE',  wins:'wins' },
-  }[lang];
-
-  const overlay = document.createElement('div');
-  overlay.id = 'pokedexOverlay';
-  overlay.style.cssText = `
-    position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:100;
-    display:flex;align-items:center;justify-content:center;padding:16px;
-    font-family:'Press Start 2P',monospace;
-  `;
-
-  const pokemonGrid = entries.length
-    ? entries.map(([fr, data]) => {
-        const en = FR_TO_EN[fr.toLowerCase()] || fr;
-        const lostTag = data.lost ? `<div style="color:#cc3333;font-size:.4em">💀×${data.lost}</div>` : '';
-        return `<div style="
-          background:#1a0808;border:1px solid #551111;border-radius:4px;
-          padding:6px;text-align:center;display:flex;flex-direction:column;align-items:center;
-        ">
-          <img src="https://play.pokemonshowdown.com/sprites/gen5/${en}.png"
-               style="width:40px;image-rendering:pixelated;filter:saturate(0.7) brightness(1.1);">
-          <div style="font-size:.4em;color:#cc6666;margin-top:3px">${fr}</div>
-          <div style="font-size:.4em;color:#888">×${data.count} ${T.seen}</div>
-          ${lostTag}
-        </div>`;
-      }).join('')
-    : `<div style="grid-column:1/-1;color:#663333;font-size:.5em;text-align:center;padding:20px">${T.empty}</div>`;
-
-  const comboList = comboEntries.length
-    ? comboEntries.map(([key, data]) => `
-        <div style="display:flex;align-items:center;gap:8px;font-size:.4em;padding:4px 0;border-bottom:1px solid #331111">
-          <span style="color:#cc3333;font-weight:bold">${data.label}</span>
-          <span style="color:#888">${data.wins} ${T.wins}</span>
-          ${data.rewardClaimed ? '<span style="color:#66aa66">✓</span>' : ''}
-        </div>`).join('')
-    : `<div style="color:#663333;font-size:.45em">${T.noCombo}</div>`;
-
-  overlay.innerHTML = `
-    <div style="
-      width:min(700px,95vw);max-height:85vh;overflow-y:auto;
-      background:#0a0404;border:3px solid #cc3333;border-radius:8px;
-      box-shadow:0 0 40px rgba(204,51,51,.3),inset 0 0 60px rgba(0,0,0,.8);
-    ">
-      <!-- Header -->
-      <div style="
-        background:linear-gradient(90deg,#1a0808,#2a0a0a,#1a0808);
-        padding:12px 16px;border-bottom:2px solid #cc3333;
-        display:flex;justify-content:space-between;align-items:center;
-      ">
-        <div style="color:#cc3333;font-size:.6em;letter-spacing:.2em;text-shadow:0 0 10px rgba(204,51,51,.5)">${T.title}</div>
-        <div style="color:#663333;font-size:.4em">${entries.length} / 251</div>
+  // Populate sprite picker
+  const picker = document.getElementById('spritePicker');
+  if (picker) {
+    picker.innerHTML = BOSS_SPRITES.map(s => `
+      <div class="sprite-option" data-sprite="${s}">
+        <img src="${trainerSprite(s)}" alt="${s}">
       </div>
-      <!-- Pokémon Grid -->
-      <div style="
-        padding:12px;
-        display:grid;grid-template-columns:repeat(auto-fill,minmax(75px,1fr));gap:6px;
-      ">${pokemonGrid}</div>
-      <!-- Combo Dex -->
-      <div style="padding:8px 16px;border-top:1px solid #331111">
-        <div style="color:#993333;font-size:.45em;letter-spacing:.15em;margin-bottom:6px">${T.combo}</div>
-        ${comboList}
-      </div>
-      <!-- Close button -->
-      <div style="text-align:center;padding:12px">
-        <button onclick="document.getElementById('pokedexOverlay')?.remove()" style="
-          font-family:'Press Start 2P',monospace;font-size:.45em;
-          background:#1a0808;color:#cc3333;border:2px solid #cc3333;
-          padding:8px 24px;border-radius:4px;cursor:pointer;
-          text-transform:uppercase;
-        ">${T.close}</button>
-      </div>
-    </div>
-  `;
-  document.body.appendChild(overlay);
-
-  // Clic en dehors pour fermer
-  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
-}
-
-// ── COMBO DEX ─────────────────────────────────────────────
-// state.comboDex = { [key]: { pattern:[], label:'', wins:0, rewardClaimed:false } }
-
-function getTeamPattern(agent) {
-  if (!agent?.team?.length) return null;
-  const types = agent.team.map(pkmId => {
-    const p = state.pokemons.find(x => x.id === pkmId);
-    if (!p) return null;
-    const fr = (p.species_fr||'').toLowerCase();
-    // Type approximatif depuis les pools
-    for (const [type, pool] of Object.entries(POKEMON_FR_POOL_BY_TYPE)) {
-      if (pool.includes(fr)) return type;
-    }
-    return 'normal';
-  }).filter(Boolean).sort();
-  if (types.length < 2) return null;
-  return types.join('-');
-}
-
-function checkComboUnlock(agent) {
-  const pattern = getTeamPattern(agent);
-  if (!pattern) return;
-  if (!state.comboDex) state.comboDex = {};
-  if (state.comboDex[pattern]) {
-    if (!state.comboDex[pattern].rewardClaimed) {
-      state.comboDex[pattern].rewardClaimed = true;
-      state.resources.pokedollars += 10;
-      addLog(`🏆 Combo "${pattern}" validé ! +10₽`);
-    }
-    return;
-  }
-  // Nouveau combo
-  state.comboDex[pattern] = {
-    pattern: pattern.split('-'),
-    label: pattern,
-    wins: 0,
-    rewardClaimed: false,
-    firstSeen: state.turn,
-  };
-  state.resources.pokedollars += 10;
-  addLog(`🏆 ${lang==='fr'?'Nouveau combo débloqué':'New combo unlocked'} : "${pattern}" +10₽`);
-}
-
-function renderComboDex() {
-  // Combo Dex est maintenant intégré dans l'overlay Pokédex
-  // Rien à rendre inline
-}
-
-function applyCombo(key) {
-  const combo = state.comboDex?.[key];
-  const agent = state.agents.find(a => a.id === document.getElementById('agentSelect')?.value);
-  if (!combo || !agent) return;
-
-  const assigned = [];
-  combo.pattern.forEach(type => {
-    const pool = POKEMON_FR_POOL_BY_TYPE[type] || [];
-    const pkm = state.pokemons.find(p =>
-      pool.includes((p.species_fr||'').toLowerCase()) &&
-      !p.assignedAgentId && !assigned.includes(p.id)
-    );
-    if (pkm) assigned.push(pkm.id);
-  });
-
-  agent.team.forEach(id => { const p = state.pokemons.find(x=>x.id===id); if(p) p.assignedAgentId=null; });
-  agent.team = assigned.slice(0,3);
-  assigned.forEach(id => { const p = state.pokemons.find(x=>x.id===id); if(p) p.assignedAgentId=agent.id; });
-  checkComboUnlock(agent);
-  addLog(`Combo "${key}" appliqué à ${agent.name}.`);
-  saveState(); render();
-}
-
-
-// ============================================================
-// MODULE v4.10 — CHAT ALLIÉ
-// ============================================================
-
-// ============================================================
-// PATCH v4.10 — CHAT PNJ ALLIÉ RECENTRÉ
-// 1 conversation/tour, uniquement agents recrutés
-// ============================================================
-
-// state.chatUsedThisTurn = false | agentId
-
-function renderAllyChat() {
-  const el = document.getElementById('allyChatPanel');
-  if (!el) return;
-  const T = {
-    fr:{ title:'Briefing allié', used:'Conversation utilisée ce tour.', pick:'Choisir un allié', send:'Parler', placeholder:"Message à l'allié…", hint:'1 conversation disponible par tour.' },
-    en:{ title:'Ally Briefing',  used:'Conversation used this turn.',    pick:'Choose an ally',  send:'Talk',   placeholder:'Message to ally…',    hint:'1 conversation available per turn.' },
-  }[lang];
-
-  const alreadyUsed = !!state.chatUsedThisTurn;
-
-  const agentOptions = state.agents.map(a =>
-    `<option value="${a.id}" ${state.chatUsedThisTurn===a.id?'disabled':''}>
-      ${a.name} — ${a.rank}
-    </option>`
-  ).join('');
-
-  el.innerHTML = `
-    <h2>${T.title}</h2>
-    ${alreadyUsed
-      ? `<div class="card" style="font-size:.78em;color:var(--muted)">${T.used}</div>`
-      : `<small style="color:var(--muted);font-size:.7em">${T.hint}</small>`}
-    <label style="font-size:.75em">${T.pick}
-      <select id="allyChatAgentSelect">${agentOptions}</select>
-    </label>
-    <div class="chat">
-      <input id="allyChatInput" type="text" placeholder="${T.placeholder}" ${alreadyUsed?'disabled':''}>
-      <button id="allyChatSendBtn" ${alreadyUsed?'disabled':''} onclick="sendAllyChat()">${T.send}</button>
-    </div>
-    <div id="allyChatLog" class="logs" style="max-height:160px;margin-top:6px"></div>
-  `;
-
-  // Log de la conversation du tour
-  const log = state.allyChatLog || [];
-  const logEl = document.getElementById('allyChatLog');
-  if (logEl) {
-    logEl.innerHTML = log.map(l => `<div class="logline">${l}</div>`).join('') ||
-      `<div style="font-size:.7em;color:var(--muted)">${lang==='fr'?'Aucune conversation.':'No conversation.'}</div>`;
-  }
-
-  // Enter key
-  const inp = document.getElementById('allyChatInput');
-  if (inp) inp.onkeydown = e => { if(e.key==='Enter') sendAllyChat(); };
-}
-
-async function sendAllyChat() {
-  if (state.chatUsedThisTurn) return;
-  const sel = document.getElementById('allyChatAgentSelect');
-  const inp = document.getElementById('allyChatInput');
-  if (!sel || !inp) return;
-  const msg = inp.value.trim();
-  if (!msg) return;
-  inp.value = '';
-
-  const agentId = sel.value;
-  const agent   = state.agents.find(a => a.id === agentId);
-  if (!agent) return;
-
-  state.chatUsedThisTurn = agentId;
-  if (!state.allyChatLog) state.allyChatLog = [];
-  state.allyChatLog = []; // reset à chaque tour (voir processTurn)
-  state.allyChatLog.push(`${lang==='fr'?'Vous':'You'} → ${agent.name} : ${msg}`);
-
-  // LLM ou fallback
-  const system  = buildNpcSystemPrompt(agent);
-  const prompt  = `${system}
-
-${lang==='fr'?'Message reçu':'Message received'} : "${msg}"
-${lang==='fr'?'Réponds en une ou deux phrases.':'Answer in one or two sentences.'}`;
-  const fallback= `${agent.name} : ${pick(agent.catch_phrases||['...'])}`;
-  const reply   = await callOllama(prompt, fallback);
-
-  state.allyChatLog.push(reply);
-
-  // Chance de bonus narratif
-  if (Math.random() < 0.2) {
-    const bonuses = {
-      fr: ['Cette conversation te donne des informations utiles. +1 Intel.', "L'agent partage un tuyau. +50₽.", 'Un détail révélateur. +1 Intel.'],
-      en: ['This conversation yields useful intel. +1 Intel.', 'The agent shares a tip. +50₽.', 'A revealing detail. +1 Intel.'],
-    };
-    const bonus = pick(bonuses[lang] || bonuses.fr);
-    if (bonus.includes('Intel')) state.resources.intel += 1;
-    else state.resources.pokedollars += 50;
-    state.allyChatLog.push(`💡 ${bonus}`);
-    addLog(`💡 ${bonus}`);
-  }
-
-  addLog(`[Chat] ${agent.name} : ${reply.slice(0, 80)}…`);
-  saveState(); render();
-}
-
-// Réinitialise le chat en début de tour (appelé dans processTurn)
-function resetAllyChat() {
-  state.chatUsedThisTurn = false;
-  state.allyChatLog = [];
-}
-
-
-// ============================================================
-// MODULE v4.11 — LORE NPCs
-// ============================================================
-
-// ============================================================
-// PATCH v4.11 — LORE NPCs
-// Giovanni, Archer, Ariana, Jessie, James, Oak, Red
-// ============================================================
-
-const LORE_NPCS = {
-  giovanni: {
-    id: 'lore_giovanni',
-    name: { fr:'Giovanni', en:'Giovanni' },
-    rank: { fr:'Boss de la Team Rocket', en:'Team Rocket Boss' },
-    faction: 'team_rocket',
-    sprite: 'https://play.pokemonshowdown.com/sprites/trainers/giovanni.png',
-    personality: ['froid','calculateur','impitoyable'],
-    values: ['pouvoir','argent','contrôle'],
-    speech_style: { tone:'autoritaire', verbosity:'court', formality:'high' },
-    catch_phrases: {
-      fr:['Le pouvoir est tout.','Tu es un outil. Sois utile.',"La Team Rocket ne pardonne pas l'échec.",'Rapporte-moi des résultats, pas des excuses.'],
-      en:['Power is everything.','You are a tool. Be useful.','Team Rocket does not forgive failure.','Bring me results, not excuses.'],
-    },
-    pokemon_preferences: ['psychic','poison'],
-    possible_pokemon: ['persian','nidoking','nidoqueen'],
-    activation: { minReputation: 0, alwaysPresent: true },
-    role_in_game: 'npc_adjuvant', // superviseur, pas membre d'équipe
-  },
-
-  archer: {
-    id: 'lore_archer',
-    name: { fr:'Archer', en:'Archer' },
-    rank: { fr:'Sous-Chef Rocket', en:'Team Rocket Admin' },
-    faction: 'team_rocket',
-    sprite: 'https://play.pokemonshowdown.com/sprites/trainers/archer.png',
-    personality: ['loyal','méthodique','ambitieux'],
-    values: ['ordre','hiérarchie','discipline'],
-    speech_style: { tone:'professionnel', verbosity:'moyen', formality:'medium' },
-    catch_phrases: {
-      fr:["Les ordres viennent d'en haut.",'Efficacité avant tout.','Archer surveille tout.'],
-      en:['Orders come from above.','Efficiency above all.','Archer watches everything.'],
-    },
-    pokemon_preferences: ['dark','poison'],
-    possible_pokemon: ['golbat','persian','weezing'],
-    activation: { minReputation: 40 },
-    role_in_game: 'ally_agent',
-  },
-
-  ariana: {
-    id: 'lore_ariana',
-    name: { fr:'Ariane', en:'Ariana' },
-    rank: { fr:'Sous-Chef Rocket', en:'Team Rocket Admin' },
-    faction: 'team_rocket',
-    sprite: 'https://play.pokemonshowdown.com/sprites/trainers/ariana.png',
-    personality: ['impitoyable','directe','protectrice'],
-    values: ['loyauté','force','survie'],
-    speech_style: { tone:'agressif', verbosity:'court', formality:'low' },
-    catch_phrases: {
-      fr:['Ne me fais pas perdre mon temps.','Montre ta valeur.','Je ne fais pas dans la demi-mesure.'],
-      en:["Don't waste my time.",'Prove your worth.',"I don't do things halfway."],
-    },
-    pokemon_preferences: ['poison','fighting'],
-    possible_pokemon: ['arbok','hypno','vileplume'],
-    activation: { minReputation: 40 },
-    role_in_game: 'ally_agent',
-  },
-
-  jessie: {
-    id: 'lore_jessie',
-    name: { fr:'Jessie', en:'Jessie' },
-    rank: { fr:'Agent Rocket', en:'Rocket Agent' },
-    faction: 'team_rocket',
-    sprite: 'https://play.pokemonshowdown.com/sprites/trainers/rocketgruntf.png',
-    personality: ['théâtrale','orgueilleuse','déterminée'],
-    values: ['gloire','beauté','vengeance'],
-    speech_style: { tone:'dramatique', verbosity:'long', formality:'low' },
-    catch_phrases: {
-      fr:['Préparez-vous pour les ennuis !',"La beauté et la ruse, c'est notre devise.","Personne ne m'arrêtera !"],
-      en:['Prepare for trouble!',"Beauty and cunning, that's our motto.",'Nobody will stop me!'],
-    },
-    pokemon_preferences: ['poison','normal'],
-    possible_pokemon: ['ekans','arbok','lickitung'],
-    activation: { minReputation: 20, minTurn: 5, event: true },
-    role_in_game: 'recruit_event',
-  },
-
-  james: {
-    id: 'lore_james',
-    name: { fr:'James', en:'James' },
-    rank: { fr:'Agent Rocket', en:'Rocket Agent' },
-    faction: 'team_rocket',
-    sprite: 'https://play.pokemonshowdown.com/sprites/trainers/rocketgrunt.png',
-    personality: ['naïf','gentil','maladroit'],
-    values: ['amitié','Pokémon','appartenance'],
-    speech_style: { tone:'hésitant', verbosity:'moyen', formality:'low' },
-    catch_phrases: {
-      fr:['Et faites-en le double !',"Je ne suis pas sûr que c'est une bonne idée…",'Mes Pokémon comptent sur moi.'],
-      en:['Make it double!',"I'm not sure this is a good idea…",'My Pokémon count on me.'],
-    },
-    pokemon_preferences: ['poison','grass'],
-    possible_pokemon: ['koffing','weezing','growlithe'],
-    activation: { minReputation: 20, minTurn: 5, event: true },
-    role_in_game: 'recruit_event',
-  },
-
-  oak: {
-    id: 'lore_oak',
-    name: { fr:'Professeur Chen', en:'Professor Oak' },
-    rank: { fr:'Chercheur Pokémon', en:'Pokémon Researcher' },
-    faction: 'neutral',
-    sprite: 'https://play.pokemonshowdown.com/sprites/trainers/oak.png',
-    personality: ['sage','curieux','prudent'],
-    values: ['science','nature','harmonie'],
-    speech_style: { tone:'académique', verbosity:'long', formality:'high' },
-    catch_phrases: {
-      fr:['Les Pokémon ne sont pas des outils.','La science ne peut tolérer cela.','Vous faites fausse route.'],
-      en:['Pokémon are not tools.','Science cannot tolerate this.','You are on the wrong path.'],
-    },
-    pokemon_preferences: ['normal','grass'],
-    possible_pokemon: ['eevee','arcanine','dragonite'],
-    activation: { },
-    role_in_game: 'antagonist_mission',
-  },
-
-  red: {
-    id: 'lore_red',
-    name: { fr:'Red', en:'Red' },
-    rank: { fr:'Champion de Kanto', en:'Kanto Champion' },
-    faction: 'hero',
-    sprite: 'https://play.pokemonshowdown.com/sprites/trainers/red.png',
-    personality: ['silencieux','déterminé','légendaire'],
-    values: ['justice','amitié','dépassement'],
-    speech_style: { tone:'minimal', verbosity:'très court', formality:'low' },
-    catch_phrases: {
-      fr:['…','…!','Pikachu.'],
-      en:['…','…!','Pikachu.'],
-    },
-    pokemon_preferences: ['electric','fire','water','grass'],
-    possible_pokemon: ['pikachu','charizard','blastoise','venusaur','snorlax','lapras'],
-    activation: { minReputation: 70 },
-    role_in_game: 'boss_mission',
-  },
-
-  // ── NOUVEAUX PERSONNAGES v5 ─────────────────────────────
-
-  proton: {
-    id: 'lore_proton',
-    name: { fr:'Proton', en:'Proton' },
-    rank: { fr:'Sous-Chef Rocket', en:'Team Rocket Admin' },
-    faction: 'team_rocket',
-    sprite: 'https://play.pokemonshowdown.com/sprites/trainers/proton.png',
-    personality: ['cruel','sadique','efficace'],
-    values: ['terreur','résultats','intimidation'],
-    speech_style: { tone:'menaçant', verbosity:'court', formality:'low' },
-    catch_phrases: {
-      fr:["Je suis le plus terrifiant de la Team Rocket.",'La peur est mon arme.',"N'espère aucune pitié."],
-      en:["I'm the scariest guy in Team Rocket.",'Fear is my weapon.','Expect no mercy.'],
-    },
-    pokemon_preferences: ['poison','dark'],
-    possible_pokemon: ['zubat','golbat','weezing','muk'],
-    activation: { minReputation: 30 },
-    role_in_game: 'ally_agent',
-  },
-
-  silver: {
-    id: 'lore_silver',
-    name: { fr:'Silver', en:'Silver' },
-    rank: { fr:'Rival / Fils de Giovanni', en:'Rival / Giovanni\'s Son' },
-    faction: 'antagonist',
-    sprite: 'https://play.pokemonshowdown.com/sprites/trainers/silver.png',
-    personality: ['hostile','solitaire','tourmenté'],
-    values: ['force','indépendance','rejet'],
-    speech_style: { tone:'agressif', verbosity:'court', formality:'low' },
-    catch_phrases: {
-      fr:['Les faibles ne méritent pas de Pokémon.','La Team Rocket est pathétique.',"Je n'ai besoin de personne."],
-      en:["Weaklings don't deserve Pokémon.",'Team Rocket is pathetic.','I need no one.'],
-    },
-    pokemon_preferences: ['dark','fire','ice'],
-    possible_pokemon: ['golbat','nidorino','magneton','haunter','kadabra','gengar'],
-    activation: { minReputation: 35, minTurn: 8 },
-    role_in_game: 'antagonist_mission',
-  },
-
-  blue: {
-    id: 'lore_blue',
-    name: { fr:'Blue', en:'Blue' },
-    rank: { fr:'Champion de Jadielle', en:'Viridian Gym Leader' },
-    faction: 'hero',
-    sprite: 'https://play.pokemonshowdown.com/sprites/trainers/blue.png',
-    personality: ['arrogant','compétitif','stratège'],
-    values: ['victoire','prestige','défi'],
-    speech_style: { tone:'condescendant', verbosity:'moyen', formality:'medium' },
-    catch_phrases: {
-      fr:['Vous croyez pouvoir me battre ?',"L'odeur de la défaite, c'est vous.",'Je suis imbattable.'],
-      en:['You think you can beat me?','You smell like defeat.','I am unbeatable.'],
-    },
-    pokemon_preferences: ['normal','water','psychic'],
-    possible_pokemon: ['arcanine','alakazam','gyarados','exeggutor','pidgeot','machamp'],
-    activation: { minReputation: 50, minTurn: 12 },
-    role_in_game: 'antagonist_mission',
-  },
-};
-
-// ── INJECTION DANS LE JEU ────────────────────────────────
-
-// Vérifie si des PNJs lore doivent devenir disponibles
-function checkLoreNpcActivation() {
-  if (!state.loreNpcsActivated) state.loreNpcsActivated = {};
-
-  Object.values(LORE_NPCS).forEach(npc => {
-    if (state.loreNpcsActivated[npc.id]) return;
-    const cond = npc.activation || {};
-
-    // Activation permanente (Giovanni)
-    if (cond.alwaysPresent) {
-      activateLoreNpc(npc);
-      return;
-    }
-    // Activation par réputation
-    if (cond.minReputation !== undefined && (state.reputation||0) < cond.minReputation) return;
-    // Activation par tour
-    if (cond.minTurn !== undefined && state.turn < cond.minTurn) return;
-    // Activation événement : 30% de chance par tour si conditions remplies
-    if (cond.event && Math.random() > 0.30) return;
-
-    activateLoreNpc(npc);
-  });
-}
-
-function activateLoreNpc(npc) {
-  if (state.loreNpcsActivated[npc.id]) return;
-  state.loreNpcsActivated[npc.id] = true;
-
-  const nom = npc.name[lang] || npc.name.fr;
-  const rank = npc.rank[lang] || npc.rank.fr;
-
-  if (npc.role_in_game === 'npc_adjuvant') {
-    // Giovanni = superviseur, pas membre d'équipe
-    // Il apparaît comme bonus aléatoire sur les missions de haut rang
-    state.giovanniActive = true;
-    addLog(`⭐ ${nom} ${lang==='fr'?'supervise désormais vos opérations.':'now oversees your operations.'}`);
-    // Chance de drop Persian ★★★ lors de l'activation
-    if (Math.random() < 0.3) {
-      const persian = makePokemon('persian', 30);
-      persian.stars = 3;
-      persian.fusionTraits = ['intimidation','boss'];
-      addPokemonWithCap(persian);
-      updatePokedex('persian');
-      addLog(`🎁 ${nom} ${lang==='fr'?'vous confie son Persian ★★★ !':'entrusts you with his Persian ★★★!'}`);
-    }
-  }
-
-  if (npc.role_in_game === 'ally_agent') {
-    // Ajoute comme agent allié s'il n'existe pas déjà
-    if (!state.agents.find(a => a.id === npc.id)) {
-      state.agents.push({
-        id:          npc.id,
-        name:        nom,
-        rank:        rank,
-        level:       5,
-        xp:          250,
-        cooldown:    0,
-        team:        [],
-        traits:      ['lore'],
-        sprite:      npc.sprite,
-        personality: npc.personality,
-        catch_phrases: npc.catch_phrases[lang] || npc.catch_phrases.fr,
-        pokemon_preferences: npc.pokemon_preferences,
-        possible_pokemon: npc.possible_pokemon,
-        missions:    [],
-        isLore:      true,
+    `).join('');
+    picker.querySelectorAll('.sprite-option').forEach(opt => {
+      opt.addEventListener('click', () => {
+        picker.querySelectorAll('.sprite-option').forEach(o => o.classList.remove('selected'));
+        opt.classList.add('selected');
       });
-      addLog(`⭐ ${nom} (${rank}) ${lang==='fr'?'rejoint votre équipe !':'joins your team!'}`);
-    }
-  }
-
-  if (npc.role_in_game === 'recruit_event') {
-    // Injecte comme candidat de recrutement si pas déjà en cours
-    if (!state.recruit || state.recruit.finished) {
-      state.recruit = {
-        npc: {
-          ...npc,
-          name:         nom,
-          role:         rank,
-          personality:  npc.personality,
-          catch_phrases: npc.catch_phrases[lang] || npc.catch_phrases.fr,
-          possible_pokemon: npc.possible_pokemon,
-          sprite:       npc.sprite,
-          hiddenScore:  8, // lore = plus facile à recruter
-          isLore:       true,
-        },
-        candidateName: nom,
-        candidateRole: rank,
-        interactions:  0,
-        hiddenScore:   8,
-        transcript:    [],
-        finished:      false,
-      };
-      addLog(`⭐ Événement spécial : ${nom} ${lang==='fr'?'est disponible au recrutement !':'is available for recruitment!'}`);
-    }
-  }
-
-  if (npc.role_in_game === 'antagonist_mission' || npc.role_in_game === 'boss_mission') {
-    // Log d'alerte : un antagoniste est maintenant actif
-    const icon = npc.role_in_game === 'boss_mission' ? '🔴' : '⚠️';
-    const msgFR = npc.faction === 'hero'
-      ? `${nom} a été repéré dans la région. Ses missions seront plus dangereuses.`
-      : `${nom} rôde dans les parages. Méfiez-vous.`;
-    const msgEN = npc.faction === 'hero'
-      ? `${nom} has been spotted in the region. Their missions will be more dangerous.`
-      : `${nom} is lurking nearby. Stay alert.`;
-    addLog(`${icon} ${lang==='fr' ? msgFR : msgEN}`);
-  }
-}
-
-// System prompt enrichi pour les lore NPCs
-function buildLoreNpcPrompt(npcDef, message) {
-  const nom  = npcDef.name[lang] || npcDef.name.fr;
-  const rank = npcDef.rank[lang] || npcDef.rank.fr;
-  const phrases = (npcDef.catch_phrases[lang] || npcDef.catch_phrases.fr).join(' | ');
-  return `Tu incarnes ${nom}, ${rank}, dans un jeu de gestion inspiré de Pokémon.
-Personnalité : ${npcDef.personality.join(', ')}.
-Valeurs : ${npcDef.values.join(', ')}.
-Style : ${npcDef.speech_style.tone}, ${npcDef.speech_style.verbosity}, formalité ${npcDef.speech_style.formality}.
-Répliques types : "${phrases}"
-Pokémon : ${npcDef.possible_pokemon.join(', ')}.
-Réponds toujours en ${lang==='fr'?'français':'English'}. Reste dans le personnage. Maximum deux phrases.
-
-Message reçu : "${message}"`;
-}
-
-// Giovanni apparaît comme superviseur sur les missions élevées
-function getGiovanniComment(missionId, success) {
-  const phrases = success
-    ? (lang==='fr' ? ['Bien. Continue.',"C'est ce que j'attendais.",'Correct. Ne te repose pas.'] : ['Good. Continue.',"That's what I expected.","Correct. Don't rest."])
-    : (lang==='fr' ? ['Décevant.','Encore un échec ? Inacceptable.','Tu me déçois.'] : ['Disappointing.','Another failure? Unacceptable.','You disappoint me.']);
-  return `Giovanni : ${pick(phrases)}`;
-}
-
-
-// ============================================================
-// RENDER PRINCIPAL v4 — override de render()
-// ============================================================
-function render() {
-  // Topbar
-  if (ui.turnValue)  ui.turnValue.textContent  = state.turn;
-  if (ui.llmBadge)   ui.llmBadge.textContent   = settings.llmEnabled ? T('llmOn') : T('llmOff');
-  if (ui.nextTurnBtn) ui.nextTurnBtn.textContent = T('nextTurn');
-
-  // Profil
-  if (ui.playerName)  ui.playerName.textContent  = `${state.profile.firstName} ${state.profile.lastName}`;
-  if (ui.teamName)    ui.teamName.textContent     = state.profile.team;
-  if (ui.playerSprite) ui.playerSprite.src        = state.profile.sprite;
-  if (ui.introOverlay) ui.introOverlay.classList.toggle('hidden', state.profile.initialized);
-
-  renderResources();
-  renderRoomsV2();
-  renderPokemonPC();
-  renderPokemonPanels();
-  renderTeamBuilder();
-  renderAgentsV2();
-  renderRecruitV2();
-  renderMissionsV2();
-  renderAllyChat();
-  renderPokedex();
-  renderComboDex();
-  renderWorldView();
-  renderRoomsBand();
-
-  // Logs
-  if (ui.logOutput) ui.logOutput.innerHTML = state.log.map(l => `<div class="logline">${l}</div>`).join('');
-
-  // Settings
-  if (ui.llmEnabledToggle) ui.llmEnabledToggle.checked = settings.llmEnabled;
-  if (ui.baseUrlInput)     ui.baseUrlInput.value        = settings.baseUrl;
-  if (ui.modelInput)       ui.modelInput.value          = settings.model;
-}
-
-// ============================================================
-// PROCESS TURN v4
-// ============================================================
-function processTurn() {
-  state.turn += 1;
-  state.newPokemonsThisTurn = [];
-
-  // Revenus salles
-  const roomIncome = (state.rooms.command?.baseIncome||120) * (state.rooms.command?.level||1);
-  state.resources.pokedollars    += roomIncome;
-  state.resources.breedingPoints += (state.rooms.breeding?.baseIncome||2) * (state.rooms.breeding?.level||1);
-  state.resources.intel          += (state.rooms.training?.baseIncome||1)  * (state.rooms.training?.level||1);
-
-  // Élevage
-  while ((state.resources.breedingPoints||0) >= 4) {
-    state.resources.breedingPoints -= 4;
-    if (!state.breedingQueue) state.breedingQueue = [];
-    state.breedingQueue.push({ turnsLeft:2, species_fr: pick(POKEDEX_POOL_FR) });
-    addLog(lang==='fr' ? 'Un œuf est ajouté à la nurserie.' : 'An egg is added to the nursery.');
-  }
-  if (state.breedingQueue) {
-    state.breedingQueue.forEach(e => e.turnsLeft -= 1);
-    const hatched = state.breedingQueue.filter(e => e.turnsLeft <= 0);
-    state.breedingQueue = state.breedingQueue.filter(e => e.turnsLeft > 0);
-    hatched.forEach(e => {
-      const pok = makePokemon(e.species_fr, 5 + Math.floor(Math.random()*6));
-      addPokemonWithCap(pok);
-      updatePokedex(pok.species_fr);
-      addLog(`${lang==='fr'?'Éclosion':'Hatched'} : ${e.species_fr}`);
     });
+    // Select first by default
+    picker.querySelector('.sprite-option')?.classList.add('selected');
   }
 
-  // Cap Pokémon : relâche les standby si la limite augmente (tous les 3 tours)
-  if ((state.turn - 1) % 3 === 0 && state.turn > 1) {
-    const newCap = getPokemonCap();
-    addLog(lang === 'fr'
-      ? `📈 Limite Pokémon augmentée à ${newCap} !`
-      : `📈 Pokémon cap increased to ${newCap}!`);
-    releaseStandbyPokemon();
-  }
+  // Start button
+  document.getElementById('btnStartGame')?.addEventListener('click', () => {
+    const bossName = document.getElementById('inputBossName')?.value.trim() || 'Boss';
+    const gangName = document.getElementById('inputGangName')?.value.trim() || 'Team Fury';
+    const selectedSprite = picker?.querySelector('.sprite-option.selected')?.dataset.sprite || 'rocketgrunt';
 
-  // Salles V2
-  processLearningRoom();
-  processPkmTrainingRoom();
-
-  // Missions
-  processMissionsV2();
-  rollAvailableMissionsV2();
-
-  // Événements aléatoires
-  rollRandomEvent();
-
-  // Chat allié reset
-  resetAllyChat();
-
-  // Lore NPCs check
-  checkLoreNpcActivation();
-
-  // Candidat recrutement
-  if (state.recruit?.finished) {
-    initRecruit();
-    addLog(`${lang==='fr'?'Nouveau candidat':'New candidate'} : ${state.recruit.candidateName}`);
-  }
-
-  saveState(); render();
+    state.gang.bossName = bossName;
+    state.gang.name = gangName;
+    state.gang.bossSprite = selectedSprite;
+    state.gang.initialized = true;
+    saveState();
+    overlay.classList.remove('active');
+    renderAll();
+  });
 }
 
-// ============================================================
-// BOOT v4
-// ============================================================
-function bootV4() {
-  // Migrations
-  migrateRemoveCapture();
-  initRoomsV2();
-  initWorldView();
+// ════════════════════════════════════════════════════════════════
+// 20.  UI — SETTINGS MODAL
+// ════════════════════════════════════════════════════════════════
 
-  // Lire état sauvegardé
+function initSettings() {
+  document.getElementById('btnSettings')?.addEventListener('click', () => {
+    const modal = document.getElementById('settingsModal');
+    if (modal) {
+      // Sync values
+      const langSel = document.getElementById('settingLang');
+      if (langSel) langSel.value = state.lang;
+      const llmSel = document.getElementById('settingLLM');
+      if (llmSel) llmSel.value = state.settings.llmProvider;
+      const apiKey = document.getElementById('settingAPIKey');
+      if (apiKey) apiKey.value = state.settings.llmApiKey;
+      modal.classList.add('active');
+    }
+  });
+
+  document.getElementById('btnCloseSettings')?.addEventListener('click', () => {
+    // Save settings
+    const langSel = document.getElementById('settingLang');
+    if (langSel) state.lang = langSel.value;
+    const llmSel = document.getElementById('settingLLM');
+    if (llmSel) state.settings.llmProvider = llmSel.value;
+    const apiKey = document.getElementById('settingAPIKey');
+    if (apiKey) state.settings.llmApiKey = apiKey.value;
+    saveState();
+    detectLLM();
+    document.getElementById('settingsModal')?.classList.remove('active');
+    // Update i18n
+    renderAll();
+  });
+
+  document.getElementById('btnExportSave')?.addEventListener('click', exportSave);
+
+  document.getElementById('btnImportSave')?.addEventListener('click', () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.addEventListener('change', () => {
+      if (input.files[0]) importSave(input.files[0]);
+    });
+    input.click();
+  });
+
+  document.getElementById('btnResetAll')?.addEventListener('click', () => {
+    if (confirm(t('reset_confirm'))) {
+      localStorage.removeItem(SAVE_KEY);
+      state = structuredClone(DEFAULT_STATE);
+      // Close all zone windows
+      for (const zid of [...openZones]) closeZoneWindow(zid);
+      pcSelectedId = null;
+      selectedForSale.clear();
+      showIntro();
+    }
+  });
+
+  document.getElementById('btnPurgeSprites')?.addEventListener('click', () => {
+    notify(state.lang === 'fr' ? 'Cache navigateur purgé' : 'Browser cache purged', 'success');
+  });
+}
+
+// ════════════════════════════════════════════════════════════════
+// 21.  GAME LOOP & BOOT
+// ════════════════════════════════════════════════════════════════
+
+let agentTickInterval = null;
+let autoSaveInterval = null;
+let cooldownInterval = null;
+
+function startGameLoop() {
+  // Agent automation every 3 seconds
+  agentTickInterval = setInterval(agentTick, 3000);
+
+  // Auto-save every 10 seconds
+  autoSaveInterval = setInterval(saveState, 10000);
+
+  // Cooldown tick every 10 seconds (decrement pokemon cooldowns)
+  cooldownInterval = setInterval(() => {
+    let changed = false;
+    for (const p of state.pokemons) {
+      if (p.cooldown > 0) {
+        p.cooldown--;
+        changed = true;
+      }
+    }
+    if (changed) saveState();
+  }, 10000);
+
+  // Zone timers refresh every second (for boost countdowns + stats)
+  setInterval(() => {
+    for (const zoneId of openZones) {
+      updateZoneTimers(zoneId);
+    }
+  }, 1000);
+}
+
+function boot() {
+  // Try to load saved state
   const saved = loadState();
-  if (saved && saved.profile?.initialized) {
-    state = { ...structuredClone(BASE_STATE), ...saved };
-    lang  = saved.lang || lang;
+  if (saved) {
+    state = saved;
   }
 
-  // Candidat de recrutement
-  if (!state.recruit) initRecruit();
-  if (!state.availableMissions?.length) rollAvailableMissionsV2();
-  if (!state.log?.length) addLog(lang==='fr' ? 'Bienvenue dans Rocket HQ.' : 'Welcome to Rocket HQ.');
+  // Init tab navigation
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+  });
 
-  // Migration: remove Giovanni from agents (now NPC adjuvant, not team member)
-  state.agents = (state.agents||[]).filter(a => a.id !== 'lore_giovanni');
-  if (state.loreNpcsActivated?.['lore_giovanni']) state.giovanniActive = true;
+  // Init filter/sort listeners for PC
+  document.getElementById('pcSearch')?.addEventListener('input', () => {
+    if (activeTab === 'tabPC') renderPokemonGrid();
+  });
+  document.getElementById('pcSort')?.addEventListener('change', () => {
+    if (activeTab === 'tabPC') renderPokemonGrid();
+  });
+  document.getElementById('pcFilter')?.addEventListener('change', () => {
+    if (activeTab === 'tabPC') renderPokemonGrid();
+  });
 
-  // Lore NPCs
-  checkLoreNpcActivation();
+  // Init settings
+  initSettings();
 
-  // Bind events
-  bindEvents();
-  // Override sendRecruit
-  if (ui.sendRecruitBtn) ui.sendRecruitBtn.onclick = recruitStepV2;
-  if (ui.recruitMessage) ui.recruitMessage.onkeydown = e => { if(e.key==='Enter') recruitStepV2(); };
+  // Detect LLM
+  detectLLM();
 
-  // World spawner
-  startWorldSpawner();
+  // Show intro if not initialized
+  if (!state.gang.initialized) {
+    showIntro();
+  }
 
-  render();
+  // Initial render
+  renderAll();
+
+  // Start game loop
+  startGameLoop();
 }
 
-bootV4();
-
-// ============================================================
-// PATCH v4.1.01 — OLLAMA MODEL PICKER + LOADING BAR
-// ============================================================
-
-// ── OLLAMA MODEL DISCOVERY ───────────────────────────────
-
-async function fetchOllamaModels() {
-  const el = document.getElementById('ollamaModelSelect');
-  const status = document.getElementById('ollamaModelStatus');
-  if (status) status.textContent = '⏳ Chargement…';
-  try {
-    const res = await fetch(`${settings.baseUrl}/api/tags`, { signal: AbortSignal.timeout(4000) });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-    const models = (data.models || []).map(m => m.name);
-    if (!models.length) throw new Error('Aucun modèle trouvé');
-    if (el) {
-      el.innerHTML = models.map(m =>
-        `<option value="${m}" ${m === settings.model ? 'selected' : ''}>${m}</option>`
-      ).join('');
-      el.onchange = () => {
-        settings.model = el.value;
-        const inp = document.getElementById('modelInput');
-        if (inp) inp.value = el.value;
-        localStorage.setItem('pf.settings', JSON.stringify(settings));
-      };
-    }
-    if (status) status.textContent = `✅ ${models.length} modèle(s) disponible(s)`;
-    return models;
-  } catch (e) {
-    if (status) status.textContent = `❌ Ollama inaccessible (${e.message})`;
-    if (el) el.innerHTML = `<option value="${settings.model}">${settings.model} (local)</option>`;
-    return [];
-  }
-}
-
-// ── LOADING BAR ───────────────────────────────────────────
-
-// Crée ou réutilise la barre de chargement sur un élément cible
-function showLoadingBar(anchorId, label = '') {
-  let bar = document.getElementById('llmLoadingBar');
-  if (!bar) {
-    bar = document.createElement('div');
-    bar.id = 'llmLoadingBar';
-    bar.style.cssText = `
-      position:fixed;bottom:0;left:0;width:100%;height:3px;z-index:9999;
-      background:transparent;pointer-events:none;
-    `;
-    bar.innerHTML = `<div id="llmLoadingFill" style="
-      height:3px;width:0%;
-      background:linear-gradient(90deg,#cc2233,#ffcc5a,#70e0a4);
-      transition:width .3s ease;border-radius:0 3px 3px 0;
-      box-shadow:0 0 8px rgba(255,204,90,.6);
-    "></div>`;
-    document.body.appendChild(bar);
-  }
-  bar.style.display = 'block';
-
-  // Barre au-dessus du personnage si anchorId fourni
-  const anchor = anchorId ? document.getElementById(anchorId) : null;
-  let avatarBar = null;
-  if (anchor) {
-    avatarBar = document.createElement('div');
-    avatarBar.id = 'llmAvatarBar';
-    avatarBar.style.cssText = `
-      position:absolute;bottom:calc(100% + 4px);left:0;width:100%;
-      display:flex;flex-direction:column;align-items:center;gap:2px;
-      pointer-events:none;z-index:50;
-    `;
-    avatarBar.innerHTML = `
-      ${label ? `<span style="font-family:'Press Start 2P',monospace;font-size:.32em;
-        color:var(--accent);white-space:nowrap;animation:blink .8s step-end infinite">${label}</span>` : ''}
-      <div style="width:64px;height:4px;background:#2a2048;border-radius:2px;overflow:hidden;">
-        <div id="llmAvatarFill" style="height:4px;width:0%;
-          background:linear-gradient(90deg,#cc2233,#ffcc5a);
-          border-radius:2px;transition:width .4s ease;"></div>
-      </div>`;
-    anchor.style.position = 'relative';
-    anchor.appendChild(avatarBar);
-  }
-
-  // Progression simulée (indéterminée)
-  let pct = 0;
-  const fill     = document.getElementById('llmLoadingFill');
-  const fillAvt  = document.getElementById('llmAvatarFill');
-  const interval = setInterval(() => {
-    pct = pct < 85 ? pct + (Math.random() * 8) : pct + 0.5;
-    pct = Math.min(pct, 92);
-    if (fill)    fill.style.width    = `${pct}%`;
-    if (fillAvt) fillAvt.style.width = `${pct}%`;
-  }, 200);
-
-  return { fill, fillAvt, interval, avatarBar };
-}
-
-function hideLoadingBar({ fill, fillAvt, interval, avatarBar } = {}) {
-  clearInterval(interval);
-  if (fill)    { fill.style.width = '100%'; setTimeout(() => { const b = document.getElementById('llmLoadingBar'); if(b) b.style.display='none'; fill.style.width='0%'; }, 400); }
-  if (fillAvt) { fillAvt.style.width = '100%'; }
-  if (avatarBar) setTimeout(() => avatarBar.remove(), 500);
-}
-
-// ── OVERRIDE callOllama avec loading bar ─────────────────
-const _callOllamaBase = callOllama;
-async function callOllamaWithBar(prompt, fallback = '', anchorId = '', speakerLabel = '') {
-  if (!settings.llmEnabled) return fallback;
-  const handle = showLoadingBar(anchorId, speakerLabel);
-  try {
-    const result = await _callOllamaBase(prompt, fallback);
-    hideLoadingBar(handle);
-    return result;
-  } catch(e) {
-    hideLoadingBar(handle);
-    return fallback;
-  }
-}
-// Remplacement global
-// Les appels LLM via recrutement et ally chat utilisent callOllamaWithBar
-// Les ancres : 'recruitCandidate' pour recrutement, 'allyChatPanel' pour ally chat
-
-// ── OVERRIDE sendAllyChat pour loading bar ───────────────
-const _sendAllyChatBase = sendAllyChat;
-async function sendAllyChat() {
-  if (state.chatUsedThisTurn) return;
-  const sel = document.getElementById('allyChatAgentSelect');
-  const inp = document.getElementById('allyChatInput');
-  if (!sel || !inp) return;
-  const msg = inp.value.trim();
-  if (!msg) return;
-  inp.value = '';
-
-  const agentId = sel.value;
-  const agent   = state.agents.find(a => a.id === agentId);
-  if (!agent) return;
-
-  state.chatUsedThisTurn = agentId;
-  if (!state.allyChatLog) state.allyChatLog = [];
-  state.allyChatLog = [];
-  state.allyChatLog.push(`${lang==='fr'?'Vous':'You'} → ${agent.name} : ${msg}`);
-
-  const system  = buildNpcSystemPrompt(agent);
-  const prompt  = `${system}
-
-${lang==='fr'?'Message reçu':'Message received'} : "${msg}"
-${lang==='fr'?'Réponds en une ou deux phrases.':'Answer in one or two sentences.'}`;
-  const fallback= `${agent.name} : ${pick(agent.catch_phrases||['...'])}`;
-
-  const reply = await callOllamaWithBar(prompt, fallback, 'allyChatPanel', agent.name);
-
-  state.allyChatLog.push(reply);
-  if (Math.random() < 0.2) {
-    const bonuses = {
-      fr: ['Cette conversation te donne des informations utiles. +1 Intel.',"L'agent partage un tuyau. +50₽."],
-      en: ['This conversation yields useful intel. +1 Intel.','The agent shares a tip. +50₽.'],
-    };
-    const bonus = pick(bonuses[lang]||bonuses.fr);
-    if (bonus.includes('Intel')) state.resources.intel += 1;
-    else state.resources.pokedollars += 50;
-    state.allyChatLog.push(`💡 ${bonus}`);
-    addLog(`💡 ${bonus}`);
-  }
-  addLog(`[Chat] ${agent.name} : ${reply.slice(0,80)}…`);
-  saveState(); render();
-}
-
-// ── OVERRIDE recruitStepV2 pour loading bar ──────────────
-async function recruitStepV2() {
-  const r = state.recruit;
-  if (!r || r.finished) return;
-  const message = document.getElementById('recruitMessage')?.value?.trim();
-  if (!message) return;
-  if (state.resources.pokedollars < RECRUIT_COST_PER_STEP) {
-    const msg = lang==='fr' ? `Pas assez de Pokédollars. (${RECRUIT_COST_PER_STEP}₽ requis)` : `Not enough Pokédollars. (${RECRUIT_COST_PER_STEP}₽ needed)`;
-    document.getElementById('recruitTranscript').innerHTML += `<div class="logline" style="color:var(--danger)">${msg}</div>`;
-    return;
-  }
-  state.resources.pokedollars -= RECRUIT_COST_PER_STEP;
-  document.getElementById('recruitMessage').value = '';
-  r.interactions += 1;
-  r.transcript.push(`${lang==='fr'?'Vous':'You'} : ${message}`);
-
-  const npc = r.npc;
-  const systemPrompt = buildNpcSystemPrompt(npc);
-  const fullPrompt = `${systemPrompt}
-
-${lang==='fr'?'Message du recruteur':'Recruiter message'} : "${message}"
-
-Réponds en JSON strict : {"reply":"...","scoreDelta":-2..2}`;
-  const fallback = JSON.stringify({ reply:`${r.candidateName} : ${lang==='fr'?'Continue...':'Go on...'}`, scoreDelta:0 });
-
-  const llmOut = await callOllamaWithBar(fullPrompt, fallback, 'recruitCandidate', r.candidateName);
-
-  let reply = `${r.candidateName} : ${lang==='fr'?"Je t'écoute.":"I'm listening."}`;
-  let delta  = 0;
-  try {
-    const jsonText = llmOut.includes('{') ? llmOut.slice(llmOut.indexOf('{'), llmOut.lastIndexOf('}')+1) : llmOut;
-    const parsed   = JSON.parse(jsonText);
-    reply = parsed.reply || reply;
-    delta = Math.max(-2, Math.min(2, Number(parsed.scoreDelta)||0));
-  } catch {
-    delta = message.includes('Rocket') ? 1 : 0;
-  }
-  r.hiddenScore = Math.max(1, Math.min(10, r.hiddenScore + delta));
-  r.transcript.push(reply);
-
-  if (r.interactions >= RECRUIT_MAX_INTERACTIONS) {
-    r.finished = true;
-    if (r.hiddenScore >= 5) {
-      const hasBourreau = Math.random() < 0.15;
-      const newAgent = {
-        id:`ag-${Date.now()}`, name:r.candidateName, rank:r.candidateRole,
-        level:1, xp:0, cooldown:0, team:[], traits:hasBourreau?['bourreau_de_travail']:[],
-        sprite:npc.sprite, personality:npc.personality,
-        catch_phrases:npc.catch_phrases, pokemon_preferences:npc.pokemon_preferences,
-        missions:[],
-      };
-      state.agents.push(newAgent);
-      npc.possible_pokemon?.forEach(spFR => addPokemonWithCap(makePokemon(spFR)));
-      state.reputation = Math.min(100,(state.reputation||0)+3);
-      addLog(`✅ ${lang==='fr'?'Recrutement réussi':'Recruited'} : ${r.candidateName}${hasBourreau?' [Bourreau de travail]':''}`);
-      r.transcript.push(`--- ${lang==='fr'?'Recrutement réussi':'Success'} ---`);
-    } else {
-      addLog(`❌ ${lang==='fr'?'Recrutement échoué':'Failed'} : ${r.candidateName}`);
-      r.transcript.push(`--- ${lang==='fr'?'Refus':'Refused'} ---`);
-    }
-  }
-  saveState(); render();
-}
-
-// ── RENDER SETTINGS V2 (avec model picker) ───────────────
-function renderSettingsV2() {
-  const overlay = document.getElementById('settingsOverlay');
-  if (!overlay || overlay.classList.contains('hidden')) return;
-
-  // Injecte le sélecteur de modèles si absent
-  if (!document.getElementById('ollamaModelSelect')) {
-    const modelLabel = document.getElementById('modelInput')?.closest('label');
-    if (modelLabel) {
-      const wrapper = document.createElement('div');
-      wrapper.style.cssText = 'display:grid;gap:4px;';
-      wrapper.innerHTML = `
-        <label style="font-size:.8em;color:var(--muted)">
-          Modèles disponibles
-          <div style="display:flex;gap:6px;align-items:center">
-            <select id="ollamaModelSelect" style="flex:1"></select>
-            <button id="refreshModelsBtn" class="small">🔄</button>
-          </div>
-          <small id="ollamaModelStatus" style="color:var(--muted)">—</small>
-        </label>`;
-      modelLabel.parentNode.insertBefore(wrapper, modelLabel.nextSibling);
-      document.getElementById('refreshModelsBtn').onclick = fetchOllamaModels;
-    }
-  }
-  fetchOllamaModels();
-}
-
-// CSS loading bar + blink
-if (!document.getElementById('loadingBarStyle')) {
-  const s = document.createElement('style');
-  s.id = 'loadingBarStyle';
-  s.textContent = `
-    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
-    #llmLoadingBar { display:none; }
-  `;
-  document.head.appendChild(s);
-}
-
-// Boot principal → bootV4() appelé plus haut
+window.addEventListener('DOMContentLoaded', boot);

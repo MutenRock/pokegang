@@ -1,465 +1,1199 @@
 <!DOCTYPE html>
-<html lang="fr" id="htmlRoot">
+<html lang="fr">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Pokeforge — Rocket HQ</title>
+  <title>PokéForge — Gang Wars</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+    /* ── Reset & Base ───────────────────────────────────────────── */
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
     :root {
-      --bg:#0a0812; --panel:#14102a; --line:#4a3a8a;
-      --accent:#ffcc5a; --danger:#ff4466; --ok:#70e0a4;
-      --text:#e8deff; --muted:#7060a8; --rocket:#cc2233;
-    }
-    *{box-sizing:border-box;margin:0;padding:0}
-    body {
-      background:var(--bg); color:var(--text);
-      font-family:'Press Start 2P', monospace;
-      min-height:100vh; display:flex; flex-direction:column;
-      align-items:center; justify-content:center;
-      overflow:hidden; position:relative;
-    }
-
-    /* ── BACKGROUND ANIMATION ─────────────────────── */
-    .bg-layer {
-      position:fixed; inset:0; pointer-events:none; z-index:0;
-      background:
-        radial-gradient(ellipse at 20% 50%, rgba(100,0,30,0.18) 0%, transparent 60%),
-        radial-gradient(ellipse at 80% 20%, rgba(60,0,100,0.15) 0%, transparent 60%),
-        radial-gradient(ellipse at 50% 80%, rgba(20,0,60,0.2)  0%, transparent 60%);
-    }
-    .scanline {
-      position:fixed; inset:0; pointer-events:none; z-index:1;
-      background:repeating-linear-gradient(
-        to bottom,
-        transparent 0px, transparent 3px,
-        rgba(0,0,0,0.08) 3px, rgba(0,0,0,0.08) 4px
-      );
-    }
-    .bg-sprites {
-      position:fixed; inset:0; pointer-events:none; z-index:1;
-      overflow:hidden;
-    }
-    .bg-sprite {
-      position:absolute; opacity:0.04; filter:grayscale(1);
-      animation:floatSp 14s ease-in-out infinite;
-    }
-    @keyframes floatSp {
-      0%,100%{transform:translateY(0) rotate(-3deg)}
-      50%{transform:translateY(-18px) rotate(3deg)}
+      --bg:          #0a0a0a;
+      --bg-card:     #141414;
+      --bg-panel:    #1a1a1a;
+      --bg-hover:    #222;
+      --border:      #333;
+      --border-light:#444;
+      --text:        #e0e0e0;
+      --text-dim:    #888;
+      --red:         #cc3333;
+      --red-dark:    #991f1f;
+      --red-glow:    rgba(204, 51, 51, .35);
+      --gold:        #ffcc5a;
+      --gold-dim:    #b8943f;
+      --green:       #44bb55;
+      --blue:        #4488cc;
+      --font-pixel:  'Press Start 2P', monospace;
+      --font-body:   'Courier New', Consolas, monospace;
+      --radius:      8px;
+      --radius-sm:   4px;
     }
 
-    /* ── MAIN CONTAINER ───────────────────────────── */
-    .main-container {
-      position:relative; z-index:10;
-      display:flex; flex-direction:column; align-items:center; gap:32px;
-      padding:24px 16px;
+    html { background: var(--bg); color: var(--text); font-family: var(--font-body); font-size: 14px; line-height: 1.5; }
+    body { min-height: 100vh; }
+
+    img { image-rendering: pixelated; }
+    button { cursor: pointer; font-family: inherit; }
+    input, select, textarea { font-family: inherit; }
+
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--border-light); }
+
+    /* ── Layout Shell ───────────────────────────────────────────── */
+    #app {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 12px;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
     }
 
-    /* ── LOGO ─────────────────────────────────────── */
-    .logo-wrap { text-align:center; }
-    .logo-r {
-      display:inline-block;
-      background:var(--rocket);
-      color:#fff;
-      font-size:clamp(1.2em,4vw,2.2em);
-      padding:10px 20px;
-      border:3px solid #fff;
-      border-radius:6px;
-      box-shadow:0 0 30px rgba(204,34,51,0.6), inset 0 0 12px rgba(0,0,0,0.4);
-      letter-spacing:.1em;
-      animation:pulse-r 2.5s ease-in-out infinite;
-    }
-    @keyframes pulse-r {
-      0%,100%{box-shadow:0 0 30px rgba(204,34,51,0.6), inset 0 0 12px rgba(0,0,0,0.4)}
-      50%{box-shadow:0 0 55px rgba(204,34,51,0.9), inset 0 0 18px rgba(0,0,0,0.5)}
-    }
-    .logo-sub {
-      display:block; margin-top:10px;
-      font-size:clamp(.45em,1.5vw,.75em);
-      color:var(--muted); letter-spacing:.2em;
-    }
-    .logo-tagline {
-      display:block; margin-top:6px;
-      font-size:clamp(.35em,1vw,.55em);
-      color:var(--accent); letter-spacing:.15em;
+    /* ── Top Bar ─────────────────────────────────────────────────── */
+    #topBar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 0;
+      border-bottom: 2px solid var(--border);
+      gap: 12px;
     }
 
-    /* ── LANGUE SELECTOR ─────────────────────────── */
-    .lang-bar {
-      display:flex; gap:12px;
-    }
-    .lang-btn {
-      background:transparent; border:2px solid var(--muted);
-      color:var(--muted); padding:6px 16px; border-radius:6px;
-      font-family:inherit; font-size:.6em; cursor:pointer;
-      transition:all .2s;
-    }
-    .lang-btn.active, .lang-btn:hover {
-      border-color:var(--accent); color:var(--accent);
-      background:rgba(255,204,90,0.08);
+    #gangNameDisplay {
+      font-family: var(--font-pixel);
+      font-size: 13px;
+      color: var(--red);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 260px;
     }
 
-    /* ── SAVE SLOTS ──────────────────────────────── */
-    .slots-title {
-      font-size:.55em; color:var(--muted); letter-spacing:.15em;
-      text-align:center;
+    #moneyDisplay {
+      font-family: var(--font-pixel);
+      font-size: 14px;
+      color: var(--gold);
+      text-align: center;
+      flex-shrink: 0;
     }
-    .slots-grid {
-      display:grid; grid-template-columns:repeat(3,1fr); gap:14px;
-      width:min(780px, 95vw);
+    #moneyDisplay span { font-size: 16px; }
+
+    #btnSettings {
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text-dim);
+      font-size: 20px;
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: color .2s, border-color .2s;
+      flex-shrink: 0;
     }
-    .slot-card {
-      background:var(--panel);
-      border:2px solid var(--line);
-      border-radius:10px; padding:16px 12px;
-      display:flex; flex-direction:column; gap:8px;
-      cursor:pointer; transition:all .2s; min-height:130px;
-      position:relative; overflow:hidden;
-    }
-    .slot-card:hover { border-color:var(--accent); transform:translateY(-2px); box-shadow:0 6px 24px rgba(255,204,90,0.15); }
-    .slot-card.empty { border-style:dashed; opacity:.7; }
-    .slot-card.empty:hover { opacity:1; }
-    .slot-num {
-      font-size:.5em; color:var(--muted); letter-spacing:.1em;
-    }
-    .slot-name { font-size:.7em; color:var(--accent); }
-    .slot-team { font-size:.5em; color:var(--text); }
-    .slot-meta { font-size:.42em; color:var(--muted); margin-top:auto; }
-    .slot-actions {
-      display:flex; gap:6px; margin-top:6px;
-    }
-    .slot-btn {
-      flex:1; padding:5px 4px; border-radius:5px;
-      font-family:inherit; font-size:.45em; cursor:pointer;
-      border:1px solid var(--line); background:rgba(255,255,255,0.05);
-      color:var(--text); transition:background .15s;
-    }
-    .slot-btn:hover { background:rgba(255,204,90,0.12); }
-    .slot-btn.del { color:var(--danger); border-color:var(--danger); }
-    .slot-btn.del:hover { background:rgba(255,68,102,0.12); }
-    .slot-new-label {
-      font-size:.6em; color:var(--ok); margin:auto; text-align:center; line-height:1.8;
+    #btnSettings:hover { color: var(--text); border-color: var(--border-light); }
+
+    /* ── Tab Navigation ──────────────────────────────────────────── */
+    #tabNav {
+      display: flex;
+      gap: 2px;
+      padding-top: 8px;
+      border-bottom: 2px solid var(--red-dark);
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
     }
 
-    /* ── BOTTOM BUTTONS ──────────────────────────── */
-    .bottom-btns { display:flex; gap:14px; flex-wrap:wrap; justify-content:center; }
-    .menu-btn {
-      background:transparent; border:2px solid var(--line);
-      color:var(--muted); padding:8px 18px; border-radius:7px;
-      font-family:inherit; font-size:.5em; cursor:pointer;
-      transition:all .2s; letter-spacing:.1em;
+    .tab-btn {
+      font-family: var(--font-pixel);
+      font-size: 10px;
+      padding: 10px 16px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-bottom: none;
+      border-radius: var(--radius) var(--radius) 0 0;
+      color: var(--text-dim);
+      white-space: nowrap;
+      transition: background .2s, color .2s;
+      position: relative;
+      top: 2px;
     }
-    .menu-btn:hover { border-color:var(--accent); color:var(--accent); }
+    .tab-btn:hover { background: var(--bg-hover); color: var(--text); }
+    .tab-btn.active {
+      background: var(--bg-panel);
+      color: var(--gold);
+      border-color: var(--red-dark);
+      border-bottom: 2px solid var(--bg-panel);
+    }
 
-    /* ── OVERLAYS ────────────────────────────────── */
-    .overlay {
-      position:fixed; inset:0; background:rgba(0,0,0,.82);
-      display:grid; place-items:center; padding:20px; z-index:50;
+    /* ── Tab Content ─────────────────────────────────────────────── */
+    #tabContent {
+      flex: 1;
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-top: none;
+      border-radius: 0 0 var(--radius) var(--radius);
+      padding: 16px;
+      overflow-y: auto;
     }
-    .modal {
-      background:var(--panel); border:2px solid var(--line);
-      border-radius:12px; padding:24px; max-width:520px; width:100%;
-      display:grid; gap:14px;
-    }
-    .modal h2 { font-size:.8em; color:var(--accent); }
-    .modal label { display:grid; gap:5px; font-size:.55em; color:var(--muted); }
-    .modal input, .modal select {
-      padding:8px; border-radius:6px; border:1px solid var(--line);
-      background:#0f0c1e; color:var(--text); font-family:inherit; font-size:.9em;
-    }
-    .modal-btns { display:flex; gap:8px; flex-wrap:wrap; }
-    .modal-btn {
-      flex:1; padding:8px; border-radius:7px; font-family:inherit;
-      font-size:.55em; cursor:pointer; border:2px solid var(--line);
-      background:rgba(255,255,255,0.04); color:var(--text); transition:all .2s;
-    }
-    .modal-btn.primary { background:var(--accent); color:#000; border-color:var(--accent); }
-    .modal-btn.danger  { background:var(--danger);  color:#fff; border-color:var(--danger); }
-    .hidden { display:none !important; }
 
-    /* ── VERSION ─────────────────────────────────── */
-    .version {
-      position:fixed; bottom:10px; right:14px; font-size:.38em;
-      color:var(--muted); z-index:20; letter-spacing:.1em;
+    .tab-pane { display: none; animation: fadeIn .25s ease; }
+    .tab-pane.active { display: block; }
+
+    /* ── Gang Tab ─────────────────────────────────────────────────── */
+    #bossProfile {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 16px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      margin-bottom: 16px;
+    }
+
+    #bossProfile .boss-sprite {
+      width: 64px;
+      height: 64px;
+      border: 2px solid var(--red);
+      border-radius: var(--radius-sm);
+      background: var(--bg);
+      flex-shrink: 0;
+    }
+
+    #bossProfile .boss-info { flex: 1; min-width: 0; }
+
+    #bossProfile .boss-name {
+      font-family: var(--font-pixel);
+      font-size: 12px;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+
+    #bossProfile .boss-gang {
+      font-size: 11px;
+      color: var(--red);
+      margin-bottom: 8px;
+    }
+
+    .reputation-bar {
+      height: 10px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      overflow: hidden;
+    }
+
+    .reputation-bar .rep-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--red-dark), var(--red));
+      border-radius: 5px;
+      transition: width .4s ease;
+    }
+
+    #agentList {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    #gangStats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+    }
+
+    .stat-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px;
+      text-align: center;
+    }
+
+    .stat-card .stat-value {
+      font-family: var(--font-pixel);
+      font-size: 18px;
+      color: var(--gold);
+    }
+
+    .stat-card .stat-label {
+      font-size: 11px;
+      color: var(--text-dim);
+      margin-top: 4px;
+    }
+
+    /* ── Zones Tab ────────────────────────────────────────────────── */
+    #zoneSelector {
+      display: flex;
+      gap: 8px;
+      padding: 8px 0;
+      overflow-x: auto;
+      margin-bottom: 12px;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .zone-btn {
+      font-family: var(--font-pixel);
+      font-size: 9px;
+      padding: 8px 14px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text-dim);
+      white-space: nowrap;
+      transition: all .2s;
+    }
+    .zone-btn:hover { border-color: var(--red); color: var(--text); }
+    .zone-btn.active { border-color: var(--red); color: var(--gold); background: var(--bg-hover); }
+    .zone-btn.locked { opacity: .4; cursor: not-allowed; }
+
+    #zoneWindows {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      justify-content: center;
+    }
+
+    .zone-window {
+      width: 320px;
+      height: 220px;
+      position: relative;
+      overflow: hidden;
+      border: 2px solid var(--border);
+      border-radius: var(--radius);
+      background-color: var(--bg-card);
+      background-size: cover;
+      background-position: center;
+      flex-shrink: 0;
+      transition: border-color .2s;
+    }
+    .zone-window:hover { border-color: var(--border-light); }
+
+    .zone-spawn {
+      position: absolute;
+      cursor: pointer;
+      animation: float 3s ease-in-out infinite;
+      transition: transform .15s;
+    }
+    .zone-spawn:hover { transform: scale(1.15); }
+    .zone-spawn.catching { pointer-events: none; animation: none; }
+
+    /* ── Agent in zone ── */
+    .zone-agent {
+      position: absolute;
+      bottom: 28px;
+      left: 8px;
+      z-index: 5;
+      display: flex;
+      align-items: flex-end;
+      gap: 4px;
+      pointer-events: none;
+    }
+    .zone-agent img { width: 40px; height: 40px; image-rendering: pixelated; filter: drop-shadow(0 0 3px rgba(204,51,51,.5)); }
+    .zone-agent .agent-label { font-family: var(--font-pixel); font-size: 7px; color: var(--gold); text-shadow: 0 0 4px #000; }
+
+    /* ── Boss in zone ── */
+    .zone-boss {
+      position: absolute;
+      bottom: 28px;
+      right: 8px;
+      z-index: 5;
+      pointer-events: none;
+    }
+    .zone-boss img { width: 40px; height: 40px; image-rendering: pixelated; filter: drop-shadow(0 0 3px rgba(255,204,90,.5)); }
+
+    /* ── Ball throw animation ── */
+    .ball-projectile {
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      z-index: 50;
+      pointer-events: none;
+      transition: none;
+    }
+    .ball-projectile img { width: 100%; height: 100%; }
+
+    /* ── Capture burst effects ── */
+    .capture-burst {
+      position: absolute;
+      pointer-events: none;
+      z-index: 60;
+    }
+    .capture-burst .burst-ring {
+      width: 60px; height: 60px;
+      border-radius: 50%;
+      border: 3px solid var(--green);
+      animation: burstRing .6s ease-out forwards;
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%) scale(0);
+    }
+    .capture-burst.stars-3 .burst-ring { border-color: var(--blue); }
+    .capture-burst.stars-4 .burst-ring { border-color: var(--gold); width: 70px; height: 70px; }
+    .capture-burst.stars-5 .burst-ring { border-color: #ff44ff; width: 80px; height: 80px; box-shadow: 0 0 20px #ff44ff; }
+    .capture-burst.shiny .burst-ring  { border-color: var(--gold); width: 90px; height: 90px; box-shadow: 0 0 30px var(--gold), 0 0 60px var(--gold-dim); }
+
+    .capture-burst .burst-particle {
+      position: absolute;
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--green);
+      top: 50%; left: 50%;
+      animation: burstParticle .7s ease-out forwards;
+    }
+    .capture-burst.stars-3 .burst-particle { background: var(--blue); }
+    .capture-burst.stars-4 .burst-particle { background: var(--gold); width: 8px; height: 8px; }
+    .capture-burst.stars-5 .burst-particle { background: #ff44ff; width: 10px; height: 10px; }
+    .capture-burst.shiny .burst-particle  { background: var(--gold); width: 10px; height: 10px; }
+
+    @keyframes burstRing {
+      0%   { transform: translate(-50%,-50%) scale(0); opacity: 1; }
+      100% { transform: translate(-50%,-50%) scale(1.5); opacity: 0; }
+    }
+    @keyframes burstParticle {
+      0%   { transform: translate(-50%,-50%) translate(0,0) scale(1); opacity: 1; }
+      100% { transform: translate(-50%,-50%) translate(var(--bx), var(--by)) scale(0); opacity: 0; }
+    }
+
+    /* ── Spawn timer panel ── */
+    .zone-timers {
+      position: absolute;
+      top: 0; right: 0;
+      z-index: 10;
+      background: rgba(0,0,0,.8);
+      border-bottom-left-radius: var(--radius);
+      padding: 4px 6px;
+      font-size: 9px;
+      max-width: 140px;
+      pointer-events: none;
+    }
+    .zone-timers .timer-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 6px;
+      padding: 1px 0;
+      color: var(--text-dim);
+    }
+    .zone-timers .timer-row .timer-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .zone-timers .timer-row .timer-val { font-family: var(--font-pixel); font-size: 8px; color: var(--text); }
+    .zone-timers .timer-row.event-now { animation: timerGlow 1s ease-in-out 3; }
+    .zone-timers .timer-row .timer-chance { font-size: 7px; color: var(--gold-dim); }
+
+    @keyframes timerGlow {
+      0%, 100% { color: var(--text-dim); text-shadow: none; }
+      50%      { color: var(--gold); text-shadow: 0 0 6px var(--gold), 0 0 12px var(--gold-dim); }
+    }
+
+    /* ── Active boosts indicator ── */
+    .zone-boosts {
+      position: absolute;
+      top: 0; left: 0;
+      z-index: 10;
+      display: flex;
+      gap: 4px;
+      padding: 3px 5px;
+      pointer-events: none;
+    }
+    .zone-boosts .boost-badge {
+      font-size: 14px;
+      filter: drop-shadow(0 0 3px rgba(255,204,90,.6));
+      animation: float 2s ease-in-out infinite;
+    }
+
+    /* ── Event banner ── */
+    .zone-event-banner {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 8;
+      font-family: var(--font-pixel);
+      font-size: 10px;
+      color: var(--gold);
+      background: rgba(0,0,0,.85);
+      padding: 6px 14px;
+      border-radius: var(--radius);
+      border: 1px solid var(--gold);
+      animation: timerGlow 1.5s ease-in-out infinite;
+      pointer-events: none;
+      white-space: nowrap;
+      text-shadow: 0 0 8px var(--gold);
+    }
+
+    /* ── Invest button ── */
+    .zone-invest-btn {
+      font-family: var(--font-pixel);
+      font-size: 8px;
+      padding: 3px 8px;
+      background: var(--bg-hover);
+      border: 1px solid var(--gold-dim);
+      border-radius: 4px;
+      color: var(--gold);
+      cursor: pointer;
+      transition: all .2s;
+    }
+    .zone-invest-btn:hover {
+      background: var(--gold-dim);
+      color: var(--bg);
+      border-color: var(--gold);
+    }
+
+    .zone-info {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: rgba(0, 0, 0, .75);
+      padding: 6px 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 11px;
+    }
+
+    .zone-info .zone-name {
+      font-family: var(--font-pixel);
+      font-size: 8px;
+      color: var(--text);
+    }
+
+    .zone-info .zone-level {
+      font-size: 10px;
+      color: var(--gold);
+    }
+
+    /* ── Market Tab ───────────────────────────────────────────────── */
+    #tabMarket .market-layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      min-height: 400px;
+    }
+
+    @media (max-width: 700px) {
+      #tabMarket .market-layout { grid-template-columns: 1fr; }
+    }
+
+    .market-panel {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .market-panel h3 {
+      font-family: var(--font-pixel);
+      font-size: 11px;
+      color: var(--red);
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    #sellPanel .sell-list,
+    #shopPanel .shop-list {
+      flex: 1;
+      overflow-y: auto;
+    }
+
+    /* ── PC Tab ───────────────────────────────────────────────────── */
+    #tabPC .pc-layout {
+      display: flex;
+      gap: 16px;
+      min-height: 400px;
+    }
+
+    #tabPC .pc-main { flex: 1; min-width: 0; }
+
+    #filterBar {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    #filterBar input,
+    #filterBar select {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      padding: 6px 10px;
+      font-size: 12px;
+    }
+    #filterBar input:focus,
+    #filterBar select:focus {
+      outline: none;
+      border-color: var(--red);
+    }
+
+    #pokemonGrid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+      gap: 6px;
+    }
+
+    .pc-pokemon {
+      width: 80px;
+      height: 80px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: border-color .2s, transform .15s;
+      position: relative;
+    }
+    .pc-pokemon:hover { border-color: var(--gold-dim); transform: scale(1.08); }
+    .pc-pokemon.selected { border-color: var(--gold); box-shadow: 0 0 8px var(--red-glow); }
+    .pc-pokemon.shiny { animation: glow 2s ease-in-out infinite; }
+
+    .pc-pokemon img { width: 64px; height: 64px; }
+
+    #pokemonDetail {
+      width: 280px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      flex-shrink: 0;
+      overflow-y: auto;
+      transition: transform .3s ease, opacity .3s ease;
+    }
+    #pokemonDetail.hidden { transform: translateX(20px); opacity: 0; pointer-events: none; }
+
+    @media (max-width: 700px) {
+      #tabPC .pc-layout { flex-direction: column; }
+      #pokemonDetail { width: 100%; }
+    }
+
+    /* ── Pokédex Tab ──────────────────────────────────────────────── */
+    #pokedexGrid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+      gap: 4px;
+    }
+
+    .dex-entry {
+      width: 64px;
+      height: 72px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-size: 9px;
+      color: var(--text-dim);
+      transition: border-color .2s;
+      cursor: pointer;
+    }
+    .dex-entry:hover { border-color: var(--border-light); }
+    .dex-entry.caught { border-color: var(--green); }
+    .dex-entry.caught .dex-number { color: var(--green); }
+    .dex-entry.unseen { opacity: .35; }
+
+    .dex-entry img { width: 40px; height: 40px; }
+    .dex-entry .dex-number { font-family: var(--font-pixel); font-size: 7px; margin-top: 2px; }
+
+    /* ── Combat Popup ────────────────────────────────────────────── */
+    #combatPopup {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 1000;
+      background: rgba(0, 0, 0, .85);
+      align-items: center;
+      justify-content: center;
+      animation: fadeIn .2s ease;
+    }
+    #combatPopup.active { display: flex; }
+
+    #combatPopup .combat-box {
+      background: var(--bg-panel);
+      border: 2px solid var(--red);
+      border-radius: var(--radius);
+      padding: 24px;
+      width: 90%;
+      max-width: 600px;
+      max-height: 80vh;
+      overflow-y: auto;
+      position: relative;
+    }
+
+    #combatPopup .combat-title {
+      font-family: var(--font-pixel);
+      font-size: 14px;
+      color: var(--red);
+      text-align: center;
+      margin-bottom: 16px;
+    }
+
+    #combatPopup .combat-arena {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      gap: 16px;
+    }
+
+    #combatPopup .combatant {
+      text-align: center;
+      flex: 1;
+    }
+
+    #combatPopup .combatant img {
+      width: 96px;
+      height: 96px;
+    }
+
+    #combatPopup .combatant.shake img { animation: shake .3s ease; }
+
+    #combatPopup .combat-vs {
+      font-family: var(--font-pixel);
+      font-size: 20px;
+      color: var(--gold);
+      flex-shrink: 0;
+    }
+
+    .hp-bar {
+      height: 8px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      overflow: hidden;
+      margin-top: 6px;
+    }
+
+    .hp-bar .hp-fill {
+      height: 100%;
+      background: var(--green);
+      border-radius: 4px;
+      transition: width .3s ease;
+    }
+    .hp-bar .hp-fill.low { background: var(--gold); }
+    .hp-bar .hp-fill.critical { background: var(--red); }
+
+    #combatLog {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 8px;
+      max-height: 120px;
+      overflow-y: auto;
+      font-size: 11px;
+      color: var(--text-dim);
+      margin-bottom: 12px;
+    }
+
+    #combatActions {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    #combatActions button {
+      font-family: var(--font-pixel);
+      font-size: 9px;
+      padding: 10px 18px;
+      background: var(--red-dark);
+      border: 1px solid var(--red);
+      border-radius: var(--radius);
+      color: var(--text);
+      transition: background .2s;
+    }
+    #combatActions button:hover { background: var(--red); }
+
+    /* ── Notifications ───────────────────────────────────────────── */
+    #notifications {
+      position: fixed;
+      bottom: 16px;
+      right: 16px;
+      z-index: 2000;
+      display: flex;
+      flex-direction: column-reverse;
+      gap: 8px;
+      pointer-events: none;
+      max-width: 340px;
+    }
+
+    .toast {
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--red);
+      border-radius: var(--radius-sm);
+      padding: 10px 14px;
+      font-size: 12px;
+      color: var(--text);
+      pointer-events: auto;
+      animation: fadeIn .25s ease;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, .5);
+    }
+    .toast.success { border-left-color: var(--green); }
+    .toast.gold { border-left-color: var(--gold); }
+    .toast.leaving { animation: fadeOut .3s ease forwards; }
+
+    /* ── Intro Overlay ───────────────────────────────────────────── */
+    #introOverlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 3000;
+      background: var(--bg);
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+    }
+    #introOverlay.active { display: flex; }
+
+    #introOverlay .intro-box {
+      background: var(--bg-panel);
+      border: 2px solid var(--red);
+      border-radius: var(--radius);
+      padding: 32px;
+      width: 90%;
+      max-width: 480px;
+      text-align: center;
+    }
+
+    #introOverlay .intro-title {
+      font-family: var(--font-pixel);
+      font-size: 18px;
+      color: var(--red);
+      margin-bottom: 8px;
+    }
+
+    #introOverlay .intro-subtitle {
+      font-size: 12px;
+      color: var(--text-dim);
+      margin-bottom: 24px;
+    }
+
+    #introOverlay .intro-field {
+      margin-bottom: 16px;
+      text-align: left;
+    }
+
+    #introOverlay .intro-field label {
+      display: block;
+      font-family: var(--font-pixel);
+      font-size: 8px;
+      color: var(--gold);
+      margin-bottom: 6px;
+    }
+
+    #introOverlay .intro-field input {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      padding: 10px 12px;
+      font-size: 14px;
+    }
+    #introOverlay .intro-field input:focus { outline: none; border-color: var(--red); }
+
+    #introOverlay .sprite-picker {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-bottom: 20px;
+    }
+
+    #introOverlay .sprite-option {
+      width: 64px;
+      height: 64px;
+      background: var(--bg);
+      border: 2px solid var(--border);
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: border-color .2s;
+    }
+    #introOverlay .sprite-option:hover { border-color: var(--border-light); }
+    #introOverlay .sprite-option.selected { border-color: var(--gold); box-shadow: 0 0 10px var(--red-glow); }
+    #introOverlay .sprite-option img { width: 48px; height: 48px; }
+
+    #introOverlay .btn-start {
+      font-family: var(--font-pixel);
+      font-size: 12px;
+      padding: 14px 32px;
+      background: var(--red);
+      border: none;
+      border-radius: var(--radius);
+      color: #fff;
+      transition: background .2s;
+    }
+    #introOverlay .btn-start:hover { background: var(--red-dark); }
+
+    /* ── Settings Modal ──────────────────────────────────────────── */
+    #settingsModal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 2500;
+      background: rgba(0, 0, 0, .8);
+      align-items: center;
+      justify-content: center;
+      animation: fadeIn .2s ease;
+    }
+    #settingsModal.active { display: flex; }
+
+    #settingsModal .settings-box {
+      background: var(--bg-panel);
+      border: 2px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      width: 90%;
+      max-width: 500px;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+
+    #settingsModal .settings-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+
+    #settingsModal .settings-header h2 {
+      font-family: var(--font-pixel);
+      font-size: 13px;
+      color: var(--text);
+    }
+
+    #settingsModal .btn-close {
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      font-size: 22px;
+      line-height: 1;
+      transition: color .2s;
+    }
+    #settingsModal .btn-close:hover { color: var(--text); }
+
+    .settings-section {
+      margin-bottom: 20px;
+    }
+
+    .settings-section h4 {
+      font-family: var(--font-pixel);
+      font-size: 9px;
+      color: var(--gold);
+      margin-bottom: 10px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .settings-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 0;
+      gap: 12px;
+    }
+
+    .settings-row label { font-size: 12px; color: var(--text-dim); }
+
+    .settings-row select,
+    .settings-row input[type="text"],
+    .settings-row input[type="url"] {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      padding: 6px 10px;
+      font-size: 12px;
+      min-width: 160px;
+    }
+    .settings-row select:focus,
+    .settings-row input:focus { outline: none; border-color: var(--red); }
+
+    .settings-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .settings-actions button {
+      font-family: var(--font-pixel);
+      font-size: 8px;
+      padding: 8px 14px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      transition: border-color .2s, background .2s;
+    }
+    .settings-actions button:hover { border-color: var(--border-light); background: var(--bg-hover); }
+    .settings-actions button.danger { border-color: var(--red-dark); color: var(--red); }
+    .settings-actions button.danger:hover { background: var(--red-dark); color: #fff; }
+
+    /* ── Keyframe Animations ─────────────────────────────────────── */
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50%      { transform: translateY(-8px); }
+    }
+
+    @keyframes pop {
+      0%   { transform: scale(0); }
+      70%  { transform: scale(1.1); }
+      100% { transform: scale(1); }
+    }
+
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      20%      { transform: translateX(-6px); }
+      40%      { transform: translateX(6px); }
+      60%      { transform: translateX(-4px); }
+      80%      { transform: translateX(4px); }
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to   { opacity: 1; }
+    }
+
+    @keyframes fadeOut {
+      from { opacity: 1; }
+      to   { opacity: 0; }
+    }
+
+    @keyframes glow {
+      0%, 100% { box-shadow: 0 0 4px var(--gold-dim); }
+      50%      { box-shadow: 0 0 14px var(--gold), 0 0 24px var(--gold-dim); }
+    }
+
+    /* ── Utility ─────────────────────────────────────────────────── */
+    .hidden { display: none !important; }
+    .pop { animation: pop .35s ease; }
+
+    /* ── Responsive ──────────────────────────────────────────────── */
+    @media (max-width: 520px) {
+      #gangNameDisplay { font-size: 10px; max-width: 120px; }
+      #moneyDisplay { font-size: 11px; }
+      .tab-btn { font-size: 8px; padding: 8px 10px; }
+      .zone-window { width: 100%; max-width: 320px; }
+      #bossProfile { flex-direction: column; text-align: center; }
+      #tabContent { padding: 10px; }
     }
   </style>
 </head>
 <body>
 
-<div class="bg-layer"></div>
-<div class="scanline"></div>
-<div class="bg-sprites" id="bgSprites"></div>
+  <div id="app">
 
-<div class="main-container">
+    <!-- ═══ Top Bar ═══ -->
+    <header id="topBar">
+      <div id="gangNameDisplay">Team ???</div>
+      <div id="moneyDisplay"><span>₽</span> 0</div>
+      <button id="btnSettings" aria-label="Settings">⚙</button>
+    </header>
 
-  <!-- LOGO -->
-  <div class="logo-wrap">
-    <span class="logo-r">⚡ POKEFORGE — ROCKET HQ</span>
-    <span class="logo-sub" id="logoSub">OPÉRATIONS SECRÈTES • KANTO</span>
-    <span class="logo-tagline" id="logoTagline">"La Team Rocket s'empare de tout."</span>
+    <!-- ═══ Tab Navigation ═══ -->
+    <nav id="tabNav">
+      <button class="tab-btn active" data-tab="tabGang">💀 Gang</button>
+      <button class="tab-btn" data-tab="tabZones">🗺️ Zones</button>
+      <button class="tab-btn" data-tab="tabMarket">💰 Marché</button>
+      <button class="tab-btn" data-tab="tabPC">💻 PC</button>
+      <button class="tab-btn" data-tab="tabPokedex">📖 Pokédex</button>
+    </nav>
+
+    <!-- ═══ Tab Content ═══ -->
+    <main id="tabContent">
+
+      <!-- ── Gang ── -->
+      <section id="tabGang" class="tab-pane active">
+
+        <div id="bossProfile">
+          <div class="boss-sprite"></div>
+          <div class="boss-info">
+            <div class="boss-name">Boss</div>
+            <div class="boss-gang">Team ???</div>
+            <div class="reputation-bar"><div class="rep-fill" style="width:0%"></div></div>
+          </div>
+        </div>
+
+        <div id="agentList"></div>
+
+        <div id="gangStats"></div>
+
+      </section>
+
+      <!-- ── Zones ── -->
+      <section id="tabZones" class="tab-pane">
+        <div id="zoneSelector"></div>
+        <div id="zoneWindows"></div>
+      </section>
+
+      <!-- ── Market ── -->
+      <section id="tabMarket" class="tab-pane">
+        <div class="market-layout">
+          <div id="sellPanel" class="market-panel">
+            <h3>💰 Vendre</h3>
+            <div class="sell-list"></div>
+          </div>
+          <div id="shopPanel" class="market-panel">
+            <h3>🛒 Boutique</h3>
+            <div class="shop-list"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── PC ── -->
+      <section id="tabPC" class="tab-pane">
+        <div class="pc-layout">
+          <div class="pc-main">
+            <div id="filterBar">
+              <input type="text" id="pcSearch" placeholder="Rechercher...">
+              <select id="pcSort">
+                <option value="id">N° Pokédex</option>
+                <option value="name">Nom</option>
+                <option value="cp">PC ↓</option>
+                <option value="recent">Récent</option>
+              </select>
+              <select id="pcFilter">
+                <option value="all">Tous</option>
+                <option value="shiny">Shiny ✨</option>
+                <option value="fav">Favoris ★</option>
+              </select>
+            </div>
+            <div id="pokemonGrid"></div>
+          </div>
+          <aside id="pokemonDetail" class="hidden"></aside>
+        </div>
+      </section>
+
+      <!-- ── Pokédex ── -->
+      <section id="tabPokedex" class="tab-pane">
+        <div id="pokedexGrid"></div>
+      </section>
+
+    </main>
+
   </div>
 
-  <!-- LANGUE -->
-  <div class="lang-bar">
-    <button class="lang-btn" id="btnFR" onclick="setLang('fr')">🇫🇷 FRANÇAIS</button>
-    <button class="lang-btn" id="btnEN" onclick="setLang('en')">🇬🇧 ENGLISH</button>
-  </div>
-
-  <!-- SAVE SLOTS -->
-  <p class="slots-title" id="slotsTitle">— SAUVEGARDES —</p>
-  <div class="slots-grid" id="slotsGrid"></div>
-
-  <!-- BOUTONS BAS -->
-  <div class="bottom-btns">
-    <button class="menu-btn" onclick="openSettings()" id="btnSettings">⚙ PARAMÈTRES LLM</button>
-    <button class="menu-btn" onclick="openCredits()"  id="btnCredits">★ CRÉDITS</button>
-  </div>
-
-</div>
-
-<!-- OVERLAY : Nouvelle partie -->
-<div class="overlay hidden" id="newGameOverlay">
-  <div class="modal">
-    <h2 id="ngTitle">NOUVELLE PARTIE</h2>
-    <label id="ngLabelTeam">Nom de l'équipe
-      <input id="ngTeam" type="text" value="Team Rocket">
-    </label>
-    <label id="ngLabelFirst">Prénom du boss
-      <input id="ngFirst" type="text" value="Ari">
-    </label>
-    <label id="ngLabelLast">Nom du boss
-      <input id="ngLast" type="text" value="Voss">
-    </label>
-    <div class="modal-btns">
-      <button class="modal-btn primary" id="ngStart" onclick="startNewGame()">🚀 LANCER</button>
-      <button class="modal-btn" onclick="closeOverlay('newGameOverlay')">✖ ANNULER</button>
-    </div>
-  </div>
-</div>
-
-<!-- OVERLAY : Paramètres LLM -->
-<div class="overlay hidden" id="settingsOverlay">
-  <div class="modal">
-    <h2 id="setTitle">⚙ PARAMÈTRES LLM</h2>
-    <label id="setLabelUrl">URL Ollama
-      <input id="setUrl" type="text" value="http://localhost:11434">
-    </label>
-    <label id="setLabelModel">Modèle
-      <input id="setModel" type="text" value="gemma3:4b">
-    </label>
-    <label>
-      <span id="setLabelLLM">Utiliser le LLM local</span>
-      <input id="setLLMToggle" type="checkbox">
-    </label>
-    <div class="modal-btns">
-      <button class="modal-btn primary" onclick="saveSettings()">💾 SAUVEGARDER</button>
-      <button class="modal-btn" onclick="closeOverlay('settingsOverlay')" id="setClose">✖ FERMER</button>
-    </div>
-  </div>
-</div>
-
-<!-- OVERLAY : Crédits -->
-<div class="overlay hidden" id="creditsOverlay">
-  <div class="modal" style="text-align:center">
-    <h2>★ CRÉDITS</h2>
-    <p style="font-size:.5em;line-height:2;color:var(--muted)">
-      POKEFORGE — ROCKET HQ<br>
-      Prototype de simulation de gestion criminelle<br>
-      inspiré de l'univers Pokémon.<br><br>
-      Sprites : Pokémon Showdown (MIT)<br>
-      LLM : Ollama / OpenRouter<br>
-      Combat IA : PokeLLMon (git-disl)<br><br>
-      <span style="color:var(--accent)">Projet personnel — non affilié à Nintendo/GameFreak</span>
-    </p>
-    <button class="modal-btn" onclick="closeOverlay('creditsOverlay')">✖ FERMER</button>
-  </div>
-</div>
-
-<div class="version">v4.00</div>
-
-<script>
-// ── I18N ──────────────────────────────────────────────
-const I18N = {
-  fr: {
-    logoSub: "OPÉRATIONS SECRÈTES • KANTO",
-    logoTagline: "\"La Team Rocket s'empare de tout.\"",
-    slotsTitle: "— SAUVEGARDES —",
-    slotEmpty: "NOUVELLE PARTIE",
-    slotEmptyHint: "Cliquer pour créer",
-    slotLoad: "CHARGER",
-    slotDel: "SUPPRIMER",
-    slotTurn: "Tour",
-    btnSettings: "⚙ PARAMÈTRES LLM",
-    btnCredits: "★ CRÉDITS",
-    ngTitle: "NOUVELLE PARTIE",
-    ngLabelTeam: "Nom de l'équipe",
-    ngLabelFirst: "Prénom du boss",
-    ngLabelLast: "Nom du boss",
-    ngStart: "🚀 LANCER",
-    setTitle: "⚙ PARAMÈTRES LLM",
-    setLabelUrl: "URL Ollama",
-    setLabelModel: "Modèle",
-    setLabelLLM: "Utiliser le LLM local",
-    setClose: "✖ FERMER",
-  },
-  en: {
-    logoSub: "SECRET OPERATIONS • KANTO",
-    logoTagline: '"Team Rocket takes everything."',
-    slotsTitle: "— SAVE FILES —",
-    slotEmpty: "NEW GAME",
-    slotEmptyHint: "Click to create",
-    slotLoad: "LOAD",
-    slotDel: "DELETE",
-    slotTurn: "Turn",
-    btnSettings: "⚙ LLM SETTINGS",
-    btnCredits: "★ CREDITS",
-    ngTitle: "NEW GAME",
-    ngLabelTeam: "Team name",
-    ngLabelFirst: "Boss first name",
-    ngLabelLast: "Boss last name",
-    ngStart: "🚀 START",
-    setTitle: "⚙ LLM SETTINGS",
-    setLabelUrl: "Ollama URL",
-    setLabelModel: "Model",
-    setLabelLLM: "Use local LLM",
-    setClose: "✖ CLOSE",
-  }
-};
-
-let lang = localStorage.getItem('pf.lang') || 'fr';
-let pendingSlot = null;
-
-function setLang(l) {
-  lang = l;
-  localStorage.setItem('pf.lang', l);
-  applyI18N();
-  renderSlots();
-}
-
-function t(key) { return I18N[lang][key] || key; }
-
-function applyI18N() {
-  document.getElementById('btnFR').classList.toggle('active', lang==='fr');
-  document.getElementById('btnEN').classList.toggle('active', lang==='en');
-  document.getElementById('logoSub').textContent      = t('logoSub');
-  document.getElementById('logoTagline').textContent  = t('logoTagline');
-  document.getElementById('slotsTitle').textContent   = t('slotsTitle');
-  document.getElementById('btnSettings').textContent  = t('btnSettings');
-  document.getElementById('btnCredits').textContent   = t('btnCredits');
-  document.getElementById('ngTitle').textContent      = t('ngTitle');
-  document.getElementById('ngLabelTeam').childNodes[0].nodeValue = t('ngLabelTeam');
-  document.getElementById('ngLabelFirst').childNodes[0].nodeValue = t('ngLabelFirst');
-  document.getElementById('ngLabelLast').childNodes[0].nodeValue = t('ngLabelLast');
-  document.getElementById('ngStart').textContent      = t('ngStart');
-  document.getElementById('setTitle').textContent     = t('setTitle');
-  document.getElementById('setClose').textContent     = t('setClose');
-}
-
-// ── SAVE SLOTS ────────────────────────────────────────
-function getSlot(i) {
-  const raw = localStorage.getItem(`pf.slot${i}`);
-  if (!raw) return null;
-  try { return JSON.parse(raw); } catch { return null; }
-}
-function delSlot(i) {
-  localStorage.removeItem(`pf.slot${i}`);
-  renderSlots();
-}
-
-function renderSlots() {
-  const grid = document.getElementById('slotsGrid');
-  grid.innerHTML = [1,2,3].map(i => {
-    const save = getSlot(i);
-    if (!save) {
-      return `<div class="slot-card empty" onclick="openNewGame(${i})">
-        <div class="slot-num">SLOT ${i}</div>
-        <div class="slot-new-label">+ ${t('slotEmpty')}<br><span style="font-size:.7em;color:var(--muted)">${t('slotEmptyHint')}</span></div>
-      </div>`;
-    }
-    const date = save.savedAt ? new Date(save.savedAt).toLocaleDateString(lang==='fr'?'fr-FR':'en-GB') : '—';
-    return `<div class="slot-card">
-      <div class="slot-num">SLOT ${i}</div>
-      <div class="slot-name">${save.profile?.firstName || '?'} ${save.profile?.lastName || '?'}</div>
-      <div class="slot-team">${save.profile?.team || '?'}</div>
-      <div class="slot-meta">${t('slotTurn')} ${save.turn || 1} • ${date}</div>
-      <div class="slot-actions">
-        <button class="slot-btn" onclick="loadSlot(${i})">${t('slotLoad')}</button>
-        <button class="slot-btn del" onclick="event.stopPropagation();confirmDel(${i})">${t('slotDel')}</button>
+  <!-- ═══ Combat Popup ═══ -->
+  <div id="combatPopup">
+    <div class="combat-box">
+      <div class="combat-title">Combat</div>
+      <div class="combat-arena">
+        <div class="combatant" id="combatAlly">
+          <img src="" alt="">
+          <div class="hp-bar"><div class="hp-fill" style="width:100%"></div></div>
+        </div>
+        <div class="combat-vs">VS</div>
+        <div class="combatant" id="combatEnemy">
+          <img src="" alt="">
+          <div class="hp-bar"><div class="hp-fill" style="width:100%"></div></div>
+        </div>
       </div>
-    </div>`;
-  }).join('');
-}
+      <div id="combatLog"></div>
+      <div id="combatActions"></div>
+    </div>
+  </div>
 
-function openNewGame(slotIndex) {
-  pendingSlot = slotIndex;
-  document.getElementById('newGameOverlay').classList.remove('hidden');
-}
-function startNewGame() {
-  const profile = {
-    team:        document.getElementById('ngTeam').value.trim()  || 'Team Rocket',
-    firstName:   document.getElementById('ngFirst').value.trim() || 'Ari',
-    lastName:    document.getElementById('ngLast').value.trim()  || 'Voss',
-    initialized: true,
-    sprite:      'https://play.pokemonshowdown.com/sprites/trainers/rocketgrunt.png',
-  };
-  // Stub save minimal — app.js complétera au boot
-  const stub = { turn:1, profile, savedAt: Date.now() };
-  localStorage.setItem(`pf.slot${pendingSlot}`, JSON.stringify(stub));
-  goToGame(pendingSlot);
-}
-function loadSlot(i) {
-  goToGame(i);
-}
-function goToGame(i) {
-  window.location.href = `play.html?slot=${i}&lang=${lang}`;
-}
-function confirmDel(i) {
-  if (confirm(`Supprimer le slot ${i} ?`)) delSlot(i);
-}
-function closeOverlay(id) {
-  document.getElementById(id).classList.add('hidden');
-}
+  <!-- ═══ Notifications ═══ -->
+  <div id="notifications"></div>
 
-// ── SETTINGS ──────────────────────────────────────────
-function openSettings() {
-  const s = JSON.parse(localStorage.getItem('pf.settings')||'{}');
-  document.getElementById('setUrl').value = s.baseUrl || 'http://localhost:11434';
-  document.getElementById('setModel').value = s.model || 'gemma3:4b';
-  document.getElementById('setLLMToggle').checked = !!s.llmEnabled;
-  document.getElementById('settingsOverlay').classList.remove('hidden');
-}
-function saveSettings() {
-  localStorage.setItem('pf.settings', JSON.stringify({
-    baseUrl:    document.getElementById('setUrl').value.trim(),
-    model:      document.getElementById('setModel').value.trim(),
-    llmEnabled: document.getElementById('setLLMToggle').checked,
-  }));
-  closeOverlay('settingsOverlay');
-}
-function openCredits() { document.getElementById('creditsOverlay').classList.remove('hidden'); }
+  <!-- ═══ Intro Overlay ═══ -->
+  <div id="introOverlay">
+    <div class="intro-box">
+      <div class="intro-title">PokéForge</div>
+      <div class="intro-subtitle">Crée ton gang. Conquiers Kanto.</div>
 
-// ── BG SPRITES ────────────────────────────────────────
-const BG_PKM = ['zubat','koffing','ekans','meowth','gastly','voltorb','magikarp'];
-function spawnBgSprites() {
-  const container = document.getElementById('bgSprites');
-  BG_PKM.forEach((p,i) => {
-    const img = document.createElement('img');
-    img.className = 'bg-sprite';
-    img.src = `https://play.pokemonshowdown.com/sprites/gen5/${p}.png`;
-    img.style.cssText = `
-      width:80px; top:${10+Math.random()*75}%; left:${5+i*13+Math.random()*5}%;
-      animation-delay:${Math.random()*6}s; animation-duration:${10+Math.random()*8}s;
-    `;
-    container.appendChild(img);
-  });
-}
+      <div class="intro-field">
+        <label>Nom du Boss</label>
+        <input type="text" id="inputBossName" maxlength="16" placeholder="Red">
+      </div>
 
-// ── BOOT ─────────────────────────────────────────────
-applyI18N();
-renderSlots();
-spawnBgSprites();
-</script>
+      <div class="intro-field">
+        <label>Nom du Gang</label>
+        <input type="text" id="inputGangName" maxlength="20" placeholder="Team Fury">
+      </div>
+
+      <div class="intro-field">
+        <label>Avatar</label>
+      </div>
+      <div class="sprite-picker" id="spritePicker"></div>
+
+      <button class="btn-start" id="btnStartGame">Commencer</button>
+    </div>
+  </div>
+
+  <!-- ═══ Settings Modal ═══ -->
+  <div id="settingsModal">
+    <div class="settings-box">
+      <div class="settings-header">
+        <h2>⚙ Paramètres</h2>
+        <button class="btn-close" id="btnCloseSettings">&times;</button>
+      </div>
+
+      <div class="settings-section">
+        <h4>Langue</h4>
+        <div class="settings-row">
+          <label>Langue du jeu</label>
+          <select id="settingLang">
+            <option value="fr" selected>Français</option>
+            <option value="en">English</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <h4>IA / LLM</h4>
+        <div class="settings-row">
+          <label>Fournisseur</label>
+          <select id="settingLLM">
+            <option value="none">Aucun</option>
+            <option value="openai">OpenAI</option>
+            <option value="anthropic">Anthropic</option>
+            <option value="local">Local (Ollama)</option>
+          </select>
+        </div>
+        <div class="settings-row">
+          <label>Clé API</label>
+          <input type="text" id="settingAPIKey" placeholder="sk-...">
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <h4>Sauvegarde</h4>
+        <div class="settings-actions">
+          <button id="btnExportSave">📤 Exporter</button>
+          <button id="btnImportSave">📥 Importer</button>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <h4>Cache</h4>
+        <div class="settings-actions">
+          <button id="btnPurgeSprites" class="danger">🗑 Purger sprites</button>
+          <button id="btnResetAll" class="danger">⚠ Reset complet</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
 </body>
 </html>

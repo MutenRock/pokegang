@@ -1,49 +1,49 @@
 # Pokeforge
-Pokeforge est un jeu de gestion / simulation incrémentale inspiré de l’univers Pokémon, centré sur la prise de contrôle progressive d’une région depuis la base d’une organisation criminelle.
 
-Le prototype actif est désormais **Rocket HQ**: une base de gestion incrémentale Team Rocket.
+Pokeforge est un jeu de gestion / simulation incrementale inspire de l'univers Pokemon, centre sur la prise de controle progressive d'une region par un gang rival.
 
-## Où lancer le jeu
+Le jeu actif est **Gang Wars v6** : gestion de gang, capture de Pokemon, combat de dresseurs, investissement de zones.
 
-```bash
-python -m http.server 8080
-```
-
-Puis ouvrir:
-
-```text
-http://localhost:8080/apps/rocket-hq/
-```
-
-## Focus actuel Rocket HQ
-
-- gestion de salles du QG,
-- boucle par tour pour les ressources,
-- capture/élevage Pokémon,
-- recrutement d'agents via discussion LLM,
-- assignation d'équipe Pokémon -> agent,
-- combats auto d'entraînement,
-- save locale + export/import + logs.
-
-## Vérification dev
+## Lancer le jeu
 
 ```bash
-npm run check:repo
-node --check apps/rocket-hq/app.js
-npm run llm:ollama:check
+npm run dev
 ```
 
-Voir `apps/rocket-hq/README.md` pour le scénario de test complet.
+Puis ouvrir `http://localhost:8080/`
 
-## Character sheets LLM (personnages)
+## Gameplay
 
-Les fiches personnages structurées sont disponibles dans `data/characters/` (Rocket, rivals, civilians).
+- Recruter des agents et les assigner a des zones
+- Capturer des Pokemon (animation ball + effets de qualite)
+- Combattre des dresseurs (normaux et elites)
+- Investir dans les zones pour debloquer evenements et dresseurs d'elite
+- Ouvrir des coffres au tresor pour du loot
+- Utiliser des items boost (Encens, Rarioscope, Aura Shiny)
+- Progresser dans le Pokedex Gen1 (151 especes)
 
-Validation rapide:
+## Structure
+
+```
+game/          Jeu principal (index.html + app.js)
+docs/          Documentation (GDD, architecture, ADR)
+data/          Donnees (personnages, locales)
+scripts/       Utilitaires dev
+tools/         Outils de validation
+```
+
+## Verification dev
 
 ```bash
+npm run check:locales
 npm run check:characters
+npm run check:ollama
 ```
 
-Utilitaires de prompt/validation: `packages/npc-mind/src/character-sheet.mjs`.
+## Technologies
 
+- Vanilla JS (aucun framework)
+- Sprites : Pokemon Showdown
+- Sauvegarde : localStorage
+- LLM optionnel : Ollama / OpenAI / Anthropic
+- SFX : Web Audio API
