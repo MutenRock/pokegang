@@ -33,7 +33,7 @@
       --radius-sm:   4px;
     }
 
-    html { background: var(--bg); color: var(--text); font-family: var(--font-body); font-size: 14px; line-height: 1.5; }
+    html { background: var(--bg); color: var(--text); font-family: var(--font-body); font-size: 18px; line-height: 1.5; }
     body { min-height: 100vh; }
 
     img { image-rendering: pixelated; }
@@ -47,7 +47,7 @@
 
     /* ── Layout Shell ───────────────────────────────────────────── */
     #app {
-      max-width: 1200px;
+      max-width: 1400px;
       margin: 0 auto;
       padding: 0 12px;
       display: flex;
@@ -263,10 +263,10 @@
     }
 
     .zone-window {
-      width: 320px;
-      height: 220px;
+      width: 380px;
+      min-height: 260px;
       position: relative;
-      overflow: hidden;
+      overflow: visible;
       border: 2px solid var(--border);
       border-radius: var(--radius);
       background-color: var(--bg-card);
@@ -274,6 +274,15 @@
       background-position: center;
       flex-shrink: 0;
       transition: border-color .2s;
+      display: flex;
+      flex-direction: column;
+      resize: both;
+    }
+    .zone-window .zone-viewport {
+      position: relative;
+      min-height: 220px;
+      flex: 1;
+      overflow: hidden;
     }
     .zone-window:hover { border-color: var(--border-light); }
 
@@ -363,29 +372,7 @@
       100% { transform: translate(-50%,-50%) translate(var(--bx), var(--by)) scale(0); opacity: 0; }
     }
 
-    /* ── Spawn timer panel ── */
-    .zone-timers {
-      position: absolute;
-      top: 0; right: 0;
-      z-index: 10;
-      background: rgba(0,0,0,.8);
-      border-bottom-left-radius: var(--radius);
-      padding: 4px 6px;
-      font-size: 9px;
-      max-width: 140px;
-      pointer-events: none;
-    }
-    .zone-timers .timer-row {
-      display: flex;
-      justify-content: space-between;
-      gap: 6px;
-      padding: 1px 0;
-      color: var(--text-dim);
-    }
-    .zone-timers .timer-row .timer-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .zone-timers .timer-row .timer-val { font-family: var(--font-pixel); font-size: 8px; color: var(--text); }
-    .zone-timers .timer-row.event-now { animation: timerGlow 1s ease-in-out 3; }
-    .zone-timers .timer-row .timer-chance { font-size: 7px; color: var(--gold-dim); }
+    /* ── Spawn timer panel (legacy, now in headbar) ── */
 
     @keyframes timerGlow {
       0%, 100% { color: var(--text-dim); text-shadow: none; }
@@ -983,6 +970,366 @@
       50%      { box-shadow: 0 0 14px var(--gold), 0 0 24px var(--gold-dim); }
     }
 
+    /* ── Zone Headbar (collapsible) ─────────────────────────────── */
+    .zone-headbar {
+      position: relative;
+      z-index: 10;
+      background: rgba(0,0,0,.85);
+      padding: 4px 8px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      font-size: 9px;
+      user-select: none;
+      border-bottom: 1px solid var(--border);
+    }
+    .zone-headbar .headbar-name {
+      font-family: var(--font-pixel);
+      font-size: 8px;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .zone-headbar .headbar-stats {
+      display: flex;
+      gap: 6px;
+      font-size: 8px;
+      color: var(--gold);
+    }
+    .zone-headbar .headbar-toggle {
+      color: var(--text-dim);
+      font-size: 10px;
+      margin-left: 4px;
+    }
+    .zone-headbar-content {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      z-index: 10;
+      background: rgba(0,0,0,.85);
+      padding: 4px 6px;
+      font-size: 9px;
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height .25s ease, padding .25s ease;
+    }
+    .zone-headbar-content.expanded {
+      max-height: 200px;
+      padding: 4px 6px;
+    }
+    .zone-headbar-content .timer-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 6px;
+      padding: 1px 0;
+      color: var(--text-dim);
+    }
+    .zone-headbar-content .timer-row .timer-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .zone-headbar-content .timer-row .timer-val { font-family: var(--font-pixel); font-size: 8px; color: var(--text); }
+    .zone-headbar-content .timer-row.event-now { animation: timerGlow 1s ease-in-out 3; }
+    .zone-headbar-content .timer-row .timer-chance { font-size: 7px; color: var(--gold-dim); }
+
+    /* ── Gang Base Zone ──────────────────────────────────────────── */
+    .gang-base-window {
+      width: 380px;
+      min-height: 260px;
+      position: relative;
+      overflow: hidden;
+      border: 2px solid var(--red);
+      border-radius: var(--radius);
+      background:
+        url('https://play.pokemonshowdown.com/sprites/gen5/back/gengar.png') no-repeat 95% 90% / 80px auto,
+        url('https://play.pokemonshowdown.com/sprites/gen5/back/arbok.png') no-repeat 5% 85% / 60px auto,
+        linear-gradient(180deg, #1a0808 0%, #2d1111 30%, #1c0c0c 70%, #0f0505 100%);
+      background-blend-mode: overlay, overlay, normal;
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 12px;
+      gap: 8px;
+      box-shadow: inset 0 0 40px rgba(204,51,51,.15), 0 0 12px rgba(204,51,51,.2);
+    }
+    .gang-base-window .base-boss-sprite {
+      width: 64px;
+      height: 64px;
+      image-rendering: pixelated;
+      filter: drop-shadow(0 0 6px rgba(204,51,51,.5));
+    }
+    .gang-base-window .base-team-slots {
+      display: flex;
+      gap: 6px;
+      justify-content: center;
+    }
+    .gang-base-window .base-team-slot {
+      width: 52px;
+      height: 52px;
+      background: var(--bg);
+      border: 1px dashed var(--border-light);
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: border-color .2s;
+    }
+    .gang-base-window .base-team-slot:hover { border-color: var(--gold); }
+    .gang-base-window .base-team-slot.filled { border-style: solid; border-color: var(--red); }
+    .gang-base-window .base-team-slot img { width: 40px; height: 40px; image-rendering: pixelated; }
+    .gang-base-window .base-actions {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .gang-base-window .base-action-btn {
+      font-size: 10px;
+      padding: 4px 8px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      cursor: pointer;
+      transition: border-color .2s;
+    }
+    .gang-base-window .base-action-btn:hover { border-color: var(--gold); }
+
+    /* ── Team Picker ──────────────────────────────────────────────── */
+    .picker-pokemon:hover, .picker-dest:hover { background: var(--bg-hover) !important; }
+
+    /* ── Agents Tab ──────────────────────────────────────────────── */
+    #tabAgents .agents-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .agent-card-full {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .agent-card-full .agent-header {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+    .agent-card-full .agent-header img {
+      width: 56px;
+      height: 56px;
+      image-rendering: pixelated;
+      flex-shrink: 0;
+    }
+    .agent-card-full .agent-meta { flex: 1; min-width: 0; }
+    .agent-card-full .agent-name { font-family: var(--font-pixel); font-size: 11px; color: var(--text); }
+    .agent-card-full .agent-title { font-size: 10px; color: var(--gold); text-transform: uppercase; }
+    .agent-card-full .agent-xp-bar {
+      height: 6px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      overflow: hidden;
+      margin-top: 4px;
+    }
+    .agent-card-full .agent-xp-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--blue), var(--green));
+      border-radius: 3px;
+      transition: width .4s ease;
+    }
+    .agent-card-full .agent-stats-row {
+      display: flex;
+      gap: 8px;
+      font-size: 10px;
+      color: var(--text-dim);
+    }
+    .agent-card-full .agent-team-slots {
+      display: flex;
+      gap: 4px;
+    }
+    .agent-card-full .agent-team-slot {
+      width: 44px;
+      height: 44px;
+      background: var(--bg);
+      border: 1px dashed var(--border-light);
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: border-color .2s;
+    }
+    .agent-card-full .agent-team-slot:hover { border-color: var(--gold); }
+    .agent-card-full .agent-team-slot.filled { border-style: solid; border-color: var(--red); }
+    .agent-card-full .agent-team-slot img { width: 36px; height: 36px; image-rendering: pixelated; }
+    .agent-card-full .agent-personality {
+      font-size: 9px;
+      color: var(--text-dim);
+      font-style: italic;
+    }
+    .agent-card-full .agent-notify-toggle {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 9px;
+      color: var(--text-dim);
+      cursor: pointer;
+    }
+
+    /* ── Bag/Inventory Tab ───────────────────────────────────────── */
+    #tabBag .bag-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 10px;
+    }
+    .bag-item {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 10px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .bag-item .bag-icon { font-size: 24px; flex-shrink: 0; }
+    .bag-item .bag-info { flex: 1; min-width: 0; }
+    .bag-item .bag-name { font-size: 12px; color: var(--text); }
+    .bag-item .bag-qty { font-family: var(--font-pixel); font-size: 10px; color: var(--gold); }
+    .bag-item .bag-desc { font-size: 9px; color: var(--text-dim); }
+    .bag-item .bag-use-btn {
+      font-size: 9px;
+      padding: 4px 10px;
+      background: var(--bg);
+      border: 1px solid var(--gold-dim);
+      border-radius: var(--radius-sm);
+      color: var(--gold);
+      cursor: pointer;
+      transition: background .2s;
+    }
+    .bag-item .bag-use-btn:hover { background: var(--gold-dim); color: var(--bg); }
+
+    /* ── Inline Combat ──────────────────────────────────────────── */
+    .zone-combat {
+      display: none;
+      background: var(--bg-panel);
+      border: 2px solid var(--red);
+      border-radius: var(--radius);
+      padding: 12px;
+      margin-top: 8px;
+      animation: fadeIn .2s ease;
+    }
+    .zone-combat.active { display: block; }
+    .zone-combat .combat-title {
+      font-family: var(--font-pixel);
+      font-size: 11px;
+      color: var(--red);
+      text-align: center;
+      margin-bottom: 8px;
+      cursor: pointer;
+    }
+    .zone-combat .combat-arena {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+    .zone-combat .combatant { text-align: center; flex: 1; }
+    .zone-combat .combatant img { width: 64px; height: 64px; image-rendering: pixelated; }
+    .zone-combat .combatant.shake img { animation: shake .3s ease; }
+    .zone-combat .combat-vs { font-family: var(--font-pixel); font-size: 16px; color: var(--gold); flex-shrink: 0; }
+    .zone-combat .combat-log-inline {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 6px;
+      max-height: 80px;
+      overflow-y: auto;
+      font-size: 10px;
+      color: var(--text-dim);
+      margin-bottom: 8px;
+    }
+    .zone-combat .combat-actions-inline {
+      display: flex;
+      gap: 6px;
+      justify-content: center;
+    }
+    .zone-combat .combat-actions-inline button {
+      font-family: var(--font-pixel);
+      font-size: 8px;
+      padding: 6px 14px;
+      background: var(--red-dark);
+      border: 1px solid var(--red);
+      border-radius: var(--radius);
+      color: var(--text);
+      transition: background .2s;
+      cursor: pointer;
+    }
+    .zone-combat .combat-actions-inline button:hover { background: var(--red); }
+    .zone-combat.collapsed .combat-arena,
+    .zone-combat.collapsed .combat-log-inline,
+    .zone-combat.collapsed .combat-actions-inline { display: none; }
+    .zone-combat .combat-summary {
+      display: none;
+      text-align: center;
+      font-family: var(--font-pixel);
+      font-size: 9px;
+      padding: 4px;
+    }
+    .zone-combat.collapsed .combat-summary { display: block; }
+
+    /* ── Chest sprite styling ────────────────────────────────────── */
+    .chest-sprite {
+      font-size: 36px;
+      line-height: 1;
+      filter: drop-shadow(0 0 6px rgba(255,204,90,.6));
+      animation: chestGlow 1.5s ease-in-out infinite;
+    }
+    @keyframes chestGlow {
+      0%, 100% { filter: drop-shadow(0 0 4px rgba(255,204,90,.4)); transform: scale(1); }
+      50%      { filter: drop-shadow(0 0 10px rgba(255,204,90,.8)) drop-shadow(0 0 20px rgba(255,204,90,.3)); transform: scale(1.05); }
+    }
+
+    /* ── Pokemon history log ─────────────────────────────────────── */
+    .pokemon-history {
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid var(--border);
+    }
+    .pokemon-history .history-title {
+      font-family: var(--font-pixel);
+      font-size: 9px;
+      color: var(--gold);
+      margin-bottom: 6px;
+    }
+    .pokemon-history .history-entry {
+      font-size: 9px;
+      color: var(--text-dim);
+      padding: 2px 0;
+      border-bottom: 1px dotted var(--border);
+    }
+
+    /* ── Team lock icon in sell panel ─────────────────────────────── */
+    .team-lock { color: var(--red); font-size: 10px; margin-left: 4px; }
+    .btn-remove-team {
+      font-size: 8px;
+      padding: 2px 6px;
+      background: var(--bg);
+      border: 1px solid var(--red-dark);
+      border-radius: 3px;
+      color: var(--red);
+      cursor: pointer;
+      margin-left: 4px;
+    }
+    .btn-remove-team:hover { background: var(--red-dark); color: var(--text); }
+
     /* ── Utility ─────────────────────────────────────────────────── */
     .hidden { display: none !important; }
     .pop { animation: pop .35s ease; }
@@ -992,7 +1339,7 @@
       #gangNameDisplay { font-size: 10px; max-width: 120px; }
       #moneyDisplay { font-size: 11px; }
       .tab-btn { font-size: 8px; padding: 8px 10px; }
-      .zone-window { width: 100%; max-width: 320px; }
+      .zone-window { width: 100%; max-width: 380px; }
       #bossProfile { flex-direction: column; text-align: center; }
       #tabContent { padding: 10px; }
     }
@@ -1012,9 +1359,12 @@
     <!-- ═══ Tab Navigation ═══ -->
     <nav id="tabNav">
       <button class="tab-btn active" data-tab="tabGang">💀 Gang</button>
+      <button class="tab-btn" data-tab="tabAgents">👥 Agents</button>
       <button class="tab-btn" data-tab="tabZones">🗺️ Zones</button>
+      <button class="tab-btn" data-tab="tabBag">🎒 Sac</button>
       <button class="tab-btn" data-tab="tabMarket">💰 Marché</button>
       <button class="tab-btn" data-tab="tabPC">💻 PC</button>
+      <button class="tab-btn" data-tab="tabMissions">📋 Missions</button>
       <button class="tab-btn" data-tab="tabPokedex">📖 Pokédex</button>
     </nav>
 
@@ -1039,10 +1389,21 @@
 
       </section>
 
+      <!-- ── Agents ── -->
+      <section id="tabAgents" class="tab-pane">
+        <div class="agents-grid" id="agentsGrid"></div>
+      </section>
+
       <!-- ── Zones ── -->
       <section id="tabZones" class="tab-pane">
         <div id="zoneSelector"></div>
         <div id="zoneWindows"></div>
+      </section>
+
+      <!-- ── Bag / Inventory ── -->
+      <section id="tabBag" class="tab-pane">
+        <h3 style="font-family:var(--font-pixel);font-size:12px;color:var(--red);margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border)">🎒 Sac</h3>
+        <div class="bag-grid" id="bagGrid"></div>
       </section>
 
       <!-- ── Market ── -->
@@ -1082,6 +1443,9 @@
           <aside id="pokemonDetail" class="hidden"></aside>
         </div>
       </section>
+
+      <!-- ── Missions ── -->
+      <section id="tabMissions" class="tab-pane"></section>
 
       <!-- ── Pokédex ── -->
       <section id="tabPokedex" class="tab-pane">
@@ -1173,6 +1537,18 @@
         <div class="settings-row">
           <label>Clé API</label>
           <input type="text" id="settingAPIKey" placeholder="sk-...">
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <h4>Gameplay</h4>
+        <div class="settings-row">
+          <label>Auto-combat agents</label>
+          <input type="checkbox" id="settingAutoCombat" checked>
+        </div>
+        <div class="settings-row">
+          <label>Effets sonores (SFX)</label>
+          <input type="checkbox" id="settingSFX" checked>
         </div>
       </div>
 
