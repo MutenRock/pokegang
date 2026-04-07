@@ -223,85 +223,81 @@ const ZONE_BGS = {
   unknown_cave:    'url(https://play.pokemonshowdown.com/fx/bg-cave.png)',
 };
 
+// Zone categories for UI grouping
+// type: 'route' (captures + investissement) | 'gym' (combats only, no invest) | 'special' (hybride)
 const ZONES = [
-  // --- Early game ---
-  { id:'route1',        fr:'Route 1',           en:'Route 1',           rep:0,   spawnRate:0.15,
+  // ══ ROUTES & NATURE (captures + investissement) ══
+  { id:'route1',        fr:'Route 1',           en:'Route 1',           rep:0,   spawnRate:0.15, type:'route',
     pool:['rattata','pidgey','caterpie','weedle','spearow','nidoran-f','nidoran-m'],
     trainers:['youngster','lass'], eliteTrainer:'acetrainer', investCost:0 },
-  { id:'viridian_forest',fr:'Forêt de Jade',    en:'Viridian Forest',   rep:10,  spawnRate:0.12,
+  { id:'viridian_forest',fr:'Forêt de Jade',    en:'Viridian Forest',   rep:10,  spawnRate:0.13, type:'route',
     pool:['pikachu','caterpie','metapod','butterfree','weedle','kakuna','beedrill','oddish'],
     trainers:['bugcatcher','youngster'], eliteTrainer:'acetrainer', investCost:3000 },
-  { id:'pewter_gym',    fr:'Arène d\'Argenta',  en:'Pewter Gym',        rep:15,  spawnRate:0.08,
-    pool:['geodude','onix','graveler','sandshrew'],
-    trainers:['hiker','camper'], eliteTrainer:'brock', investCost:4000 },
-  // --- Mid-early ---
-  { id:'mt_moon',       fr:'Mont Sélénite',     en:'Mt. Moon',          rep:20,  spawnRate:0.10,
+  { id:'mt_moon',       fr:'Mont Sélénite',     en:'Mt. Moon',          rep:20,  spawnRate:0.11, type:'route',
     pool:['zubat','geodude','clefairy','paras','clefable','jigglypuff'],
     trainers:['hiker','supernerd','rocketgrunt'], eliteTrainer:'ariana', investCost:5000 },
-  { id:'diglett_cave',  fr:'Grotte Taupiqueur', en:'Diglett\'s Cave',   rep:25,  spawnRate:0.10,
+  { id:'diglett_cave',  fr:'Grotte Taupiqueur', en:'Diglett\'s Cave',   rep:25,  spawnRate:0.11, type:'route',
     pool:['diglett','dugtrio','geodude','zubat','onix'],
     trainers:['hiker','camper'], eliteTrainer:'hiker', investCost:5000 },
-  { id:'nugget_bridge', fr:'Pont Pépite',       en:'Nugget Bridge',     rep:30,  spawnRate:0.12,
-    pool:['abra','pidgey','oddish','bellsprout','mankey','goldeen'],
-    trainers:['youngster','lass','acetrainer','rocketgrunt'], eliteTrainer:'acetrainer', investCost:6000 },
-  { id:'cerulean_gym',  fr:'Arène d\'Azuria',   en:'Cerulean Gym',      rep:30,  spawnRate:0.08,
-    pool:['staryu','psyduck','goldeen','horsea','seel'],
-    trainers:['swimmer','picnicker'], eliteTrainer:'misty', investCost:6000 },
-  // --- Mid game ---
-  { id:'ss_anne',       fr:'Océane',             en:'S.S. Anne',         rep:35,  spawnRate:0.10,
-    pool:['tentacool','machop','shellder','raticate','pidgeotto'],
-    trainers:['sailor','gentleman','beauty'], eliteTrainer:'ltsurge', investCost:8000 },
-  { id:'pallet_town',   fr:'Bourg Palette',     en:'Pallet Town',       rep:40,  spawnRate:0.08,
-    pool:['rattata','pidgey','bulbasaur','charmander','squirtle'],
-    trainers:['acetrainer'], eliteTrainer:'acetrainer', investCost:8000 },
-  { id:'rock_tunnel',   fr:'Grotte',            en:'Rock Tunnel',       rep:40,  spawnRate:0.10,
+  { id:'rock_tunnel',   fr:'Grotte',            en:'Rock Tunnel',       rep:40,  spawnRate:0.11, type:'route',
     pool:['zubat','geodude','machop','onix','cubone','kangaskhan'],
     trainers:['hiker','blackbelt'], eliteTrainer:'blackbelt', investCost:8000 },
-  { id:'celadon_gym',   fr:'Arène de Céladopole',en:'Celadon Gym',      rep:45,  spawnRate:0.08,
-    pool:['bellsprout','oddish','gloom','weepinbell','victreebel','vileplume'],
-    trainers:['lass','beauty','acetrainer'], eliteTrainer:'erika', investCost:10000 },
-  // --- Mid-late ---
-  { id:'safari_zone',   fr:'Parc Safari',       en:'Safari Zone',       rep:50,  spawnRate:0.10,
-    pool:['kangaskhan','tauros','scyther','pinsir','nidoran-f','nidoran-m','chansey','dratini','exeggcute'],
-    trainers:['acetrainer','gentleman'], eliteTrainer:'gentleman', investCost:12000 },
-  { id:'fighting_dojo', fr:'Dojo de Safrania',  en:'Fighting Dojo',     rep:55,  spawnRate:0.08,
-    pool:['machop','machoke','machamp','mankey','primeape','hitmonlee','hitmonchan'],
-    trainers:['blackbelt','blackbelt'], eliteTrainer:'blackbelt', investCost:12000 },
-  { id:'celadon_casino',fr:'Casino de Céladopole',en:'Celadon Casino',  rep:60,  spawnRate:0.10,
-    pool:['porygon','abra','clefairy','meowth','voltorb','dratini'],
-    trainers:['rocketgrunt','rocketgruntf','gentleman','juggler'], eliteTrainer:'archer', investCost:15000 },
-  { id:'pokemon_tower', fr:'Tour Pokémon',      en:'Pokémon Tower',     rep:65,  spawnRate:0.08,
+  { id:'pokemon_tower', fr:'Tour Pokémon',      en:'Pokémon Tower',     rep:55,  spawnRate:0.09, type:'route',
     pool:['gastly','haunter','gengar','cubone','marowak','zubat'],
-    trainers:['channeler','psychic','rocketgrunt'], eliteTrainer:'agatha', investCost:18000 },
-  { id:'fuchsia_gym',   fr:'Arène de Parmanie', en:'Fuchsia Gym',       rep:70,  spawnRate:0.08,
-    pool:['venonat','venomoth','koffing','weezing','grimer','muk'],
-    trainers:['juggler','psychic'], eliteTrainer:'koga', investCost:18000 },
-  // --- Late game ---
-  { id:'power_plant',   fr:'Centrale',          en:'Power Plant',       rep:75,  spawnRate:0.08,
+    trainers:['channeler','psychic','rocketgrunt'], eliteTrainer:'agatha', investCost:15000 },
+  { id:'power_plant',   fr:'Centrale',          en:'Power Plant',       rep:70,  spawnRate:0.09, type:'route',
     pool:['voltorb','electrode','magnemite','magneton','electabuzz','pikachu','raichu','zapdos'],
     trainers:['scientist','supernerd'], eliteTrainer:'ltsurge', investCost:20000 },
-  { id:'seafoam_islands',fr:'Îles Écume',       en:'Seafoam Islands',   rep:80,  spawnRate:0.10,
+  { id:'seafoam_islands',fr:'Îles Écume',       en:'Seafoam Islands',   rep:80,  spawnRate:0.10, type:'route',
     pool:['tentacool','shellder','staryu','seel','dewgong','horsea','seadra','lapras','articuno'],
     trainers:['swimmer','acetrainer'], eliteTrainer:'lorelei', investCost:22000 },
-  { id:'saffron_gym',   fr:'Arène de Safrania', en:'Saffron Gym',       rep:80,  spawnRate:0.06,
+  { id:'victory_road',  fr:'Route Victoire',    en:'Victory Road',      rep:95,  spawnRate:0.07, type:'route',
+    pool:['machoke','geodude','graveler','onix','marowak','golbat'],
+    trainers:['acetrainer','blackbelt'], eliteTrainer:'lance', investCost:35000 },
+  { id:'unknown_cave',  fr:'Grotte Inconnue',   en:'Cerulean Cave',     rep:110, spawnRate:0.05, type:'route',
+    pool:['mewtwo','ditto','kadabra','alakazam','electrode','rhydon','chansey','wigglytuff'],
+    trainers:[], eliteTrainer:'red', investCost:60000 },
+
+  // ══ ARÈNES (combats uniquement, pas d'investissement) ══
+  { id:'pewter_gym',    fr:'Arène d\'Argenta',  en:'Pewter Gym',        rep:15,  spawnRate:0.10, type:'gym',
+    pool:['geodude','onix','graveler','sandshrew'],
+    trainers:['hiker','camper'], eliteTrainer:'brock', investCost:0,
+    gymLeader:'brock', xpBonus:1.5 },
+  { id:'cerulean_gym',  fr:'Arène d\'Azuria',   en:'Cerulean Gym',      rep:30,  spawnRate:0.10, type:'gym',
+    pool:['staryu','psyduck','goldeen','horsea','seel'],
+    trainers:['swimmer','picnicker'], eliteTrainer:'misty', investCost:0,
+    gymLeader:'misty', xpBonus:1.5 },
+  { id:'celadon_gym',   fr:'Arène de Céladopole',en:'Celadon Gym',      rep:45,  spawnRate:0.10, type:'gym',
+    pool:['bellsprout','oddish','gloom','weepinbell','victreebel','vileplume'],
+    trainers:['lass','beauty','acetrainer'], eliteTrainer:'erika', investCost:0,
+    gymLeader:'erika', xpBonus:1.8 },
+  { id:'fuchsia_gym',   fr:'Arène de Parmanie', en:'Fuchsia Gym',       rep:65,  spawnRate:0.10, type:'gym',
+    pool:['venonat','venomoth','koffing','weezing','grimer','muk'],
+    trainers:['juggler','psychic'], eliteTrainer:'koga', investCost:0,
+    gymLeader:'koga', xpBonus:2.0 },
+  { id:'saffron_gym',   fr:'Arène de Safrania', en:'Saffron Gym',       rep:80,  spawnRate:0.10, type:'gym',
     pool:['abra','kadabra','alakazam','mr-mime','jynx','hypno'],
-    trainers:['psychic','channeler'], eliteTrainer:'sabrina', investCost:25000 },
-  { id:'cinnabar_gym',  fr:'Arène de Cramois\'île',en:'Cinnabar Gym',   rep:85,  spawnRate:0.06,
+    trainers:['psychic','channeler'], eliteTrainer:'sabrina', investCost:0,
+    gymLeader:'sabrina', xpBonus:2.2 },
+  { id:'cinnabar_gym',  fr:'Arène de Cramois\'île',en:'Cinnabar Gym',   rep:85,  spawnRate:0.10, type:'gym',
     pool:['growlithe','ponyta','rapidash','magmar','vulpix','ninetales','flareon','moltres'],
-    trainers:['supernerd','scientist','acetrainer'], eliteTrainer:'blaine', investCost:25000 },
-  { id:'silph_co',      fr:'Sylphe SARL',       en:'Silph Co.',         rep:90,  spawnRate:0.12,
+    trainers:['supernerd','scientist','acetrainer'], eliteTrainer:'blaine', investCost:0,
+    gymLeader:'blaine', xpBonus:2.5 },
+  { id:'indigo_plateau',fr:'Plateau Indigo',    en:'Indigo Plateau',    rep:100, spawnRate:0.10, type:'gym',
+    pool:['dragonair','dragonite','gyarados','lapras','snorlax'],
+    trainers:['acetrainer'], eliteTrainer:'blue', investCost:0,
+    gymLeader:'blue', xpBonus:3.0 },
+
+  // ══ LIEUX SPÉCIAUX (hybride : captures + events, investissement possible) ══
+  { id:'safari_zone',   fr:'Parc Safari',       en:'Safari Zone',       rep:50,  spawnRate:0.12, type:'special',
+    pool:['kangaskhan','tauros','scyther','pinsir','nidoran-f','nidoran-m','chansey','dratini','exeggcute'],
+    trainers:['acetrainer','gentleman'], eliteTrainer:'gentleman', investCost:12000 },
+  { id:'celadon_casino',fr:'Casino de Céladopole',en:'Celadon Casino',  rep:60,  spawnRate:0.12, type:'special',
+    pool:['porygon','abra','clefairy','meowth','voltorb','dratini'],
+    trainers:['rocketgrunt','rocketgruntf','gentleman','juggler'], eliteTrainer:'archer', investCost:15000 },
+  { id:'silph_co',      fr:'Sylphe SARL',       en:'Silph Co.',         rep:90,  spawnRate:0.12, type:'special',
     pool:['porygon','electrode','magnemite','magneton','voltorb','lapras'],
     trainers:['rocketgrunt','rocketgruntf','scientist','archer','proton'], eliteTrainer:'giovanni', investCost:30000 },
-  // --- End game ---
-  { id:'victory_road',  fr:'Route Victoire',    en:'Victory Road',      rep:95,  spawnRate:0.06,
-    pool:['machoke','geodude','graveler','onix','marowak','golbat'],
-    trainers:['acetrainer','blackbelt'], eliteTrainer:'lance', investCost:40000 },
-  { id:'indigo_plateau',fr:'Plateau Indigo',    en:'Indigo Plateau',    rep:100, spawnRate:0.05,
-    pool:['dragonair','dragonite','gyarados','lapras','snorlax'],
-    trainers:['acetrainer'], eliteTrainer:'blue', investCost:50000 },
-  { id:'unknown_cave',  fr:'Grotte Inconnue',   en:'Cerulean Cave',     rep:110, spawnRate:0.04,
-    pool:['mewtwo','ditto','kadabra','alakazam','electrode','rhydon','chansey','wigglytuff'],
-    trainers:[], eliteTrainer:'red', investCost:75000 },
 ];
 
 // ── Special Events ────────────────────────────────────────────
@@ -837,6 +833,8 @@ const DEFAULT_STATE = {
     autoCombat: true,
   },
   log: [],
+  marketSales: {}, // { [species_en]: { count, lastSale } } — supply/demand
+  favorites: [],   // array of pokemon IDs marked as favorite
 };
 
 let state = structuredClone(DEFAULT_STATE);
@@ -865,13 +863,17 @@ function migrate(saved) {
   merged.activeEvents = saved.activeEvents || {};
   // Migration: bossTeam
   if (!merged.gang.bossTeam) merged.gang.bossTeam = [];
+  // Migration: marketSales + favorites
+  if (!merged.marketSales) merged.marketSales = {};
+  if (!merged.favorites) merged.favorites = [];
   // Migration: agent notifyCaptures
   for (const agent of (merged.agents || [])) {
     if (agent.notifyCaptures === undefined) agent.notifyCaptures = true;
   }
-  // Migration: pokemon history
+  // Migration: pokemon history + favorite
   for (const p of (merged.pokemons || [])) {
     if (!p.history) p.history = [];
+    if (p.favorite === undefined) p.favorite = false;
   }
   // Migration: missions
   if (!merged.missions) {
@@ -955,10 +957,22 @@ function boostRemaining(boostId) {
   const exp = state.activeBoosts[boostId] || 0;
   return Math.max(0, Math.ceil((exp - Date.now()) / 1000));
 }
+// Boost durations in ms per item type
+const BOOST_DURATIONS = {
+  incense:   90000,
+  rarescope: 90000,
+  aura:      90000,
+  lure:      60000,
+  superlure: 60000,
+};
+
 function activateBoost(boostId) {
   if ((state.inventory[boostId] || 0) <= 0) return false;
   state.inventory[boostId]--;
-  state.activeBoosts[boostId] = Date.now() + 90000; // 90 seconds
+  const duration = BOOST_DURATIONS[boostId] || 90000;
+  // Cumulate: extend from current expiry if already active, else from now
+  const base = Math.max(Date.now(), state.activeBoosts[boostId] || 0);
+  state.activeBoosts[boostId] = base + duration;
   saveState();
   return true;
 }
@@ -1104,6 +1118,7 @@ function makePokemon(speciesEN, zoneId, ballType = 'pokeball') {
     assignedTo: null,
     cooldown: 0,
     history: [],
+    favorite: false,
   };
   pokemon.stats = calculateStats(pokemon);
   // Initial history entry
@@ -1290,10 +1305,10 @@ const openZones = new Set();
 const zoneSpawnTimers = {};
 const zoneSpawns = {}; // zoneId -> [{ type, data, el, timeout }]
 
-function makeTrainerTeam(zone, trainerKey) {
+function makeTrainerTeam(zone, trainerKey, forcedSize) {
   const trainer = TRAINER_TYPES[trainerKey];
   if (!trainer) return [];
-  const teamSize = clamp(trainer.diff, 1, 3);
+  const teamSize = forcedSize ?? clamp(trainer.diff, 1, 3);
   const team = [];
   for (let i = 0; i < teamSize; i++) {
     const sp = pick(zone.pool);
@@ -1301,6 +1316,55 @@ function makeTrainerTeam(zone, trainerKey) {
     team.push({ species_en: sp, level, stats: calculateStats({ species_en: sp, level, nature: 'hardy', potential: 2 }) });
   }
   return team;
+}
+
+// Build a raid: 2-3 trainers combined into one encounter
+function makeRaidSpawn(zone, zoneId) {
+  const trainerKeys = zone.trainers.length >= 2
+    ? [pick(zone.trainers), pick(zone.trainers), zone.eliteTrainer || pick(zone.trainers)]
+    : [zone.eliteTrainer || 'acetrainer', zone.eliteTrainer || 'acetrainer', zone.eliteTrainer || 'acetrainer'];
+
+  // Pick 2-3 distinct trainers
+  const numTrainers = randInt(2, 3);
+  const raidTrainers = [];
+  const usedKeys = [];
+  for (let i = 0; i < numTrainers; i++) {
+    let key = pick(trainerKeys);
+    if (!TRAINER_TYPES[key]) key = zone.eliteTrainer || 'acetrainer';
+    raidTrainers.push({
+      key,
+      trainer: TRAINER_TYPES[key],
+      team: makeTrainerTeam(zone, key, 2),
+    });
+    usedKeys.push(key);
+  }
+
+  // Combined enemy team (all trainers' Pokémon)
+  const combinedTeam = raidTrainers.flatMap(rt => rt.team);
+
+  // Combined reward + rep (sum of all trainers, x1.5)
+  const totalReward = raidTrainers.reduce((s, rt) => {
+    return [s[0] + rt.trainer.reward[0], s[1] + rt.trainer.reward[1]];
+  }, [0, 0]).map(v => Math.round(v * 1.5));
+  const totalRep = Math.round(raidTrainers.reduce((s, rt) => s + rt.trainer.rep, 0) * 1.5);
+  const maxDiff = Math.max(...raidTrainers.map(rt => rt.trainer.diff));
+
+  return {
+    type: 'raid',
+    raidTrainers,
+    trainerKey: raidTrainers[0].key,
+    trainer: {
+      ...raidTrainers[0].trainer,
+      fr: `🔥 Raid (${numTrainers} dresseurs)`,
+      en: `🔥 Raid (${numTrainers} trainers)`,
+      sprite: raidTrainers[0].key,
+      diff: maxDiff + 1,
+      reward: totalReward,
+      rep: totalRep,
+    },
+    team: combinedTeam,
+    isRaid: true,
+  };
 }
 
 function spawnInZone(zoneId) {
@@ -1355,7 +1419,15 @@ function spawnInZone(zoneId) {
     }
   }
 
-  // 4. Normal trainer (20%)
+  // 4. Raid — 2+ agents (or boss+agent) in zone → group combat (~10%)
+  const zoneAgentCount = state.agents.filter(a => a.assignedZone === zoneId).length;
+  const bossHere = state.gang.bossZone === zoneId;
+  const canRaid = (zoneAgentCount >= 2 || (zoneAgentCount >= 1 && bossHere)) && zone.trainers.length > 0;
+  if (canRaid && r < 0.30 + 0.10) {
+    return makeRaidSpawn(zone, zoneId);
+  }
+
+  // 5. Normal trainer (20%)
   if (r < 0.30 && zone.trainers.length > 0) {
     const trainerKey = pick(zone.trainers);
     const trainer = TRAINER_TYPES[trainerKey];
@@ -1501,6 +1573,10 @@ function activateEvent(zoneId, event) {
 function investInZone(zoneId) {
   const zone = ZONE_BY_ID[zoneId];
   if (!zone) return false;
+  if (zone.type === 'gym') {
+    notify(state.lang === 'fr' ? 'Les arènes ne peuvent pas être investies !' : 'Gyms cannot be invested!');
+    return false;
+  }
   const zState = initZone(zoneId);
   if (zState.invested) return false;
   const cost = zone.investCost || 0;
@@ -1605,7 +1681,7 @@ function resolveCombat(playerTeamIds, trainerData) {
 
 function applyCombatResult(result, playerTeamIds, trainerData) {
   state.stats.totalFights++;
-  if (result.win) {
+  if (result.win && result.reward > 0) {
     state.stats.totalFightsWon++;
     state.gang.money += result.reward;
     state.gang.reputation += result.repGain;
@@ -1613,8 +1689,10 @@ function applyCombatResult(result, playerTeamIds, trainerData) {
     if (trainerData.trainerKey === 'rocketgrunt' || trainerData.trainerKey === 'rocketgruntf' || trainerData.trainerKey === 'giovanni') {
       state.stats.rocketDefeated++;
     }
-    // XP to team
-    const xpEach = 10 + trainerData.trainer.diff * 5;
+    // XP to team (gyms give bonus XP)
+    const zone = ZONE_BY_ID[trainerData.zoneId];
+    const gymBonus = (zone?.type === 'gym' && zone?.xpBonus) ? zone.xpBonus : 1;
+    const xpEach = Math.round((10 + trainerData.trainer.diff * 5) * gymBonus);
     for (const id of playerTeamIds) {
       const p = state.pokemons.find(pk => pk.id === id);
       if (p) {
@@ -1815,6 +1893,114 @@ function getAgentCombatPower(agent) {
   return Math.round((agent.stats.combat * 10 + teamPower) * bonus);
 }
 
+// ── Passive agent tick (background, no open window needed) ───────
+// Runs every ~10s and simulates agent activity for closed zones
+function passiveAgentTick() {
+  if (!state.settings.autoCombat) return;
+  let changed = false;
+  const now = Date.now();
+
+  for (const agent of state.agents) {
+    if (!agent.assignedZone) continue;
+    const zoneId = agent.assignedZone;
+    // Skip zones already handled by the visual tick this frame
+    if (openZones.has(zoneId)) continue;
+
+    const zone = ZONE_BY_ID[zoneId];
+    if (!zone || zone.spawnRate === 0) continue;
+
+    // Chance to act this tick (proportional to agent capture stat)
+    const actChance = 0.4 + agent.stats.capture / 100;
+    if (Math.random() > actChance) continue;
+
+    // Roll what would spawn
+    const entry = spawnInZone(zoneId);
+    if (!entry) continue;
+
+    if (entry.type === 'pokemon') {
+      // Agent captures silently
+      const ball = 'pokeball';
+      if ((state.inventory[ball] || 0) <= 0) continue;
+      const pokemon = makePokemon(entry.species_en, zoneId, ball);
+      if (!pokemon) continue;
+      state.inventory[ball]--;
+      state.pokemons.push(pokemon);
+      state.stats.totalCaught++;
+      if (!state.pokedex[pokemon.species_en]) {
+        state.pokedex[pokemon.species_en] = { seen: true, caught: true, shiny: pokemon.shiny, count: 1 };
+      } else {
+        state.pokedex[pokemon.species_en].caught = true;
+        state.pokedex[pokemon.species_en].count++;
+        if (pokemon.shiny) state.pokedex[pokemon.species_en].shiny = true;
+      }
+      if (pokemon.shiny) state.stats.shinyCaught++;
+      grantAgentXP(agent, 5);
+      const name = speciesName(pokemon.species_en);
+      const stars = '★'.repeat(pokemon.potential);
+      if (agent.notifyCaptures) {
+        notify(`👤 ${agent.name} → ${name} ${stars}${pokemon.shiny ? ' ✨' : ''}`, pokemon.shiny ? 'gold' : 'success');
+      }
+      addLog(t('agent_catch', { agent: agent.name, pokemon: name }));
+      changed = true;
+
+    } else if (entry.type === 'trainer' || entry.type === 'raid') {
+      // Agent auto-fights (raids are tougher — need zone group power)
+      const agentPower = entry.type === 'raid'
+        ? state.agents.filter(a => a.assignedZone === zoneId).reduce((s, a) => s + getAgentCombatPower(a), 0)
+        : getAgentCombatPower(agent);
+      let enemyPower = 0;
+      for (const t of entry.team) enemyPower += (t.stats.atk + t.stats.def + t.stats.spd);
+      const pRoll = agentPower * (0.8 + Math.random() * 0.4);
+      const eRoll = enemyPower * (0.8 + Math.random() * 0.4);
+      const win = pRoll >= eRoll;
+      if (win) {
+        const reward = randInt(entry.trainer.reward[0], entry.trainer.reward[1]);
+        const repGain = entry.trainer.rep;
+        state.gang.money += reward;
+        state.stats.totalMoneyEarned += reward;
+        state.gang.reputation += repGain;
+        state.stats.totalFights++;
+        state.stats.totalFightsWon++;
+        agent.combatsWon = (agent.combatsWon || 0) + 1;
+        if (entry.trainerKey === 'rocketgrunt' || entry.trainerKey === 'rocketgruntf' || entry.trainerKey === 'giovanni') {
+          state.stats.rocketDefeated++;
+        }
+        const xpEach = 10 + entry.trainer.diff * 5;
+        grantAgentXP(agent, xpEach);
+        for (const pkId of agent.team) {
+          const p = state.pokemons.find(pk => pk.id === pkId);
+          if (p) levelUpPokemon(p, xpEach);
+        }
+        // Zone combats counter
+        const zState = initZone(zoneId);
+        zState.combatsWon = (zState.combatsWon || 0) + 1;
+        if (agent.notifyCaptures) {
+          notify(`⚔ ${agent.name} victoire +${reward}₽`, 'success');
+        }
+        addLog(t('agent_win', { agent: agent.name }));
+      } else {
+        state.stats.totalFights++;
+        if (agent.notifyCaptures) notify(`⚔ ${agent.name} défaite...`);
+        addLog(t('agent_lose', { agent: agent.name }));
+      }
+      changed = true;
+
+    } else if (entry.type === 'chest') {
+      state.stats.chestsOpened = (state.stats.chestsOpened || 0) + 1;
+      const loot = rollChestLoot(zoneId);
+      if (agent.notifyCaptures) notify(`📦 ${agent.name} — ${loot.msg}`, loot.type);
+      changed = true;
+    }
+  }
+
+  if (changed) {
+    saveState();
+    updateTopBar();
+    if (activeTab === 'tabPC') renderPCTab();
+    if (activeTab === 'tabGang') renderGangTab();
+  }
+}
+
 // Agent automation tick — agents interact with VISIBLE spawns in zone windows
 function agentTick() {
   if (!state.settings.autoCombat) return; // auto-combat off = agents idle
@@ -1830,8 +2016,8 @@ function agentTick() {
     const actChance = 0.5 + agent.stats.capture / 60;
     if (Math.random() > actChance) continue;
 
-    // Priority: trainers first (combat), then pokemon (capture), then chests
-    const trainerSpawn = spawns.find(s => s.type === 'trainer' && !s._agentClaimed);
+    // Priority: raids > trainers > pokemon > chests
+    const trainerSpawn = spawns.find(s => (s.type === 'trainer' || s.type === 'raid') && !s._agentClaimed);
     const pokemonSpawn = spawns.find(s => s.type === 'pokemon' && !s._agentClaimed);
     const chestSpawn = spawns.find(s => s.type === 'chest' && !s._agentClaimed);
 
@@ -1977,20 +2163,57 @@ function calculatePrice(pokemon) {
   const shinyMult = pokemon.shiny ? 10 : 1;
   const nat = NATURES[pokemon.nature];
   const natMult = nat ? (nat.atk + nat.def + nat.spd) / 3 : 1;
-  return Math.round(base * potMult * shinyMult * natMult);
+  // Supply modifier: each recent sale of same species lowers price (-8% per unit, max -60%)
+  const sales = state.marketSales[pokemon.species_en];
+  const supplyMult = sales ? Math.max(0.4, 1 - sales.count * 0.08) : 1;
+  return Math.round(base * potMult * shinyMult * natMult * supplyMult);
+}
+
+// Returns the supply pressure as a percentage (0 = normal, 60 = max saturation)
+function getMarketSaturation(species_en) {
+  const sales = state.marketSales[species_en];
+  if (!sales) return 0;
+  return Math.min(60, sales.count * 8);
+}
+
+// Decay market sales over time (called on load + periodically)
+function decayMarketSales() {
+  const now = Date.now();
+  const DECAY_PER_HOUR = 1; // lose 1 sale unit per hour
+  for (const species of Object.keys(state.marketSales)) {
+    const s = state.marketSales[species];
+    const hoursElapsed = (now - s.lastSale) / 3600000;
+    const decay = Math.floor(hoursElapsed * DECAY_PER_HOUR);
+    if (decay > 0) {
+      s.count = Math.max(0, s.count - decay);
+      s.lastSale = now;
+      if (s.count === 0) delete state.marketSales[species];
+    }
+  }
 }
 
 function sellPokemon(pokemonIds) {
   let total = 0;
   const toRemove = new Set(pokemonIds);
-  // Unassign from agents
+  // Unassign from agents/boss
   for (const agent of state.agents) {
     agent.team = agent.team.filter(id => !toRemove.has(id));
   }
+  state.gang.bossTeam = state.gang.bossTeam.filter(id => !toRemove.has(id));
+  // Remove from favorites
+  state.favorites = state.favorites.filter(id => !toRemove.has(id));
+
   for (const id of pokemonIds) {
     const idx = state.pokemons.findIndex(p => p.id === id);
     if (idx === -1) continue;
-    total += calculatePrice(state.pokemons[idx]);
+    const p = state.pokemons[idx];
+    total += calculatePrice(p);
+    // Track supply for this species
+    if (!state.marketSales[p.species_en]) {
+      state.marketSales[p.species_en] = { count: 0, lastSale: Date.now() };
+    }
+    state.marketSales[p.species_en].count++;
+    state.marketSales[p.species_en].lastSale = Date.now();
     state.pokemons.splice(idx, 1);
     state.stats.totalSold++;
   }
@@ -2002,20 +2225,31 @@ function sellPokemon(pokemonIds) {
   return total;
 }
 
+const BOOST_ITEMS = new Set(['incense', 'rarescope', 'aura', 'lure', 'superlure']);
+
 function buyItem(itemDef) {
   if (state.gang.money < itemDef.cost) {
     notify(t('not_enough'));
+    try { SFX.error(); } catch {}
     return false;
   }
   state.gang.money -= itemDef.cost;
   state.stats.totalMoneySpent += itemDef.cost;
-  state.inventory[itemDef.id] = (state.inventory[itemDef.id] || 0) + itemDef.qty;
-  // Auto-activate boost items
-  if (['incense', 'rarescope', 'aura', 'lure', 'superlure'].includes(itemDef.id)) {
-    activateBoost(itemDef.id);
+
+  if (BOOST_ITEMS.has(itemDef.id)) {
+    // For boost items: add to inventory then immediately activate (cumulates duration)
+    state.inventory[itemDef.id] = (state.inventory[itemDef.id] || 0) + itemDef.qty;
+    // Activate all newly added charges
+    for (let i = 0; i < itemDef.qty; i++) activateBoost(itemDef.id);
+    const rem = Math.ceil(boostRemaining(itemDef.id));
+    const name = state.lang === 'fr' ? (itemDef.fr || itemDef.id) : (itemDef.en || itemDef.id);
+    notify(`${name} activé — ${rem}s restants`, 'success');
+  } else {
+    // Regular items: just stack into inventory
+    state.inventory[itemDef.id] = (state.inventory[itemDef.id] || 0) + itemDef.qty;
+    const name = state.lang === 'fr' ? (itemDef.fr || BALLS[itemDef.id]?.fr || itemDef.id) : (itemDef.en || BALLS[itemDef.id]?.en || itemDef.id);
+    notify(`${itemDef.qty}× ${name}`, 'success');
   }
-  const name = itemDef.fr || itemDef.id;
-  notify(t('bought', { item: `${itemDef.qty}x ${name}` }), 'success');
   saveState();
   return true;
 }
@@ -2259,24 +2493,40 @@ function renderZonesTab() {
 function renderZoneSelector() {
   const el = document.getElementById('zoneSelector');
   if (!el) return;
-  el.innerHTML = ZONES.map(z => {
-    const unlocked = isZoneUnlocked(z.id);
-    const isOpen = openZones.has(z.id);
-    const name = state.lang === 'fr' ? z.fr : z.en;
-    return `<button class="zone-btn ${isOpen ? 'active' : ''} ${!unlocked ? 'locked' : ''}"
-      data-zone="${z.id}" ${!unlocked ? 'disabled' : ''}>
-      ${unlocked ? name : `🔒 ${z.rep}`}
-    </button>`;
-  }).join('');
-  // Click handlers
+
+  const categories = [
+    { type: 'route',   label: '🌿 Routes & Grottes', icon: '🌿' },
+    { type: 'gym',     label: '🏆 Arènes',            icon: '🏆' },
+    { type: 'special', label: '⭐ Lieux Spéciaux',    icon: '⭐' },
+  ];
+
+  let html = '';
+  for (const cat of categories) {
+    const zones = ZONES.filter(z => z.type === cat.type);
+    const anyUnlocked = zones.some(z => isZoneUnlocked(z.id));
+    html += `<div class="zone-category">
+      <div class="zone-cat-label">${cat.label}</div>
+      <div class="zone-cat-buttons">`;
+    for (const z of zones) {
+      const unlocked = isZoneUnlocked(z.id);
+      const isOpen = openZones.has(z.id);
+      const name = state.lang === 'fr' ? z.fr : z.en;
+      const gymTag = z.type === 'gym' ? ' 🥊' : '';
+      html += `<button class="zone-btn ${isOpen ? 'active' : ''} ${!unlocked ? 'locked' : ''} zone-type-${z.type}"
+        data-zone="${z.id}" ${!unlocked ? 'disabled' : ''} title="${z.type === 'gym' ? (state.lang === 'fr' ? 'Arène — combats uniquement, XP ×' + z.xpBonus : 'Gym — fights only, XP ×' + z.xpBonus) : ''}">
+        ${unlocked ? name + gymTag : `🔒 rep ${z.rep}`}
+      </button>`;
+    }
+    html += '</div></div>';
+  }
+
+  el.innerHTML = html;
+
   el.querySelectorAll('.zone-btn:not(.locked)').forEach(btn => {
     btn.addEventListener('click', () => {
       const zid = btn.dataset.zone;
-      if (openZones.has(zid)) {
-        closeZoneWindow(zid);
-      } else {
-        openZoneWindow(zid);
-      }
+      if (openZones.has(zid)) closeZoneWindow(zid);
+      else openZoneWindow(zid);
     });
   });
 }
@@ -2376,9 +2626,9 @@ function renderZoneWindows() {
         `).join('')}
         ${state.gang.bossSprite && state.gang.bossZone === zoneId ? `<div class="zone-boss"><img src="${trainerSprite(state.gang.bossSprite)}" alt="Boss"></div>` : ''}
         <div class="zone-info">
-          <span class="zone-name">${invested ? '🏴 ' : ''}${name}</span>
-          <span class="zone-level">${'★'.repeat(mastery)} ${zState.combatsWon || 0}W</span>
-          ${!invested && zone.investCost > 0 ? `<button class="zone-invest-btn" data-zone="${zoneId}" title="${state.lang === 'fr' ? 'Investir' : 'Invest'}: ${zone.investCost}₽">🏴 ${zone.investCost}₽</button>` : ''}
+          <span class="zone-name">${zone.type === 'gym' ? '🥊 ' : invested ? '🏴 ' : ''}${name}</span>
+          <span class="zone-level">${'★'.repeat(mastery)} ${zState.combatsWon || 0}W${zone.type === 'gym' ? ` <span style="color:var(--gold);font-size:8px">XP×${zone.xpBonus}</span>` : ''}</span>
+          ${zone.type !== 'gym' && !invested && zone.investCost > 0 ? `<button class="zone-invest-btn" data-zone="${zoneId}" title="${state.lang === 'fr' ? 'Investir' : 'Invest'}: ${zone.investCost}₽">🏴 ${zone.investCost}₽</button>` : ''}
         </div>
       </div>
       <div class="zone-combat" id="zc-${zoneId}"></div>
@@ -2724,7 +2974,7 @@ function tickZoneSpawn(zoneId) {
   if (!zoneSpawnHistory[zoneId]) zoneSpawnHistory[zoneId] = { pokemon: 0, trainer: 0, chest: 0, event: 0, total: 0 };
   zoneSpawnHistory[zoneId].total++;
   if (entry.type === 'pokemon') zoneSpawnHistory[zoneId].pokemon++;
-  else if (entry.type === 'trainer') zoneSpawnHistory[zoneId].trainer++;
+  else if (entry.type === 'trainer' || entry.type === 'raid') zoneSpawnHistory[zoneId].trainer++;
   else if (entry.type === 'chest') zoneSpawnHistory[zoneId].chest++;
   else if (entry.type === 'event') zoneSpawnHistory[zoneId].event++;
 
@@ -2769,6 +3019,16 @@ function renderSpawnInWindow(zoneId, spawnObj) {
       el.classList.add('catching');
       animateCapture(zoneId, spawnObj, el);
     });
+  } else if (spawnObj.type === 'raid') {
+    // Show 2-3 trainer sprites stacked with fire effect
+    const sprites = spawnObj.raidTrainers.map((rt, i) =>
+      `<img src="${trainerSprite(rt.key)}" style="width:40px;height:40px;position:absolute;left:${i * 18}px;top:${i % 2 === 0 ? 0 : 8}px;filter:drop-shadow(0 0 4px #ff4444)">`
+    ).join('');
+    el.innerHTML = `<div style="position:relative;width:76px;height:56px">${sprites}</div>`;
+    el.title = state.lang === 'fr' ? spawnObj.trainer.fr : spawnObj.trainer.en;
+    el.style.animation = 'glow 1s ease-in-out infinite, float 2s ease-in-out infinite';
+    el.style.filter = 'drop-shadow(0 0 8px #ff4444)';
+    el.addEventListener('click', () => openCombatPopup(zoneId, spawnObj));
   } else if (spawnObj.type === 'trainer') {
     const eliteTag = spawnObj.elite ? ' style="filter:drop-shadow(0 0 6px gold)"' : '';
     el.innerHTML = `<img src="${trainerSprite(spawnObj.trainer.sprite)}"${eliteTag} style="width:56px;height:56px${spawnObj.elite ? ';filter:drop-shadow(0 0 6px gold)' : ''}" alt="${spawnObj.trainer.fr}">`;
@@ -2950,19 +3210,13 @@ function showCaptureBurst(container, x, y, potential, shiny) {
 
 let currentCombat = null;
 
-function openCombatPopup(zoneId, spawnObj) {
-  // Pick player team: combine all agents in zone + boss team (up to 3 per person)
+function buildPlayerTeamForZone(zoneId) {
   const zoneAgents = state.agents.filter(a => a.assignedZone === zoneId);
   let allAllyIds = [];
-  // Boss team first
   if (state.gang.bossZone === zoneId && state.gang.bossTeam.length > 0) {
     allAllyIds.push(...state.gang.bossTeam);
   }
-  // Agent teams
-  for (const agent of zoneAgents) {
-    allAllyIds.push(...agent.team);
-  }
-  // Fallback: top 3 available pokemon if no team assigned
+  for (const agent of zoneAgents) allAllyIds.push(...agent.team);
   if (allAllyIds.length === 0) {
     allAllyIds = state.pokemons
       .filter(p => p.cooldown <= 0)
@@ -2970,10 +3224,11 @@ function openCombatPopup(zoneId, spawnObj) {
       .slice(0, 3)
       .map(p => p.id);
   }
-  const available = allAllyIds
-    .map(id => state.pokemons.find(p => p.id === id))
-    .filter(p => p && p.cooldown <= 0);
+  return allAllyIds.map(id => state.pokemons.find(p => p.id === id)).filter(p => p && p.cooldown <= 0);
+}
 
+function openCombatPopup(zoneId, spawnObj) {
+  const available = buildPlayerTeamForZone(zoneId);
   if (available.length === 0) {
     notify(state.lang === 'fr' ? 'Aucun Pokémon disponible !' : 'No Pokémon available!');
     return;
@@ -2981,158 +3236,203 @@ function openCombatPopup(zoneId, spawnObj) {
 
   currentCombat = { zoneId, spawnObj, playerTeam: available };
 
-  const dialogue = getTrainerDialogue();
-  const trainerName = state.lang === 'fr' ? spawnObj.trainer.fr : spawnObj.trainer.en;
-
-  // Show ally (first pokemon) vs enemy (first enemy)
-  const ally = available[0];
-  const enemy = spawnObj.team[0];
-
-  // Try inline combat first
   const inlineCombat = document.getElementById(`zc-${zoneId}`);
-  if (inlineCombat) {
-    // Build multi-ally sprite display
-    const allySprites = available.slice(0, 3).map(p =>
-      `<img src="${pokeSpriteBack(p.species_en, p.shiny)}" style="width:48px;height:48px" alt="${speciesName(p.species_en)}">`
+  if (!inlineCombat) return;
+
+  const trainerName = state.lang === 'fr' ? spawnObj.trainer.fr : spawnObj.trainer.en;
+  const dialogue = getTrainerDialogue();
+  const isRaid = spawnObj.isRaid;
+
+  // ── Ally side: group by source (Boss + each Agent)
+  const zoneAgents = state.agents.filter(a => a.assignedZone === zoneId);
+  const bossHere = state.gang.bossZone === zoneId && state.gang.bossTeam.length > 0;
+
+  let allyGroupsHtml = '';
+  if (bossHere) {
+    const bossPokemons = state.gang.bossTeam
+      .map(id => state.pokemons.find(p => p.id === id))
+      .filter(p => p && p.cooldown <= 0);
+    if (bossPokemons.length) {
+      allyGroupsHtml += `<div class="combat-group">
+        <div class="combat-group-label">${state.gang.bossName}</div>
+        <div class="combat-group-pokes">${bossPokemons.map(p => renderCombatPoke(p, true)).join('')}</div>
+      </div>`;
+    }
+  }
+  for (const agent of zoneAgents) {
+    const agentPokemons = agent.team
+      .map(id => state.pokemons.find(p => p.id === id))
+      .filter(p => p && p.cooldown <= 0);
+    if (agentPokemons.length) {
+      allyGroupsHtml += `<div class="combat-group">
+        <div class="combat-group-label">${agent.name}</div>
+        <div class="combat-group-pokes">${agentPokemons.map(p => renderCombatPoke(p, true)).join('')}</div>
+      </div>`;
+    }
+  }
+  if (!allyGroupsHtml) {
+    allyGroupsHtml = `<div class="combat-group"><div class="combat-group-pokes">${available.slice(0, 6).map(p => renderCombatPoke(p, true)).join('')}</div></div>`;
+  }
+
+  // ── Enemy side: all Pokémon with HP bars + trainer header(s)
+  let enemyHeaderHtml = '';
+  if (isRaid) {
+    enemyHeaderHtml = spawnObj.raidTrainers.map(rt =>
+      `<img src="${trainerSprite(rt.key)}" style="width:36px;height:36px;filter:drop-shadow(0 0 4px #f44)" title="${rt.trainer.fr || rt.key}">`
     ).join('');
-
-    inlineCombat.innerHTML = `
-      <div class="combat-title" data-zone-combat-toggle="${zoneId}">⚔ ${trainerName}</div>
-      <div class="combat-arena">
-        <div class="combatant" id="inlineAlly-${zoneId}">
-          ${allySprites}
-          <div class="hp-bar"><div class="hp-fill" style="width:100%"></div></div>
-        </div>
-        <div class="combat-vs">VS</div>
-        <div class="combatant" id="inlineEnemy-${zoneId}">
-          <img src="${pokeSprite(enemy.species_en)}" style="width:64px;height:64px">
-          <div class="hp-bar"><div class="hp-fill" style="width:100%"></div></div>
-        </div>
-      </div>
-      <div class="combat-log-inline" id="inlineLog-${zoneId}"><div>"${dialogue}"</div></div>
-      <div class="combat-actions-inline" id="inlineActions-${zoneId}">
-        <button class="inline-fight-btn" data-zone-fight="${zoneId}">${state.lang === 'fr' ? '⚔ Combattre' : '⚔ Fight'}</button>
-        <button class="inline-flee-btn" data-zone-flee="${zoneId}">${state.lang === 'fr' ? '🏃 Fuir' : '🏃 Flee'}</button>
-      </div>
-      <div class="combat-summary"></div>
-    `;
-    inlineCombat.classList.add('active');
-    inlineCombat.classList.remove('collapsed');
-
-    // Bind inline fight/flee
-    inlineCombat.querySelector(`[data-zone-fight="${zoneId}"]`)?.addEventListener('click', executeCombat);
-    inlineCombat.querySelector(`[data-zone-flee="${zoneId}"]`)?.addEventListener('click', closeCombatPopup);
-    inlineCombat.querySelector(`[data-zone-combat-toggle="${zoneId}"]`)?.addEventListener('click', () => {
-      inlineCombat.classList.toggle('collapsed');
-    });
-    return;
+  } else {
+    enemyHeaderHtml = `<img src="${trainerSprite(spawnObj.trainer.sprite || spawnObj.trainerKey)}" style="width:40px;height:40px${spawnObj.elite ? ';filter:drop-shadow(0 0 6px gold)' : ''}">`;
   }
 
-  // Fallback: use the overlay popup
-  const popup = document.getElementById('combatPopup');
-  if (!popup) return;
+  const enemyPokesHtml = spawnObj.team.map((ep, i) =>
+    `<div class="combat-enemy-slot" id="combatEnemyPoke-${zoneId}-${i}">
+      <img src="${pokeSprite(ep.species_en)}" style="width:${spawnObj.team.length <= 3 ? 52 : 40}px;height:${spawnObj.team.length <= 3 ? 52 : 40}px" title="${speciesName(ep.species_en)} Lv.${ep.level}">
+      <div style="font-size:8px;color:var(--text-dim);text-align:center">${speciesName(ep.species_en)}</div>
+      <div class="hp-bar" style="width:48px"><div class="hp-fill" id="combatEnemyHp-${zoneId}-${i}" style="width:100%"></div></div>
+    </div>`
+  ).join('');
 
-  const allyImg = popup.querySelector('#combatAlly img');
-  const enemyImg = popup.querySelector('#combatEnemy img');
-  if (allyImg) allyImg.src = pokeSpriteBack(ally.species_en, ally.shiny);
-  if (enemyImg) enemyImg.src = pokeSprite(enemy.species_en);
+  inlineCombat.innerHTML = `
+    <div class="combat-title ${isRaid ? 'raid-title' : ''}" data-zone-combat-toggle="${zoneId}">
+      ${isRaid ? '🔥 ' : '⚔ '}${trainerName}
+      <span style="font-size:8px;color:var(--text-dim);margin-left:4px">${spawnObj.team.length} Pok.</span>
+    </div>
+    <div class="combat-arena-full">
+      <div class="combat-side ally-side">
+        <div style="font-size:8px;color:var(--text-dim);margin-bottom:4px">Ton gang (${available.length})</div>
+        ${allyGroupsHtml}
+      </div>
+      <div class="combat-vs-col">VS</div>
+      <div class="combat-side enemy-side">
+        <div class="combat-enemy-header">${enemyHeaderHtml}</div>
+        <div class="combat-enemy-pokes">${enemyPokesHtml}</div>
+      </div>
+    </div>
+    <div class="combat-log-inline" id="inlineLog-${zoneId}"><div style="color:var(--text-dim)">"${dialogue}"</div></div>
+    <div class="combat-actions-inline" id="inlineActions-${zoneId}">
+      <button class="inline-fight-btn" data-zone-fight="${zoneId}">${isRaid ? '🔥 Raid !' : '⚔ Combattre'}</button>
+      <button class="inline-flee-btn" data-zone-flee="${zoneId}">🏃 Fuir</button>
+    </div>
+    <div class="combat-summary"></div>
+  `;
 
-  popup.querySelectorAll('.hp-fill').forEach(f => f.style.width = '100%');
+  inlineCombat.classList.add('active');
+  inlineCombat.classList.remove('collapsed');
+  inlineCombat.querySelector(`[data-zone-fight="${zoneId}"]`)?.addEventListener('click', executeCombat);
+  inlineCombat.querySelector(`[data-zone-flee="${zoneId}"]`)?.addEventListener('click', closeCombatPopup);
+  inlineCombat.querySelector(`[data-zone-combat-toggle="${zoneId}"]`)?.addEventListener('click', () => {
+    inlineCombat.classList.toggle('collapsed');
+  });
+}
 
-  const titleEl = popup.querySelector('.combat-title');
-  if (titleEl) titleEl.textContent = `⚔ ${trainerName}`;
-
-  const logEl = document.getElementById('combatLog');
-  if (logEl) logEl.innerHTML = `<div>"${dialogue}"</div>`;
-
-  const actionsEl = document.getElementById('combatActions');
-  if (actionsEl) {
-    actionsEl.innerHTML = `<button id="btnFight">${state.lang === 'fr' ? '⚔ Combattre' : '⚔ Fight'}</button>
-      <button id="btnFlee">${state.lang === 'fr' ? '🏃 Fuir' : '🏃 Flee'}</button>`;
-    document.getElementById('btnFight')?.addEventListener('click', executeCombat);
-    document.getElementById('btnFlee')?.addEventListener('click', closeCombatPopup);
-  }
-
-  popup.classList.add('active');
+function renderCombatPoke(p, isBack) {
+  const fn = isBack ? pokeSpriteBack : pokeSprite;
+  return `<div class="combat-ally-slot" title="${speciesName(p.species_en)} Lv.${p.level} ${'★'.repeat(p.potential)}">
+    <img src="${fn(p.species_en, p.shiny)}" style="width:44px;height:44px${p.shiny ? ';filter:drop-shadow(0 0 4px gold)' : ''}">
+    <div class="hp-bar" style="width:40px"><div class="hp-fill" style="width:100%"></div></div>
+  </div>`;
 }
 
 function executeCombat() {
   if (!currentCombat) return;
   const { zoneId, spawnObj, playerTeam } = currentCombat;
-  const teamIds = playerTeam.map(p => p.id);
-  const result = resolveCombat(teamIds, spawnObj);
-  applyCombatResult(result, teamIds, spawnObj);
-
-  // Update zone combats
-  if (result.win) {
-    const z = state.zones[zoneId];
-    if (z) z.combatsWon = (z.combatsWon || 0) + 1;
-  }
-
-  // Check for inline combat first
   const inlineCombat = document.getElementById(`zc-${zoneId}`);
-  if (inlineCombat && inlineCombat.classList.contains('active')) {
-    const logEl = document.getElementById(`inlineLog-${zoneId}`);
-    const actionsEl = document.getElementById(`inlineActions-${zoneId}`);
-    const summary = inlineCombat.querySelector('.combat-summary');
+  if (!inlineCombat) return;
 
-    if (result.win) {
-      const enemyCombatant = document.getElementById(`inlineEnemy-${zoneId}`);
-      if (enemyCombatant) enemyCombatant.classList.add('shake');
-      const enemyHp = enemyCombatant?.querySelector('.hp-fill');
-      if (enemyHp) { enemyHp.style.width = '0%'; enemyHp.classList.add('critical'); }
-      if (logEl) logEl.innerHTML += `<div style="color:var(--green)">${t('combat_win', { money: result.reward, rep: result.repGain })}</div>`;
-      if (summary) summary.innerHTML = `<span style="color:var(--green)">⚔ VICTOIRE +${result.reward}₽</span>`;
+  const actionsEl = document.getElementById(`inlineActions-${zoneId}`);
+  const logEl = document.getElementById(`inlineLog-${zoneId}`);
+  const summary = inlineCombat.querySelector('.combat-summary');
+
+  // Disable buttons during animation
+  if (actionsEl) actionsEl.innerHTML = `<span style="color:var(--text-dim);font-size:10px">⚔ Combat en cours...</span>`;
+
+  // --- Simulate turn-by-turn matchups ---
+  const playerQueue = [...playerTeam]; // copies
+  const enemyQueue = [...spawnObj.team];
+  const battleLog = [];
+  let playerLosses = 0;
+
+  let pi = 0, ei = 0;
+  const matchups = [];
+  while (pi < playerQueue.length && ei < enemyQueue.length) {
+    const player = playerQueue[pi];
+    const enemy = enemyQueue[ei];
+    const pPow = getPokemonPower(player) * (0.75 + Math.random() * 0.5);
+    const ePow = (enemy.stats.atk + enemy.stats.def + enemy.stats.spd) * (0.75 + Math.random() * 0.5);
+    const playerWins = pPow >= ePow;
+    matchups.push({ playerIdx: pi, enemyIdx: ei, playerWins, pName: speciesName(player.species_en), eName: speciesName(enemy.species_en) });
+    if (playerWins) { ei++; } // enemy fainted, next enemy
+    else { pi++; playerLosses++; } // player fainted, next player
+  }
+  const overallWin = ei >= enemyQueue.length; // all enemies beaten
+
+  // --- Animate matchups sequentially ---
+  const spawnWithZone = { ...spawnObj, zoneId };
+  const teamIds = playerTeam.map(p => p.id);
+
+  let step = 0;
+  function animateStep() {
+    if (step < matchups.length) {
+      const m = matchups[step];
+      const pSlots = inlineCombat.querySelectorAll('.combat-ally-slot');
+      const eSlot = document.getElementById(`combatEnemyPoke-${zoneId}-${m.enemyIdx}`);
+      const eHp = document.getElementById(`combatEnemyHp-${zoneId}-${m.enemyIdx}`);
+
+      // Highlight active combatants
+      pSlots.forEach((s, i) => s.style.opacity = i === m.playerIdx ? '1' : '0.4');
+      if (eSlot) eSlot.style.outline = '2px solid var(--red)';
+
+      const logLine = m.playerWins
+        ? `<div style="color:var(--green)">✓ ${m.pName} bat ${m.eName}</div>`
+        : `<div style="color:var(--red)">✗ ${m.pName} est KO</div>`;
+      if (logEl) logEl.innerHTML += logLine;
+      logEl?.scrollTo(0, logEl.scrollHeight);
+
+      // Animate HP drain on loser
+      setTimeout(() => {
+        if (m.playerWins && eHp) {
+          eHp.style.width = '0%';
+          eHp.classList.add('critical');
+          eSlot?.querySelector('img')?.classList.add('shake');
+        } else if (!m.playerWins) {
+          const pSlot = pSlots[m.playerIdx];
+          if (pSlot) {
+            pSlot.querySelector('.hp-fill')?.style && (pSlot.querySelector('.hp-fill').style.width = '0%');
+            pSlot.querySelector('.hp-fill')?.classList.add('critical');
+            pSlot.classList.add('shake');
+          }
+        }
+        step++;
+        setTimeout(animateStep, 400);
+      }, 300);
     } else {
-      const allyCombatant = document.getElementById(`inlineAlly-${zoneId}`);
-      if (allyCombatant) allyCombatant.classList.add('shake');
-      const allyHp = allyCombatant?.querySelector('.hp-fill');
-      if (allyHp) { allyHp.style.width = '0%'; allyHp.classList.add('critical'); }
-      if (logEl) logEl.innerHTML += `<div style="color:var(--red)">${t('combat_lose')}</div>`;
-      if (summary) summary.innerHTML = `<span style="color:var(--red)">⚔ DEFAITE</span>`;
+      // Animation done — apply result
+      const reward = overallWin ? randInt(spawnWithZone.trainer.reward[0], spawnWithZone.trainer.reward[1]) : 0;
+      const repGain = overallWin ? spawnWithZone.trainer.rep : -1;
+      applyCombatResult({ win: overallWin, reward, repGain }, teamIds, spawnWithZone);
+      if (overallWin) {
+        const z = state.zones[zoneId];
+        if (z) z.combatsWon = (z.combatsWon || 0) + 1;
+        if (logEl) logEl.innerHTML += `<div style="color:var(--gold);font-weight:bold">🏆 VICTOIRE ! +${reward}₽ +${repGain} rep</div>`;
+        if (summary) summary.innerHTML = `<span style="color:var(--gold)">🏆 +${reward}₽ +${repGain} rep</span>`;
+      } else {
+        if (logEl) logEl.innerHTML += `<div style="color:var(--red)">💀 Défaite...</div>`;
+        if (summary) summary.innerHTML = `<span style="color:var(--red)">💀 Défaite</span>`;
+      }
+      if (actionsEl) {
+        actionsEl.innerHTML = `<button class="inline-close-btn" data-zone-close="${zoneId}">OK</button>`;
+        actionsEl.querySelector(`[data-zone-close]`)?.addEventListener('click', () => {
+          inlineCombat.classList.remove('active');
+          removeSpawn(zoneId, spawnObj.id);
+          updateTopBar();
+          currentCombat = null;
+          if (activeTab === 'tabGang') renderGangTab();
+        });
+      }
+      logEl?.scrollTo(0, logEl.scrollHeight);
     }
-
-    if (actionsEl) {
-      actionsEl.innerHTML = `<button class="inline-close-btn" data-zone-close="${zoneId}">OK</button>`;
-      actionsEl.querySelector(`[data-zone-close="${zoneId}"]`)?.addEventListener('click', () => {
-        inlineCombat.classList.remove('active');
-        removeSpawn(zoneId, spawnObj.id);
-        updateTopBar();
-        currentCombat = null;
-        if (activeTab === 'tabGang') renderGangTab();
-      });
-    }
-    return;
   }
-
-  // Fallback: overlay popup
-  const popup = document.getElementById('combatPopup');
-  const logEl = document.getElementById('combatLog');
-  const actionsEl = document.getElementById('combatActions');
-
-  if (result.win) {
-    const enemyCombatant = popup?.querySelector('#combatEnemy');
-    if (enemyCombatant) enemyCombatant.classList.add('shake');
-    const enemyHp = popup?.querySelector('#combatEnemy .hp-fill');
-    if (enemyHp) { enemyHp.style.width = '0%'; enemyHp.classList.add('critical'); }
-    if (logEl) logEl.innerHTML += `<div style="color:var(--green)">${t('combat_win', { money: result.reward, rep: result.repGain })}</div>`;
-  } else {
-    const allyCombatant = popup?.querySelector('#combatAlly');
-    if (allyCombatant) allyCombatant.classList.add('shake');
-    const allyHp = popup?.querySelector('#combatAlly .hp-fill');
-    if (allyHp) { allyHp.style.width = '0%'; allyHp.classList.add('critical'); }
-    if (logEl) logEl.innerHTML += `<div style="color:var(--red)">${t('combat_lose')}</div>`;
-  }
-
-  if (actionsEl) {
-    actionsEl.innerHTML = `<button id="btnCloseCombat">OK</button>`;
-    document.getElementById('btnCloseCombat')?.addEventListener('click', () => {
-      closeCombatPopup();
-      removeSpawn(zoneId, spawnObj.id);
-      updateTopBar();
-      if (activeTab === 'tabGang') renderGangTab();
-    });
-  }
+  animateStep();
 }
 
 function closeCombatPopup() {
@@ -3158,28 +3458,25 @@ function renderMarketTab() {
   renderShopPanel();
 }
 
-let sellSort = 'price'; // price, name, level, potential, recent
+let sellSort = 'potential';
+let sellGroupMode = 'group'; // 'group' | 'list'
 
 function renderSellPanel() {
   const panel = document.querySelector('#sellPanel .sell-list');
   if (!panel) return;
 
-  if (state.pokemons.length === 0) {
-    panel.innerHTML = '<div style="color:var(--text-dim);padding:12px">Aucun Pokémon à vendre</div>';
+  // Build excluded IDs (teams + favorites)
+  const teamPokemonIds = new Set();
+  for (const agent of state.agents) agent.team.forEach(id => teamPokemonIds.add(id));
+  state.gang.bossTeam.forEach(id => teamPokemonIds.add(id));
+
+  const sellable = state.pokemons.filter(p => !teamPokemonIds.has(p.id) && !p.favorite);
+
+  if (sellable.length === 0) {
+    panel.innerHTML = buildSellToolbar([], 0) + '<div style="color:var(--text-dim);padding:12px;text-align:center">Aucun Pokémon disponible (hors équipes & favoris)</div>' + buildSellFooter(0);
+    bindSellPanel(panel, []);
     return;
   }
-
-  // Build set of pokemon IDs assigned to teams
-  const teamPokemonIds = new Set();
-  for (const agent of state.agents) {
-    agent.team.forEach(id => teamPokemonIds.add(id));
-  }
-  if (state.gang.bossTeam) {
-    state.gang.bossTeam.forEach(id => teamPokemonIds.add(id));
-  }
-
-  // Filter OUT team pokemon entirely
-  const sellable = state.pokemons.filter(p => !teamPokemonIds.has(p.id));
 
   const sortFns = {
     price:     (a, b) => calculatePrice(b) - calculatePrice(a),
@@ -3188,51 +3485,129 @@ function renderSellPanel() {
     potential: (a, b) => (b.potential + (b.shiny ? 10 : 0)) - (a.potential + (a.shiny ? 10 : 0)),
     recent:    (a, b) => state.pokemons.indexOf(b) - state.pokemons.indexOf(a),
   };
-  const sorted = [...sellable].sort(sortFns[sellSort] || sortFns.price);
+  const sorted = [...sellable].sort(sortFns[sellSort] || sortFns.potential);
 
-  // Sort bar
-  const sortLabels = state.lang === 'fr'
-    ? { price: 'Prix', name: 'Nom', level: 'Niveau', potential: 'Potentiel', recent: 'Récent' }
-    : { price: 'Price', name: 'Name', level: 'Level', potential: 'Potential', recent: 'Recent' };
-  let sortBar = '<div style="display:flex;gap:4px;padding:4px 4px 8px;border-bottom:1px solid var(--border);flex-wrap:wrap">';
-  for (const [key, label] of Object.entries(sortLabels)) {
-    sortBar += `<button class="sell-sort-btn" data-sort="${key}" style="font-size:9px;padding:3px 8px;border-radius:4px;border:1px solid ${sellSort === key ? 'var(--red)' : 'var(--border)'};background:${sellSort === key ? 'var(--red-dark)' : 'var(--bg)'};color:var(--text);cursor:pointer">${label}</button>`;
-  }
-  sortBar += `<button class="sell-sort-btn" data-sort="select-all" style="font-size:9px;padding:3px 8px;border-radius:4px;border:1px solid var(--border);background:var(--bg);color:var(--gold);cursor:pointer;margin-left:auto">${state.lang === 'fr' ? '☑ Tout' : '☑ All'}</button>`;
-  sortBar += '</div>';
-  if (sorted.length === 0) {
-    panel.innerHTML = sortBar + '<div style="color:var(--text-dim);padding:12px;text-align:center">' + (state.lang === 'fr' ? 'Aucun Pokémon à vendre (hors équipes)' : 'No Pokémon to sell (excluding teams)') + '</div>';
+  let listHtml = '';
+
+  if (sellGroupMode === 'group') {
+    // Group by species → then by potential
+    const groups = {};
+    for (const p of sorted) {
+      const key = p.species_en;
+      if (!groups[key]) groups[key] = {};
+      const pk = p.potential;
+      if (!groups[key][pk]) groups[key][pk] = [];
+      groups[key][pk].push(p);
+    }
+    // Sort groups by dex
+    const speciesOrder = Object.keys(groups).sort((a, b) => (SPECIES_BY_EN[a]?.dex || 0) - (SPECIES_BY_EN[b]?.dex || 0));
+    for (const species of speciesOrder) {
+      const potGroups = groups[species];
+      const sp = SPECIES_BY_EN[species];
+      // Sort potential groups descending
+      for (const pot of Object.keys(potGroups).map(Number).sort((a, b) => b - a)) {
+        const poks = potGroups[pot];
+        const allSel = poks.every(p => selectedForSale.has(p.id));
+        const anySel = poks.some(p => selectedForSale.has(p.id));
+        const samplePrice = calculatePrice(poks[0]);
+        const totalGroupPrice = poks.reduce((s, p) => s + calculatePrice(p), 0);
+        const saturation = getMarketSaturation(species);
+        listHtml += `<div class="sell-group ${allSel ? 'sell-group-sel' : ''}" data-group-species="${species}" data-group-pot="${pot}" style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-bottom:1px solid var(--border);cursor:pointer;background:${allSel ? 'var(--bg-hover)' : anySel ? 'rgba(255,204,90,.06)' : 'transparent'}">
+          <img src="${pokeSprite(species)}" style="width:36px;height:36px">
+          <div style="flex:1;min-width:0">
+            <div style="font-size:12px">${speciesName(species)} <span style="color:var(--gold)">${'★'.repeat(pot)}</span>${poks.some(p => p.shiny) ? ' ✨' : ''}</div>
+            <div style="font-size:10px;color:var(--text-dim)">×${poks.length} — ${samplePrice}₽/u${saturation > 0 ? ` <span style="color:var(--red)">▼${saturation}%</span>` : ''}</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-family:var(--font-pixel);font-size:10px;color:var(--gold)">${totalGroupPrice}₽</div>
+            <div style="font-size:9px;color:var(--text-dim)">${allSel ? '✓ tout' : anySel ? '~ partiel' : ''}</div>
+          </div>
+        </div>`;
+      }
+    }
   } else {
-    panel.innerHTML = sortBar + sorted.map(p => {
+    // List mode
+    listHtml = sorted.map(p => {
       const price = calculatePrice(p);
       const sel = selectedForSale.has(p.id);
-      return `<div style="display:flex;align-items:center;gap:8px;padding:6px 4px;border-bottom:1px solid var(--border);cursor:pointer;background:${sel ? 'var(--bg-hover)' : 'transparent'}"
-        data-sell-id="${p.id}">
-        <img src="${pokeSprite(p.species_en, p.shiny)}" style="width:40px;height:40px">
+      const sat = getMarketSaturation(p.species_en);
+      return `<div style="display:flex;align-items:center;gap:8px;padding:6px 4px;border-bottom:1px solid var(--border);cursor:pointer;background:${sel ? 'var(--bg-hover)' : 'transparent'}" data-sell-id="${p.id}">
+        <img src="${pokeSprite(p.species_en, p.shiny)}" style="width:36px;height:36px">
         <div style="flex:1;min-width:0">
           <div style="font-size:12px">${speciesName(p.species_en)} ${'★'.repeat(p.potential)}${p.shiny ? ' ✨' : ''}</div>
           <div style="font-size:10px;color:var(--text-dim)">Lv.${p.level}</div>
         </div>
-        <div style="font-family:var(--font-pixel);font-size:10px;color:var(--gold)">${price}₽</div>
+        <div style="font-family:var(--font-pixel);font-size:10px;color:var(--gold)">${price}₽${sat > 0 ? `<br><span style="color:var(--red);font-size:8px">▼${sat}%</span>` : ''}</div>
       </div>`;
     }).join('');
   }
 
-  // Total + sell button
   let total = 0;
   for (const id of selectedForSale) {
     const p = state.pokemons.find(pk => pk.id === id);
     if (p) total += calculatePrice(p);
   }
-  panel.innerHTML += `
-    <div style="padding:10px;text-align:center;border-top:2px solid var(--border);margin-top:8px">
-      <div style="font-family:var(--font-pixel);font-size:12px;color:var(--gold);margin-bottom:8px">
-        ${selectedForSale.size > 0 ? `${selectedForSale.size} sélectionné(s) — ${total}₽` : 'Cliquez pour sélectionner'}
-      </div>
-      ${selectedForSale.size > 0 ? `<button style="font-family:var(--font-pixel);font-size:10px;padding:8px 20px;background:var(--red-dark);border:1px solid var(--red);border-radius:var(--radius);color:var(--text);cursor:pointer" id="btnSellSelected">${t('sell')}</button>` : ''}
-    </div>`;
 
-  // Click handlers
+  panel.innerHTML = buildSellToolbar(sorted, sorted.length) + listHtml + buildSellFooter(total);
+  bindSellPanel(panel, sorted);
+}
+
+function buildSellToolbar(sorted, count) {
+  const sortLabels = { potential: '★ Potentiel', price: '₽ Prix', name: 'Nom', level: 'Niv.', recent: 'Récent' };
+  let bar = '<div style="display:flex;gap:4px;padding:4px;border-bottom:1px solid var(--border);flex-wrap:wrap;align-items:center">';
+  for (const [key, label] of Object.entries(sortLabels)) {
+    bar += `<button class="sell-sort-btn" data-sort="${key}" style="font-size:9px;padding:3px 7px;border-radius:4px;border:1px solid ${sellSort === key ? 'var(--red)' : 'var(--border)'};background:${sellSort === key ? 'var(--red-dark)' : 'var(--bg)'};color:var(--text);cursor:pointer">${label}</button>`;
+  }
+  bar += `<div style="margin-left:auto;display:flex;gap:4px">`;
+  bar += `<button class="sell-sort-btn" data-sort="toggle-group" style="font-size:9px;padding:3px 7px;border-radius:4px;border:1px solid ${sellGroupMode === 'group' ? 'var(--gold)' : 'var(--border)'};background:${sellGroupMode === 'group' ? 'var(--gold-dim)' : 'var(--bg)'};color:var(--text);cursor:pointer">Grouper</button>`;
+  bar += `<button class="sell-sort-btn" data-sort="select-all" style="font-size:9px;padding:3px 7px;border-radius:4px;border:1px solid var(--border);background:var(--bg);color:var(--gold);cursor:pointer">☑ Tout</button>`;
+  bar += '</div></div>';
+  return bar;
+}
+
+function buildSellFooter(total) {
+  return `<div style="padding:10px;text-align:center;border-top:2px solid var(--border);position:sticky;bottom:0;background:var(--bg-panel)">
+    <div style="font-family:var(--font-pixel);font-size:11px;color:var(--gold);margin-bottom:8px">
+      ${selectedForSale.size > 0 ? `${selectedForSale.size} sélectionné(s) — ${total}₽` : '<span style="color:var(--text-dim);font-size:9px">Cliquer pour sélectionner · ⭐Favoris exclus</span>'}
+    </div>
+    ${selectedForSale.size > 0 ? `<button id="btnSellSelected" style="font-family:var(--font-pixel);font-size:10px;padding:8px 20px;background:var(--red-dark);border:1px solid var(--red);border-radius:var(--radius);color:var(--text);cursor:pointer">Vendre (${total}₽)</button>` : ''}
+  </div>`;
+}
+
+function bindSellPanel(panel, sorted) {
+  // Sort + mode toggles
+  panel.querySelectorAll('.sell-sort-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const s = btn.dataset.sort;
+      if (s === 'toggle-group') {
+        sellGroupMode = sellGroupMode === 'group' ? 'list' : 'group';
+        selectedForSale.clear();
+      } else if (s === 'select-all') {
+        if (selectedForSale.size >= sorted.length) selectedForSale.clear();
+        else sorted.forEach(p => selectedForSale.add(p.id));
+      } else {
+        sellSort = s;
+        selectedForSale.clear();
+      }
+      renderSellPanel();
+    });
+  });
+
+  // Group click: toggle all pokemon in group
+  panel.querySelectorAll('[data-group-species]').forEach(el => {
+    el.addEventListener('click', () => {
+      const species = el.dataset.groupSpecies;
+      const pot = parseInt(el.dataset.groupPot);
+      const teamIds = new Set([...state.gang.bossTeam]);
+      for (const a of state.agents) a.team.forEach(id => teamIds.add(id));
+      const group = state.pokemons.filter(p => p.species_en === species && p.potential === pot && !teamIds.has(p.id) && !p.favorite);
+      const allSel = group.every(p => selectedForSale.has(p.id));
+      group.forEach(p => allSel ? selectedForSale.delete(p.id) : selectedForSale.add(p.id));
+      renderSellPanel();
+    });
+  });
+
+  // Individual list click
   panel.querySelectorAll('[data-sell-id]').forEach(el => {
     el.addEventListener('click', () => {
       const id = el.dataset.sellId;
@@ -3241,6 +3616,8 @@ function renderSellPanel() {
       renderSellPanel();
     });
   });
+
+  // Sell button
   document.getElementById('btnSellSelected')?.addEventListener('click', () => {
     if (selectedForSale.size > 0) {
       sellPokemon([...selectedForSale]);
@@ -3248,24 +3625,6 @@ function renderSellPanel() {
       updateTopBar();
       renderMarketTab();
     }
-  });
-
-  // Sort button handlers
-  panel.querySelectorAll('.sell-sort-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const s = btn.dataset.sort;
-      if (s === 'select-all') {
-        // Toggle select all
-        if (selectedForSale.size >= sorted.length) {
-          selectedForSale.clear();
-        } else {
-          sorted.forEach(p => selectedForSale.add(p.id));
-        }
-      } else {
-        sellSort = s;
-      }
-      renderSellPanel();
-    });
   });
 }
 
@@ -3351,24 +3710,48 @@ function renderPokemonGrid() {
     });
   }
 
-  // Type filter
+  // Filter
   const filter = document.getElementById('pcFilter')?.value || 'all';
   if (filter === 'shiny') list = list.filter(p => p.shiny);
+  else if (filter === 'fav') list = list.filter(p => p.favorite);
+  else if (filter === 'team') {
+    const teamIds = new Set([...state.gang.bossTeam]);
+    for (const a of state.agents) a.team.forEach(id => teamIds.add(id));
+    list = list.filter(p => teamIds.has(p.id));
+  }
+  else if (filter.startsWith('pot')) {
+    const pot = parseInt(filter.replace('pot', ''));
+    list = list.filter(p => p.potential === pot);
+  }
 
   // Sort
   const sort = document.getElementById('pcSort')?.value || 'recent';
   switch (sort) {
-    case 'id':   list.sort((a, b) => a.dex - b.dex); break;
-    case 'name': list.sort((a, b) => speciesName(a.species_en).localeCompare(speciesName(b.species_en))); break;
-    case 'cp':   list.sort((a, b) => getPokemonPower(b) - getPokemonPower(a)); break;
-    case 'recent': break; // Already in insertion order
+    case 'id':        list.sort((a, b) => a.dex - b.dex); break;
+    case 'name':      list.sort((a, b) => speciesName(a.species_en).localeCompare(speciesName(b.species_en))); break;
+    case 'cp':        list.sort((a, b) => getPokemonPower(b) - getPokemonPower(a)); break;
+    case 'potential': list.sort((a, b) => (b.potential + (b.shiny ? 10 : 0)) - (a.potential + (a.shiny ? 10 : 0))); break;
+    case 'level':     list.sort((a, b) => b.level - a.level); break;
+    case 'species':   list.sort((a, b) => a.dex - b.dex || (b.potential - a.potential)); break;
+    case 'recent':    break; // insertion order
   }
 
-  grid.innerHTML = list.map(p => `
-    <div class="pc-pokemon ${p.shiny ? 'shiny' : ''} ${pcSelectedId === p.id ? 'selected' : ''}" data-pk-id="${p.id}">
+  // Always push favorites to top
+  if (filter !== 'fav') {
+    list.sort((a, b) => (b.favorite ? 1 : 0) - (a.favorite ? 1 : 0));
+  }
+
+  const teamIds = new Set([...state.gang.bossTeam]);
+  for (const a of state.agents) a.team.forEach(id => teamIds.add(id));
+
+  grid.innerHTML = list.map(p => {
+    const inTeam = teamIds.has(p.id);
+    return `<div class="pc-pokemon ${p.shiny ? 'shiny' : ''} ${pcSelectedId === p.id ? 'selected' : ''} ${inTeam ? 'in-team' : ''}" data-pk-id="${p.id}" title="${speciesName(p.species_en)} Lv.${p.level} ${'★'.repeat(p.potential)}${p.shiny ? ' ✨' : ''}">
       <img src="${pokeSprite(p.species_en, p.shiny)}" alt="${speciesName(p.species_en)}">
-    </div>
-  `).join('');
+      ${p.favorite ? '<div class="pc-fav-badge">⭐</div>' : ''}
+      ${inTeam ? '<div class="pc-team-badge">⚔</div>' : ''}
+    </div>`;
+  }).join('') || '<div style="color:var(--text-dim);padding:16px;grid-column:1/-1;text-align:center">Aucun Pokémon</div>';
 
   grid.querySelectorAll('.pc-pokemon').forEach(el => {
     el.addEventListener('click', () => {
@@ -3455,8 +3838,15 @@ function renderPokemonDetail() {
     <div style="font-size:11px;margin-bottom:8px">
       <div>ATK: <b>${p.stats.atk}</b> — DEF: <b>${p.stats.def}</b> — SPD: <b>${p.stats.spd}</b></div>
     </div>
-    <div style="font-size:10px;color:var(--text-dim);margin-bottom:12px">${t('zone_caught')}: ${zoneName}</div>
-    <div style="font-size:10px;color:var(--gold);margin-bottom:12px">Valeur: ${price}₽</div>
+    <div style="font-size:10px;color:var(--text-dim);margin-bottom:8px">${t('zone_caught')}: ${zoneName}</div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+      <div style="font-size:10px;color:var(--gold);flex:1">Valeur: ${price}₽${getMarketSaturation(p.species_en) > 0 ? ` <span style="color:var(--red);font-size:9px">▼${getMarketSaturation(p.species_en)}% offre</span>` : ''}</div>
+      <button id="btnFavToggle" style="font-size:10px;padding:4px 10px;background:${p.favorite ? 'var(--gold-dim)' : 'var(--bg)'};border:1px solid ${p.favorite ? 'var(--gold)' : 'var(--border)'};border-radius:var(--radius-sm);color:${p.favorite ? 'var(--bg)' : 'var(--text-dim)'};cursor:pointer">${p.favorite ? '⭐ Favori' : '☆ Favori'}</button>
+    </div>
+    ${(() => {
+      const hasCandy = (state.inventory.rarecandy || 0) > 0;
+      return `<div style="margin-bottom:8px"><button id="btnRareCandy" style="width:100%;font-size:10px;padding:5px;background:${hasCandy ? 'var(--bg)' : 'var(--bg)'};border:1px solid ${hasCandy ? 'var(--gold)' : 'var(--border)'};border-radius:var(--radius-sm);color:${hasCandy ? 'var(--gold)' : 'var(--text-dim)'};cursor:${hasCandy ? 'pointer' : 'default'}"${hasCandy ? '' : ' disabled'}>🍬 Super Bonbon (+5 niveaux) — stock: ${state.inventory.rarecandy || 0}</button></div>`;
+    })()}
     ${(() => {
       // Check if in a team
       const inBossTeam = state.gang.bossTeam.includes(p.id);
@@ -3476,6 +3866,22 @@ function renderPokemonDetail() {
     ${renderEvolutionPanel(p)}
     ${renderPokemonHistory(p)}
   `;
+
+  document.getElementById('btnFavToggle')?.addEventListener('click', () => {
+    p.favorite = !p.favorite;
+    saveState();
+    renderPCTab();
+  });
+
+  document.getElementById('btnRareCandy')?.addEventListener('click', () => {
+    if ((state.inventory.rarecandy || 0) <= 0) return;
+    state.inventory.rarecandy--;
+    for (let i = 0; i < 5; i++) levelUpPokemon(p, p.level * 20);
+    saveState();
+    notify(`🍬 ${speciesName(p.species_en)} → Lv.${p.level}`, 'gold');
+    renderPCTab();
+    updateTopBar();
+  });
 
   document.getElementById('btnSellOne')?.addEventListener('click', () => {
     sellPokemon([p.id]);
@@ -3803,6 +4209,75 @@ function renderMissionsTab() {
 // 18d. UI — BAG TAB
 // ════════════════════════════════════════════════════════════════
 
+function openRareCandyPicker() {
+  if ((state.inventory.rarecandy || 0) <= 0) return;
+
+  // Build candidate list: team pokemon first, then others, all below lv100
+  const teamIds = new Set([...state.gang.bossTeam]);
+  for (const a of state.agents) a.team.forEach(id => teamIds.add(id));
+
+  const candidates = state.pokemons
+    .filter(p => p.level < 100)
+    .sort((a, b) => {
+      const aTeam = teamIds.has(a.id) ? 1 : 0;
+      const bTeam = teamIds.has(b.id) ? 1 : 0;
+      if (bTeam !== aTeam) return bTeam - aTeam;
+      return getPokemonPower(b) - getPokemonPower(a);
+    });
+
+  if (candidates.length === 0) {
+    notify(state.lang === 'fr' ? 'Tous les Pokémon sont au max !' : 'All Pokémon are maxed!');
+    return;
+  }
+
+  const overlay = document.createElement('div');
+  overlay.id = 'rareCandyOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:3000;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center;animation:fadeIn .2s ease';
+
+  const listHtml = candidates.slice(0, 25).map(p => {
+    const inTeam = teamIds.has(p.id);
+    return `<div class="picker-pokemon" data-candy-id="${p.id}" style="display:flex;align-items:center;gap:8px;padding:8px;border-bottom:1px solid var(--border);cursor:pointer">
+      <img src="${pokeSprite(p.species_en, p.shiny)}" style="width:40px;height:40px">
+      <div style="flex:1">
+        <div style="font-size:12px">${inTeam ? '⚔ ' : ''}${speciesName(p.species_en)} ${'★'.repeat(p.potential)}${p.shiny ? ' ✨' : ''}</div>
+        <div style="font-size:10px;color:var(--text-dim)">Lv.${p.level} → Lv.~${Math.min(100, p.level + 5)}</div>
+      </div>
+      ${inTeam ? '<span style="font-size:9px;color:var(--green)">Équipe</span>' : ''}
+    </div>`;
+  }).join('');
+
+  overlay.innerHTML = `<div style="background:var(--bg-panel);border:2px solid var(--gold);border-radius:var(--radius);width:90%;max-width:380px;max-height:70vh;display:flex;flex-direction:column">
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:2px solid var(--border)">
+      <div style="font-family:var(--font-pixel);font-size:10px;color:var(--gold)">🍬 Super Bonbon — stock: ${state.inventory.rarecandy}</div>
+      <button id="btnCloseCandy" style="background:none;border:none;color:var(--text-dim);font-size:20px;cursor:pointer">&times;</button>
+    </div>
+    <div style="overflow-y:auto;flex:1">${listHtml}</div>
+  </div>`;
+
+  document.body.appendChild(overlay);
+  overlay.querySelector('#btnCloseCandy').addEventListener('click', () => overlay.remove());
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+
+  overlay.querySelectorAll('[data-candy-id]').forEach(el => {
+    el.addEventListener('mouseenter', () => { el.style.background = 'var(--bg-hover)'; });
+    el.addEventListener('mouseleave', () => { el.style.background = ''; });
+    el.addEventListener('click', () => {
+      if ((state.inventory.rarecandy || 0) <= 0) { overlay.remove(); return; }
+      const p = state.pokemons.find(pk => pk.id === el.dataset.candyId);
+      if (!p) return;
+      const oldLv = p.level;
+      state.inventory.rarecandy--;
+      for (let i = 0; i < 5; i++) levelUpPokemon(p, p.level * 20);
+      saveState();
+      notify(`🍬 ${speciesName(p.species_en)} Lv.${oldLv} → Lv.${p.level}`, 'gold');
+      overlay.remove();
+      renderBagTab();
+      if (activeTab === 'tabPC') renderPCTab();
+      updateTopBar();
+    });
+  });
+}
+
 function renderBagTab() {
   const grid = document.getElementById('bagGrid');
   if (!grid) return;
@@ -3878,21 +4353,7 @@ function renderBagTab() {
           notify(state.lang === 'fr' ? 'Aucun Pokémon en cooldown' : 'No Pokémon on cooldown');
         }
       } else if (itemId === 'rarecandy') {
-        // Use on strongest uncapped pokemon, or let player choose via team picker
-        const best = state.pokemons
-          .filter(p => p.level < 100)
-          .sort((a, b) => getPokemonPower(b) - getPokemonPower(a));
-        if (best.length > 0) {
-          // Use on first available (strongest)
-          const p = best[0];
-          const oldLv = p.level;
-          for (let i = 0; i < 5; i++) levelUpPokemon(p, p.level * 5);
-          state.inventory.rarecandy--;
-          notify(`🍬 ${speciesName(p.species_en)} Lv.${oldLv} → Lv.${p.level}`, 'gold');
-          saveState();
-        } else {
-          notify(state.lang === 'fr' ? 'Tous les Pokémon sont au max !' : 'All Pokémon are maxed!');
-        }
+        openRareCandyPicker();
       } else if (activateBoost(itemId)) {
         notify(state.lang === 'fr' ? 'Boost activé !' : 'Boost activated!', 'success');
       }
@@ -4036,6 +4497,12 @@ function startGameLoop() {
   // Agent automation every 2 seconds (agents interact with visible spawns)
   agentTickInterval = setInterval(agentTick, 2000);
 
+  // Passive agent tick every 10 seconds (closed zones, background activity)
+  setInterval(passiveAgentTick, 10000);
+
+  // Market decay every 5 minutes
+  setInterval(decayMarketSales, 300000);
+
   // Auto-save every 10 seconds
   autoSaveInterval = setInterval(saveState, 10000);
 
@@ -4043,13 +4510,23 @@ function startGameLoop() {
   cooldownInterval = setInterval(() => {
     let changed = false;
     for (const p of state.pokemons) {
-      if (p.cooldown > 0) {
-        p.cooldown--;
-        changed = true;
-      }
+      if (p.cooldown > 0) { p.cooldown--; changed = true; }
     }
     if (changed) saveState();
   }, 10000);
+
+  // Passive XP for pokemon in teams every 30 seconds
+  setInterval(() => {
+    const teamIds = new Set([...state.gang.bossTeam]);
+    for (const a of state.agents) a.team.forEach(id => teamIds.add(id));
+    if (teamIds.size === 0) return;
+    let leveled = false;
+    for (const id of teamIds) {
+      const p = state.pokemons.find(pk => pk.id === id);
+      if (p) leveled = levelUpPokemon(p, 3) || leveled; // 3 XP/30s passif
+    }
+    if (leveled) saveState();
+  }, 30000);
 
   // Zone timers refresh every second (for boost countdowns + stats)
   setInterval(() => {

@@ -254,6 +254,13 @@
     .zone-btn:hover { border-color: var(--red); color: var(--text); }
     .zone-btn.active { border-color: var(--red); color: var(--gold); background: var(--bg-hover); }
     .zone-btn.locked { opacity: .4; cursor: not-allowed; }
+    .zone-btn.zone-type-gym { border-color: var(--gold-dim); }
+    .zone-btn.zone-type-gym.active { border-color: var(--gold); background: rgba(255,204,90,.12); }
+    .zone-btn.zone-type-special { border-color: #7c5cbf; }
+    .zone-btn.zone-type-special.active { border-color: #a07cf0; background: rgba(160,124,240,.12); }
+    .zone-category { margin-bottom: 8px; }
+    .zone-cat-label { font-family: var(--font-pixel); font-size: 8px; color: var(--text-dim); margin-bottom: 4px; padding-left: 2px; letter-spacing: 1px; text-transform: uppercase; }
+    .zone-cat-buttons { display: flex; flex-wrap: wrap; gap: 4px; }
 
     #zoneWindows {
       display: flex;
@@ -549,6 +556,15 @@
     .pc-pokemon.shiny { animation: glow 2s ease-in-out infinite; }
 
     .pc-pokemon img { width: 64px; height: 64px; }
+    .pc-pokemon.in-team { border-color: var(--green); }
+    .pc-fav-badge {
+      position: absolute; top: 2px; right: 2px;
+      font-size: 10px; line-height: 1; pointer-events: none;
+    }
+    .pc-team-badge {
+      position: absolute; bottom: 2px; right: 2px;
+      font-size: 9px; color: var(--green); line-height: 1; pointer-events: none;
+    }
 
     #pokemonDetail {
       width: 280px;
@@ -1274,6 +1290,7 @@
     }
     .zone-combat .combat-actions-inline button:hover { background: var(--red); }
     .zone-combat.collapsed .combat-arena,
+    .zone-combat.collapsed .combat-arena-full,
     .zone-combat.collapsed .combat-log-inline,
     .zone-combat.collapsed .combat-actions-inline { display: none; }
     .zone-combat .combat-summary {
@@ -1284,6 +1301,41 @@
       padding: 4px;
     }
     .zone-combat.collapsed .combat-summary { display: block; }
+
+    /* ── New multi-pokemon arena ───── */
+    .combat-arena-full {
+      display: flex;
+      align-items: flex-start;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+    .combat-side { flex: 1; min-width: 0; }
+    .combat-vs-col {
+      font-family: var(--font-pixel);
+      font-size: 13px;
+      color: var(--gold);
+      flex-shrink: 0;
+      align-self: center;
+    }
+    .combat-group { margin-bottom: 6px; }
+    .combat-group-label {
+      font-size: 8px;
+      color: var(--text-dim);
+      margin-bottom: 2px;
+      font-family: var(--font-pixel);
+    }
+    .combat-group-pokes { display: flex; flex-wrap: wrap; gap: 3px; }
+    .combat-ally-slot { text-align: center; }
+    .combat-ally-slot img { image-rendering: pixelated; display: block; }
+    .combat-ally-slot.shake img { animation: shake .3s ease; }
+    .combat-enemy-header { display: flex; gap: 4px; margin-bottom: 4px; }
+    .combat-enemy-header img { image-rendering: pixelated; }
+    .combat-enemy-pokes { display: flex; flex-wrap: wrap; gap: 4px; }
+    .combat-enemy-slot { text-align: center; }
+    .combat-enemy-slot img { image-rendering: pixelated; display: block; }
+    .combat-enemy-slot.shake img { animation: shake .3s ease; }
+    .raid-title { color: #ff6644 !important; }
+    .zone-combat.active .zone-combat.collapsed .combat-arena-full { display: none; }
 
     /* ── Chest sprite styling ────────────────────────────────────── */
     .chest-sprite {
@@ -1427,15 +1479,24 @@
             <div id="filterBar">
               <input type="text" id="pcSearch" placeholder="Rechercher...">
               <select id="pcSort">
-                <option value="id">N° Pokédex</option>
-                <option value="name">Nom</option>
-                <option value="cp">PC ↓</option>
                 <option value="recent">Récent</option>
+                <option value="potential">Potentiel ↓</option>
+                <option value="cp">PC ↓</option>
+                <option value="level">Niveau ↓</option>
+                <option value="species">Espèce</option>
+                <option value="id">N° Pokédex</option>
+                <option value="name">Nom A→Z</option>
               </select>
               <select id="pcFilter">
                 <option value="all">Tous</option>
-                <option value="shiny">Shiny ✨</option>
-                <option value="fav">Favoris ★</option>
+                <option value="fav">⭐ Favoris</option>
+                <option value="team">⚔ En équipe</option>
+                <option value="shiny">✨ Shiny</option>
+                <option value="pot5">★★★★★</option>
+                <option value="pot4">★★★★</option>
+                <option value="pot3">★★★</option>
+                <option value="pot2">★★</option>
+                <option value="pot1">★</option>
               </select>
             </div>
             <div id="pokemonGrid"></div>
