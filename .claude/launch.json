@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "pokeforge-v6",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["http-server", "game", "-c-1"],
+      "port": 8080,
+      "autoPort": true
+    }
+  ]
+}
