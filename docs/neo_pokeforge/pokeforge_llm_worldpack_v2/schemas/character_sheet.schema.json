@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "PokeforgeCharacterSheet",
+  "type": "object",
+  "required": [
+    "id",
+    "name",
+    "role",
+    "personality",
+    "goals",
+    "speech_style",
+    "pokemon_possibilities",
+    "sprite"
+  ],
+  "properties": {
+    "id": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string"
+    },
+    "name_fr": {
+      "type": "string"
+    },
+    "role": {
+      "type": "string"
+    },
+    "faction": {
+      "type": "string"
+    },
+    "canon_level": {
+      "type": "string"
+    },
+    "gender": {
+      "type": "string"
+    },
+    "age_band": {
+      "type": "string"
+    },
+    "personality": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "values": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "goals": {
+      "type": "object"
+    },
+    "orientation": {
+      "type": "string"
+    },
+    "trust_level_default": {
+      "type": "integer"
+    },
+    "speech_style": {
+      "type": "object"
+    },
+    "pokemon_possibilities": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "catch_phrases_en": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "catch_phrases_fr": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "memory_hooks": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "sprite": {
+      "type": "string"
+    },
+    "notes": {
+      "type": "object"
+    }
+  }
+}

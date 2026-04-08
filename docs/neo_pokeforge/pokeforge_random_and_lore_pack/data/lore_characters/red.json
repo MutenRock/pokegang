@@ -1,0 +1,61 @@
+{
+  "id": "npc_red",
+  "name": "Red",
+  "age": 14,
+  "gender": "male",
+  "role": "champion",
+  "faction": "independent",
+  "region": "kanto",
+  "personality": [
+    "silent",
+    "determined",
+    "brave",
+    "stoic"
+  ],
+  "orientation": "hero",
+  "trust_level": 5,
+  "goals": {
+    "short_term": "Train on Mt. Silver.",
+    "long_term": "Be the greatest Pok\u00e9mon Master."
+  },
+  "values": [
+    "strength",
+    "bond with pokemon",
+    "perseverance"
+  ],
+  "speech_style": {
+    "tone": "silent",
+    "verbosity": "low",
+    "formality": "medium",
+    "language": "bilingual_en_fr"
+  },
+  "catch_phrases": [
+    "...",
+    "...!"
+  ],
+  "pokemon_preferences": [
+    "balanced",
+    "kanto starters",
+    "electric"
+  ],
+  "possible_pokemon": [
+    "pikachu",
+    "charizard",
+    "venusaur",
+    "blastoise",
+    "snorlax",
+    "lapras"
+  ],
+  "sprite": "https://play.pokemonshowdown.com/sprites/trainers/red.png",
+  "knowledge": [
+    "champion tactics",
+    "kanto lore",
+    "mt. silver survival"
+  ],
+  "memories": [],
+  "relationships": {
+    "blue": "rival",
+    "oak": "mentor"
+  },
+  "events_history": []
+}

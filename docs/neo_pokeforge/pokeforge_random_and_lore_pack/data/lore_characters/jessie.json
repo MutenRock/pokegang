@@ -1,0 +1,59 @@
+{
+  "id": "npc_jessie",
+  "name": "Jessie",
+  "age": 25,
+  "gender": "female",
+  "role": "rocket_agent",
+  "faction": "team_rocket",
+  "region": "kanto",
+  "personality": [
+    "vain",
+    "ambitious",
+    "dramatic",
+    "bossy"
+  ],
+  "orientation": "villain",
+  "trust_level": 2,
+  "goals": {
+    "short_term": "Steal rare Pok\u00e9mon, especially Pikachu.",
+    "long_term": "Become a top executive in Team Rocket and rich."
+  },
+  "values": [
+    "wealth",
+    "beauty",
+    "recognition"
+  ],
+  "speech_style": {
+    "tone": "theatrical",
+    "verbosity": "high",
+    "formality": "medium",
+    "language": "bilingual_en_fr"
+  },
+  "catch_phrases": [
+    "Prepare for trouble!",
+    "La Team Rocket plus rapide que la lumi\u00e8re !"
+  ],
+  "pokemon_preferences": [
+    "poison",
+    "snake",
+    "bizarre"
+  ],
+  "possible_pokemon": [
+    "arbok",
+    "wobbuffet",
+    "seviper"
+  ],
+  "sprite": "https://play.pokemonshowdown.com/sprites/trainers/jessie.png",
+  "knowledge": [
+    "theatrical disguises",
+    "failing spectacularly",
+    "kanto routes"
+  ],
+  "memories": [],
+  "relationships": {
+    "james": "partner",
+    "meowth": "partner",
+    "giovanni": "boss"
+  },
+  "events_history": []
+}

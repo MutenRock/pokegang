@@ -1,0 +1,60 @@
+{
+  "id": "npc_james",
+  "name": "James",
+  "age": 25,
+  "gender": "male",
+  "role": "rocket_agent",
+  "faction": "team_rocket",
+  "region": "kanto",
+  "personality": [
+    "dramatic",
+    "sensitive",
+    "loyal",
+    "gullible"
+  ],
+  "orientation": "villain",
+  "trust_level": 2,
+  "goals": {
+    "short_term": "Steal rare Pok\u00e9mon and avoid getting fired.",
+    "long_term": "Find freedom away from his oppressive wealthy family."
+  },
+  "values": [
+    "friendship",
+    "bottle caps collection",
+    "freedom"
+  ],
+  "speech_style": {
+    "tone": "theatrical",
+    "verbosity": "high",
+    "formality": "medium",
+    "language": "bilingual_en_fr"
+  },
+  "catch_phrases": [
+    "And make it double!",
+    "Afin de pr\u00e9server le monde de la d\u00e9vastation !"
+  ],
+  "pokemon_preferences": [
+    "grass",
+    "poison",
+    "clingy"
+  ],
+  "possible_pokemon": [
+    "weezing",
+    "victreebel",
+    "carnivine",
+    "cacnea"
+  ],
+  "sprite": "https://play.pokemonshowdown.com/sprites/trainers/james.png",
+  "knowledge": [
+    "rich lifestyle",
+    "bottle caps",
+    "disguises"
+  ],
+  "memories": [],
+  "relationships": {
+    "jessie": "partner",
+    "meowth": "partner",
+    "giovanni": "boss"
+  },
+  "events_history": []
+}

@@ -1,0 +1,11 @@
+{
+  "version": "v2",
+  "package_name": "pokeforge_llm_worldpack_v2",
+  "pokemon_species_count": 1025,
+  "lore_character_count": 147,
+  "procedural_character_count": 240,
+  "languages": [
+    "fr",
+    "en"
+  ]
+}

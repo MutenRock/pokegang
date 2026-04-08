@@ -1,0 +1,12 @@
+{
+  "en": {
+    "system_prompt_file": "prompts/system_prompt_character_en.txt",
+    "template": "Character Sheet:\\n{character_json}\\n\\nMemory:\\n{memory_json}\\n\\nPlayer message:\\n{player_message}",
+    "player_message": "I want to join Team Rocket. Convince me why I should stay loyal."
+  },
+  "fr": {
+    "system_prompt_file": "prompts/system_prompt_character_fr.txt",
+    "template": "Fiche personnage :\\n{character_json}\\n\\nMémoire :\\n{memory_json}\\n\\nMessage du joueur :\\n{player_message}",
+    "player_message": "Je veux rejoindre la Team Rocket. Convaincs-moi de rester loyal."
+  }
+}
