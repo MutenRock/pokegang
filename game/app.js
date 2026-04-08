@@ -2574,7 +2574,7 @@ function renderGangTab() {
           <div style="flex:1;min-width:0">
             <div style="font-family:var(--font-pixel);font-size:10px;color:var(--text)">${a.name}</div>
             <div style="font-size:10px;color:var(--gold);text-transform:uppercase">${a.title} — Lv.${a.level}</div>
-            <div style="font-size:10px;color:var(--text-dim)">⚔${a.stats.combat} 🎯${a.stats.capture} 🍀${a.stats.luck}</div>
+            <div style="font-size:10px;color:var(--text-dim)">ATK ${a.stats.combat} CAP ${a.stats.capture} LCK ${a.stats.luck}</div>
             <div style="font-size:9px;margin-top:4px">
               <select class="agent-zone-select" data-agent-id="${a.id}" style="background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;font-size:9px;padding:2px 4px;width:100%">
                 <option value="">— ${state.lang === 'fr' ? 'Aucune zone' : 'No zone'} —</option>
@@ -4196,8 +4196,8 @@ function renderAgentsTab() {
       </div>
       <div class="agent-stats-row">
         <span>ATK ${a.stats.combat}</span>
-        <span>🎯 ${a.stats.capture}</span>
-        <span>🍀 ${a.stats.luck}</span>
+        <span>CAP ${a.stats.capture}</span>
+        <span>LCK ${a.stats.luck}</span>
       </div>
       <div style="font-size:9px">
         <select class="agents-zone-select" data-agent-id="${a.id}" style="background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;font-size:9px;padding:2px 4px;width:100%">
