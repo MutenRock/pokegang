@@ -559,11 +559,15 @@
     .pc-pokemon.in-team { border-color: var(--green); }
     .pc-fav-badge {
       position: absolute; top: 2px; right: 2px;
-      font-size: 10px; line-height: 1; pointer-events: none;
+      font-family: var(--font-pixel); font-size: 7px;
+      background: var(--gold-dim); color: var(--bg);
+      padding: 1px 3px; border-radius: 2px; line-height: 1; pointer-events: none;
     }
     .pc-team-badge {
       position: absolute; bottom: 2px; right: 2px;
-      font-size: 9px; color: var(--green); line-height: 1; pointer-events: none;
+      font-family: var(--font-pixel); font-size: 7px;
+      background: var(--green); color: var(--bg);
+      padding: 1px 3px; border-radius: 2px; line-height: 1; pointer-events: none;
     }
 
     #pokemonDetail {
@@ -1214,7 +1218,20 @@
       align-items: center;
       gap: 10px;
     }
-    .bag-item .bag-icon { font-size: 24px; flex-shrink: 0; }
+    .bag-item .bag-icon {
+      font-family: var(--font-pixel);
+      font-size: 9px;
+      flex-shrink: 0;
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--gold);
+      background: var(--bg);
+    }
     .bag-item .bag-info { flex: 1; min-width: 0; }
     .bag-item .bag-name { font-size: 12px; color: var(--text); }
     .bag-item .bag-qty { font-family: var(--font-pixel); font-size: 10px; color: var(--gold); }
@@ -1337,6 +1354,59 @@
     .raid-title { color: #ff6644 !important; }
     .zone-combat.active .zone-combat.collapsed .combat-arena-full { display: none; }
 
+    /* ── Boost tags (text, no emoji) ────────────────────────────── */
+    .boost-tag {
+      font-family: var(--font-pixel);
+      font-size: 7px;
+      padding: 1px 4px;
+      border: 1px solid var(--gold-dim);
+      border-radius: 2px;
+      color: var(--gold);
+      margin-left: 2px;
+    }
+
+    /* ── PC Pagination ───────────────────────────────────────────── */
+    .pc-pagination {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      padding: 8px 0;
+      margin-top: 4px;
+    }
+    .pc-page-btn {
+      font-family: var(--font-pixel);
+      font-size: 10px;
+      padding: 4px 10px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      cursor: pointer;
+    }
+    .pc-page-btn:hover:not(:disabled) { border-color: var(--gold); color: var(--gold); }
+    .pc-page-btn:disabled { opacity: .35; cursor: default; }
+
+    /* ── Training Room ───────────────────────────────────────────── */
+    .training-slot {
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 10px;
+      text-align: center;
+      background: var(--bg-card);
+      min-height: 110px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    .training-slot.empty { border-style: dashed; }
+    .training-slot.filled { border-color: var(--green); }
+
+    /* ── Gym defeated badge ──────────────────────────────────────── */
+    .zone-btn.zone-type-gym.gym-done { border-color: var(--gold); }
+    .zone-btn.zone-type-gym.gym-done::after { content: ' [V]'; font-size: 7px; color: var(--gold); }
+
     /* ── Chest sprite styling ────────────────────────────────────── */
     .chest-sprite {
       font-size: 36px;
@@ -1410,14 +1480,17 @@
 
     <!-- ═══ Tab Navigation ═══ -->
     <nav id="tabNav">
-      <button class="tab-btn active" data-tab="tabGang">💀 Gang</button>
-      <button class="tab-btn" data-tab="tabAgents">👥 Agents</button>
-      <button class="tab-btn" data-tab="tabZones">🗺️ Zones</button>
-      <button class="tab-btn" data-tab="tabBag">🎒 Sac</button>
-      <button class="tab-btn" data-tab="tabMarket">💰 Marché</button>
-      <button class="tab-btn" data-tab="tabPC">💻 PC</button>
-      <button class="tab-btn" data-tab="tabMissions">📋 Missions</button>
-      <button class="tab-btn" data-tab="tabPokedex">📖 Pokédex</button>
+      <button class="tab-btn active" data-tab="tabGang">Gang</button>
+      <button class="tab-btn" data-tab="tabAgents">Agents</button>
+      <button class="tab-btn" data-tab="tabZones">Zones</button>
+      <button class="tab-btn" data-tab="tabBag">Sac</button>
+      <button class="tab-btn" data-tab="tabMarket">Marche</button>
+      <button class="tab-btn" data-tab="tabPC">PC</button>
+      <button class="tab-btn" data-tab="tabTraining">Formation</button>
+      <button class="tab-btn" data-tab="tabLab">Labo</button>
+      <button class="tab-btn" data-tab="tabMissions">Missions</button>
+      <button class="tab-btn" data-tab="tabPokedex">Pokedex</button>
+      <button class="tab-btn" id="btnSaveSlots" style="margin-left:auto;border-color:var(--gold-dim);color:var(--gold-dim)">Saves</button>
     </nav>
 
     <!-- ═══ Tab Content ═══ -->
@@ -1454,7 +1527,7 @@
 
       <!-- ── Bag / Inventory ── -->
       <section id="tabBag" class="tab-pane">
-        <h3 style="font-family:var(--font-pixel);font-size:12px;color:var(--red);margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border)">🎒 Sac</h3>
+        <h3 style="font-family:var(--font-pixel);font-size:12px;color:var(--red);margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border)">SAC</h3>
         <div class="bag-grid" id="bagGrid"></div>
       </section>
 
@@ -1462,11 +1535,11 @@
       <section id="tabMarket" class="tab-pane">
         <div class="market-layout">
           <div id="sellPanel" class="market-panel">
-            <h3>💰 Vendre</h3>
+            <h3>VENDRE</h3>
             <div class="sell-list"></div>
           </div>
           <div id="shopPanel" class="market-panel">
-            <h3>🛒 Boutique</h3>
+            <h3>BOUTIQUE</h3>
             <div class="shop-list"></div>
           </div>
         </div>
@@ -1479,31 +1552,38 @@
             <div id="filterBar">
               <input type="text" id="pcSearch" placeholder="Rechercher...">
               <select id="pcSort">
-                <option value="recent">Récent</option>
-                <option value="potential">Potentiel ↓</option>
-                <option value="cp">PC ↓</option>
-                <option value="level">Niveau ↓</option>
-                <option value="species">Espèce</option>
-                <option value="id">N° Pokédex</option>
-                <option value="name">Nom A→Z</option>
+                <option value="recent">Recent</option>
+                <option value="potential">Potentiel</option>
+                <option value="cp">PC</option>
+                <option value="level">Niveau</option>
+                <option value="species">Espece</option>
+                <option value="id">No. Pokedex</option>
+                <option value="name">Nom A-Z</option>
               </select>
               <select id="pcFilter">
                 <option value="all">Tous</option>
-                <option value="fav">⭐ Favoris</option>
-                <option value="team">⚔ En équipe</option>
-                <option value="shiny">✨ Shiny</option>
-                <option value="pot5">★★★★★</option>
-                <option value="pot4">★★★★</option>
-                <option value="pot3">★★★</option>
-                <option value="pot2">★★</option>
-                <option value="pot1">★</option>
+                <option value="fav">[FAV] Favoris</option>
+                <option value="team">[EQ] En equipe</option>
+                <option value="shiny">[S] Shiny</option>
+                <option value="pot5">***** (5)</option>
+                <option value="pot4">**** (4)</option>
+                <option value="pot3">*** (3)</option>
+                <option value="pot2">** (2)</option>
+                <option value="pot1">* (1)</option>
               </select>
             </div>
             <div id="pokemonGrid"></div>
+            <div id="pcPagination" class="pc-pagination"></div>
           </div>
           <aside id="pokemonDetail" class="hidden"></aside>
         </div>
       </section>
+
+      <!-- ── Training Room ── -->
+      <section id="tabTraining" class="tab-pane"></section>
+
+      <!-- ── Science Lab ── -->
+      <section id="tabLab" class="tab-pane"></section>
 
       <!-- ── Missions ── -->
       <section id="tabMissions" class="tab-pane"></section>

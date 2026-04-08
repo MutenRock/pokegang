@@ -196,32 +196,37 @@ const NATURE_KEYS = Object.keys(NATURES);
 // ── Zones ────────────────────────────────────────────────────
 // Showdown background sprites
 const ZONE_BG_URL = (name) => `https://play.pokemonshowdown.com/sprites/gen5-back/${name}.png`;
+// Zone background gradients (always reliable, no external deps)
 const ZONE_BGS = {
-  route1:          'url(https://play.pokemonshowdown.com/fx/bg-meadow.png)',
-  viridian_forest: 'url(https://play.pokemonshowdown.com/fx/bg-forest.png)',
-  pewter_gym:      'url(https://play.pokemonshowdown.com/fx/bg-rocky.png)',
-  mt_moon:         'url(https://play.pokemonshowdown.com/fx/bg-cave.png)',
-  diglett_cave:    'url(https://play.pokemonshowdown.com/fx/bg-cave.png)',
-  nugget_bridge:   'url(https://play.pokemonshowdown.com/fx/bg-river.png)',
-  cerulean_gym:    'url(https://play.pokemonshowdown.com/fx/bg-beach.png)',
-  ss_anne:         'url(https://play.pokemonshowdown.com/fx/bg-ocean.png)',
-  pallet_town:     'url(https://play.pokemonshowdown.com/fx/bg-meadow.png)',
-  rock_tunnel:     'url(https://play.pokemonshowdown.com/fx/bg-cave.png)',
-  celadon_gym:     'url(https://play.pokemonshowdown.com/fx/bg-forest.png)',
-  safari_zone:     'url(https://play.pokemonshowdown.com/fx/bg-forest.png)',
-  fighting_dojo:   'url(https://play.pokemonshowdown.com/fx/bg-rocky.png)',
-  celadon_casino:  'url(https://play.pokemonshowdown.com/fx/bg-city.png)',
-  pokemon_tower:   'url(https://play.pokemonshowdown.com/fx/bg-space.png)',
-  fuchsia_gym:     'url(https://play.pokemonshowdown.com/fx/bg-swamp.png)',
-  power_plant:     'url(https://play.pokemonshowdown.com/fx/bg-city.png)',
-  seafoam_islands: 'url(https://play.pokemonshowdown.com/fx/bg-beach.png)',
-  saffron_gym:     'url(https://play.pokemonshowdown.com/fx/bg-space.png)',
-  cinnabar_gym:    'url(https://play.pokemonshowdown.com/fx/bg-volcano.png)',
-  silph_co:        'url(https://play.pokemonshowdown.com/fx/bg-city.png)',
-  victory_road:    'url(https://play.pokemonshowdown.com/fx/bg-rocky.png)',
-  indigo_plateau:  'url(https://play.pokemonshowdown.com/fx/bg-sky.png)',
-  unknown_cave:    'url(https://play.pokemonshowdown.com/fx/bg-cave.png)',
+  route1:          'linear-gradient(180deg,#1a3a0a 0%,#0d2008 100%)',
+  viridian_forest: 'linear-gradient(180deg,#0a2a08 0%,#041504 100%)',
+  mt_moon:         'linear-gradient(180deg,#12123a 0%,#07073a 100%)',
+  diglett_cave:    'linear-gradient(180deg,#2a1204 0%,#180a02 100%)',
+  rock_tunnel:     'linear-gradient(180deg,#1a1410 0%,#0a0a08 100%)',
+  pokemon_tower:   'linear-gradient(180deg,#1a0834 0%,#0d0020 100%)',
+  power_plant:     'linear-gradient(180deg,#2a2008 0%,#1a1400 100%)',
+  seafoam_islands: 'linear-gradient(180deg,#082a3a 0%,#041a2a 100%)',
+  victory_road:    'linear-gradient(180deg,#2a1208 0%,#180a06 100%)',
+  unknown_cave:    'linear-gradient(180deg,#100820 0%,#080012 100%)',
+  // Gyms
+  pewter_gym:      'linear-gradient(180deg,#2a1a08 0%,#1a0e04 100%)',
+  cerulean_gym:    'linear-gradient(180deg,#081a3a 0%,#041228 100%)',
+  celadon_gym:     'linear-gradient(180deg,#0a2a08 0%,#042008 100%)',
+  fuchsia_gym:     'linear-gradient(180deg,#280828 0%,#180418 100%)',
+  saffron_gym:     'linear-gradient(180deg,#181830 0%,#0c0c22 100%)',
+  cinnabar_gym:    'linear-gradient(180deg,#3a0808 0%,#280404 100%)',
+  indigo_plateau:  'linear-gradient(180deg,#1a1a2a 0%,#0c0c1c 100%)',
+  // Special
+  safari_zone:     'linear-gradient(180deg,#082008 0%,#041204 100%)',
+  celadon_casino:  'linear-gradient(180deg,#200820 0%,#120412 100%)',
+  silph_co:        'linear-gradient(180deg,#08101a 0%,#040810 100%)',
 };
+
+// Sequential gym unlock order
+const GYM_ORDER = ['pewter_gym','cerulean_gym','celadon_gym','fuchsia_gym','saffron_gym','cinnabar_gym','indigo_plateau'];
+
+// Potential upgrade cost (same-species Pokémon needed)
+const POT_UPGRADE_COSTS = [3, 6, 12, 24]; // index = current potential-1 (1->2, 2->3, 3->4, 4->5)
 
 // Zone categories for UI grouping
 // type: 'route' (captures + investissement) | 'gym' (combats only, no invest) | 'special' (hybride)
@@ -631,18 +636,18 @@ const BALLS = {
 };
 
 const SHOP_ITEMS = [
-  { id:'pokeball',  qty:10, cost:2000,  icon:'⚪' },
-  { id:'greatball', qty:10, cost:6000,  icon:'🔵' },
-  { id:'ultraball', qty:5,  cost:10000, icon:'🟡' },
-  { id:'duskball',  qty:5,  cost:7500,  icon:'🟣' },
-  { id:'lure',      qty:1,  cost:500,   icon:'🪝', fr:'Leurre',     en:'Lure',       desc_fr:'x2 spawns 60s', desc_en:'x2 spawns 60s' },
-  { id:'superlure', qty:1,  cost:2000,  icon:'🪝', fr:'Super Leurre',en:'Super Lure', desc_fr:'x3 spawns 60s', desc_en:'x3 spawns 60s' },
-  { id:'potion',    qty:1,  cost:300,   icon:'💊', fr:'Potion',     en:'Potion',     desc_fr:'Retire cooldown', desc_en:'Remove cooldown' },
-  { id:'incense',   qty:1,  cost:1500,  icon:'🔮', fr:'Encens Chance',en:'Lucky Incense', desc_fr:'★+1 potentiel 90s', desc_en:'★+1 potential 90s' },
-  { id:'rarescope', qty:1,  cost:3000,  icon:'🔭', fr:'Rarioscope', en:'Rare Scope',   desc_fr:'Spawns rares x3 90s', desc_en:'Rare spawns x3 90s' },
-  { id:'aura',      qty:1,  cost:5000,  icon:'✨', fr:'Aura Shiny', en:'Shiny Aura',   desc_fr:'Shiny x5 90s',        desc_en:'Shiny x5 90s' },
-  { id:'evostone',  qty:1,  cost:5000,  icon:'💎', fr:'Pierre Évolution', en:'Evolution Stone', desc_fr:'Évoluer un Pokémon (échange/pierre)', desc_en:'Evolve a Pokémon (trade/stone)' },
-  { id:'rarecandy', qty:1,  cost:3000,  icon:'🍬', fr:'Super Bonbon', en:'Rare Candy', desc_fr:'+5 niveaux à un Pokémon', desc_en:'+5 levels to a Pokémon' },
+  { id:'pokeball',  qty:10, cost:2000,  icon:'PB'  },
+  { id:'greatball', qty:10, cost:6000,  icon:'GB'  },
+  { id:'ultraball', qty:5,  cost:10000, icon:'UB'  },
+  { id:'duskball',  qty:5,  cost:7500,  icon:'DB'  },
+  { id:'lure',      qty:1,  cost:500,   icon:'LR',  fr:'Leurre',       en:'Lure',            desc_fr:'x2 spawns 60s',         desc_en:'x2 spawns 60s' },
+  { id:'superlure', qty:1,  cost:2000,  icon:'SL',  fr:'Super Leurre', en:'Super Lure',      desc_fr:'x3 spawns 60s',         desc_en:'x3 spawns 60s' },
+  { id:'potion',    qty:1,  cost:300,   icon:'PT',  fr:'Potion',       en:'Potion',          desc_fr:'Retire cooldown',       desc_en:'Remove cooldown' },
+  { id:'incense',   qty:1,  cost:1500,  icon:'IN',  fr:'Encens Chance',en:'Lucky Incense',   desc_fr:'*+1 potentiel 90s',     desc_en:'*+1 potential 90s' },
+  { id:'rarescope', qty:1,  cost:3000,  icon:'SC',  fr:'Rarioscope',   en:'Rare Scope',      desc_fr:'Spawns rares x3 90s',   desc_en:'Rare spawns x3 90s' },
+  { id:'aura',      qty:1,  cost:5000,  icon:'AU',  fr:'Aura Shiny',   en:'Shiny Aura',      desc_fr:'Shiny x5 90s',          desc_en:'Shiny x5 90s' },
+  { id:'evostone',  qty:1,  cost:5000,  icon:'EV',  fr:'Pierre Evol.', en:'Evo Stone',       desc_fr:'Evoluer un Pokemon',    desc_en:'Evolve a Pokemon' },
+  { id:'rarecandy', qty:1,  cost:3000,  icon:'RC',  fr:'Super Bonbon', en:'Rare Candy',      desc_fr:'+5 niveaux',            desc_en:'+5 levels' },
 ];
 
 // ── Potential multipliers (for market price) ─────────────────
@@ -761,7 +766,9 @@ function t(key, vars = {}) {
 //  2.  STATE MANAGEMENT
 // ════════════════════════════════════════════════════════════════
 
-const SAVE_KEY = 'pokeforge.v6';
+const SAVE_KEYS = ['pokeforge.v6', 'pokeforge.v6.s2', 'pokeforge.v6.s3'];
+let activeSaveSlot = Math.min(2, parseInt(localStorage.getItem('pokeforge.activeSlot') || '0'));
+let SAVE_KEY = SAVE_KEYS[activeSaveSlot];
 
 const DEFAULT_STATE = {
   version: '6.0.0',
@@ -835,11 +842,21 @@ const DEFAULT_STATE = {
   log: [],
   marketSales: {}, // { [species_en]: { count, lastSale } } — supply/demand
   favorites: [],   // array of pokemon IDs marked as favorite
+  trainingRoom: {
+    pokemon: [],   // up to 6 pokemon IDs training here
+    log: [],       // recent training events
+  },
+  cosmetics: {
+    gameBg: null,       // CSS gradient/color for game background
+    bossBg: null,       // CSS for boss panel background
+    unlockedBgs: [],    // IDs of unlocked cosmetic backgrounds
+  },
 };
 
 let state = structuredClone(DEFAULT_STATE);
 
 function saveState() {
+  state._savedAt = Date.now();
   localStorage.setItem(SAVE_KEY, JSON.stringify(state));
 }
 
@@ -882,6 +899,13 @@ function migrate(saved) {
   if (!merged.missions.daily) merged.missions.daily = { reset: 0, progress: {}, claimed: [] };
   if (!merged.missions.weekly) merged.missions.weekly = { reset: 0, progress: {}, claimed: [] };
   if (!merged.missions.completed) merged.missions.completed = [];
+  // Migration: trainingRoom + cosmetics
+  if (!merged.trainingRoom) merged.trainingRoom = { pokemon: [], log: [] };
+  if (!merged.trainingRoom.log) merged.trainingRoom.log = [];
+  if (!merged.cosmetics) merged.cosmetics = { gameBg: null, bossBg: null, unlockedBgs: [] };
+  // Clean up stale training room IDs (deleted pokemon)
+  const allIds = new Set((merged.pokemons || []).map(p => p.id));
+  merged.trainingRoom.pokemon = (merged.trainingRoom.pokemon || []).filter(id => allIds.has(id));
   return merged;
 }
 
@@ -940,8 +964,14 @@ function pokeSpriteBack(en, shiny = false) {
   return `https://play.pokemonshowdown.com/sprites/${base}/${sanitizeSpriteName(en)}.png`;
 }
 
+const SPRITE_FIX = {
+  ltsurge:      'surge',
+  rocketgrunt:  'rocket',
+  rocketgruntf: 'rocketf',
+};
 function trainerSprite(name) {
-  return `https://play.pokemonshowdown.com/sprites/trainers/${name}.png`;
+  const fixed = SPRITE_FIX[name] || name;
+  return `https://play.pokemonshowdown.com/sprites/trainers/${fixed}.png`;
 }
 
 function speciesName(en) {
@@ -1282,7 +1312,16 @@ function initZone(zoneId) {
 
 function isZoneUnlocked(zoneId) {
   const zone = ZONE_BY_ID[zoneId];
-  return zone && state.gang.reputation >= zone.rep;
+  if (!zone || state.gang.reputation < zone.rep) return false;
+  // Gyms require sequential unlock: previous gym must be defeated
+  if (zone.type === 'gym') {
+    const idx = GYM_ORDER.indexOf(zoneId);
+    if (idx > 0) {
+      const prevId = GYM_ORDER[idx - 1];
+      if (!state.zones[prevId]?.gymDefeated) return false;
+    }
+  }
+  return true;
 }
 
 function getZoneMastery(zoneId) {
@@ -1355,8 +1394,8 @@ function makeRaidSpawn(zone, zoneId) {
     trainerKey: raidTrainers[0].key,
     trainer: {
       ...raidTrainers[0].trainer,
-      fr: `🔥 Raid (${numTrainers} dresseurs)`,
-      en: `🔥 Raid (${numTrainers} trainers)`,
+      fr: `[RAID] (${numTrainers} dresseurs)`,
+      en: `[RAID] (${numTrainers} trainers)`,
       sprite: raidTrainers[0].key,
       diff: maxDiff + 1,
       reward: totalReward,
@@ -1689,6 +1728,15 @@ function applyCombatResult(result, playerTeamIds, trainerData) {
     if (trainerData.trainerKey === 'rocketgrunt' || trainerData.trainerKey === 'rocketgruntf' || trainerData.trainerKey === 'giovanni') {
       state.stats.rocketDefeated++;
     }
+    // Mark gym as defeated when its leader is beaten
+    const combatZone = ZONE_BY_ID[trainerData.zoneId];
+    if (combatZone?.gymLeader && trainerData.trainerKey === combatZone.gymLeader) {
+      const zs = initZone(trainerData.zoneId);
+      if (!zs.gymDefeated) {
+        zs.gymDefeated = true;
+        notify(`Arene vaincue ! La prochaine arene est debloquee.`, 'gold');
+      }
+    }
     // XP to team (gyms give bonus XP)
     const zone = ZONE_BY_ID[trainerData.zoneId];
     const gymBonus = (zone?.type === 'gym' && zone?.xpBonus) ? zone.xpBonus : 1;
@@ -1975,12 +2023,12 @@ function passiveAgentTick() {
         const zState = initZone(zoneId);
         zState.combatsWon = (zState.combatsWon || 0) + 1;
         if (agent.notifyCaptures) {
-          notify(`⚔ ${agent.name} victoire +${reward}₽`, 'success');
+          notify(`[WIN] ${agent.name} +${reward}P`, 'success');
         }
         addLog(t('agent_win', { agent: agent.name }));
       } else {
         state.stats.totalFights++;
-        if (agent.notifyCaptures) notify(`⚔ ${agent.name} défaite...`);
+        if (agent.notifyCaptures) notify(`[KO] ${agent.name} defaite...`);
         addLog(t('agent_lose', { agent: agent.name }));
       }
       changed = true;
@@ -2366,15 +2414,118 @@ function renderAll() {
 
 function renderActiveTab() {
   switch (activeTab) {
-    case 'tabGang':   renderGangTab(); break;
-    case 'tabZones':  renderZonesTab(); break;
-    case 'tabMarket': renderMarketTab(); break;
-    case 'tabPC':     renderPCTab(); break;
-    case 'tabPokedex':renderPokedexTab(); break;
-    case 'tabAgents': renderAgentsTab(); break;
-    case 'tabBag':    renderBagTab(); break;
+    case 'tabGang':     renderGangTab(); break;
+    case 'tabZones':    renderZonesTab(); break;
+    case 'tabMarket':   renderMarketTab(); break;
+    case 'tabPC':       renderPCTab(); break;
+    case 'tabPokedex':  renderPokedexTab(); break;
+    case 'tabAgents':   renderAgentsTab(); break;
+    case 'tabBag':      renderBagTab(); break;
     case 'tabMissions': renderMissionsTab(); break;
+    case 'tabTraining': renderTrainingTab(); break;
+    case 'tabLab':      renderLabTab(); break;
   }
+}
+
+// ════════════════════════════════════════════════════════════════
+//  SAVE SLOTS
+// ════════════════════════════════════════════════════════════════
+
+function getSlotPreview(slotIdx) {
+  const raw = localStorage.getItem(SAVE_KEYS[slotIdx]);
+  if (!raw) return null;
+  try {
+    const s = JSON.parse(raw);
+    return {
+      name: s.gang?.name || '???',
+      money: s.gang?.money || 0,
+      pokemon: (s.pokemons || []).length,
+      rep: s.gang?.reputation || 0,
+      ts: s._savedAt || 0,
+    };
+  } catch { return null; }
+}
+
+function openSaveSlotModal() {
+  const overlay = document.createElement('div');
+  overlay.id = 'saveSlotModal';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:3000;background:rgba(0,0,0,.88);display:flex;align-items:center;justify-content:center';
+
+  const slots = [0, 1, 2].map(i => {
+    const prev = getSlotPreview(i);
+    const isActive = i === activeSaveSlot;
+    const label = prev
+      ? `<div style="font-family:var(--font-pixel);font-size:9px;color:${isActive ? 'var(--gold)' : 'var(--text)'};margin-bottom:4px">${prev.name}</div>
+         <div style="font-size:10px;color:var(--text-dim)">${prev.pokemon} Pokemon  |  ${prev.money.toLocaleString()}P  |  Rep ${prev.rep}</div>
+         <div style="font-size:9px;color:var(--text-dim);margin-top:2px">${prev.ts ? new Date(prev.ts).toLocaleString() : ''}</div>`
+      : `<div style="font-size:10px;color:var(--text-dim);font-style:italic">Slot vide</div>`;
+    return `<div style="border:2px solid ${isActive ? 'var(--gold)' : 'var(--border)'};border-radius:var(--radius);padding:12px;margin-bottom:10px;background:var(--bg-panel)">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <span style="font-family:var(--font-pixel);font-size:9px;color:var(--text-dim)">SLOT ${i + 1}</span>
+        ${isActive ? '<span style="font-size:9px;color:var(--gold);margin-left:auto">[ACTIF]</span>' : ''}
+      </div>
+      ${label}
+      <div style="display:flex;gap:6px;margin-top:10px">
+        ${prev ? `<button class="slot-load" data-slot="${i}" style="flex:1;font-size:9px;padding:5px;background:var(--bg);border:1px solid var(--green);border-radius:var(--radius-sm);color:var(--green);cursor:pointer">Charger</button>` : ''}
+        <button class="slot-save" data-slot="${i}" style="flex:1;font-size:9px;padding:5px;background:var(--bg);border:1px solid var(--blue);border-radius:var(--radius-sm);color:var(--blue);cursor:pointer">Sauvegarder</button>
+        ${prev && !isActive ? `<button class="slot-del" data-slot="${i}" style="flex:1;font-size:9px;padding:5px;background:var(--bg);border:1px solid var(--red);border-radius:var(--radius-sm);color:var(--red);cursor:pointer">Supprimer</button>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+
+  overlay.innerHTML = `<div style="background:var(--bg-panel);border:2px solid var(--gold);border-radius:var(--radius);width:90%;max-width:420px;padding:20px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <span style="font-family:var(--font-pixel);font-size:11px;color:var(--gold)">SAUVEGARDES</span>
+      <button id="closeSlotModal" style="background:none;border:none;color:var(--text-dim);font-size:20px;cursor:pointer">&times;</button>
+    </div>
+    ${slots}
+  </div>`;
+  document.body.appendChild(overlay);
+
+  overlay.querySelector('#closeSlotModal').addEventListener('click', () => overlay.remove());
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+
+  overlay.querySelectorAll('.slot-load').forEach(btn => {
+    btn.addEventListener('click', () => { loadSlot(parseInt(btn.dataset.slot)); overlay.remove(); });
+  });
+  overlay.querySelectorAll('.slot-save').forEach(btn => {
+    btn.addEventListener('click', () => { saveToSlot(parseInt(btn.dataset.slot)); overlay.remove(); });
+  });
+  overlay.querySelectorAll('.slot-del').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (confirm(`Supprimer le slot ${parseInt(btn.dataset.slot) + 1} ?`)) {
+        localStorage.removeItem(SAVE_KEYS[parseInt(btn.dataset.slot)]);
+        overlay.remove();
+        notify('Slot supprime.', 'success');
+      }
+    });
+  });
+}
+
+function saveToSlot(slotIdx) {
+  // If switching slot: save current first
+  const prev = activeSaveSlot;
+  state._savedAt = Date.now();
+  localStorage.setItem(SAVE_KEYS[prev], JSON.stringify(state));
+  // Now copy to target slot
+  activeSaveSlot = slotIdx;
+  SAVE_KEY = SAVE_KEYS[slotIdx];
+  localStorage.setItem('pokeforge.activeSlot', String(slotIdx));
+  saveState();
+  notify(`Sauvegarde Slot ${slotIdx + 1}`, 'success');
+}
+
+function loadSlot(slotIdx) {
+  const raw = localStorage.getItem(SAVE_KEYS[slotIdx]);
+  if (!raw) { notify('Slot vide.'); return; }
+  try {
+    state = migrate(JSON.parse(raw));
+    activeSaveSlot = slotIdx;
+    SAVE_KEY = SAVE_KEYS[slotIdx];
+    localStorage.setItem('pokeforge.activeSlot', String(slotIdx));
+    renderAll();
+    notify(`Slot ${slotIdx + 1} charge !`, 'success');
+  } catch { notify('Erreur de chargement.'); }
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -2495,9 +2646,9 @@ function renderZoneSelector() {
   if (!el) return;
 
   const categories = [
-    { type: 'route',   label: '🌿 Routes & Grottes', icon: '🌿' },
-    { type: 'gym',     label: '🏆 Arènes',            icon: '🏆' },
-    { type: 'special', label: '⭐ Lieux Spéciaux',    icon: '⭐' },
+    { type: 'route',   label: 'Routes & Grottes' },
+    { type: 'gym',     label: 'Arenes'            },
+    { type: 'special', label: 'Lieux Speciaux'    },
   ];
 
   let html = '';
@@ -2512,9 +2663,11 @@ function renderZoneSelector() {
       const isOpen = openZones.has(z.id);
       const name = state.lang === 'fr' ? z.fr : z.en;
       const gymTag = z.type === 'gym' ? ' 🥊' : '';
+      const lockReason = !unlocked && z.type === 'gym' && GYM_ORDER.indexOf(z.id) > 0 && !state.zones[GYM_ORDER[GYM_ORDER.indexOf(z.id)-1]]?.gymDefeated
+        ? `Vaincre l\'arene precedente` : `Rep ${z.rep}`;
       html += `<button class="zone-btn ${isOpen ? 'active' : ''} ${!unlocked ? 'locked' : ''} zone-type-${z.type}"
-        data-zone="${z.id}" ${!unlocked ? 'disabled' : ''} title="${z.type === 'gym' ? (state.lang === 'fr' ? 'Arène — combats uniquement, XP ×' + z.xpBonus : 'Gym — fights only, XP ×' + z.xpBonus) : ''}">
-        ${unlocked ? name + gymTag : `🔒 rep ${z.rep}`}
+        data-zone="${z.id}" ${!unlocked ? 'disabled' : ''} title="${z.type === 'gym' ? `XP x${z.xpBonus}` : ''}">
+        ${unlocked ? name : `[${lockReason}]`}
       </button>`;
     }
     html += '</div></div>';
@@ -2591,12 +2744,12 @@ function renderZoneWindows() {
     win.className = 'zone-window';
     win.id = `zw-${zoneId}`;
 
-    // Active boosts
+    // Active boosts (text labels, no emoji)
     const boosts = [];
-    if (isBoostActive('incense'))   boosts.push('🔮');
-    if (isBoostActive('rarescope')) boosts.push('🔭');
-    if (isBoostActive('aura'))      boosts.push('✨');
-    if (isBoostActive('chestBoost')) boosts.push('💎');
+    if (isBoostActive('incense'))    boosts.push('INC');
+    if (isBoostActive('rarescope'))  boosts.push('SCO');
+    if (isBoostActive('aura'))       boosts.push('AUR');
+    if (isBoostActive('chestBoost')) boosts.push('CHT');
 
     // Active event on zone?
     const activeEvt = state.activeEvents[zoneId];
@@ -2608,27 +2761,28 @@ function renderZoneWindows() {
 
     // Headbar (collapsible)
     const isExpanded = headbarExpanded[zoneId] || false;
+    const gymDefeated = zState.gymDefeated ? ' [V]' : '';
     win.innerHTML = `
       <div class="zone-headbar" data-zone-hb="${zoneId}">
-        <span class="headbar-name">${invested ? '🏴 ' : ''}${name}</span>
-        <span class="headbar-stats">${'★'.repeat(mastery)} ${(spawnRate * 100).toFixed(0)}%/s ${boosts.join('')}</span>
-        <span class="headbar-toggle">${isExpanded ? '▲' : '▼'}</span>
+        <span class="headbar-name">${invested ? '[INV] ' : ''}${name}${gymDefeated}</span>
+        <span class="headbar-stats">${'*'.repeat(mastery)} ${(spawnRate * 100).toFixed(0)}%/s ${boosts.map(b => `<span class="boost-tag">${b}</span>`).join('')}</span>
+        <span class="headbar-toggle">${isExpanded ? 'v' : '>'}</span>
       </div>
       <div class="zone-headbar-content ${isExpanded ? 'expanded' : ''}" id="zt-${zoneId}"></div>
-      <div class="zone-viewport" style="background-image:${ZONE_BGS[zoneId] || 'none'};background-size:cover;background-position:center bottom">
+      <div class="zone-viewport" style="background:${ZONE_BGS[zoneId] || 'var(--bg-panel)'}">
         ${boosts.length ? `<div class="zone-boosts">${boosts.map(b => `<span class="boost-badge">${b}</span>`).join('')}</div>` : ''}
-        ${eventActive && eventDef ? `<div class="zone-event-banner">${eventDef.icon} ${state.lang === 'fr' ? eventDef.fr : eventDef.en}</div>` : ''}
+        ${eventActive && eventDef ? `<div class="zone-event-banner">${state.lang === 'fr' ? eventDef.fr : eventDef.en}</div>` : ''}
         ${assignedAgents.map((a, i) => `
           <div class="zone-agent" style="left:${8 + i * 44}px">
-            <img src="${a.sprite}" alt="${a.name}">
+            <img src="${a.sprite}" alt="${a.name}" onerror="this.src='${trainerSprite('acetrainer')}'">
             <span class="agent-label">${a.name}</span>
           </div>
         `).join('')}
-        ${state.gang.bossSprite && state.gang.bossZone === zoneId ? `<div class="zone-boss"><img src="${trainerSprite(state.gang.bossSprite)}" alt="Boss"></div>` : ''}
+        ${state.gang.bossSprite && state.gang.bossZone === zoneId ? `<div class="zone-boss"><img src="${trainerSprite(state.gang.bossSprite)}" alt="Boss" onerror="this.src='${trainerSprite('acetrainer')}'"></div>` : ''}
         <div class="zone-info">
-          <span class="zone-name">${zone.type === 'gym' ? '🥊 ' : invested ? '🏴 ' : ''}${name}</span>
-          <span class="zone-level">${'★'.repeat(mastery)} ${zState.combatsWon || 0}W${zone.type === 'gym' ? ` <span style="color:var(--gold);font-size:8px">XP×${zone.xpBonus}</span>` : ''}</span>
-          ${zone.type !== 'gym' && !invested && zone.investCost > 0 ? `<button class="zone-invest-btn" data-zone="${zoneId}" title="${state.lang === 'fr' ? 'Investir' : 'Invest'}: ${zone.investCost}₽">🏴 ${zone.investCost}₽</button>` : ''}
+          <span class="zone-name">${zone.type === 'gym' ? '[GYM] ' : invested ? '[INV] ' : ''}${name}</span>
+          <span class="zone-level">${'*'.repeat(mastery)} ${zState.combatsWon || 0}W${zone.type === 'gym' ? ` <span style="color:var(--gold);font-size:8px">XP*${zone.xpBonus}</span>` : ''}</span>
+          ${zone.type !== 'gym' && !invested && zone.investCost > 0 ? `<button class="zone-invest-btn" data-zone="${zoneId}" title="Investir: ${zone.investCost}P">[INV] ${zone.investCost}P</button>` : ''}
         </div>
       </div>
       <div class="zone-combat" id="zc-${zoneId}"></div>
@@ -2925,11 +3079,11 @@ function updateZoneTimers(zoneId) {
       <span class="timer-chance">${rareScopeOn ? '~' + Math.min(99, rareChance * 3) + '%' : rareChance + '%'}</span>
     </div>
     <div class="timer-row ${isEventNow ? 'event-now' : ''}">
-      <span class="timer-label">⚔ Combat</span>
-      <span class="timer-chance">${invested ? '30%+⭐' : '30%'}</span>
+      <span class="timer-label">Combat</span>
+      <span class="timer-chance">${invested ? '30%+' : '30%'}</span>
     </div>
     <div class="timer-row ${isChestNow ? 'event-now' : ''}">
-      <span class="timer-label">📦 Coffre</span>
+      <span class="timer-label">Coffre</span>
       <span class="timer-chance">${chestChance}%</span>
     </div>`;
 
@@ -2954,7 +3108,7 @@ function updateZoneTimers(zoneId) {
 
   // Player odds this session
   if (history.total > 0) {
-    html += `<div class="timer-row"><span class="timer-label">Session</span><span class="timer-chance">${history.pokemon}🟢 ${history.trainer}⚔ ${history.chest || 0}📦</span></div>`;
+    html += `<div class="timer-row"><span class="timer-label">Session</span><span class="timer-chance">${history.pokemon}pk ${history.trainer}cb ${history.chest || 0}co</span></div>`;
   }
 
   el.innerHTML = html;
@@ -3294,7 +3448,7 @@ function openCombatPopup(zoneId, spawnObj) {
 
   inlineCombat.innerHTML = `
     <div class="combat-title ${isRaid ? 'raid-title' : ''}" data-zone-combat-toggle="${zoneId}">
-      ${isRaid ? '🔥 ' : '⚔ '}${trainerName}
+      ${isRaid ? '[RAID] ' : '[ATK] '}${trainerName}
       <span style="font-size:8px;color:var(--text-dim);margin-left:4px">${spawnObj.team.length} Pok.</span>
     </div>
     <div class="combat-arena-full">
@@ -3310,7 +3464,7 @@ function openCombatPopup(zoneId, spawnObj) {
     </div>
     <div class="combat-log-inline" id="inlineLog-${zoneId}"><div style="color:var(--text-dim)">"${dialogue}"</div></div>
     <div class="combat-actions-inline" id="inlineActions-${zoneId}">
-      <button class="inline-fight-btn" data-zone-fight="${zoneId}">${isRaid ? '🔥 Raid !' : '⚔ Combattre'}</button>
+      <button class="inline-fight-btn" data-zone-fight="${zoneId}">${isRaid ? '[RAID] Attaquer' : '[ATK] Combattre'}</button>
       <button class="inline-flee-btn" data-zone-flee="${zoneId}">🏃 Fuir</button>
     </div>
     <div class="combat-summary"></div>
@@ -3344,7 +3498,7 @@ function executeCombat() {
   const summary = inlineCombat.querySelector('.combat-summary');
 
   // Disable buttons during animation
-  if (actionsEl) actionsEl.innerHTML = `<span style="color:var(--text-dim);font-size:10px">⚔ Combat en cours...</span>`;
+  if (actionsEl) actionsEl.innerHTML = `<span style="color:var(--text-dim);font-size:10px">Combat en cours...</span>`;
 
   // --- Simulate turn-by-turn matchups ---
   const playerQueue = [...playerTeam]; // copies
@@ -3413,11 +3567,11 @@ function executeCombat() {
       if (overallWin) {
         const z = state.zones[zoneId];
         if (z) z.combatsWon = (z.combatsWon || 0) + 1;
-        if (logEl) logEl.innerHTML += `<div style="color:var(--gold);font-weight:bold">🏆 VICTOIRE ! +${reward}₽ +${repGain} rep</div>`;
-        if (summary) summary.innerHTML = `<span style="color:var(--gold)">🏆 +${reward}₽ +${repGain} rep</span>`;
+        if (logEl) logEl.innerHTML += `<div style="color:var(--gold);font-weight:bold">VICTOIRE ! +${reward}P +${repGain} rep</div>`;
+        if (summary) summary.innerHTML = `<span style="color:var(--gold)">+${reward}P +${repGain} rep</span>`;
       } else {
-        if (logEl) logEl.innerHTML += `<div style="color:var(--red)">💀 Défaite...</div>`;
-        if (summary) summary.innerHTML = `<span style="color:var(--red)">💀 Défaite</span>`;
+        if (logEl) logEl.innerHTML += `<div style="color:var(--red)">Defaite...</div>`;
+        if (summary) summary.innerHTML = `<span style="color:var(--red)">Defaite</span>`;
       }
       if (actionsEl) {
         actionsEl.innerHTML = `<button class="inline-close-btn" data-zone-close="${zoneId}">OK</button>`;
@@ -3689,6 +3843,8 @@ function renderShopPanel() {
 // ════════════════════════════════════════════════════════════════
 
 let pcSelectedId = null;
+let pcPage = 0;
+const PC_PAGE_SIZE = 30;
 
 function renderPCTab() {
   renderPokemonGrid();
@@ -3741,15 +3897,30 @@ function renderPokemonGrid() {
     list.sort((a, b) => (b.favorite ? 1 : 0) - (a.favorite ? 1 : 0));
   }
 
+  const totalPages = Math.max(1, Math.ceil(list.length / PC_PAGE_SIZE));
+  if (pcPage >= totalPages) pcPage = totalPages - 1;
+  const pageList = list.slice(pcPage * PC_PAGE_SIZE, (pcPage + 1) * PC_PAGE_SIZE);
+
+  // Pagination controls
+  const pagination = document.getElementById('pcPagination');
+  if (pagination) {
+    pagination.innerHTML = totalPages <= 1 ? '' :
+      `<button class="pc-page-btn" id="pcPrev" ${pcPage === 0 ? 'disabled' : ''}>&lt;</button>
+       <span style="font-size:9px;color:var(--text-dim)">${pcPage + 1} / ${totalPages} (${list.length})</span>
+       <button class="pc-page-btn" id="pcNext" ${pcPage >= totalPages - 1 ? 'disabled' : ''}>&gt;</button>`;
+    pagination.querySelector('#pcPrev')?.addEventListener('click', () => { pcPage--; renderPokemonGrid(); });
+    pagination.querySelector('#pcNext')?.addEventListener('click', () => { pcPage++; renderPokemonGrid(); });
+  }
+
   const teamIds = new Set([...state.gang.bossTeam]);
   for (const a of state.agents) a.team.forEach(id => teamIds.add(id));
 
-  grid.innerHTML = list.map(p => {
+  grid.innerHTML = pageList.map(p => {
     const inTeam = teamIds.has(p.id);
     return `<div class="pc-pokemon ${p.shiny ? 'shiny' : ''} ${pcSelectedId === p.id ? 'selected' : ''} ${inTeam ? 'in-team' : ''}" data-pk-id="${p.id}" title="${speciesName(p.species_en)} Lv.${p.level} ${'★'.repeat(p.potential)}${p.shiny ? ' ✨' : ''}">
       <img src="${pokeSprite(p.species_en, p.shiny)}" alt="${speciesName(p.species_en)}">
-      ${p.favorite ? '<div class="pc-fav-badge">⭐</div>' : ''}
-      ${inTeam ? '<div class="pc-team-badge">⚔</div>' : ''}
+      ${p.favorite ? '<div class="pc-fav-badge">FAV</div>' : ''}
+      ${inTeam ? '<div class="pc-team-badge">EQ</div>' : ''}
     </div>`;
   }).join('') || '<div style="color:var(--text-dim);padding:16px;grid-column:1/-1;text-align:center">Aucun Pokémon</div>';
 
@@ -4024,7 +4195,7 @@ function renderAgentsTab() {
         </div>
       </div>
       <div class="agent-stats-row">
-        <span>⚔ ${a.stats.combat}</span>
+        <span>ATK ${a.stats.combat}</span>
         <span>🎯 ${a.stats.capture}</span>
         <span>🍀 ${a.stats.luck}</span>
       </div>
@@ -4239,7 +4410,7 @@ function openRareCandyPicker() {
     return `<div class="picker-pokemon" data-candy-id="${p.id}" style="display:flex;align-items:center;gap:8px;padding:8px;border-bottom:1px solid var(--border);cursor:pointer">
       <img src="${pokeSprite(p.species_en, p.shiny)}" style="width:40px;height:40px">
       <div style="flex:1">
-        <div style="font-size:12px">${inTeam ? '⚔ ' : ''}${speciesName(p.species_en)} ${'★'.repeat(p.potential)}${p.shiny ? ' ✨' : ''}</div>
+        <div style="font-size:12px">${inTeam ? '[EQ] ' : ''}${speciesName(p.species_en)} ${'*'.repeat(p.potential)}${p.shiny ? ' [S]' : ''}</div>
         <div style="font-size:10px;color:var(--text-dim)">Lv.${p.level} → Lv.~${Math.min(100, p.level + 5)}</div>
       </div>
       ${inTeam ? '<span style="font-size:9px;color:var(--green)">Équipe</span>' : ''}
@@ -4283,19 +4454,19 @@ function renderBagTab() {
   if (!grid) return;
 
   const items = [
-    { id: 'pokeball',  icon: '⚪', fr: 'Poké Ball',      en: 'Poké Ball',      desc_fr: 'Ball standard',         desc_en: 'Standard ball' },
-    { id: 'greatball', icon: '🔵', fr: 'Super Ball',     en: 'Great Ball',     desc_fr: 'Meilleur potentiel',    desc_en: 'Better potential' },
-    { id: 'ultraball', icon: '🟡', fr: 'Hyper Ball',     en: 'Ultra Ball',     desc_fr: 'Excellent potentiel',   desc_en: 'Excellent potential' },
-    { id: 'duskball',  icon: '🟣', fr: 'Sombre Ball',    en: 'Dusk Ball',      desc_fr: 'Potentiel équilibré',   desc_en: 'Balanced potential' },
-    { id: 'lure',      icon: '🪝', fr: 'Leurre',         en: 'Lure',           desc_fr: 'x2 spawns 60s',         desc_en: 'x2 spawns 60s',      usable: true },
-    { id: 'superlure', icon: '🪝', fr: 'Super Leurre',   en: 'Super Lure',     desc_fr: 'x3 spawns 60s',         desc_en: 'x3 spawns 60s',      usable: true },
-    { id: 'potion',    icon: '💊', fr: 'Potion',         en: 'Potion',         desc_fr: 'Retire cooldown',       desc_en: 'Remove cooldown',    usable: true },
-    { id: 'incense',   icon: '🔮', fr: 'Encens Chance',  en: 'Lucky Incense',  desc_fr: '★+1 potentiel 90s',     desc_en: '★+1 potential 90s',  usable: true },
-    { id: 'rarescope', icon: '🔭', fr: 'Rarioscope',     en: 'Rare Scope',     desc_fr: 'Spawns rares x3 90s',   desc_en: 'Rare spawns x3 90s', usable: true },
-    { id: 'aura',      icon: '✨', fr: 'Aura Shiny',     en: 'Shiny Aura',     desc_fr: 'Shiny x5 90s',          desc_en: 'Shiny x5 90s',      usable: true },
-    { id: 'evostone',  icon: '💎', fr: 'Pierre Évolution',en:'Evolution Stone', desc_fr: 'Évolution par pierre',  desc_en: 'Stone evolution' },
-    { id: 'rarecandy', icon: '🍬', fr: 'Super Bonbon',   en: 'Rare Candy',     desc_fr: '+5 niveaux',             desc_en: '+5 levels',          usable: true },
-    { id: 'masterball',icon: '🔴', fr: 'Master Ball',    en: 'Master Ball',    desc_fr: '★★★★★ garanti',         desc_en: '★★★★★ guaranteed' },
+    { id: 'pokeball',  icon: 'PB', fr: 'Poke Ball',      en: 'Poke Ball',      desc_fr: 'Ball standard',         desc_en: 'Standard ball' },
+    { id: 'greatball', icon: 'GB', fr: 'Super Ball',      en: 'Great Ball',     desc_fr: 'Meilleur potentiel',    desc_en: 'Better potential' },
+    { id: 'ultraball', icon: 'UB', fr: 'Hyper Ball',      en: 'Ultra Ball',     desc_fr: 'Excellent potentiel',   desc_en: 'Excellent potential' },
+    { id: 'duskball',  icon: 'DB', fr: 'Sombre Ball',     en: 'Dusk Ball',      desc_fr: 'Potentiel equilibre',   desc_en: 'Balanced potential' },
+    { id: 'lure',      icon: 'LR', fr: 'Leurre',          en: 'Lure',           desc_fr: 'x2 spawns 60s',         desc_en: 'x2 spawns 60s',      usable: true },
+    { id: 'superlure', icon: 'SL', fr: 'Super Leurre',    en: 'Super Lure',     desc_fr: 'x3 spawns 60s',         desc_en: 'x3 spawns 60s',      usable: true },
+    { id: 'potion',    icon: 'PT', fr: 'Potion',           en: 'Potion',         desc_fr: 'Retire cooldown',       desc_en: 'Remove cooldown',    usable: true },
+    { id: 'incense',   icon: 'IN', fr: 'Encens Chance',   en: 'Lucky Incense',  desc_fr: '*+1 potentiel 90s',     desc_en: '*+1 potential 90s',  usable: true },
+    { id: 'rarescope', icon: 'SC', fr: 'Rarioscope',       en: 'Rare Scope',     desc_fr: 'Spawns rares x3 90s',   desc_en: 'Rare spawns x3 90s', usable: true },
+    { id: 'aura',      icon: 'AU', fr: 'Aura Shiny',       en: 'Shiny Aura',     desc_fr: 'Shiny x5 90s',          desc_en: 'Shiny x5 90s',       usable: true },
+    { id: 'evostone',  icon: 'EV', fr: 'Pierre Evol.',     en: 'Evo Stone',      desc_fr: 'Evolution par pierre',  desc_en: 'Stone evolution' },
+    { id: 'rarecandy', icon: 'RC', fr: 'Super Bonbon',     en: 'Rare Candy',     desc_fr: '+5 niveaux',             desc_en: '+5 levels',          usable: true },
+    { id: 'masterball',icon: 'MB', fr: 'Master Ball',      en: 'Master Ball',    desc_fr: '***** garanti',         desc_en: '***** guaranteed' },
   ];
 
   grid.innerHTML = items.map(item => {
@@ -4488,6 +4659,235 @@ function initSettings() {
 // ════════════════════════════════════════════════════════════════
 // 21.  GAME LOOP & BOOT
 // ════════════════════════════════════════════════════════════════
+// 20.  TRAINING ROOM
+// ════════════════════════════════════════════════════════════════
+
+function renderTrainingTab() {
+  const tab = document.getElementById('tabTraining');
+  if (!tab) return;
+
+  const tr = state.trainingRoom;
+  const slots = 6;
+  const inRoom = new Set(tr.pokemon);
+  const teamIds = new Set([...state.gang.bossTeam]);
+  for (const a of state.agents) a.team.forEach(id => teamIds.add(id));
+
+  let slotsHtml = '';
+  for (let i = 0; i < slots; i++) {
+    const pkId = tr.pokemon[i];
+    const p = pkId ? state.pokemons.find(pk => pk.id === pkId) : null;
+    if (p) {
+      slotsHtml += `<div class="training-slot filled" data-tr-remove="${p.id}">
+        <img src="${pokeSprite(p.species_en, p.shiny)}" style="width:52px;height:52px;${p.shiny?'filter:drop-shadow(0 0 4px var(--gold))':''}">
+        <div style="font-size:8px;margin-top:2px">${speciesName(p.species_en)}</div>
+        <div style="font-size:8px;color:var(--text-dim)">Lv.${p.level} ${'*'.repeat(p.potential)}</div>
+        <button class="tr-remove-btn" data-tr-remove="${p.id}" style="margin-top:4px;font-size:8px;padding:2px 6px;background:var(--bg);border:1px solid var(--red);border-radius:var(--radius-sm);color:var(--red);cursor:pointer">Retirer</button>
+      </div>`;
+    } else {
+      slotsHtml += `<div class="training-slot empty"><span style="color:var(--text-dim);font-size:8px">Slot libre</span></div>`;
+    }
+  }
+
+  // Pokemon not in room, not in team
+  const candidates = state.pokemons
+    .filter(p => !inRoom.has(p.id) && !teamIds.has(p.id) && p.level < 100)
+    .sort((a, b) => getPokemonPower(b) - getPokemonPower(a))
+    .slice(0, 20);
+  const candidatesHtml = candidates.map(p =>
+    `<div class="tr-candidate" data-tr-add="${p.id}" style="display:flex;align-items:center;gap:8px;padding:6px;border-bottom:1px solid var(--border);cursor:pointer">
+      <img src="${pokeSprite(p.species_en, p.shiny)}" style="width:32px;height:32px">
+      <div style="flex:1">
+        <div style="font-size:10px">${speciesName(p.species_en)} ${'*'.repeat(p.potential)}${p.shiny?' [S]':''}</div>
+        <div style="font-size:9px;color:var(--text-dim)">Lv.${p.level}</div>
+      </div>
+    </div>`
+  ).join('') || `<div style="color:var(--text-dim);font-size:10px;padding:12px">Aucun Pokemon disponible</div>`;
+
+  const recentLog = (tr.log || []).slice(-8).reverse().map(e =>
+    `<div style="font-size:9px;color:var(--text-dim);padding:2px 0">${e}</div>`
+  ).join('') || '<div style="font-size:9px;color:var(--text-dim)">Aucun evenement</div>';
+
+  tab.innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 300px;gap:16px;padding:12px">
+      <div>
+        <div style="font-family:var(--font-pixel);font-size:10px;color:var(--gold);margin-bottom:12px">SALLE D\'ENTRAINEMENT</div>
+        <div style="font-size:10px;color:var(--text-dim);margin-bottom:12px">
+          Min. 2 Pokemon pour s\'entrainer. XP passif toutes les 60s.
+          Risque de fuite (3%) a chaque cycle.
+        </div>
+        <div class="training-slots" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px">${slotsHtml}</div>
+        <div style="font-family:var(--font-pixel);font-size:9px;color:var(--text-dim);margin-bottom:8px">JOURNAL</div>
+        <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px;max-height:120px;overflow-y:auto">${recentLog}</div>
+      </div>
+      <div>
+        <div style="font-family:var(--font-pixel);font-size:9px;color:var(--text-dim);margin-bottom:8px">AJOUTER UN POKEMON</div>
+        <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);max-height:400px;overflow-y:auto">${candidatesHtml}</div>
+      </div>
+    </div>`;
+
+  tab.querySelectorAll('.tr-remove-btn').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const id = btn.dataset.trRemove;
+      state.trainingRoom.pokemon = state.trainingRoom.pokemon.filter(x => x !== id);
+      saveState();
+      renderTrainingTab();
+    });
+  });
+  tab.querySelectorAll('.tr-candidate').forEach(el => {
+    el.addEventListener('mouseenter', () => { el.style.background = 'var(--bg-hover)'; });
+    el.addEventListener('mouseleave', () => { el.style.background = ''; });
+    el.addEventListener('click', () => {
+      if (state.trainingRoom.pokemon.length >= 6) { notify('Salle pleine (max 6)'); return; }
+      const id = el.dataset.trAdd;
+      if (!state.trainingRoom.pokemon.includes(id)) {
+        state.trainingRoom.pokemon.push(id);
+        saveState();
+        renderTrainingTab();
+      }
+    });
+  });
+}
+
+function trainingRoomTick() {
+  const room = state.trainingRoom;
+  if (!room || room.pokemon.length < 2) return;
+
+  let changed = false;
+  const toRemove = [];
+
+  for (const pkId of room.pokemon) {
+    const p = state.pokemons.find(pk => pk.id === pkId);
+    if (!p) { toRemove.push(pkId); continue; }
+
+    // XP gain
+    levelUpPokemon(p, 4);
+    changed = true;
+
+    // Natural potential gain: very rare (0.2% per tick, so ~once every 500 ticks = ~8h)
+    if (Math.random() < 0.002 && p.potential < 5) {
+      p.potential++;
+      const msg = `${speciesName(p.species_en)} a gagne du potentiel en s'entrainant ! (${p.potential}*)`;
+      room.log.push(msg);
+      notify(msg, 'gold');
+    }
+
+    // Flee risk 3% per tick
+    if (Math.random() < 0.03) {
+      toRemove.push(pkId);
+      const msg = `${speciesName(p.species_en)} a fui la salle d'entrainement.`;
+      room.log.push(msg);
+      notify(msg);
+    }
+  }
+
+  if (toRemove.length) {
+    room.pokemon = room.pokemon.filter(id => !toRemove.includes(id));
+  }
+  if (room.log.length > 50) room.log = room.log.slice(-50);
+
+  if (changed) {
+    saveState();
+    if (activeTab === 'tabTraining') renderTrainingTab();
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
+// 21.  SCIENCE LAB (potential upgrade)
+// ════════════════════════════════════════════════════════════════
+
+let labSelectedId = null;
+
+function renderLabTab() {
+  const tab = document.getElementById('tabLab');
+  if (!tab) return;
+
+  const teamIds = new Set([...state.gang.bossTeam]);
+  for (const a of state.agents) a.team.forEach(id => teamIds.add(id));
+
+  const upgradeable = state.pokemons
+    .filter(p => p.potential < 5)
+    .sort((a, b) => b.potential - a.potential || getPokemonPower(b) - getPokemonPower(a));
+
+  const selected = labSelectedId ? state.pokemons.find(p => p.id === labSelectedId) : null;
+
+  let detailHtml = '<div style="color:var(--text-dim);font-size:10px;padding:20px;text-align:center">Selectionnez un Pokemon</div>';
+  if (selected) {
+    const cost = POT_UPGRADE_COSTS[selected.potential - 1] || 99;
+    const sameSpecies = state.pokemons.filter(p =>
+      p.species_en === selected.species_en &&
+      p.id !== selected.id &&
+      !teamIds.has(p.id) &&
+      !state.trainingRoom.pokemon.includes(p.id)
+    );
+    const canUpgrade = sameSpecies.length >= cost && selected.potential < 5;
+    detailHtml = `
+      <div style="text-align:center;margin-bottom:12px">
+        <img src="${pokeSprite(selected.species_en, selected.shiny)}" style="width:80px;height:80px">
+        <div style="font-family:var(--font-pixel);font-size:10px;margin-top:4px">${speciesName(selected.species_en)}</div>
+        <div style="font-size:10px;color:var(--gold)">${'*'.repeat(selected.potential)} -> ${'*'.repeat(selected.potential + 1)}</div>
+      </div>
+      <div style="font-size:10px;margin-bottom:8px">
+        <div>Potentiel actuel : <b>${selected.potential}/5</b></div>
+        <div>Cout : <b style="color:${sameSpecies.length >= cost ? 'var(--green)' : 'var(--red)'}">${sameSpecies.length}/${cost}</b> ${speciesName(selected.species_en)} sacrifies</div>
+      </div>
+      <div style="font-size:9px;color:var(--text-dim);margin-bottom:12px">
+        Les Pokemon sacrifies sont perdus definitivement.<br>
+        Les Pokemon en equipe et en salle d'entrainement sont proteges.
+      </div>
+      <button id="btnLabUpgrade" style="width:100%;font-size:10px;padding:8px;background:${canUpgrade?'var(--bg)':'var(--bg)'};border:2px solid ${canUpgrade?'var(--gold)':'var(--border)'};border-radius:var(--radius-sm);color:${canUpgrade?'var(--gold)':'var(--text-dim)'};cursor:${canUpgrade?'pointer':'default'}"${canUpgrade?'':' disabled'}>
+        ${canUpgrade ? 'AMELIORER LE POTENTIEL' : 'Pas assez de specimens'}
+      </button>
+      <div style="margin-top:16px">
+        <div style="font-size:9px;color:var(--text-dim);margin-bottom:4px">TABLE DES COUTS</div>
+        ${POT_UPGRADE_COSTS.map((c, i) => `<div style="font-size:9px;${selected.potential-1===i?'color:var(--gold)':'color:var(--text-dim)'}">${'*'.repeat(i+1)} -> ${'*'.repeat(i+2)} : ${c} specimens</div>`).join('')}
+      </div>`;
+  }
+
+  const listHtml = upgradeable.map(p => `
+    <div class="lab-candidate" data-lab-id="${p.id}" style="display:flex;align-items:center;gap:8px;padding:8px;border-bottom:1px solid var(--border);cursor:pointer;background:${labSelectedId===p.id?'var(--bg-hover)':''}">
+      <img src="${pokeSprite(p.species_en, p.shiny)}" style="width:36px;height:36px">
+      <div style="flex:1">
+        <div style="font-size:10px">${speciesName(p.species_en)} ${'*'.repeat(p.potential)}</div>
+        <div style="font-size:9px;color:var(--text-dim)">Lv.${p.level}</div>
+      </div>
+    </div>`).join('') || '<div style="color:var(--text-dim);font-size:10px;padding:12px">Tous vos Pokemon sont au potentiel max</div>';
+
+  tab.innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 280px;gap:16px;padding:12px">
+      <div>
+        <div style="font-family:var(--font-pixel);font-size:10px;color:var(--gold);margin-bottom:12px">LABORATOIRE</div>
+        <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);max-height:500px;overflow-y:auto">${listHtml}</div>
+      </div>
+      <div style="background:var(--bg-panel);border:1px solid var(--border);border-radius:var(--radius);padding:12px">${detailHtml}</div>
+    </div>`;
+
+  tab.querySelectorAll('.lab-candidate').forEach(el => {
+    el.addEventListener('click', () => {
+      labSelectedId = el.dataset.labId;
+      renderLabTab();
+    });
+  });
+
+  document.getElementById('btnLabUpgrade')?.addEventListener('click', () => {
+    if (!selected) return;
+    const cost = POT_UPGRADE_COSTS[selected.potential - 1];
+    const sameSpecies = state.pokemons.filter(p =>
+      p.species_en === selected.species_en && p.id !== selected.id &&
+      !teamIds.has(p.id) && !state.trainingRoom.pokemon.includes(p.id)
+    );
+    if (sameSpecies.length < cost) return;
+    const toSacrifice = sameSpecies.slice(0, cost).map(p => p.id);
+    state.pokemons = state.pokemons.filter(p => !toSacrifice.includes(p.id));
+    selected.potential++;
+    saveState();
+    notify(`${speciesName(selected.species_en)} est maintenant ${'*'.repeat(selected.potential)} !`, 'gold');
+    renderLabTab();
+    updateTopBar();
+  });
+}
+
+// ════════════════════════════════════════════════════════════════
 
 let agentTickInterval = null;
 let autoSaveInterval = null;
@@ -4514,6 +4914,9 @@ function startGameLoop() {
     }
     if (changed) saveState();
   }, 10000);
+
+  // Training room tick every 60 seconds
+  setInterval(trainingRoomTick, 60000);
 
   // Passive XP for pokemon in teams every 30 seconds
   setInterval(() => {
@@ -4544,19 +4947,20 @@ function boot() {
   }
 
   // Init tab navigation
-  document.querySelectorAll('.tab-btn').forEach(btn => {
+  document.querySelectorAll('.tab-btn[data-tab]').forEach(btn => {
     btn.addEventListener('click', () => switchTab(btn.dataset.tab));
   });
+  document.getElementById('btnSaveSlots')?.addEventListener('click', openSaveSlotModal);
 
-  // Init filter/sort listeners for PC
+  // Init filter/sort listeners for PC (reset page on change)
   document.getElementById('pcSearch')?.addEventListener('input', () => {
-    if (activeTab === 'tabPC') renderPokemonGrid();
+    if (activeTab === 'tabPC') { pcPage = 0; renderPokemonGrid(); }
   });
   document.getElementById('pcSort')?.addEventListener('change', () => {
-    if (activeTab === 'tabPC') renderPokemonGrid();
+    if (activeTab === 'tabPC') { pcPage = 0; renderPokemonGrid(); }
   });
   document.getElementById('pcFilter')?.addEventListener('change', () => {
-    if (activeTab === 'tabPC') renderPokemonGrid();
+    if (activeTab === 'tabPC') { pcPage = 0; renderPokemonGrid(); }
   });
 
   // Init settings
