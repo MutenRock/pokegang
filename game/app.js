@@ -1251,6 +1251,8 @@ function migrate(saved) {
     if (!agent.perkLevels) agent.perkLevels = [];
     if (agent.pendingPerk === undefined) agent.pendingPerk = false;
   }
+  // Migration: homesick flag for imported pokemon
+  merged.pokemons.forEach(p => { if (p.homesick === undefined) p.homesick = false; });
   // Clean up stale training room IDs (deleted pokemon)
   const allIds = new Set((merged.pokemons || []).map(p => p.id));
   merged.trainingRoom.pokemon = (merged.trainingRoom.pokemon || []).filter(id => allIds.has(id));
@@ -1377,6 +1379,7 @@ function openLegacyImportModal(legacyData) {
 
     // Transfer chosen pokemon to pension
     const chosenPokes = pokeIds.map(id => pokemons.find(p => p.id === id)).filter(Boolean);
+    chosenPokes.forEach(p => { p.homesick = true; });
     fresh.pokemons = chosenPokes;
     if (chosenPokes[0]) fresh.pension.slotA = chosenPokes[0].id;
     if (chosenPokes[1]) fresh.pension.slotB = chosenPokes[1].id;
@@ -1668,7 +1671,7 @@ function makePokemon(speciesEN, zoneId, ballType = 'pokeball') {
 
 function getPokemonPower(pokemon) {
   const s = pokemon.stats;
-  return s.atk + s.def + s.spd;
+  return Math.round((s.atk + s.def + s.spd) * (pokemon.homesick ? 0.75 : 1));
 }
 
 // ── Evolution Data ────────────────────────────────────────────
@@ -2868,6 +2871,17 @@ function decayMarketSales() {
 }
 
 function sellPokemon(pokemonIds) {
+  // Filter out homesick pokemon — they cannot be sold
+  const homesickBlocked = pokemonIds.filter(id => {
+    const p = state.pokemons.find(pk => pk.id === id);
+    return p && p.homesick;
+  });
+  if (homesickBlocked.length > 0) {
+    notify('Ce Pokémon souffre du mal du pays et ne peut pas être vendu.', 'error');
+    pokemonIds = pokemonIds.filter(id => !homesickBlocked.includes(id));
+    if (pokemonIds.length === 0) return;
+  }
+
   let total = 0;
   const toRemove = new Set(pokemonIds);
   // Unassign from agents/boss
@@ -5200,6 +5214,7 @@ function renderPokemonDetail() {
       <img src="${pokeSprite(p.species_en, p.shiny)}" style="width:96px;height:96px;${p.shiny ? 'filter:drop-shadow(0 0 6px var(--gold))' : ''}">
       <div style="font-family:var(--font-pixel);font-size:12px;margin-top:4px">${speciesName(p.species_en)}${p.shiny ? ' ✨' : ''}</div>
       <div style="font-size:10px;color:var(--text-dim)">#${String(p.dex).padStart(3, '0')} — ${sp?.types.join('/') || '?'}</div>
+      ${p.homesick ? '<div style="display:inline-block;margin-top:4px;padding:2px 8px;background:#1a100a;border:1px solid #8b4513;border-radius:3px;font-size:9px;color:#cd853f">🏠 Mal du pays (-25%)</div>' : ''}
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:11px;margin-bottom:12px">
       <div>${t('level')}: <b>${p.level}</b></div>
@@ -6013,7 +6028,146 @@ function showIntro() {
   if (!overlay) return;
   overlay.classList.add('active');
 
-  // Populate sprite picker
+  // ── Settings gear button ──────────────────────────────────────
+  document.getElementById('introSettingsBtn')?.addEventListener('click', () => {
+    const modal = document.getElementById('settingsModal');
+    if (modal) {
+      const langSel = document.getElementById('settingLang');
+      if (langSel) langSel.value = state.lang;
+      const llmSel = document.getElementById('settingLLM');
+      if (llmSel) llmSel.value = state.settings.llmProvider;
+      const apiKey = document.getElementById('settingAPIKey');
+      if (apiKey) apiKey.value = state.settings.llmApiKey;
+      const autoCombat = document.getElementById('settingAutoCombat');
+      if (autoCombat) autoCombat.checked = state.settings.autoCombat !== false;
+      const sfx = document.getElementById('settingSFX');
+      if (sfx) sfx.checked = state.settings.sfxEnabled !== false;
+      modal.classList.add('active');
+    }
+  });
+
+  // ── Animated showcase ─────────────────────────────────────────
+  const SHOWCASE_SCENES = [
+    {
+      key: 'capture',
+      render: () => {
+        const poke = 'pikachu';
+        return `
+          <div class="intro-scene-title">Capturez des Pokémon rares</div>
+          <div class="intro-scene-sprites" style="flex-direction:column;gap:8px">
+            <img src="${pokeSprite(poke)}" style="animation:pokeBounce 1s ease-in-out infinite;image-rendering:pixelated;width:64px;height:64px">
+            <div style="font-size:18px;animation:pokeballFall 1.2s ease forwards">⚪</div>
+          </div>
+          <div class="intro-scene-desc">Des centaines d'espèces à attraper</div>`;
+      }
+    },
+    {
+      key: 'combat',
+      render: () => {
+        return `
+          <div class="intro-scene-title">Combattez des Dresseurs</div>
+          <div class="intro-scene-sprites" style="gap:12px;align-items:flex-end">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:4px">
+              <img src="${trainerSprite('red')}" style="animation:trainerLeft 1.2s ease-in-out infinite;image-rendering:pixelated;width:56px;height:56px">
+              <div class="intro-hp-bar"><div class="intro-hp-fill" id="introHpLeft" style="width:70%;background:#4c4"></div></div>
+            </div>
+            <div style="font-family:var(--font-pixel);font-size:10px;color:var(--red);align-self:center">VS</div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:4px">
+              <img src="${trainerSprite('lance')}" style="animation:trainerRight 1.2s ease-in-out infinite 0.3s;image-rendering:pixelated;width:56px;height:56px">
+              <div class="intro-hp-bar"><div class="intro-hp-fill" id="introHpRight" style="width:40%;background:#c44"></div></div>
+            </div>
+          </div>
+          <div class="intro-scene-desc">Montez en puissance et dominez</div>`;
+      }
+    },
+    {
+      key: 'gang',
+      render: () => {
+        return `
+          <div class="intro-scene-title">Développez votre Gang</div>
+          <div class="intro-scene-sprites" style="gap:16px">
+            <img src="${trainerSprite('giovanni')}" style="image-rendering:pixelated;width:56px;height:56px">
+            <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-start">
+              <div style="font-family:var(--font-pixel);font-size:9px;color:var(--gold)">RÉPUTATION</div>
+              <div style="font-size:22px;font-family:var(--font-pixel);color:var(--gold);animation:repTick .5s ease-in-out infinite alternate" id="introRepCounter">1 337</div>
+              <div style="font-size:10px;color:var(--text-dim)">Agents: 5 &nbsp;|&nbsp; Zones: 4</div>
+            </div>
+          </div>
+          <div class="intro-scene-desc">Conquiers Kanto, un territoire à la fois</div>`;
+      }
+    }
+  ];
+
+  let sceneIdx = 0;
+  let showcaseInterval = null;
+
+  const renderScene = (idx) => {
+    const container = document.getElementById('introSceneContainer');
+    if (!container) return;
+    container.innerHTML = SHOWCASE_SCENES[idx].render();
+    container.style.animation = 'none';
+    container.offsetHeight; // reflow
+    container.style.animation = 'sceneIn .4s ease';
+    // Update dots
+    const dots = document.querySelectorAll('#introSceneDots .intro-dot');
+    dots.forEach((d, i) => d.classList.toggle('active', i === idx));
+  };
+
+  renderScene(0);
+  showcaseInterval = setInterval(() => {
+    sceneIdx = (sceneIdx + 1) % SHOWCASE_SCENES.length;
+    renderScene(sceneIdx);
+  }, 3000);
+
+  // Stop interval when overlay closes
+  const stopShowcase = () => {
+    if (showcaseInterval) { clearInterval(showcaseInterval); showcaseInterval = null; }
+  };
+
+  // ── Save slots ────────────────────────────────────────────────
+  let selectedSlotIdx = 0; // default new game slot
+  const slotsContainer = document.getElementById('introSlots');
+  const renderSlots = () => {
+    if (!slotsContainer) return;
+    slotsContainer.innerHTML = [0, 1, 2].map(i => {
+      const preview = getSlotPreview(i);
+      if (preview) {
+        const d = new Date(preview.ts);
+        const dateStr = d.toLocaleDateString('fr-FR', { day:'2-digit', month:'2-digit' });
+        return `<div class="intro-slot has-data" data-slot="${i}" title="Charger cette sauvegarde">
+          <div class="intro-slot-label">SLOT ${i + 1}</div>
+          <div class="intro-slot-name">${preview.name}</div>
+          <div class="intro-slot-info">${preview.pokemon} Pkm — ${preview.money}₽<br>${dateStr}</div>
+        </div>`;
+      } else {
+        const isSelected = selectedSlotIdx === i;
+        return `<div class="intro-slot${isSelected ? ' selected-new' : ''}" data-slot="${i}" data-empty="1" title="Slot vide — utiliser pour nouvelle partie">
+          <div class="intro-slot-label">SLOT ${i + 1}</div>
+          <div class="intro-slot-empty">Vide</div>
+        </div>`;
+      }
+    }).join('');
+
+    slotsContainer.querySelectorAll('.intro-slot').forEach(el => {
+      el.addEventListener('click', () => {
+        const idx = parseInt(el.dataset.slot);
+        if (!el.dataset.empty) {
+          // Load existing save
+          stopShowcase();
+          loadSlot(idx);
+          overlay.classList.remove('active');
+          renderAll();
+        } else {
+          // Select as target slot for new game
+          selectedSlotIdx = idx;
+          renderSlots();
+        }
+      });
+    });
+  };
+  renderSlots();
+
+  // ── Sprite picker ─────────────────────────────────────────────
   const picker = document.getElementById('spritePicker');
   if (picker) {
     picker.innerHTML = BOSS_SPRITES.map(s => `
@@ -6027,11 +6181,10 @@ function showIntro() {
         opt.classList.add('selected');
       });
     });
-    // Select first by default
     picker.querySelector('.sprite-option')?.classList.add('selected');
   }
 
-  // Start button
+  // ── Start button ──────────────────────────────────────────────
   document.getElementById('btnStartGame')?.addEventListener('click', () => {
     const bossName = document.getElementById('inputBossName')?.value.trim() || 'Boss';
     const gangName = document.getElementById('inputGangName')?.value.trim() || 'Team Fury';
@@ -6041,7 +6194,8 @@ function showIntro() {
     state.gang.name = gangName;
     state.gang.bossSprite = selectedSprite;
     state.gang.initialized = true;
-    saveState();
+    saveToSlot(selectedSlotIdx);
+    stopShowcase();
     overlay.classList.remove('active');
     renderAll();
   });
