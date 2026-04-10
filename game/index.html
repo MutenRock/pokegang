@@ -566,6 +566,16 @@
       background: var(--green); color: var(--bg);
       padding: 1px 3px; border-radius: 2px; line-height: 1; pointer-events: none;
     }
+    .pc-training-badge {
+      position: absolute; bottom: 2px; left: 2px;
+      font-family: var(--font-pixel); font-size: 7px;
+      background: var(--blue); color: var(--bg);
+      padding: 1px 3px; border-radius: 2px; line-height: 1; pointer-events: none;
+    }
+    .pc-pokemon.in-training {
+      border-color: var(--blue);
+      box-shadow: 0 0 6px rgba(68,136,204,.4);
+    }
 
     #pokemonDetail {
       width: 280px;
@@ -1913,8 +1923,24 @@
       <div class="settings-section">
         <h4>Cache</h4>
         <div class="settings-actions">
-          <button id="btnPurgeSprites" class="danger">🗑 Purger sprites</button>
-          <button id="btnResetAll" class="danger">⚠ Reset complet</button>
+          <button id="btnPurgeSprites" class="danger">Purger sprites</button>
+          <button id="btnResetAll" class="danger">Reset complet</button>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <h4>Aide &amp; Contact</h4>
+        <div style="font-size:10px;color:var(--text-dim);line-height:1.6;margin-bottom:10px">
+          <b style="color:var(--gold)">PokéForge — Gang Wars</b><br>
+          Capturez des Pokémon, recrutez des agents, combattez des dresseurs et élargissez votre gang.<br><br>
+          <b style="color:var(--text)">Progression :</b> Gagnez de la réputation via les <b>combats spéciaux</b> et les <b>raids</b> pour débloquer de nouvelles zones.<br>
+          <b style="color:var(--text)">Oeufs :</b> Élevez des Pokémon à la Pension pour obtenir des oeufs — achetez un <b>incubateur</b> au Marché pour les faire éclore.<br>
+          <b style="color:var(--text)">Entraînement :</b> Placez des Pokémon en salle d'entraînement pour des XP passifs. Améliorez la salle pour plus d'efficacité.<br>
+          <b style="color:var(--text)">Agents :</b> Recrutez des agents et assignez-les à des zones pour automatiser captures et combats.<br>
+          <b style="color:var(--text)">Labo :</b> Sacrifiez des doublons pour améliorer le potentiel de vos meilleurs Pokémon.
+        </div>
+        <div style="padding:8px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:10px;text-align:center">
+          Contact &amp; Support — Discord : <b style="color:var(--gold)">mutenrock</b>
         </div>
       </div>
     </div>
