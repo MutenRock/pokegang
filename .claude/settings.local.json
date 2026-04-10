@@ -48,7 +48,10 @@
       "Bash(node --check \"/c/Users/pierr/Documents/GitHub/pokeforge/game/app.js\")",
       "Bash(node --check \"C:\\\\Users\\\\pierr\\\\Documents\\\\GitHub\\\\pokeforge\\\\game\\\\app.js\")",
       "Bash(ls C:/Users/pierr/Documents/GitHub/pokeforge/README*)",
-      "Bash(git commit -m ':*)"
+      "Bash(git commit -m ':*)",
+      "Bash(git checkout:*)",
+      "Bash(git merge:*)",
+      "Bash(node -e ':*)"
     ]
   }
 }

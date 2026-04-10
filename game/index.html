@@ -397,6 +397,27 @@
       animation: float 2s ease-in-out infinite;
     }
 
+    /* ── Degraded zone mode ── */
+    .zone-degraded-banner {
+      position: absolute;
+      top: 4px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 8;
+      font-family: var(--font-pixel);
+      font-size: 8px;
+      color: var(--red);
+      background: rgba(0,0,0,.90);
+      padding: 3px 10px;
+      border-radius: var(--radius);
+      border: 1px solid var(--red);
+      white-space: nowrap;
+      pointer-events: none;
+      animation: timerGlow 2s ease-in-out infinite;
+    }
+    .zone-headbar-degraded { border-bottom: 1px solid var(--red) !important; }
+    .zone-headbar-degraded .headbar-name { color: var(--red) !important; }
+
     /* ── Event banner ── */
     .zone-event-banner {
       position: absolute;
@@ -637,6 +658,8 @@
     .fog-tile.locked { cursor: default; }
     .fog-tile.unlocked:hover { border-color: var(--gold-dim); }
     .fog-tile.fog-open { border-color: var(--red); border-width: 2px; }
+    .fog-tile.fog-degraded { border-color: rgba(204,51,51,.4); }
+    .fog-tile.fog-degraded .fog-tile-name { color: #cc7777; }
     .fog-tile-overlay {
       position: absolute; inset: 0;
       background: rgba(0,0,0,0.45);
@@ -786,6 +809,7 @@
       max-height: 520px;
       border-color: var(--red);
     }
+    .battle-log-panel.is-dragging { transition: none; opacity: .92; box-shadow: 0 4px 24px rgba(0,0,0,.6); }
     .battle-log-header {
       padding: 6px 10px;
       background: var(--bg);
@@ -796,10 +820,25 @@
       font-family: var(--font-pixel);
       font-size: 9px;
       color: var(--gold);
-      cursor: pointer;
+      cursor: grab;
       user-select: none;
+      gap: 6px;
     }
+    .battle-log-header:active { cursor: grabbing; }
     .battle-log-panel.has-combat .battle-log-header { color: var(--red); }
+    .battle-log-mini-sprites {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      flex: 1;
+      overflow: hidden;
+    }
+    .battle-log-mini-sprites img {
+      width: 20px;
+      height: 20px;
+      image-rendering: pixelated;
+      flex-shrink: 0;
+    }
     .battle-log-body {
       overflow-y: auto;
       flex: 1;
@@ -1330,6 +1369,55 @@
       transition: border-color .2s;
     }
     .gang-base-window .base-action-btn:hover { border-color: var(--gold); }
+
+    /* ── QG Incubator Widget ─────────────────────────────────────── */
+    .qg-incubator-widget {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(0,0,0,.6);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 4px 8px;
+      font-size: 9px;
+      cursor: pointer;
+      transition: border-color .2s;
+      position: relative;
+    }
+    .qg-incubator-widget:hover { border-color: var(--gold); }
+    .qg-incubator-widget .qg-inc-label { color: var(--text-dim); }
+    .qg-incubator-widget .qg-inc-ready {
+      position: absolute;
+      top: -6px;
+      right: -6px;
+      background: var(--red);
+      color: #fff;
+      font-size: 8px;
+      font-family: var(--font-pixel);
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      animation: timerGlow 1s ease-in-out infinite;
+    }
+    .qg-pokemon-preview {
+      display: flex;
+      gap: 2px;
+      flex-wrap: wrap;
+      justify-content: center;
+      max-width: 340px;
+      margin-top: 2px;
+    }
+    .qg-pokemon-preview img {
+      width: 32px;
+      height: 32px;
+      image-rendering: pixelated;
+      opacity: .7;
+      transition: opacity .2s;
+    }
+    .qg-pokemon-preview img:hover { opacity: 1; }
 
     /* ── Team Picker ──────────────────────────────────────────────── */
     .picker-pokemon:hover, .picker-dest:hover { background: var(--bg-hover) !important; }
@@ -1949,8 +2037,8 @@
   <!-- ═══ Battle Log ═══ -->
   <div id="battleLog" class="battle-log-panel battle-log-collapsed">
     <div class="battle-log-header" id="battleLogHeader">
-      <span id="battleLogTitle">LOG COMBATS</span>
-      <span id="battleLogToggle" style="cursor:pointer;font-size:14px">▲</span>
+      <span id="battleLogTitle" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px;flex-shrink:0">LOG COMBATS</span>
+      <span id="battleLogToggle" style="cursor:pointer;font-size:14px;flex-shrink:0;margin-left:auto">▲</span>
     </div>
     <div class="battle-log-body">
       <div id="battleArena"></div>

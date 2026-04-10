@@ -418,66 +418,66 @@ const ZONES = [
   { id:'route1',        fr:'Route 1',           en:'Route 1',           rep:0,   spawnRate:0.07, type:'route',
     pool:['rattata','pidgey','caterpie','weedle','spearow','nidoran-f','nidoran-m'],
     trainers:['youngster','lass'], eliteTrainer:'acetrainer', investCost:0 },
-  { id:'viridian_forest',fr:'Forêt de Jade',    en:'Viridian Forest',   rep:10,  spawnRate:0.08, type:'route',
+  { id:'viridian_forest',fr:'Forêt de Jade',    en:'Viridian Forest',   rep:100, spawnRate:0.08, type:'route',
     pool:['pikachu','caterpie','metapod','butterfree','weedle','kakuna','beedrill','oddish'],
     trainers:['bugcatcher','youngster'], eliteTrainer:'acetrainer', investCost:3000 },
-  { id:'mt_moon',       fr:'Mont Sélénite',     en:'Mt. Moon',          rep:20,  spawnRate:0.04, type:'route',
+  { id:'mt_moon',       fr:'Mont Sélénite',     en:'Mt. Moon',          rep:200, spawnRate:0.04, type:'route',
     pool:['zubat','geodude','clefairy','paras','clefable','jigglypuff'],
     trainers:['hiker','supernerd','rocketgrunt'], eliteTrainer:'ariana', investCost:5000 },
-  { id:'diglett_cave',  fr:'Grotte Taupiqueur', en:'Diglett\'s Cave',   rep:25,  spawnRate:0.04, type:'route',
+  { id:'diglett_cave',  fr:'Grotte Taupiqueur', en:'Diglett\'s Cave',   rep:250, spawnRate:0.04, type:'route',
     pool:['diglett','dugtrio','geodude','zubat','onix'],
     trainers:['hiker','camper'], eliteTrainer:'hiker', investCost:5000 },
-  { id:'rock_tunnel',   fr:'Grotte',            en:'Rock Tunnel',       rep:40,  spawnRate:0.04, type:'route',
+  { id:'rock_tunnel',   fr:'Grotte',            en:'Rock Tunnel',       rep:400, spawnRate:0.04, type:'route',
     pool:['zubat','geodude','machop','onix','cubone','kangaskhan'],
     trainers:['hiker','blackbelt'], eliteTrainer:'blackbelt', investCost:8000 },
-  { id:'pokemon_tower', fr:'Tour Pokémon',      en:'Pokémon Tower',     rep:55,  spawnRate:0.03, type:'route',
+  { id:'pokemon_tower', fr:'Tour Pokémon',      en:'Pokémon Tower',     rep:550, spawnRate:0.03, type:'route',
     pool:['gastly','haunter','gengar','cubone','marowak','zubat'],
     trainers:['channeler','psychic','rocketgrunt'], eliteTrainer:'agatha', investCost:15000 },
-  { id:'power_plant',   fr:'Centrale',          en:'Power Plant',       rep:70,  spawnRate:0.03, type:'route',
+  { id:'power_plant',   fr:'Centrale',          en:'Power Plant',       rep:700, spawnRate:0.03, type:'route',
     pool:['voltorb','electrode','magnemite','magneton','electabuzz','pikachu','raichu','zapdos'],
     trainers:['scientist','supernerd'], eliteTrainer:'ltsurge', investCost:20000 },
-  { id:'seafoam_islands',fr:'Îles Écume',       en:'Seafoam Islands',   rep:80,  spawnRate:0.06, type:'route',
+  { id:'seafoam_islands',fr:'Îles Écume',       en:'Seafoam Islands',   rep:800, spawnRate:0.06, type:'route',
     pool:['tentacool','shellder','staryu','seel','dewgong','horsea','seadra','lapras','articuno'],
     trainers:['swimmer','acetrainer'], eliteTrainer:'lorelei', investCost:22000 },
-  { id:'victory_road',  fr:'Route Victoire',    en:'Victory Road',      rep:95,  spawnRate:0.04, type:'route',
+  { id:'victory_road',  fr:'Route Victoire',    en:'Victory Road',      rep:950, spawnRate:0.04, type:'route',
     pool:['machoke','geodude','graveler','onix','marowak','golbat'],
     trainers:['acetrainer','blackbelt'], eliteTrainer:'lance', investCost:35000 },
-  { id:'unknown_cave',  fr:'Grotte Inconnue',   en:'Cerulean Cave',     rep:110, spawnRate:0.03, type:'route',
+  { id:'unknown_cave',  fr:'Grotte Inconnue',   en:'Cerulean Cave',     rep:1100,spawnRate:0.03, type:'route',
     pool:['mewtwo','ditto','kadabra','alakazam','electrode','rhydon','chansey','wigglytuff'],
     trainers:[], eliteTrainer:'red', investCost:60000 },
 
   // ══ ARÈNES (combats uniquement, pas d'investissement) ══
-  { id:'pewter_gym',    fr:'Arène d\'Argenta',  en:'Pewter Gym',        rep:15,  spawnRate:0.06, type:'gym',
+  { id:'pewter_gym',    fr:'Arène d\'Argenta',  en:'Pewter Gym',        rep:150, spawnRate:0.06, type:'gym',
     pool:['geodude','onix','graveler','sandshrew'],
     trainers:['hiker','camper'], eliteTrainer:'brock', investCost:0,
     gymLeader:'brock', xpBonus:1.5 },
-  { id:'cerulean_gym',  fr:'Arène d\'Azuria',   en:'Cerulean Gym',      rep:30,  spawnRate:0.06, type:'gym',
+  { id:'cerulean_gym',  fr:'Arène d\'Azuria',   en:'Cerulean Gym',      rep:300, spawnRate:0.06, type:'gym',
     pool:['staryu','psyduck','goldeen','horsea','seel'],
     trainers:['swimmer','picnicker'], eliteTrainer:'misty', investCost:0,
     gymLeader:'misty', xpBonus:1.5 },
-  { id:'celadon_gym',   fr:'Arène de Céladopole',en:'Celadon Gym',      rep:45,  spawnRate:0.06, type:'gym',
+  { id:'celadon_gym',   fr:'Arène de Céladopole',en:'Celadon Gym',      rep:450, spawnRate:0.06, type:'gym',
     pool:['bellsprout','oddish','gloom','weepinbell','victreebel','vileplume'],
     trainers:['lass','beauty','acetrainer'], eliteTrainer:'erika', investCost:0,
     gymLeader:'erika', xpBonus:1.8 },
-  { id:'fuchsia_gym',   fr:'Arène de Parmanie', en:'Fuchsia Gym',       rep:65,  spawnRate:0.06, type:'gym',
+  { id:'fuchsia_gym',   fr:'Arène de Parmanie', en:'Fuchsia Gym',       rep:650, spawnRate:0.06, type:'gym',
     pool:['venonat','venomoth','koffing','weezing','grimer','muk'],
     trainers:['juggler','psychic'], eliteTrainer:'koga', investCost:0,
     gymLeader:'koga', xpBonus:2.0 },
-  { id:'saffron_gym',   fr:'Arène de Safrania', en:'Saffron Gym',       rep:80,  spawnRate:0.06, type:'gym',
+  { id:'saffron_gym',   fr:'Arène de Safrania', en:'Saffron Gym',       rep:800, spawnRate:0.06, type:'gym',
     pool:['abra','kadabra','alakazam','mr-mime','jynx','hypno'],
     trainers:['psychic','channeler'], eliteTrainer:'sabrina', investCost:0,
     gymLeader:'sabrina', xpBonus:2.2 },
-  { id:'cinnabar_gym',  fr:'Arène de Cramois\'île',en:'Cinnabar Gym',   rep:85,  spawnRate:0.06, type:'gym',
+  { id:'cinnabar_gym',  fr:'Arène de Cramois\'île',en:'Cinnabar Gym',   rep:850, spawnRate:0.06, type:'gym',
     pool:['growlithe','ponyta','rapidash','magmar','vulpix','ninetales','flareon','moltres'],
     trainers:['supernerd','scientist','acetrainer'], eliteTrainer:'blaine', investCost:0,
     gymLeader:'blaine', xpBonus:2.5 },
-  { id:'indigo_plateau',fr:'Plateau Indigo',    en:'Indigo Plateau',    rep:100, spawnRate:0.06, type:'gym',
+  { id:'indigo_plateau',fr:'Plateau Indigo',    en:'Indigo Plateau',    rep:1000,spawnRate:0.06, type:'gym',
     pool:['dragonair','dragonite','gyarados','lapras','snorlax'],
     trainers:['acetrainer'], eliteTrainer:'blue', investCost:0,
     gymLeader:'blue', xpBonus:3.0 },
 
   // ══ LIEUX SPÉCIAUX (hybride : captures + events, investissement possible) ══
-  { id:'safari_zone',   fr:'Parc Safari',       en:'Safari Zone',       rep:50,  spawnRate:0.07, type:'special',
+  { id:'safari_zone',   fr:'Parc Safari',       en:'Safari Zone',       rep:500, spawnRate:0.07, type:'special',
     pool:['kangaskhan','tauros','scyther','pinsir','nidoran-f','nidoran-m','chansey','dratini','exeggcute'],
     // rarePool: ~10% chance instead of regular pool — all currently uncapturable Pokemon
     rarePool:[
@@ -505,31 +505,35 @@ const ZONES = [
       {en:'poliwhirl',w:4},{en:'rhyhorn',w:4},{en:'tangela',w:4},{en:'seaking',w:4},
     ],
     trainers:['acetrainer','gentleman'], eliteTrainer:'gentleman', investCost:12000 },
-  { id:'celadon_casino',fr:'Casino de Céladopole',en:'Celadon Casino',  rep:60,  spawnRate:0.07, type:'special',
+  { id:'celadon_casino',fr:'Casino de Céladopole',en:'Celadon Casino',  rep:600, spawnRate:0.07, type:'special',
+    unlockItem:'casino_ticket',
     pool:['porygon','abra','clefairy','meowth','voltorb','dratini'],
     trainers:['rocketgrunt','rocketgruntf','gentleman','juggler'], eliteTrainer:'archer', investCost:15000 },
-  { id:'silph_co',      fr:'Sylphe SARL',       en:'Silph Co.',         rep:90,  spawnRate:0.07, type:'special',
+  { id:'silph_co',      fr:'Sylphe SARL',       en:'Silph Co.',         rep:900, spawnRate:0.07, type:'special',
+    unlockItem:'silph_keycard',
     pool:['porygon','electrode','magnemite','magneton','voltorb','lapras'],
     trainers:['rocketgrunt','rocketgruntf','scientist','archer','proton'], eliteTrainer:'giovanni', investCost:30000 },
 
   // ══ NOUVELLES ZONES ══
-  { id:'pallet_garden', fr:'Jardin de Pallet',  en:'Pallet Garden',     rep:3,   spawnRate:0.07, type:'route',
+  { id:'pallet_garden', fr:'Jardin de Pallet',  en:'Pallet Garden',     rep:30,  spawnRate:0.07, type:'route',
+    unlockItem:'map_pallet',
     pool:['pidgey','rattata','caterpie','nidoran-f','nidoran-m','oddish'],
     trainers:['youngster','lass'], eliteTrainer:'acetrainer', investCost:0 },
-  { id:'route22',       fr:'Chenal 22',          en:'Route 22',          rep:8,   spawnRate:0.07, type:'route',
+  { id:'route22',       fr:'Chenal 22',          en:'Route 22',          rep:80,  spawnRate:0.07, type:'route',
     pool:['spearow','ekans','nidoran-m','nidoran-f','mankey','rattata'],
     trainers:['youngster','lass','camper'], eliteTrainer:'blue', investCost:2000 },
-  { id:'ss_anne',       fr:'Bateau St. Anne',    en:'S.S. Anne',         rep:35,  spawnRate:0.06, type:'special',
+  { id:'ss_anne',       fr:'Bateau St. Anne',    en:'S.S. Anne',         rep:350, spawnRate:0.06, type:'special',
+    unlockItem:'boat_ticket',
     pool:['tentacool','shellder','horsea','seel','magikarp','lapras','cloyster','staryu'],
     trainers:['sailor','gentleman','swimmer'], eliteTrainer:'misty', investCost:8000 },
-  { id:'pokemon_mansion',fr:'Manoir Pokémon',   en:'Pokémon Mansion',   rep:87,  spawnRate:0.04, type:'special',
+  { id:'pokemon_mansion',fr:'Manoir Pokémon',   en:'Pokémon Mansion',   rep:870, spawnRate:0.04, type:'special',
     pool:['growlithe','magmar','cubone','ditto','ponyta','kangaskhan'],
     rarePool:[
       {en:'charmander',w:2},{en:'charmeleon',w:1},{en:'charizard',w:1},
       {en:'omanyte',w:2},{en:'kabuto',w:2},{en:'aerodactyl',w:1},
     ],
     trainers:['scientist','supernerd','acetrainer'], eliteTrainer:'blaine', investCost:25000 },
-  { id:'mt_silver',     fr:'Mt. Argenté',        en:'Mt. Silver',        rep:120, spawnRate:0.03, type:'route',
+  { id:'mt_silver',     fr:'Mt. Argenté',        en:'Mt. Silver',        rep:1200,spawnRate:0.03, type:'route',
     pool:['dragonite','gyarados','snorlax','lapras','pikachu','chansey'],
     trainers:['acetrainer','blackbelt'], eliteTrainer:'red', investCost:0 },
 ];
@@ -538,158 +542,158 @@ const ZONES = [
 const SPECIAL_EVENTS = [
   // --- Team Rocket events ---
   { id:'rocket_invasion', fr:'Invasion Rocket !', en:'Rocket Invasion!', icon:'🚀',
-    trainerKey:'giovanni', chance:0.03, minRep:40,
+    trainerKey:'giovanni', chance:0.03, minRep:400,
     reward: { money:[3000,8000], rep:15 },
     desc_fr:'Giovanni envoie ses meilleurs sbires ! Battez-le pour un gros bonus.',
     desc_en:'Giovanni sends his best grunts! Defeat him for a big bonus.' },
   { id:'rocket_heist', fr:'Casse Rocket !', en:'Rocket Heist!', icon:'💣',
-    trainerKey:'archer', chance:0.04, minRep:30,
+    trainerKey:'archer', chance:0.04, minRep:300,
     reward: { money:[2000,5000], rep:10 },
     desc_fr:'Les Rockets tentent un vol ! Interceptez Archer pour récupérer le butin.',
     desc_en:'Rockets attempt a heist! Intercept Archer to recover the loot.' },
   { id:'rocket_experiment', fr:'Expérience Rocket !', en:'Rocket Experiment!', icon:'🧪',
-    trainerKey:'proton', chance:0.03, minRep:50,
+    trainerKey:'proton', chance:0.03, minRep:500,
     reward: { money:[3000,7000], rep:12 },
     desc_fr:'Lambda mène des expériences sur les Pokémon ! Arrêtez-le !',
     desc_en:'Proton is experimenting on Pokémon! Stop him!' },
   // --- Boost events ---
   { id:'shiny_swarm', fr:'Nuée Shiny !', en:'Shiny Swarm!', icon:'✨',
-    trainerKey:null, chance:0.04, minRep:20,
+    trainerKey:null, chance:0.04, minRep:200,
     reward: { shinyBoost:60000 },
     desc_fr:'Les Pokémon brillent dans cette zone ! Taux Shiny x10 pendant 60s.',
     desc_en:'Pokémon sparkle in this zone! Shiny rate x10 for 60s.' },
   { id:'rare_migration', fr:'Migration Rare !', en:'Rare Migration!', icon:'🦅',
-    trainerKey:null, chance:0.05, minRep:15,
+    trainerKey:null, chance:0.05, minRep:150,
     reward: { rareBoost:60000 },
     desc_fr:'Des Pokémon rares migrent ici ! Spawns rares x5 pendant 60s.',
     desc_en:'Rare Pokémon are migrating here! Rare spawns x5 for 60s.' },
   { id:'treasure_rain', fr:'Pluie de Trésors !', en:'Treasure Rain!', icon:'💎',
-    trainerKey:null, chance:0.04, minRep:10,
+    trainerKey:null, chance:0.04, minRep:100,
     reward: { chestBoost:45000 },
     desc_fr:'Des coffres apparaissent partout pendant 45s !',
     desc_en:'Treasure chests appear everywhere for 45s!' },
   { id:'elite_challenge', fr:'Défi Élite !', en:'Elite Challenge!', icon:'🏆',
-    trainerKey:null, chance:0.03, minRep:30,
+    trainerKey:null, chance:0.03, minRep:300,
     reward: { money:[2000,5000], rep:10, xpBonus:50 },
     desc_fr:'Un dresseur d\'élite vous défie ! Récompenses doublées.',
     desc_en:'An elite trainer challenges you! Double rewards.' },
   // --- Gym Leader events ---
   { id:'brock_challenge', fr:'Défi de Pierre !', en:'Brock\'s Challenge!', icon:'🪨',
-    trainerKey:'brock', chance:0.03, minRep:15,
+    trainerKey:'brock', chance:0.03, minRep:150,
     reward: { money:[2000,4000], rep:15, xpBonus:30 },
     desc_fr:'Pierre, le Champion d\'Argenta, défend son territoire !',
     desc_en:'Brock, the Pewter City Gym Leader, defends his territory!' },
   { id:'misty_challenge', fr:'Défi d\'Ondine !', en:'Misty\'s Challenge!', icon:'🌊',
-    trainerKey:'misty', chance:0.03, minRep:25,
+    trainerKey:'misty', chance:0.03, minRep:250,
     reward: { money:[2500,5000], rep:15, xpBonus:35 },
     desc_fr:'Ondine, la Sirène d\'Azuria, vous provoque en duel !',
     desc_en:'Misty, the Tomboyish Mermaid, challenges you!' },
   { id:'surge_challenge', fr:'Défi de Maj. Bob !', en:'Lt. Surge\'s Challenge!', icon:'⚡',
-    trainerKey:'ltsurge', chance:0.03, minRep:35,
+    trainerKey:'ltsurge', chance:0.03, minRep:350,
     reward: { money:[3000,6000], rep:18, xpBonus:40 },
     desc_fr:'Maj. Bob, le Lightning American, fait trembler la zone !',
     desc_en:'Lt. Surge, the Lightning American, shocks the area!' },
   { id:'erika_challenge', fr:'Défi d\'Érika !', en:'Erika\'s Challenge!', icon:'🌸',
-    trainerKey:'erika', chance:0.03, minRep:45,
+    trainerKey:'erika', chance:0.03, minRep:450,
     reward: { money:[3000,6000], rep:18, xpBonus:40 },
     desc_fr:'Érika, la Princesse de la Nature, protège ses fleurs !',
     desc_en:'Erika, the Nature-Loving Princess, protects her flowers!' },
   { id:'koga_challenge', fr:'Défi de Koga !', en:'Koga\'s Challenge!', icon:'🥷',
-    trainerKey:'koga', chance:0.02, minRep:60,
+    trainerKey:'koga', chance:0.02, minRep:600,
     reward: { money:[4000,8000], rep:20, xpBonus:50 },
     desc_fr:'Koga, le Maître Ninja, surgit de l\'ombre !',
     desc_en:'Koga, the Poisonous Ninja Master, strikes from the shadows!' },
   { id:'sabrina_challenge', fr:'Défi de Morgane !', en:'Sabrina\'s Challenge!', icon:'🔮',
-    trainerKey:'sabrina', chance:0.02, minRep:70,
+    trainerKey:'sabrina', chance:0.02, minRep:700,
     reward: { money:[5000,10000], rep:22, xpBonus:60 },
     desc_fr:'Morgane, la Maîtresse de la Psyché, lit dans vos pensées !',
     desc_en:'Sabrina, the Master of Psychic Pokémon, reads your mind!' },
   { id:'blaine_challenge', fr:'Défi d\'Auguste !', en:'Blaine\'s Challenge!', icon:'🔥',
-    trainerKey:'blaine', chance:0.02, minRep:80,
+    trainerKey:'blaine', chance:0.02, minRep:800,
     reward: { money:[5000,10000], rep:22, xpBonus:60 },
     desc_fr:'Auguste, le Quiz Master Enflammé, vous met à l\'épreuve !',
     desc_en:'Blaine, the Hotheaded Quiz Master, tests your strength!' },
   // --- Elite Four events ---
   { id:'lorelei_appears', fr:'Olga apparaît !', en:'Lorelei Appears!', icon:'❄️',
-    trainerKey:'lorelei', chance:0.02, minRep:85,
+    trainerKey:'lorelei', chance:0.02, minRep:850,
     reward: { money:[8000,15000], rep:30, xpBonus:80 },
     desc_fr:'Olga du Conseil 4 fait irruption avec ses Pokémon Glace !',
     desc_en:'Lorelei of the Elite Four arrives with her Ice Pokémon!' },
   { id:'bruno_appears', fr:'Aldo apparaît !', en:'Bruno Appears!', icon:'💪',
-    trainerKey:'bruno', chance:0.02, minRep:85,
+    trainerKey:'bruno', chance:0.02, minRep:850,
     reward: { money:[8000,15000], rep:30, xpBonus:80 },
     desc_fr:'Aldo du Conseil 4 cherche un adversaire digne de lui !',
     desc_en:'Bruno of the Elite Four seeks a worthy opponent!' },
   { id:'lance_arrives', fr:'Peter surgit !', en:'Lance Arrives!', icon:'🐉',
-    trainerKey:'lance', chance:0.015, minRep:95,
+    trainerKey:'lance', chance:0.015, minRep:950,
     reward: { money:[10000,20000], rep:40, xpBonus:100 },
     desc_fr:'Peter, le Maître des Dragons, vous défie au sommet !',
     desc_en:'Lance, the Dragon Master, challenges you at the summit!' },
   // --- Legendary events ---
   { id:'legendary_bird_sighting', fr:'Oiseau Légendaire !', en:'Legendary Bird!', icon:'🦅',
-    trainerKey:null, chance:0.02, minRep:70,
+    trainerKey:null, chance:0.02, minRep:700,
     reward: { rareBoost:90000, shinyBoost:30000 },
     desc_fr:'Un oiseau légendaire survole la zone ! Les Pokémon rares affluent !',
     desc_en:'A legendary bird flies over the area! Rare Pokémon flock in!' },
   { id:'mewtwo_signal', fr:'Signal Mewtwo !', en:'Mewtwo Signal!', icon:'🧬',
-    trainerKey:null, chance:0.01, minRep:100,
+    trainerKey:null, chance:0.01, minRep:1000,
     reward: { rareBoost:120000, shinyBoost:60000, chestBoost:60000 },
     desc_fr:'Une énergie psychique inconnue émane de la zone ! Tous les boosts activés !',
     desc_en:'An unknown psychic energy radiates from the area! All boosts activated!' },
   // --- Lore events ---
   { id:'bills_experiment', fr:'Expérience de Léo !', en:'Bill\'s Experiment!', icon:'🔬',
-    trainerKey:null, chance:0.04, minRep:25,
+    trainerKey:null, chance:0.04, minRep:250,
     reward: { rareBoost:45000 },
     desc_fr:'Léo a accidentellement fusionné avec un Pokémon ! Des raretés apparaissent !',
     desc_en:'Bill accidentally fused with a Pokémon! Rare spawns appear!' },
   { id:'prof_oak_visit', fr:'Visite du Prof. Chen !', en:'Prof. Oak\'s Visit!', icon:'👨‍🔬',
-    trainerKey:null, chance:0.04, minRep:5,
+    trainerKey:null, chance:0.04, minRep:50,
     reward: { xpBonus:30, chestBoost:30000 },
     desc_fr:'Le Prof. Chen inspecte la zone et laisse des récompenses !',
     desc_en:'Prof. Oak inspects the area and leaves rewards!' },
   { id:'rival_ambush', fr:'Embuscade du Rival !', en:'Rival Ambush!', icon:'⚔️',
-    trainerKey:'blue', chance:0.02, minRep:60,
+    trainerKey:'blue', chance:0.02, minRep:600,
     reward: { money:[5000,12000], rep:20, xpBonus:50 },
     desc_fr:'Blue surgit de nulle part ! "Tu es encore trop faible !"',
     desc_en:'Blue appears out of nowhere! "You\'re still too weak!"' },
   { id:'red_descends', fr:'Red descend de la montagne !', en:'Red Descends!', icon:'🗻',
-    trainerKey:'red', chance:0.01, minRep:100,
+    trainerKey:'red', chance:0.01, minRep:1000,
     reward: { money:[15000,30000], rep:60, xpBonus:150 },
     desc_fr:'Red, le Maître Pokémon ultime, quitte le Mont Argenté pour vous affronter !',
     desc_en:'Red, the ultimate Pokémon Master, descends from Mt. Silver to battle you!' },
   { id:'ghost_marowak', fr:'Spectre d\'Osselait !', en:'Ghost Marowak!', icon:'👻',
-    trainerKey:null, chance:0.03, minRep:50,
+    trainerKey:null, chance:0.03, minRep:500,
     reward: { shinyBoost:45000, rareBoost:30000 },
     desc_fr:'Le fantôme de la mère Ossatueur hante la zone... Des spectres apparaissent !',
     desc_en:'The ghost of Marowak\'s mother haunts the area... Ghosts appear!' },
   { id:'safari_stampede', fr:'Stampede Safari !', en:'Safari Stampede!', icon:'🦬',
-    trainerKey:null, chance:0.04, minRep:40,
+    trainerKey:null, chance:0.04, minRep:400,
     reward: { rareBoost:60000, chestBoost:30000 },
     desc_fr:'Les Pokémon du Parc Safari s\'échappent ! Captures rares garanties !',
     desc_en:'Safari Zone Pokémon are escaping! Guaranteed rare catches!' },
   // ── Lore / Zone spécifiques ──
   { id:'fossil_expedition', fr:'Expédition Fossile !', en:'Fossil Expedition!', icon:'🦕',
-    trainerKey:null, chance:0.06, minRep:20,
+    trainerKey:null, chance:0.06, minRep:200,
     reward: { eggGift:['omanyte','kabuto'], money:[1000,3000], rep:8 },
     desc_fr:'Un fossile rare a été découvert ! Il sera envoyé au Labo de Cramois\'île pour être ravivé.',
     desc_en:'A rare fossil was found! It will be revived at Cinnabar Lab.' },
   { id:'st_anne_raid', fr:'Raid St. Anne !', en:'S.S. Anne Raid!', icon:'⚓',
-    trainerKey:'giovanni', chance:0.07, minRep:35,
+    trainerKey:'giovanni', chance:0.07, minRep:350,
     reward: { money:[4000,9000], rep:20, pokemonGift:'lapras' },
     desc_fr:'La Team Rocket prend d\'assaut le bateau ! Battez Giovanni pour libérer un Lokhlass !',
     desc_en:'Team Rocket storms the ship! Defeat Giovanni to rescue a Lapras!' },
   { id:'vol_mewtwo', fr:'Vol de Mewtwo !', en:'Mewtwo Escapes!', icon:'🧬',
-    trainerKey:'giovanni', chance:0.02, minRep:90,
+    trainerKey:'giovanni', chance:0.02, minRep:900,
     reward: { money:[15000,30000], rep:50, rareBoost:90000, shinyBoost:30000 },
     desc_fr:'Mewtwo s\'échappe du Labo ! Giovanni enrage — récompenses massives !',
     desc_en:'Mewtwo escapes from the lab! Giovanni rages — massive rewards!' },
   { id:'mew_apparition', fr:'Apparition de Mew !', en:'Mew Appears!', icon:'✨',
-    trainerKey:null, chance:0.01, minRep:60,
+    trainerKey:null, chance:0.01, minRep:600,
     reward: { eggGift:['mew'], shinyBoost:60000, rareBoost:60000 },
     desc_fr:'Un signal mystérieux dans le Safari... Mew est là ! Courez !',
     desc_en:'A mysterious signal in the Safari... Mew is here! Run!' },
   { id:'tournoi_celadon', fr:'Tournoi de Céladopole !', en:'Celadon Tournament!', icon:'🎰',
-    trainerKey:'archer', chance:0.05, minRep:55,
+    trainerKey:'archer', chance:0.05, minRep:550,
     reward: { money:[5000,12000], rep:18, eggGift:['porygon','dratini'] },
     desc_fr:'Un tournoi secret au Casino ! Battez Archer pour la mise en jeu !',
     desc_en:'A secret tournament at the Casino! Defeat Archer for the prize!' },
@@ -927,6 +931,11 @@ const SHOP_ITEMS = [
   { id:'translator',qty:1,  cost:1000000,icon:'TR', fr:'Traducteur Pokemon', en:'Pokemon Translator', desc_fr:'Comprend ce que disent les Pokemon en combat', desc_en:'Understand pokemon speech in combat' },
   { id:'mysteryegg', qty:1, cost:0, icon:'EG', fr:'Oeuf Mystère', en:'Mystery Egg', desc_fr:'Contient un Pokemon introuvable — Prix croissant', desc_en:'Contains an uncatchable Pokemon — Scaling price' },
   { id:'incubator',  qty:1, cost:15000, icon:'INC', fr:'Incubateur', en:'Incubator', desc_fr:'Eclot un oeuf (reutilisable) — 1 a la fois', desc_en:'Hatches an egg (reusable) — 1 at a time' },
+  // ── Zone unlock items ──
+  { id:'map_pallet',    qty:1, cost:5000,  icon:'🗺', fr:'Carte de Pallet',  en:'Pallet Map',      desc_fr:'Débloque le Jardin de Pallet',          desc_en:'Unlocks Pallet Garden' },
+  { id:'casino_ticket', qty:1, cost:20000, icon:'🎰', fr:'Ticket Casino',    en:'Casino Ticket',   desc_fr:'Accès au Casino de Céladopole',         desc_en:'Access to Celadon Casino' },
+  { id:'silph_keycard', qty:1, cost:50000, icon:'🔑', fr:'Badge Sylphe',     en:'Silph Keycard',   desc_fr:'Accès à Sylphe SARL',                   desc_en:'Access to Silph Co.' },
+  { id:'boat_ticket',   qty:1, cost:15000, icon:'⚓', fr:'Ticket Bateau',    en:'Boat Ticket',     desc_fr:'Monte à bord du Bateau St. Anne',        desc_en:'Board the S.S. Anne' },
 ];
 
 // ── Mystery Egg ───────────────────────────────────────────────
@@ -962,8 +971,8 @@ const BASE_PRICE = { common:100, uncommon:250, rare:600, very_rare:1500, legenda
 
 // ── Boss sprites to pick from ─────────────────────────────────
 const BOSS_SPRITES = [
-  'rocketgrunt','rocketgruntf','giovanni','archer','ariana','proton',
-  'scientist','red','silver','blue',
+  'lorelei','agatha','giovanni','archer','ariana','proton',
+  'scientist','red','lance','blue',
 ];
 
 // ── Agent name pools ──────────────────────────────────────────
@@ -1488,7 +1497,11 @@ const ITEM_SPRITES = {
   chestBoost: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/big-nugget.png',
   translator: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-flute.png',
   mysteryegg: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/oval-stone.png',
-  incubator:  'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/oval-stone.png',
+  incubator:    'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/oval-stone.png',
+  map_pallet:   'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/town-map.png',
+  casino_ticket:'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/coin-case.png',
+  silph_keycard:'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/silph-scope.png',
+  boat_ticket:  'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/ss-ticket.png',
 };
 function itemSprite(id) {
   const url = ITEM_SPRITES[id];
@@ -1823,7 +1836,18 @@ function initZone(zoneId) {
 
 function isZoneUnlocked(zoneId) {
   const zone = ZONE_BY_ID[zoneId];
-  if (!zone || state.gang.reputation < zone.rep) return false;
+  if (!zone) return false;
+  // Check if zone was previously accessed (degraded mode: rep dropped, but still accessible)
+  const zoneState = state.zones[zoneId];
+  const wasPreviouslyAccessed = zoneState && (zoneState.combatsWon > 0 || zoneState.invested > 0 || zoneState.captures > 0);
+  if (wasPreviouslyAccessed) {
+    // Zone stays open (degraded if rep dropped), but still check unlock item
+    if (zone.unlockItem && !state.purchases?.[zone.unlockItem]) return false;
+    return true;
+  }
+  // Never visited: requires full conditions
+  if (state.gang.reputation < zone.rep) return false;
+  if (zone.unlockItem && !state.purchases?.[zone.unlockItem]) return false;
   // Gyms require sequential unlock: previous gym must be defeated
   if (zone.type === 'gym') {
     const idx = GYM_ORDER.indexOf(zoneId);
@@ -1833,6 +1857,13 @@ function isZoneUnlocked(zoneId) {
     }
   }
   return true;
+}
+
+// Is a zone in "degraded" mode? (rep below threshold → combat only, no pokemon spawns)
+function isZoneDegraded(zoneId) {
+  const zone = ZONE_BY_ID[zoneId];
+  if (!zone || zone.rep === 0) return false;
+  return state.gang.reputation < zone.rep;
 }
 
 function getZoneMastery(zoneId) {
@@ -1921,8 +1952,19 @@ function spawnInZone(zoneId) {
   const zone = ZONE_BY_ID[zoneId];
   if (!zone) return null;
   const zState = initZone(zoneId);
+  const isDegraded = isZoneDegraded(zoneId);
   const isChestBoosted = isBoostActive('chestBoost');
   const r = Math.random();
+
+  // DEGRADED MODE: rep dropped below zone threshold — combat only (no pokemon, no chests, no events)
+  if (isDegraded) {
+    if (zone.trainers.length > 0) {
+      const trainerKey = pick(zone.trainers);
+      const trainer = TRAINER_TYPES[trainerKey];
+      if (trainer) return { type: 'trainer', trainerKey, trainer, team: makeTrainerTeam(zone, trainerKey) };
+    }
+    return null;
+  }
 
   // 1. Treasure chest (5% base, 25% during chest event)
   const chestChance = isChestBoosted ? 0.25 : 0.05;
@@ -2884,6 +2926,24 @@ function buyItem(itemDef) {
     return true;
   }
 
+  const ZONE_UNLOCK_ITEMS = new Set(['map_pallet','casino_ticket','silph_keycard','boat_ticket']);
+  if (ZONE_UNLOCK_ITEMS.has(itemDef.id)) {
+    if (state.purchases[itemDef.id]) {
+      notify(state.lang === 'fr' ? 'Déjà possédé !' : 'Already owned!');
+      state.gang.money += actualCost; // refund
+      state.stats.totalMoneySpent -= actualCost;
+      return false;
+    }
+    state.purchases[itemDef.id] = true;
+    const zoneName = ZONES.find(z => z.unlockItem === itemDef.id);
+    const name = state.lang === 'fr' ? (itemDef.fr || itemDef.id) : (itemDef.en || itemDef.id);
+    const zLabel = zoneName ? (state.lang === 'fr' ? zoneName.fr : zoneName.en) : '';
+    notify(`${name} obtenu !${zLabel ? ' → ' + zLabel + ' accessible' : ''}`, 'gold');
+    saveState();
+    renderZonesTab?.();
+    return true;
+  }
+
   if (itemDef.id === 'mysteryegg') {
     const species_en = weightedPick(MYSTERY_EGG_POOL);
     const sp = SPECIES_BY_EN[species_en];
@@ -3420,23 +3480,30 @@ function renderZoneSelector() {
     const gymTag = zone.type === 'gym' ? ' [GYM]' : zone.type === 'special' ? ' [SP]' : '';
     const mastery = getZoneMastery(zone.id) || 0;
 
+    const degraded = isZoneDegraded(zone.id);
     if (unlocked) {
-      html += `<div class="fog-tile unlocked ${isOpen ? 'fog-open' : ''} zone-type-${zone.type}"
+      const degradedTag = degraded ? ' ⚠' : '';
+      html += `<div class="fog-tile unlocked ${isOpen ? 'fog-open' : ''} zone-type-${zone.type}${degraded ? ' fog-degraded' : ''}"
         data-zone="${zone.id}" style="${bgStyle}">
         <div class="fog-tile-overlay"></div>
         <div class="fog-tile-content">
-          <div class="fog-tile-name">${name}${gymTag}</div>
+          <div class="fog-tile-name">${name}${gymTag}${degradedTag}</div>
           <div class="fog-tile-stats">${'*'.repeat(mastery)} ${combats}W</div>
-          <div class="fog-tile-status">${isOpen ? '[OUVERT]' : '[ENTRER]'}</div>
+          <div class="fog-tile-status">${isOpen ? '[OUVERT]' : (degraded ? '[COMBAT]' : '[ENTRER]')}</div>
         </div>
       </div>`;
     } else {
-      const repDiff = zone.rep - state.gang.reputation;
+      const repDiff = zone.rep > state.gang.reputation ? zone.rep - state.gang.reputation : 0;
+      const needsItem = zone.unlockItem && !state.purchases?.[zone.unlockItem];
+      const itemDef = needsItem ? SHOP_ITEMS.find(s => s.id === zone.unlockItem) : null;
+      const lockHint = needsItem
+        ? (state.lang === 'fr' ? (itemDef?.fr || zone.unlockItem) : (itemDef?.en || zone.unlockItem))
+        : `Rep +${repDiff}`;
       html += `<div class="fog-tile locked">
         <div class="fog-tile-overlay fog"></div>
         <div class="fog-tile-content">
           <div class="fog-tile-name">???</div>
-          <div class="fog-tile-stats">Rep +${repDiff}</div>
+          <div class="fog-tile-stats" style="${needsItem ? 'color:var(--gold)' : ''}">${lockHint}</div>
         </div>
       </div>`;
     }
@@ -3535,15 +3602,17 @@ function renderZoneWindows() {
     const progressText = zone.type === 'gym'
       ? `Victoires: ${combats}${gymDefeated ? ' [V]' : ''}`
       : `Combats: ${combats}${nextMastery ? `/${nextMastery}` : ''} | Cap: ${captures}`;
+    const degraded = isZoneDegraded(zoneId);
 
     win.innerHTML = `
-      <div class="zone-headbar" data-zone-hb="${zoneId}">
-        <span class="headbar-name">${name}${gymDefeated ? ' [V]' : ''}</span>
+      <div class="zone-headbar${degraded ? ' zone-headbar-degraded' : ''}" data-zone-hb="${zoneId}">
+        <span class="headbar-name">${name}${gymDefeated ? ' [V]' : ''}${degraded ? ' ⚠' : ''}</span>
         <span class="headbar-stats">${'*'.repeat(mastery)} ${boosts.map(b => `<span class="boost-tag">${b}</span>`).join('')}</span>
         <span class="headbar-toggle">${isExpanded ? 'v' : '>'}</span>
       </div>
       <div class="zone-headbar-content ${isExpanded ? 'expanded' : ''}" id="zt-${zoneId}"></div>
       <div class="zone-viewport" style="${(() => { const b = ZONE_BGS[zoneId]; return b ? `background-image:url('${b.url}'),linear-gradient(180deg,${b.fb});background-size:cover,100%;background-position:center,center` : 'background:var(--bg-panel)'; })()}">
+        ${degraded ? `<div class="zone-degraded-banner">⚠ ${state.lang === 'fr' ? 'MODE COMBAT — Réputation insuffisante' : 'COMBAT MODE — Reputation too low'}</div>` : ''}
         ${boosts.length ? `<div class="zone-boosts">${boosts.map(b => `<span class="boost-badge">${b}</span>`).join('')}</div>` : ''}
         ${eventActive && eventDef ? `<div class="zone-event-banner">${state.lang === 'fr' ? eventDef.fr : eventDef.en}</div>` : ''}
         ${assignedAgents.map((a, i) => `
@@ -3613,11 +3682,53 @@ function renderGangBaseWindow() {
     return `<div class="base-team-slot" data-boss-slot="${i}" title="${state.lang === 'fr' ? 'Assigner un Pokémon' : 'Assign a Pokémon'}">+</div>`;
   }).join('');
 
-  return `<div class="gang-base-window" id="gangBaseWin">
+  // ── Incubator widget
+  const incCount = state.inventory?.incubator || 0;
+  const eggs = state.eggs || [];
+  const incubatingEggs = eggs.filter(e => e.incubating);
+  const readyEggs = incubatingEggs.filter(e => e.hatchAt && e.hatchAt <= Date.now());
+  const incWidgetHtml = incCount > 0 || incubatingEggs.length > 0 ? `
+    <div class="qg-incubator-widget" data-base-action="pension">
+      <span>🥚</span>
+      <span class="qg-inc-label">${incubatingEggs.length}/${incCount} ${state.lang === 'fr' ? 'en incub.' : 'incub.'}</span>
+      ${eggs.filter(e => !e.incubating).length > 0 ? `<span style="color:var(--text-dim)">+${eggs.filter(e => !e.incubating).length} en attente</span>` : ''}
+      ${readyEggs.length > 0 ? `<span class="qg-inc-ready">!</span>` : ''}
+    </div>` : '';
+
+  // ── Pokemon preview (up to 8 most powerful)
+  const topPokes = [...state.pokemons]
+    .sort((a, b) => getPokemonPower(b) - getPokemonPower(a))
+    .slice(0, 8);
+  const pokePreviewHtml = topPokes.length > 0 ? `
+    <div class="qg-pokemon-preview">
+      ${topPokes.map(p => `<img src="${pokeSprite(p.species_en, p.shiny)}" title="${speciesName(p.species_en)} Lv.${p.level}" alt="${speciesName(p.species_en)}">`).join('')}
+    </div>` : '';
+
+  // ── Dynamic QG background: top 2 pokemon as bg sprites
+  const bgPokes = [...state.pokemons].sort((a, b) => getPokemonPower(b) - getPokemonPower(a)).slice(0, 2);
+  const bgLayer1 = bgPokes[0] ? `url('${pokeSprite(bgPokes[0].species_en, bgPokes[0].shiny)}') no-repeat 90% 85% / 80px auto` : '';
+  const bgLayer2 = bgPokes[1] ? `url('${pokeSprite(bgPokes[1].species_en, bgPokes[1].shiny)}') no-repeat 8% 85% / 64px auto` : '';
+  const bgLayers = [bgLayer1, bgLayer2].filter(Boolean).join(', ') + (bgLayer1 || bgLayer2 ? ', ' : '');
+  const qgBgStyle = `background: ${bgLayers}linear-gradient(180deg, #1a0808 0%, #2d1111 30%, #1c0c0c 70%, #0f0505 100%);`;
+
+  // ── Agents in foreground bar
+  const gangAgentsHtml = state.agents.length > 0 ? `
+    <div style="display:flex;gap:4px;align-items:flex-end;justify-content:center;width:100%">
+      ${state.agents.slice(0, 5).map(a => `
+        <div style="display:flex;flex-direction:column;align-items:center;gap:1px" title="${a.name}">
+          <img src="${a.sprite}" alt="${a.name}" style="width:32px;height:32px;image-rendering:pixelated;opacity:.85" onerror="this.src='${trainerSprite('acetrainer')}'">
+          <span style="font-size:7px;color:var(--text-dim);white-space:nowrap;overflow:hidden;max-width:34px;text-overflow:ellipsis">${a.name}</span>
+        </div>`).join('')}
+    </div>` : '';
+
+  return `<div class="gang-base-window" id="gangBaseWin" style="${qgBgStyle}background-blend-mode:overlay,overlay,normal;">
     ${state.gang.bossSprite ? `<img class="base-boss-sprite" src="${trainerSprite(state.gang.bossSprite)}" alt="Boss">` : '<div style="width:64px;height:64px;background:var(--bg);border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;font-size:24px">💀</div>'}
     <div style="font-family:var(--font-pixel);font-size:10px;color:var(--text)">${state.gang.bossName}</div>
     <div style="font-size:9px;color:var(--red)">${state.gang.name}</div>
     <div class="base-team-slots">${bossTeamHtml}</div>
+    ${pokePreviewHtml}
+    ${incWidgetHtml}
+    ${gangAgentsHtml}
     <div class="base-actions">
       <button class="base-action-btn" data-base-action="bag">🎒 Sac</button>
       <button class="base-action-btn" data-base-action="agents">👥 Agents</button>
@@ -3644,12 +3755,21 @@ function bindGangBase(container) {
       }
     });
   });
-  // Quick nav buttons
+  // Quick nav buttons + incubator widget
   container.querySelectorAll('[data-base-action]').forEach(btn => {
     btn.addEventListener('click', () => {
       const action = btn.dataset.baseAction;
-      const tabMap = { bag: 'tabBag', agents: 'tabAgents', pc: 'tabPC', gang: 'tabGang' };
-      if (tabMap[action]) switchTab(tabMap[action]);
+      const tabMap = { bag: 'tabBag', agents: 'tabAgents', pc: 'tabPC', gang: 'tabGang', pension: 'tabBag' };
+      if (tabMap[action]) {
+        switchTab(tabMap[action]);
+        // For pension: also scroll to pension section
+        if (action === 'pension') {
+          setTimeout(() => {
+            const pensionEl = document.getElementById('pensionSection') || document.querySelector('.pension-section');
+            pensionEl?.scrollIntoView({ behavior: 'smooth' });
+          }, 100);
+        }
+      }
     });
   });
 }
@@ -4416,6 +4536,9 @@ function executeCombat() {
         ts: Date.now(),
         zoneName: zName,
         trainerName: spawnWithZone.trainer?.fr || spawnWithZone.trainerKey || '?',
+        trainerKey: spawnWithZone.trainerKey || spawnWithZone.trainer?.sprite || null,
+        allySpecies: playerQueue[0]?.species_en || null,
+        enemySpecies: enemyQueue[0]?.species_en || null,
         win: overallWin,
         reward,
         repGain,
@@ -4646,23 +4769,28 @@ function renderShopPanel() {
   const panel = document.querySelector('#shopPanel .shop-list');
   if (!panel) return;
 
+  const ZONE_UNLOCK_ITEM_IDS = new Set(['map_pallet','casino_ticket','silph_keycard','boat_ticket']);
   panel.innerHTML = SHOP_ITEMS.map(item => {
     const ballInfo = BALLS[item.id];
     const name = ballInfo ? (state.lang === 'fr' ? ballInfo.fr : ballInfo.en) : (state.lang === 'fr' ? (item.fr || item.id) : (item.en || item.id));
     const desc = item.desc_fr ? (state.lang === 'fr' ? item.desc_fr : item.desc_en) : `x${item.qty}`;
     const owned = state.inventory[item.id] || 0;
     const displayCost = item.id === 'mysteryegg' ? getMysteryEggCost() : item.cost;
+    const isUnlockItem = ZONE_UNLOCK_ITEM_IDS.has(item.id);
+    const alreadyOwned = isUnlockItem && state.purchases?.[item.id];
     const extraInfo = item.id === 'mysteryegg'
       ? `<div style="font-size:9px;color:var(--text-dim)">Achat #${(state.purchases?.mysteryEggCount||0)+1} — 45min eclosion</div>`
-      : `<div style="font-size:10px;color:var(--text-dim)">En stock: ${owned}</div>`;
-    return `<div style="display:flex;align-items:center;gap:8px;padding:8px 4px;border-bottom:1px solid var(--border)">
+      : isUnlockItem
+        ? `<div style="font-size:10px;color:${alreadyOwned ? 'var(--green)' : 'var(--text-dim)'}">${alreadyOwned ? (state.lang === 'fr' ? '✓ Possédé' : '✓ Owned') : (state.lang === 'fr' ? 'Débloque une zone' : 'Unlocks a zone')}</div>`
+        : `<div style="font-size:10px;color:var(--text-dim)">En stock: ${owned}</div>`;
+    return `<div style="display:flex;align-items:center;gap:8px;padding:8px 4px;border-bottom:1px solid var(--border);opacity:${alreadyOwned ? '0.6' : '1'}">
       ${itemSprite(item.id)}
       <div style="flex:1">
         <div style="font-size:12px">${name} <span style="color:var(--text-dim)">(${desc})</span></div>
         ${extraInfo}
       </div>
-      <button style="font-family:var(--font-pixel);font-size:9px;padding:6px 12px;background:var(--bg);border:1px solid var(--gold-dim);border-radius:var(--radius-sm);color:var(--gold);cursor:pointer"
-        data-shop-idx="${SHOP_ITEMS.indexOf(item)}">${displayCost.toLocaleString()}₽</button>
+      <button style="font-family:var(--font-pixel);font-size:9px;padding:6px 12px;background:var(--bg);border:1px solid ${alreadyOwned ? 'var(--border)' : 'var(--gold-dim)'};border-radius:var(--radius-sm);color:${alreadyOwned ? 'var(--text-dim)' : 'var(--gold)'};cursor:${alreadyOwned ? 'default' : 'pointer'}"
+        data-shop-idx="${SHOP_ITEMS.indexOf(item)}" ${alreadyOwned ? 'disabled' : ''}>${alreadyOwned ? (state.lang === 'fr' ? 'Acquis' : 'Owned') : displayCost.toLocaleString()+'₽'}</button>
     </div>`;
   }).join('');
 
@@ -4780,6 +4908,48 @@ function renderBattleLog() {
   history.querySelectorAll('.battle-log-entry').forEach(el => {
     el.addEventListener('click', () => el.classList.toggle('expanded'));
   });
+  updateBattleLogMiniSprites();
+}
+
+// Show mini pokemon/trainer sprites in the battle log header when collapsed
+function updateBattleLogMiniSprites() {
+  const logPanel = document.getElementById('battleLog');
+  const logTitle = document.getElementById('battleLogTitle');
+  if (!logPanel || !logTitle) return;
+
+  const isCollapsed = logPanel.classList.contains('battle-log-collapsed');
+  let miniEl = document.getElementById('battleLogMiniSprites');
+
+  if (!isCollapsed) {
+    if (miniEl) miniEl.remove();
+    return;
+  }
+
+  // Build mini sprites from recent battle log entries
+  const recentEntries = battleLogEntries.slice(0, 5);
+  if (recentEntries.length === 0) {
+    if (miniEl) miniEl.remove();
+    return;
+  }
+
+  if (!miniEl) {
+    miniEl = document.createElement('div');
+    miniEl.id = 'battleLogMiniSprites';
+    miniEl.className = 'battle-log-mini-sprites';
+    logTitle.after(miniEl);
+  }
+
+  miniEl.innerHTML = recentEntries.map(e => {
+    const sprites = [];
+    // Add trainer sprite if available
+    if (e.trainerKey) {
+      sprites.push(`<img src="${trainerSprite(e.trainerKey)}" title="${e.trainerName || e.trainerKey}" onerror="this.style.display='none'">`);
+    }
+    // Add pokemon sprites from the fight (ally and enemy)
+    if (e.allySpecies) sprites.push(`<img src="${pokeSprite(e.allySpecies)}" title="${e.allySpecies}">`);
+    if (e.enemySpecies) sprites.push(`<img src="${pokeSprite(e.enemySpecies)}" title="${e.enemySpecies}">`);
+    return sprites.join('');
+  }).join('<span style="color:var(--border);margin:0 2px">|</span>');
 }
 
 function renderPCTab() {
@@ -6613,13 +6783,49 @@ function boot() {
   });
   document.getElementById('btnSaveSlots')?.addEventListener('click', openSaveSlotModal);
 
-  // Battle log toggle
+  // Battle log toggle + drag
+  const battleLogPanel = document.getElementById('battleLog');
   const battleLogHeader = document.getElementById('battleLogHeader');
-  if (battleLogHeader) {
-    battleLogHeader.addEventListener('click', () => {
-      document.getElementById('battleLog')?.classList.toggle('battle-log-collapsed');
-      const tog = document.getElementById('battleLogToggle');
-      if (tog) tog.textContent = document.getElementById('battleLog')?.classList.contains('battle-log-collapsed') ? '▲' : '▼';
+  if (battleLogHeader && battleLogPanel) {
+    let isDragging = false, dragStartX = 0, dragStartY = 0, panelStartRight = 0, panelStartBottom = 0;
+
+    battleLogHeader.addEventListener('mousedown', (e) => {
+      if (e.button !== 0) return;
+      isDragging = true;
+      dragStartX = e.clientX;
+      dragStartY = e.clientY;
+      const rect = battleLogPanel.getBoundingClientRect();
+      panelStartRight = window.innerWidth - rect.right;
+      panelStartBottom = window.innerHeight - rect.bottom;
+      battleLogPanel.classList.add('is-dragging');
+      e.preventDefault();
+    });
+
+    document.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      const dx = dragStartX - e.clientX;
+      const dy = dragStartY - e.clientY;
+      const newRight = Math.max(0, Math.min(window.innerWidth - 100, panelStartRight + dx));
+      const newBottom = Math.max(0, Math.min(window.innerHeight - 40, panelStartBottom + dy));
+      battleLogPanel.style.right = newRight + 'px';
+      battleLogPanel.style.bottom = newBottom + 'px';
+      battleLogPanel.style.left = 'auto';
+      battleLogPanel.style.top = 'auto';
+    });
+
+    document.addEventListener('mouseup', (e) => {
+      if (!isDragging) return;
+      isDragging = false;
+      battleLogPanel.classList.remove('is-dragging');
+      // If minimal movement, treat as click (toggle collapse)
+      const dx = Math.abs(dragStartX - e.clientX);
+      const dy = Math.abs(dragStartY - e.clientY);
+      if (dx < 5 && dy < 5) {
+        battleLogPanel.classList.toggle('battle-log-collapsed');
+        const tog = document.getElementById('battleLogToggle');
+        if (tog) tog.textContent = battleLogPanel.classList.contains('battle-log-collapsed') ? '▲' : '▼';
+        updateBattleLogMiniSprites();
+      }
     });
   }
   renderBattleLog();
