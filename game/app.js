@@ -858,32 +858,32 @@ const MISSIONS = [
 // ── Trainers ──────────────────────────────────────────────────
 const TRAINER_TYPES = {
   // Basic trainers
-  youngster:    { fr:'Gamin',        en:'Youngster',    sprite:'youngster',    diff:1, reward:[50,150],   rep:1  },
-  lass:         { fr:'Fillette',     en:'Lass',         sprite:'lass',         diff:1, reward:[50,150],   rep:1  },
-  bugcatcher:   { fr:'Chasseur',     en:'Bug Catcher',  sprite:'bugcatcher',   diff:1, reward:[50,150],   rep:1  },
-  camper:       { fr:'Campeur',      en:'Camper',       sprite:'camper',       diff:1, reward:[80,200],   rep:1  },
-  picnicker:    { fr:'Pique-niqueuse',en:'Picnicker',   sprite:'picnicker',    diff:1, reward:[80,200],   rep:1  },
-  fisherman:    { fr:'Pêcheur',      en:'Fisherman',    sprite:'fisherman',    diff:1, reward:[100,250],  rep:2  },
+  youngster:    { fr:'Gamin',        en:'Youngster',    sprite:'youngster',    diff:1, reward:[20,60],    rep:1  },
+  lass:         { fr:'Fillette',     en:'Lass',         sprite:'lass',         diff:1, reward:[20,60],    rep:1  },
+  bugcatcher:   { fr:'Chasseur',     en:'Bug Catcher',  sprite:'bugcatcher',   diff:1, reward:[20,60],    rep:1  },
+  camper:       { fr:'Campeur',      en:'Camper',       sprite:'camper',       diff:1, reward:[30,80],    rep:1  },
+  picnicker:    { fr:'Pique-niqueuse',en:'Picnicker',   sprite:'picnicker',    diff:1, reward:[30,80],    rep:1  },
+  fisherman:    { fr:'Pêcheur',      en:'Fisherman',    sprite:'fisherman',    diff:1, reward:[40,100],   rep:2  },
   // Mid-tier trainers
-  hiker:        { fr:'Montagnard',   en:'Hiker',        sprite:'hiker',        diff:2, reward:[200,500],  rep:3  },
-  swimmer:      { fr:'Nageur',       en:'Swimmer',      sprite:'swimmer',      diff:2, reward:[200,500],  rep:3  },
-  psychic:      { fr:'Médium',       en:'Psychic',      sprite:'psychic',      diff:2, reward:[200,500],  rep:3  },
-  gentleman:    { fr:'Gentleman',    en:'Gentleman',    sprite:'gentleman',    diff:2, reward:[300,800],  rep:3  },
-  beauty:       { fr:'Canon',        en:'Beauty',       sprite:'beauty',       diff:2, reward:[300,800],  rep:3  },
-  sailor:       { fr:'Marin',        en:'Sailor',       sprite:'sailor',       diff:2, reward:[250,600],  rep:3  },
-  blackbelt:    { fr:'Karatéka',     en:'Black Belt',   sprite:'blackbelt',    diff:2, reward:[300,700],  rep:3  },
-  supernerd:    { fr:'Intello',      en:'Super Nerd',   sprite:'supernerd',    diff:2, reward:[250,600],  rep:3  },
+  hiker:        { fr:'Montagnard',   en:'Hiker',        sprite:'hiker',        diff:2, reward:[50,150],   rep:3  },
+  swimmer:      { fr:'Nageur',       en:'Swimmer',      sprite:'swimmer',      diff:2, reward:[50,150],   rep:3  },
+  psychic:      { fr:'Médium',       en:'Psychic',      sprite:'psychic',      diff:2, reward:[50,150],   rep:3  },
+  gentleman:    { fr:'Gentleman',    en:'Gentleman',    sprite:'gentleman',    diff:2, reward:[60,180],   rep:3  },
+  beauty:       { fr:'Canon',        en:'Beauty',       sprite:'beauty',       diff:2, reward:[60,180],   rep:3  },
+  sailor:       { fr:'Marin',        en:'Sailor',       sprite:'sailor',       diff:2, reward:[50,160],   rep:3  },
+  blackbelt:    { fr:'Karatéka',     en:'Black Belt',   sprite:'blackbelt',    diff:2, reward:[60,170],   rep:3  },
+  supernerd:    { fr:'Intello',      en:'Super Nerd',   sprite:'supernerd',    diff:2, reward:[50,150],   rep:3  },
   // High-tier trainers
-  acetrainer:   { fr:'Topdresseur',  en:'Ace Trainer',  sprite:'acetrainer',   diff:3, reward:[500,1500], rep:5  },
-  scientist:    { fr:'Scientifique', en:'Scientist',    sprite:'scientist',    diff:3, reward:[500,1500], rep:5  },
-  channeler:    { fr:'Mystimana',    en:'Channeler',    sprite:'channeler',    diff:3, reward:[400,1200], rep:5  },
-  juggler:      { fr:'Jongleur',     en:'Juggler',      sprite:'juggler',      diff:3, reward:[500,1200], rep:5  },
+  acetrainer:   { fr:'Topdresseur',  en:'Ace Trainer',  sprite:'acetrainer',   diff:3, reward:[100,300],  rep:5  },
+  scientist:    { fr:'Scientifique', en:'Scientist',    sprite:'scientist',    diff:3, reward:[100,300],  rep:5  },
+  channeler:    { fr:'Mystimana',    en:'Channeler',    sprite:'channeler',    diff:3, reward:[80,250],   rep:5  },
+  juggler:      { fr:'Jongleur',     en:'Juggler',      sprite:'juggler',      diff:3, reward:[100,280],  rep:5  },
   // Team Rocket
-  rocketgrunt:  { fr:'Sbire Rocket', en:'Rocket Grunt', sprite:'rocketgrunt',  diff:4, reward:[1000,3000],rep:10 },
-  rocketgruntf: { fr:'Sbire Rocket', en:'Rocket Grunt', sprite:'rocketgruntf', diff:4, reward:[1000,3000],rep:10 },
-  archer:       { fr:'Archer',       en:'Archer',       sprite:'archer',       diff:4, reward:[1500,4000],rep:12 },
-  ariana:       { fr:'Ariane',       en:'Ariana',       sprite:'ariana',       diff:4, reward:[1500,4000],rep:12 },
-  proton:       { fr:'Lambda',       en:'Proton',       sprite:'proton',       diff:4, reward:[1500,4000],rep:12 },
+  rocketgrunt:  { fr:'Sbire Rocket', en:'Rocket Grunt', sprite:'rocketgrunt',  diff:4, reward:[200,600],  rep:10 },
+  rocketgruntf: { fr:'Sbire Rocket', en:'Rocket Grunt', sprite:'rocketgruntf', diff:4, reward:[200,600],  rep:10 },
+  archer:       { fr:'Archer',       en:'Archer',       sprite:'archer',       diff:4, reward:[300,800],  rep:12 },
+  ariana:       { fr:'Ariane',       en:'Ariana',       sprite:'ariana',       diff:4, reward:[300,800],  rep:12 },
+  proton:       { fr:'Lambda',       en:'Proton',       sprite:'proton',       diff:4, reward:[300,800],  rep:12 },
   giovanni:     { fr:'Giovanni',     en:'Giovanni',     sprite:'giovanni',     diff:5, reward:[5000,10000],rep:25},
   // Gym Leaders
   brock:        { fr:'Pierre',       en:'Brock',        sprite:'brock',        diff:3, reward:[2000,4000],rep:15 },
@@ -926,6 +926,7 @@ const SHOP_ITEMS = [
   { id:'rarecandy', qty:1,  cost:3000,  icon:'RC',  fr:'Super Bonbon', en:'Rare Candy',      desc_fr:'+5 niveaux',            desc_en:'+5 levels' },
   { id:'translator',qty:1,  cost:1000000,icon:'TR', fr:'Traducteur Pokemon', en:'Pokemon Translator', desc_fr:'Comprend ce que disent les Pokemon en combat', desc_en:'Understand pokemon speech in combat' },
   { id:'mysteryegg', qty:1, cost:0, icon:'EG', fr:'Oeuf Mystère', en:'Mystery Egg', desc_fr:'Contient un Pokemon introuvable — Prix croissant', desc_en:'Contains an uncatchable Pokemon — Scaling price' },
+  { id:'incubator',  qty:1, cost:15000, icon:'INC', fr:'Incubateur', en:'Incubator', desc_fr:'Eclot un oeuf (reutilisable) — 1 a la fois', desc_en:'Hatches an egg (reusable) — 1 at a time' },
 ];
 
 // ── Mystery Egg ───────────────────────────────────────────────
@@ -1100,6 +1101,7 @@ const DEFAULT_STATE = {
     evostone: 0,
     rarecandy: 0,
     masterball: 0,
+    incubator: 0,
   },
   activeBall: 'pokeball',
   activeBoosts: {
@@ -1150,6 +1152,7 @@ const DEFAULT_STATE = {
   trainingRoom: {
     pokemon: [],   // up to 6 pokemon IDs training here
     log: [],       // recent training events
+    level: 1,      // room upgrade level
   },
   cosmetics: {
     gameBg: null,       // CSS gradient/color for game background
@@ -1215,15 +1218,25 @@ function migrate(saved) {
   if (!merged.missions.weekly) merged.missions.weekly = { reset: 0, progress: {}, claimed: [] };
   if (!merged.missions.completed) merged.missions.completed = [];
   // Migration: trainingRoom + cosmetics + purchases
-  if (!merged.trainingRoom) merged.trainingRoom = { pokemon: [], log: [] };
+  if (!merged.trainingRoom) merged.trainingRoom = { pokemon: [], log: [], level: 1 };
   if (!merged.trainingRoom.log) merged.trainingRoom.log = [];
   if (!merged.trainingRoom.lastFight) merged.trainingRoom.lastFight = null;
+  if (!merged.trainingRoom.level) merged.trainingRoom.level = 1;
   if (!merged.cosmetics) merged.cosmetics = { gameBg: null, bossBg: null, unlockedBgs: [] };
   if (!merged.purchases) merged.purchases = { translator: false, mysteryEggCount: 0 };
   if (merged.purchases.mysteryEggCount === undefined) merged.purchases.mysteryEggCount = 0;
   if (!merged.lastBillCall) merged.lastBillCall = 0;
   if (!merged.pension) merged.pension = { slotA: null, slotB: null, eggAt: null };
   if (!merged.eggs) merged.eggs = [];
+  // Migration: eggs need incubating flag; auto-hatching eggs get paused
+  for (const egg of merged.eggs) {
+    if (egg.incubating === undefined) {
+      egg.incubating = false;
+      egg.hatchAt = null; // require manual incubation
+    }
+    if (!egg.rarity) egg.rarity = SPECIES_BY_EN[egg.species_en]?.rarity || 'common';
+  }
+  if (!merged.inventory.incubator) merged.inventory.incubator = 0;
   // Migration: agent perkLevels / pendingPerk
   for (const agent of (merged.agents || [])) {
     if (!agent.perkLevels) agent.perkLevels = [];
@@ -1475,6 +1488,7 @@ const ITEM_SPRITES = {
   chestBoost: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/big-nugget.png',
   translator: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-flute.png',
   mysteryegg: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/oval-stone.png',
+  incubator:  'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/oval-stone.png',
 };
 function itemSprite(id) {
   const url = ITEM_SPRITES[id];
@@ -2130,8 +2144,8 @@ function activateEvent(zoneId, event) {
     if (sp) {
       const potential = Math.random() < 0.2 ? 3 : 2;
       const shiny = Math.random() < 0.01;
-      state.eggs.push({ id: uid(), species_en, hatchAt: Date.now() + 20 * 60 * 1000, potential, shiny, gifted: true });
-      notify(`${event.icon} Oeuf de ${speciesName(species_en)} découvert ! (20 min)`, 'gold');
+      state.eggs.push({ id: uid(), species_en, hatchAt: null, incubating: false, potential, shiny, gifted: true });
+      notify(`${event.icon} Oeuf de ${speciesName(species_en)} découvert ! Placez-le dans un incubateur.`, 'gold');
     }
   }
 
@@ -2254,11 +2268,21 @@ function resolveCombat(playerTeamIds, trainerData) {
 
 function applyCombatResult(result, playerTeamIds, trainerData) {
   state.stats.totalFights++;
-  if (result.win && result.reward > 0) {
+  if (result.win && result.reward >= 0) {
     state.stats.totalFightsWon++;
     state.gang.money += result.reward;
-    state.gang.reputation += result.repGain;
     state.stats.totalMoneyEarned += result.reward;
+    // Rep only from special events and raids (not regular trainers)
+    if ((trainerData.isSpecial || trainerData.isRaid) && result.repGain > 0) {
+      state.gang.reputation += result.repGain;
+    }
+    // Ball drops for regular trainer battles
+    if (!trainerData.isSpecial && !trainerData.isRaid) {
+      const diff = trainerData.trainer?.diff || 1;
+      const ballType = diff >= 5 ? 'ultraball' : diff >= 3 ? 'greatball' : 'pokeball';
+      const qty = randInt(1, diff >= 4 ? 3 : 2);
+      state.inventory[ballType] = (state.inventory[ballType] || 0) + qty;
+    }
     if (trainerData.trainerKey === 'rocketgrunt' || trainerData.trainerKey === 'rocketgruntf' || trainerData.trainerKey === 'giovanni') {
       state.stats.rocketDefeated++;
     }
@@ -2853,14 +2877,21 @@ function buyItem(itemDef) {
     return true;
   }
 
+  if (itemDef.id === 'incubator') {
+    state.inventory.incubator = (state.inventory.incubator || 0) + 1;
+    notify(`Incubateur obtenu ! Total: ${state.inventory.incubator}`, 'gold');
+    saveState();
+    return true;
+  }
+
   if (itemDef.id === 'mysteryegg') {
     const species_en = weightedPick(MYSTERY_EGG_POOL);
     const sp = SPECIES_BY_EN[species_en];
     const potential = Math.random() < 0.1 ? 3 : Math.random() < 0.4 ? 2 : 1;
     const shiny = Math.random() < 0.02;
-    state.eggs.push({ id: uid(), species_en, hatchAt: Date.now() + MYSTERY_EGG_HATCH_MS, potential, shiny, mystery: true });
+    state.eggs.push({ id: uid(), species_en, hatchAt: null, incubating: false, potential, shiny, mystery: true });
     state.purchases.mysteryEggCount = (state.purchases.mysteryEggCount || 0) + 1;
-    notify(`Oeuf Mystère obtenu ! Eclosion dans 45 min...`, 'gold');
+    notify(`Oeuf Mystère obtenu ! Placez-le dans un incubateur.`, 'gold');
     saveState();
     return true;
   }
@@ -3189,8 +3220,17 @@ function applyCosmetics() {
     app.style.backgroundSize = 'cover, 100%';
     app.style.backgroundAttachment = 'fixed, fixed';
     app.style.backgroundPosition = 'center, center';
+    // Make game panels semi-transparent so background shows through
+    document.documentElement.style.setProperty('--bg', 'rgba(10,10,10,0.72)');
+    document.documentElement.style.setProperty('--bg-card', 'rgba(20,20,20,0.70)');
+    document.documentElement.style.setProperty('--bg-panel', 'rgba(26,26,26,0.70)');
+    document.documentElement.style.setProperty('--bg-hover', 'rgba(34,34,34,0.80)');
   } else {
     app.style.backgroundImage = '';
+    document.documentElement.style.setProperty('--bg', '#0a0a0a');
+    document.documentElement.style.setProperty('--bg-card', '#141414');
+    document.documentElement.style.setProperty('--bg-panel', '#1a1a1a');
+    document.documentElement.style.setProperty('--bg-hover', '#222');
   }
 }
 
@@ -3236,6 +3276,7 @@ function renderCosmeticsPanel(container) {
         renderCosmeticsPanel(container);
       } else {
         if (state.gang.money < c.cost) { notify('Fonds insuffisants.'); return; }
+        if (!confirm(`Acheter le fond "${c.fr}" pour ${c.cost.toLocaleString()}₽ ?`)) return;
         state.gang.money -= c.cost;
         state.cosmetics.unlockedBgs = [...(state.cosmetics.unlockedBgs || []), key];
         state.cosmetics.gameBg = key;
@@ -3506,12 +3547,16 @@ function renderZoneWindows() {
         ${boosts.length ? `<div class="zone-boosts">${boosts.map(b => `<span class="boost-badge">${b}</span>`).join('')}</div>` : ''}
         ${eventActive && eventDef ? `<div class="zone-event-banner">${state.lang === 'fr' ? eventDef.fr : eventDef.en}</div>` : ''}
         ${assignedAgents.map((a, i) => `
-          <div class="zone-agent" style="left:${8 + i * 44}px">
+          <div class="zone-agent" data-agent-id="${a.id}" style="left:${8 + i * 44}px">
             <img src="${a.sprite}" alt="${a.name}" onerror="this.src='${trainerSprite('acetrainer')}'">
             <span class="agent-label">${a.name}</span>
+            <span class="agent-cd-label" style="display:none;font-family:var(--font-pixel);font-size:7px;color:var(--red);background:rgba(0,0,0,.8);border-radius:2px;padding:1px 3px;white-space:nowrap;position:absolute;top:-16px;left:50%;transform:translateX(-50%)"></span>
           </div>
         `).join('')}
-        ${state.gang.bossSprite && state.gang.bossZone === zoneId ? `<div class="zone-boss"><img src="${trainerSprite(state.gang.bossSprite)}" alt="Boss" onerror="this.src='${trainerSprite('acetrainer')}'"></div>` : ''}
+        ${state.gang.bossSprite && state.gang.bossZone === zoneId ? `<div class="zone-boss" data-boss-cd>
+          <img src="${trainerSprite(state.gang.bossSprite)}" alt="Boss" onerror="this.src='${trainerSprite('acetrainer')}'">
+          <span class="boss-cd-label" style="display:none;font-family:var(--font-pixel);font-size:7px;color:var(--red);background:rgba(0,0,0,.8);border-radius:2px;padding:1px 3px;white-space:nowrap;position:absolute;top:-16px;left:50%;transform:translateX(-50%)"></span>
+        </div>` : ''}
         <div class="zone-info">
           <span class="zone-name">${zone.type === 'gym' ? '[GYM] ' : ''}${name}</span>
           <span class="zone-level">${progressText}${zone.type === 'gym' ? ` <span style="color:var(--gold);font-size:8px">XP*${zone.xpBonus}</span>` : ''}</span>
@@ -3844,6 +3889,36 @@ function updateZoneTimers(zoneId) {
 
   html += '</div>';
   el.innerHTML = html;
+
+  // Cooldown display on agents and boss in viewport
+  const win = document.getElementById(`zw-${zoneId}`);
+  if (!win) return;
+  for (const agent of state.agents.filter(a => a.assignedZone === zoneId)) {
+    const agentEl = win.querySelector(`[data-agent-id="${agent.id}"] .agent-cd-label`);
+    if (!agentEl) continue;
+    const agentPks = agent.team.map(id => state.pokemons.find(p => p.id === id)).filter(Boolean);
+    const allCd = agentPks.length > 0 && agentPks.every(p => (p.cooldown || 0) > 0);
+    if (allCd) {
+      const maxCd = Math.max(...agentPks.map(p => p.cooldown || 0));
+      agentEl.textContent = `CD ${maxCd * 10}s`;
+      agentEl.style.display = '';
+    } else {
+      agentEl.style.display = 'none';
+    }
+  }
+  // Boss cooldown
+  const bossCdLabel = win.querySelector('.boss-cd-label');
+  if (bossCdLabel) {
+    const bossPks = state.gang.bossTeam.map(id => state.pokemons.find(p => p.id === id)).filter(Boolean);
+    const allBossCd = bossPks.length > 0 && bossPks.every(p => (p.cooldown || 0) > 0);
+    if (allBossCd) {
+      const maxCd = Math.max(...bossPks.map(p => p.cooldown || 0));
+      bossCdLabel.textContent = `CD ${maxCd * 10}s`;
+      bossCdLabel.style.display = '';
+    } else {
+      bossCdLabel.style.display = 'none';
+    }
+  }
 }
 
 function tickZoneSpawn(zoneId) {
@@ -3906,14 +3981,10 @@ function renderSpawnInWindow(zoneId, spawnObj) {
       animateCapture(zoneId, spawnObj, el);
     });
   } else if (spawnObj.type === 'raid') {
-    // Show 2-3 trainer sprites stacked with fire effect
-    const sprites = spawnObj.raidTrainers.map((rt, i) =>
-      `<img src="${trainerSprite(rt.key)}" style="width:40px;height:40px;position:absolute;left:${i * 18}px;top:${i % 2 === 0 ? 0 : 8}px;filter:drop-shadow(0 0 4px #ff4444)">`
-    ).join('');
-    el.innerHTML = `<div style="position:relative;width:76px;height:56px">${sprites}</div>`;
+    // Master Ball sprite for raids
+    el.innerHTML = `<img src="${ITEM_SPRITES.masterball}" style="width:48px;height:48px;image-rendering:pixelated;filter:drop-shadow(0 0 8px #ff4444)">`;
     el.title = state.lang === 'fr' ? spawnObj.trainer.fr : spawnObj.trainer.en;
     el.style.animation = 'glow 1s ease-in-out infinite, float 2s ease-in-out infinite';
-    el.style.filter = 'drop-shadow(0 0 8px #ff4444)';
     el.addEventListener('click', () => openCombatPopup(zoneId, spawnObj));
   } else if (spawnObj.type === 'trainer') {
     const eliteTag = spawnObj.elite ? ' style="filter:drop-shadow(0 0 6px gold)"' : '';
@@ -3945,7 +4016,11 @@ function renderSpawnInWindow(zoneId, spawnObj) {
     });
   } else if (spawnObj.type === 'event') {
     const evt = spawnObj.event;
-    el.innerHTML = `<div style="font-size:32px;line-height:1;filter:drop-shadow(0 0 8px rgba(255,204,90,.8))">${evt.icon}</div>`;
+    // Pokeball sprite based on event difficulty/rarity
+    const evtBallKey = evt.trainerKey
+      ? (evt.minRep >= 70 ? 'masterball' : evt.minRep >= 40 ? 'ultraball' : 'greatball')
+      : 'pokeball';
+    el.innerHTML = `<img src="${ITEM_SPRITES[evtBallKey]}" style="width:44px;height:44px;image-rendering:pixelated;filter:drop-shadow(0 0 8px rgba(255,204,90,.9))">`;
     el.title = state.lang === 'fr' ? evt.fr : evt.en;
     el.style.animation = 'glow 1s ease-in-out infinite, float 2s ease-in-out infinite';
     el.addEventListener('click', () => {
@@ -3966,9 +4041,10 @@ function renderSpawnInWindow(zoneId, spawnObj) {
             ...spawnObj,
             type: 'trainer',
             trainerKey: evt.trainerKey,
-            trainer: { ...trainer, fr: evt.icon + ' ' + trainer.fr, en: evt.icon + ' ' + trainer.en, diff: trainer.diff + 2, reward: [trainer.reward[0] * 4, trainer.reward[1] * 4], rep: trainer.rep * 3 },
+            trainer: { ...trainer, fr: trainer.fr, en: trainer.en, diff: trainer.diff + 2, reward: [trainer.reward[0] * 4, trainer.reward[1] * 4], rep: trainer.rep * 3 },
             team,
             elite: true,
+            isSpecial: true,
           };
           openCombatPopup(zoneId, combatSpawn);
         }
@@ -4228,16 +4304,21 @@ function openCombatPopup(zoneId, spawnObj) {
       })()}
     </div>
     <div class="combat-actions-inline" id="inlineActions-${zoneId}">
-      <button class="inline-fight-btn" data-zone-fight="${zoneId}">${isRaid ? '[RAID] Attaquer' : '[ATK] Combattre'}</button>
-      <button class="inline-flee-btn" data-zone-flee="${zoneId}">🏃 Fuir</button>
+      <span style="color:var(--text-dim);font-size:9px">Combat automatique...</span>
+      <button class="inline-flee-btn" data-zone-flee="${zoneId}">Fuir</button>
     </div>
     <div class="combat-summary"></div>
   `;
 
   inlineCombat.classList.add('active');
   inlineCombat.classList.remove('collapsed');
-  inlineCombat.querySelector(`[data-zone-fight="${zoneId}"]`)?.addEventListener('click', executeCombat);
-  inlineCombat.querySelector(`[data-zone-flee="${zoneId}"]`)?.addEventListener('click', closeCombatPopup);
+
+  // Auto-execute combat after brief delay (flee cancels it)
+  let autoCombatTimer = setTimeout(executeCombat, 600);
+  inlineCombat.querySelector(`[data-zone-flee="${zoneId}"]`)?.addEventListener('click', () => {
+    clearTimeout(autoCombatTimer);
+    closeCombatPopup();
+  });
   inlineCombat.querySelector(`[data-zone-combat-toggle="${zoneId}"]`)?.addEventListener('click', () => {
     inlineCombat.classList.toggle('collapsed');
   });
@@ -4824,13 +4905,16 @@ function renderPokemonGrid() {
 
   const teamIds = new Set([...state.gang.bossTeam]);
   for (const a of state.agents) a.team.forEach(id => teamIds.add(id));
+  const trainingIds = new Set(state.trainingRoom.pokemon);
 
   grid.innerHTML = pageList.map(p => {
     const inTeam = teamIds.has(p.id);
-    return `<div class="pc-pokemon ${p.shiny ? 'shiny' : ''} ${pcSelectedId === p.id ? 'selected' : ''} ${inTeam ? 'in-team' : ''}" data-pk-id="${p.id}" title="${speciesName(p.species_en)} Lv.${p.level} ${'★'.repeat(p.potential)}${p.shiny ? ' ✨' : ''}">
+    const inTraining = trainingIds.has(p.id);
+    return `<div class="pc-pokemon ${p.shiny ? 'shiny' : ''} ${pcSelectedId === p.id ? 'selected' : ''} ${inTeam ? 'in-team' : ''} ${inTraining ? 'in-training' : ''}" data-pk-id="${p.id}" title="${speciesName(p.species_en)} Lv.${p.level} ${'★'.repeat(p.potential)}${p.shiny ? ' ✨' : ''}${inTraining ? ' [ENTRAINEMENT]' : ''}">
       <img src="${pokeSprite(p.species_en, p.shiny)}" alt="${speciesName(p.species_en)}">
       ${p.favorite ? '<div class="pc-fav-badge">FAV</div>' : ''}
       ${inTeam ? '<div class="pc-team-badge">EQ</div>' : ''}
+      ${inTraining ? '<div class="pc-training-badge">TR</div>' : ''}
     </div>`;
   }).join('') || '<div style="color:var(--text-dim);padding:16px;grid-column:1/-1;text-align:center">Aucun Pokémon</div>';
 
@@ -5939,12 +6023,28 @@ function renderTrainingTab() {
       </div>`;
   }
 
+  const roomLevel = tr.level || 1;
+  const upgradeCost = Math.round(5000 * Math.pow(2, roomLevel - 1));
+  const mult = Math.round((1 + 0.25 * (roomLevel - 1)) * 100);
+  const winXPPreview = Math.round(15 * (mult / 100) * 1.25);
+
   tab.innerHTML = `
     <div style="display:grid;grid-template-columns:1fr 300px;gap:16px;padding:12px">
       <div>
-        <div style="font-family:var(--font-pixel);font-size:10px;color:var(--gold);margin-bottom:12px">SALLE D\'ENTRAINEMENT</div>
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+          <div style="font-family:var(--font-pixel);font-size:10px;color:var(--gold)">SALLE D\'ENTRAINEMENT</div>
+          <div style="font-size:9px;color:var(--text-dim)">Niv.${roomLevel} — XP x${mult}%</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px">
+          <div style="flex:1;font-size:9px;color:var(--text-dim)">
+            <b style="color:var(--text)">Melee generale</b> — Mode actif : gagnant +${winXPPreview} XP (x1.25), perdant +${Math.round(5*(mult/100))} XP
+          </div>
+          <button id="btnTrainingUpgrade" style="font-family:var(--font-pixel);font-size:8px;padding:6px 10px;background:var(--bg);border:2px solid var(--gold-dim);border-radius:var(--radius-sm);color:var(--gold);cursor:pointer">
+            AMELIORER<br>${upgradeCost.toLocaleString()}P
+          </button>
+        </div>
         <div style="font-size:10px;color:var(--text-dim);margin-bottom:12px">
-          Min. 2 Pokemon pour s\'entrainer. XP passif toutes les 60s.
+          Min. 2 Pokemon pour s\'entrainer. Combat toutes les 60s.
         </div>
         ${lastFightHtml}
         <div class="training-slots" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px">${slotsHtml}</div>
@@ -5956,6 +6056,20 @@ function renderTrainingTab() {
         <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);max-height:400px;overflow-y:auto">${candidatesHtml}</div>
       </div>
     </div>`;
+
+  // Upgrade button
+  document.getElementById('btnTrainingUpgrade')?.addEventListener('click', () => {
+    const lvl = state.trainingRoom.level || 1;
+    const cost = Math.round(5000 * Math.pow(2, lvl - 1));
+    if (state.gang.money < cost) { notify('Fonds insuffisants.'); return; }
+    state.gang.money -= cost;
+    state.stats.totalMoneySpent = (state.stats.totalMoneySpent || 0) + cost;
+    state.trainingRoom.level = lvl + 1;
+    saveState();
+    updateTopBar();
+    notify(`Salle d'entrainement Niv.${state.trainingRoom.level} !`, 'gold');
+    renderTrainingTab();
+  });
 
   tab.querySelectorAll('.tr-remove-btn').forEach(btn => {
     btn.addEventListener('click', e => {
@@ -5991,7 +6105,11 @@ function trainingRoomTick() {
     .filter(Boolean);
   if (fighters.length < 2) return;
 
-  // Pick 2 random fighters from those present
+  // Room level multiplier: each upgrade adds 25% efficiency
+  const roomLevel = room.level || 1;
+  const mult = 1 + 0.25 * (roomLevel - 1);
+
+  // Pick 2 random fighters
   const shuffled = [...fighters].sort(() => Math.random() - 0.5);
   const pA = shuffled[0];
   const pB = shuffled[1];
@@ -6002,11 +6120,15 @@ function trainingRoomTick() {
   const winner = powA >= powB ? pA : pB;
   const loser  = powA >= powB ? pB : pA;
 
-  // XP: winner gets more, loser still learns something
-  levelUpPokemon(winner, 8);
-  levelUpPokemon(loser, 2);
+  // XP: winner gets 1.25x bonus (mêlée générale), loser still learns
+  const winXP  = Math.round(15 * mult * 1.25);
+  const loseXP = Math.round(5 * mult);
+  const prevWinnerName = speciesName(winner.species_en);
+  const prevLoserName  = speciesName(loser.species_en);
+  levelUpPokemon(winner, winXP);
+  levelUpPokemon(loser, loseXP);
 
-  const msg = `${speciesName(winner.species_en)} [W] bat ${speciesName(loser.species_en)} [L] (+8 / +2 XP)`;
+  const msg = `${prevWinnerName} [W] bat ${prevLoserName} [L] (+${winXP} / +${loseXP} XP)`;
   room.log.push(msg);
 
   // Store last fight for visual display
@@ -6015,12 +6137,24 @@ function trainingRoomTick() {
     loser:  { species_en: loser.species_en,  level: loser.level  },
   };
 
-  // Everyone else gets small passive XP
+  // Everyone else gets passive XP
+  const passiveXP = Math.round(3 * mult);
   for (const p of fighters) {
-    if (p.id !== pA.id && p.id !== pB.id) levelUpPokemon(p, 1);
+    if (p.id !== pA.id && p.id !== pB.id) levelUpPokemon(p, passiveXP);
   }
 
-  // Random events: potential gain only, no flee
+  // Check for evolutions in training room
+  for (const p of fighters) {
+    const nameBefore = speciesName(p.species_en);
+    const evolved = tryAutoEvolution(p);
+    if (evolved) {
+      const m = `${nameBefore} evolue en ${speciesName(p.species_en)} dans la salle !`;
+      room.log.push(m);
+      notify(m, 'gold');
+    }
+  }
+
+  // Random events: potential gain
   for (const p of fighters) {
     if (Math.random() < 0.002 && p.potential < 5) {
       p.potential++;
@@ -6150,11 +6284,11 @@ let cooldownInterval = null;
 // ════════════════════════════════════════════════════════════════
 
 const EGG_HATCH_MS = {
-  common:    3 * 60 * 1000,
-  uncommon:  6 * 60 * 1000,
-  rare:      12 * 60 * 1000,
-  very_rare: 25 * 60 * 1000,
-  legendary: null, // can't breed
+  common:    1 * 60 * 1000,
+  uncommon:  5 * 60 * 1000,
+  rare:      15 * 60 * 1000,
+  very_rare: 45 * 60 * 1000,
+  legendary: 60 * 60 * 1000,
 };
 const EGG_GEN_MS = 5 * 60 * 1000; // new egg every 5 min when both slots filled
 
@@ -6177,13 +6311,15 @@ function pensionTick() {
         const egg = {
           id: `egg_${now}_${Math.random().toString(36).slice(2,7)}`,
           species_en: parent.species_en,
-          hatchAt: now + hatchMs,
+          hatchAt: null,
+          incubating: false,
+          rarity: sp.rarity,
           potential,
           shiny: Math.random() < shinyChance,
         };
         state.eggs.push(egg);
         p.eggAt = now + EGG_GEN_MS; // schedule next egg
-        notify(`Un oeuf de ${speciesName(parent.species_en)} a ete depose a la Pension !`, 'gold');
+        notify(`Un oeuf de ${speciesName(parent.species_en)} a ete depose ! Placez-le dans un incubateur.`, 'gold');
         saveState();
         if (activeTab === 'tabPC') renderPCTab();
       }
@@ -6197,8 +6333,8 @@ function pensionTick() {
   // Clear timer if slots empty
   if (!p.slotA || !p.slotB) p.eggAt = null;
 
-  // Hatch ready eggs
-  const ready = state.eggs.filter(e => e.hatchAt <= now);
+  // Hatch only incubating eggs that are ready
+  const ready = state.eggs.filter(e => e.incubating && e.hatchAt && e.hatchAt <= now);
   for (const egg of ready) {
     const sp = SPECIES_BY_EN[egg.species_en];
     if (!sp) continue;
@@ -6252,21 +6388,64 @@ function renderPensionView(container) {
   const nextEggMs = p.eggAt ? Math.max(0, p.eggAt - now) : null;
   const nextEggStr = nextEggMs !== null ? `${Math.ceil(nextEggMs / 60000)}min` : '--';
 
-  const eggsHtml = state.eggs.length ? state.eggs.map(egg => {
-    const rem = Math.max(0, egg.hatchAt - now);
-    const total = EGG_HATCH_MS[SPECIES_BY_EN[egg.species_en]?.rarity] || EGG_HATCH_MS.common;
-    const pct = Math.round((1 - rem / total) * 100);
-    return `<div style="display:flex;align-items:center;gap:8px;padding:6px;border-bottom:1px solid var(--border)">
-      <div style="font-size:24px">O</div>
-      <div style="flex:1">
-        <div style="font-size:9px">${speciesName(egg.species_en)}${egg.shiny ? ' [S]' : ''} ${'*'.repeat(egg.potential)}</div>
-        <div style="background:var(--border);border-radius:2px;height:4px;margin-top:4px">
-          <div style="background:var(--gold-dim);height:4px;border-radius:2px;width:${pct}%"></div>
+  // ── Incubator slots ──
+  const incubatorCount = state.inventory.incubator || 0;
+  const incubatingEggs = state.eggs.filter(e => e.incubating);
+  const freeSlots = incubatorCount - incubatingEggs.length;
+
+  const incubatorHtml = (() => {
+    if (incubatorCount === 0) {
+      return `<div style="font-size:9px;color:var(--text-dim);padding:8px;text-align:center">
+        Aucun incubateur — achetez-en un au Marche (15 000P)
+      </div>`;
+    }
+    let html = '';
+    // Active incubations
+    for (const egg of incubatingEggs) {
+      const rarity = egg.rarity || SPECIES_BY_EN[egg.species_en]?.rarity || 'common';
+      const total = EGG_HATCH_MS[rarity] || EGG_HATCH_MS.common;
+      const rem = Math.max(0, (egg.hatchAt || 0) - now);
+      const pct = total > 0 ? Math.round((1 - rem / total) * 100) : 100;
+      const remStr = rem <= 0 ? 'Pret !' : rem < 60000 ? `${Math.ceil(rem / 1000)}s` : `${Math.ceil(rem / 60000)}min`;
+      html += `<div style="display:flex;align-items:center;gap:8px;padding:8px;border:1px solid var(--gold-dim);border-radius:var(--radius-sm);margin-bottom:6px;background:var(--bg)">
+        <img src="${ITEM_SPRITES.incubator}" style="width:24px;height:24px">
+        <img src="${pokeSprite(egg.species_en)}" style="width:36px;height:36px">
+        <div style="flex:1">
+          <div style="font-size:9px">${speciesName(egg.species_en)}${egg.shiny ? ' [S]' : ''} ${'*'.repeat(egg.potential)}</div>
+          <div style="background:var(--border);border-radius:2px;height:4px;margin-top:4px">
+            <div style="background:var(--gold-dim);height:4px;border-radius:2px;width:${pct}%"></div>
+          </div>
+          <div style="font-size:8px;color:var(--gold);margin-top:2px">${remStr}</div>
         </div>
-        <div style="font-size:8px;color:var(--text-dim);margin-top:2px">${rem <= 0 ? 'Pret !' : `${Math.ceil(rem / 60000)}min`}</div>
-      </div>
-    </div>`;
-  }).join('') : `<div style="color:var(--text-dim);font-size:10px;padding:12px">Aucun oeuf en incubation</div>`;
+      </div>`;
+    }
+    // Free slots
+    for (let i = 0; i < freeSlots; i++) {
+      html += `<div style="display:flex;align-items:center;gap:8px;padding:8px;border:1px dashed var(--border);border-radius:var(--radius-sm);margin-bottom:6px;color:var(--text-dim);font-size:9px">
+        <img src="${ITEM_SPRITES.incubator}" style="width:24px;height:24px;opacity:.4">
+        <span>Incubateur libre — cliquez un oeuf ci-dessous</span>
+      </div>`;
+    }
+    return html;
+  })();
+
+  // ── Waiting eggs (not incubating) ──
+  const waitingEggs = state.eggs.filter(e => !e.incubating);
+  const waitingHtml = waitingEggs.length
+    ? waitingEggs.map(egg => {
+        const rarity = egg.rarity || SPECIES_BY_EN[egg.species_en]?.rarity || 'common';
+        const hatchTime = EGG_HATCH_MS[rarity] || EGG_HATCH_MS.common;
+        const hatchStr = hatchTime < 60000 ? `${hatchTime/1000}s` : `${hatchTime/60000}min`;
+        return `<div class="pension-egg-incubate" data-egg-id="${egg.id}" style="display:flex;align-items:center;gap:8px;padding:6px;border-bottom:1px solid var(--border);cursor:${freeSlots > 0 ? 'pointer' : 'default'};opacity:${freeSlots > 0 ? '1' : '0.5'}">
+          <img src="${pokeSprite(egg.species_en)}" style="width:36px;height:36px">
+          <div style="flex:1">
+            <div style="font-size:9px">${speciesName(egg.species_en)}${egg.shiny ? ' [S]' : ''} ${'*'.repeat(egg.potential)}</div>
+            <div style="font-size:8px;color:var(--text-dim)">${rarity} — eclot en ${hatchStr}</div>
+          </div>
+          ${freeSlots > 0 ? `<button class="pension-incubate-btn" data-egg-id="${egg.id}" style="font-size:8px;padding:4px 8px;background:var(--bg);border:1px solid var(--gold-dim);border-radius:var(--radius-sm);color:var(--gold);cursor:pointer">Incuber</button>` : ''}
+        </div>`;
+      }).join('')
+    : `<div style="color:var(--text-dim);font-size:9px;padding:8px">Aucun oeuf en attente</div>`;
 
   // Pokemon picker (not in pension, not in team, not legendary)
   const usedIds = new Set([p.slotA, p.slotB].filter(Boolean));
@@ -6287,20 +6466,22 @@ function renderPensionView(container) {
     </div>`
   ).join('') || `<div style="color:var(--text-dim);font-size:10px;padding:12px">Aucun Pokemon disponible</div>`;
 
-  let pendingSlot = null; // which slot a click will fill
-
   container.innerHTML = `
     <div style="display:grid;grid-template-columns:1fr 220px;gap:16px;padding:12px">
       <div>
         <div style="font-family:var(--font-pixel);font-size:10px;color:var(--gold);margin-bottom:12px">PENSION POKEMON</div>
         <div style="font-size:10px;color:var(--text-dim);margin-bottom:12px">Deposez deux Pokemon — un oeuf sera pond tous les ${EGG_GEN_MS/60000}min.</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
           ${slotHtml(pkA, 'slotA')}
           ${slotHtml(pkB, 'slotB')}
         </div>
-        ${pkA && pkB ? `<div style="font-size:9px;color:var(--text-dim);padding:8px;background:var(--bg);border-radius:var(--radius-sm)">Prochain oeuf dans : <b style="color:var(--gold)">${nextEggStr}</b></div>` : ''}
-        <div style="font-family:var(--font-pixel);font-size:9px;color:var(--text-dim);margin:12px 0 6px">OEUFS EN INCUBATION</div>
-        <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);max-height:200px;overflow-y:auto">${eggsHtml}</div>
+        ${pkA && pkB ? `<div style="font-size:9px;color:var(--text-dim);padding:6px 8px;background:var(--bg);border-radius:var(--radius-sm);margin-bottom:12px">Prochain oeuf dans : <b style="color:var(--gold)">${nextEggStr}</b></div>` : ''}
+
+        <div style="font-family:var(--font-pixel);font-size:9px;color:var(--gold);margin-bottom:6px">INCUBATEURS (${incubatingEggs.length}/${incubatorCount})</div>
+        <div style="margin-bottom:12px">${incubatorHtml}</div>
+
+        <div style="font-family:var(--font-pixel);font-size:9px;color:var(--text-dim);margin-bottom:6px">OEUFS EN ATTENTE (${waitingEggs.length})</div>
+        <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);max-height:180px;overflow-y:auto">${waitingHtml}</div>
       </div>
       <div>
         <div style="font-family:var(--font-pixel);font-size:9px;color:var(--text-dim);margin-bottom:8px">CHOISIR UN POKEMON</div>
@@ -6315,6 +6496,22 @@ function renderPensionView(container) {
       state.pension[btn.dataset.slot] = null;
       state.pension.eggAt = null;
       saveState();
+      renderPensionView(container);
+    });
+  });
+
+  // Place egg in incubator
+  container.querySelectorAll('.pension-incubate-btn').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      if (freeSlots <= 0) { notify('Pas d\'incubateur libre.'); return; }
+      const egg = state.eggs.find(eg => eg.id === btn.dataset.eggId);
+      if (!egg || egg.incubating) return;
+      const rarity = egg.rarity || SPECIES_BY_EN[egg.species_en]?.rarity || 'common';
+      egg.incubating = true;
+      egg.hatchAt = Date.now() + (EGG_HATCH_MS[rarity] || EGG_HATCH_MS.common);
+      saveState();
+      notify(`Oeuf de ${speciesName(egg.species_en)} place en incubateur !`, 'gold');
       renderPensionView(container);
     });
   });

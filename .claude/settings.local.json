@@ -44,7 +44,11 @@
       "Bash(npx kill-port:*)",
       "Bash(taskkill /F /IM \"http-server.cmd\")",
       "Bash(git add:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(node --check \"/c/Users/pierr/Documents/GitHub/pokeforge/game/app.js\")",
+      "Bash(node --check \"C:\\\\Users\\\\pierr\\\\Documents\\\\GitHub\\\\pokeforge\\\\game\\\\app.js\")",
+      "Bash(ls C:/Users/pierr/Documents/GitHub/pokeforge/README*)",
+      "Bash(git commit -m ':*)"
     ]
   }
 }
