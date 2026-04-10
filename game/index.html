@@ -232,12 +232,7 @@
 
     /* ── Zones Tab ────────────────────────────────────────────────── */
     #zoneSelector {
-      display: flex;
-      gap: 8px;
-      padding: 8px 0;
-      overflow-x: auto;
       margin-bottom: 12px;
-      -webkit-overflow-scrolling: touch;
     }
 
     .zone-btn {
@@ -467,12 +462,14 @@
     /* ── Market Tab ───────────────────────────────────────────────── */
     #tabMarket .market-layout {
       display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 16px;
-      min-height: 400px;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 12px;
     }
 
-    @media (max-width: 700px) {
+    @media (max-width: 900px) {
+      #tabMarket .market-layout { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 600px) {
       #tabMarket .market-layout { grid-template-columns: 1fr; }
     }
 
@@ -534,7 +531,7 @@
 
     #pokemonGrid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+      grid-template-columns: repeat(6, 1fr);
       gap: 6px;
     }
 
@@ -559,11 +556,15 @@
     .pc-pokemon.in-team { border-color: var(--green); }
     .pc-fav-badge {
       position: absolute; top: 2px; right: 2px;
-      font-size: 10px; line-height: 1; pointer-events: none;
+      font-family: var(--font-pixel); font-size: 7px;
+      background: var(--gold-dim); color: var(--bg);
+      padding: 1px 3px; border-radius: 2px; line-height: 1; pointer-events: none;
     }
     .pc-team-badge {
       position: absolute; bottom: 2px; right: 2px;
-      font-size: 9px; color: var(--green); line-height: 1; pointer-events: none;
+      font-family: var(--font-pixel); font-size: 7px;
+      background: var(--green); color: var(--bg);
+      padding: 1px 3px; border-radius: 2px; line-height: 1; pointer-events: none;
     }
 
     #pokemonDetail {
@@ -583,16 +584,155 @@
       #pokemonDetail { width: 100%; }
     }
 
+    /* ── PC View Switcher ────────────────────────────────────────── */
+    .pc-view-switcher {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 6px;
+    }
+    .pc-view-btn {
+      font-family: var(--font-pixel);
+      font-size: 9px;
+      padding: 6px 14px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text-dim);
+      cursor: pointer;
+      transition: all .2s;
+    }
+    .pc-view-btn:hover { color: var(--text); border-color: var(--border-light); }
+    .pc-view-btn.active { background: var(--bg-hover); color: var(--gold); border-color: var(--gold-dim); }
+
+    /* ── Fog-of-War Zone Map ─────────────────────────────────────── */
+    .fog-map {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+      gap: 6px;
+      padding: 8px;
+      max-height: 280px;
+      overflow-y: auto;
+    }
+    .fog-tile {
+      position: relative;
+      height: 80px;
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+      cursor: pointer;
+      border: 1px solid var(--border);
+      transition: border-color .2s;
+    }
+    .fog-tile.locked { cursor: default; }
+    .fog-tile.unlocked:hover { border-color: var(--gold-dim); }
+    .fog-tile.fog-open { border-color: var(--red); border-width: 2px; }
+    .fog-tile-overlay {
+      position: absolute; inset: 0;
+      background: rgba(0,0,0,0.45);
+    }
+    .fog-tile-overlay.fog {
+      background: rgba(0,0,0,0.82);
+      backdrop-filter: blur(4px);
+    }
+    .fog-tile-content {
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column;
+      justify-content: flex-end;
+      padding: 4px 6px;
+    }
+    .fog-tile-name {
+      font-family: var(--font-pixel);
+      font-size: 8px;
+      color: var(--text);
+      text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+      margin-bottom: 2px;
+      line-height: 1.3;
+    }
+    .fog-tile-stats { font-size: 8px; color: var(--gold-dim); }
+    .fog-tile-status { font-family: var(--font-pixel); font-size: 7px; color: var(--red); }
+    .fog-tile.locked .fog-tile-name { color: var(--text-dim); }
+    .fog-tile.zone-type-gym .fog-tile-name { color: var(--gold); }
+    .fog-tile.zone-type-special .fog-tile-name { color: #a07cf0; }
+
+    /* ── Agent Perk Modal ────────────────────────────────────────── */
+    .perk-modal-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.8);
+      z-index: 9999;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .perk-modal-box {
+      background: var(--bg-card);
+      border: 2px solid var(--gold-dim);
+      border-radius: var(--radius);
+      padding: 20px;
+      text-align: center;
+      min-width: 260px;
+    }
+    .perk-modal-title {
+      font-family: var(--font-pixel);
+      font-size: 10px;
+      color: var(--gold);
+      margin-bottom: 12px;
+    }
+    .perk-modal-btns { display: flex; gap: 8px; justify-content: center; }
+    .perk-modal-btn {
+      font-family: var(--font-pixel);
+      font-size: 9px;
+      padding: 8px 14px;
+      background: var(--bg);
+      border: 1px solid var(--gold-dim);
+      border-radius: var(--radius-sm);
+      color: var(--gold);
+      cursor: pointer;
+      transition: all .2s;
+    }
+    .perk-modal-btn:hover { background: var(--bg-hover); border-color: var(--gold); }
+    .perk-available-btn {
+      font-family: var(--font-pixel);
+      font-size: 8px;
+      padding: 4px 8px;
+      background: var(--bg);
+      border: 1px solid var(--gold);
+      border-radius: var(--radius-sm);
+      color: var(--gold);
+      cursor: pointer;
+      animation: pulse 1.5s ease-in-out infinite;
+      margin-top: 4px;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; box-shadow: 0 0 4px var(--gold-dim); }
+      50% { opacity: .6; box-shadow: 0 0 10px var(--gold); }
+    }
+
     /* ── Pokédex Tab ──────────────────────────────────────────────── */
+    .dex-layout {
+      display: flex;
+      gap: 16px;
+    }
+    .dex-left { flex: 1; min-width: 0; }
+    .dex-detail {
+      width: 240px;
+      flex-shrink: 0;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px;
+      overflow-y: auto;
+      max-height: calc(100vh - 160px);
+    }
+    .dex-detail.hidden { display: none; }
+
     #pokedexGrid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
       gap: 4px;
     }
 
     .dex-entry {
-      width: 64px;
-      height: 72px;
+      width: 60px;
+      height: 68px;
       background: var(--bg-card);
       border: 1px solid var(--border);
       border-radius: var(--radius-sm);
@@ -607,11 +747,79 @@
     }
     .dex-entry:hover { border-color: var(--border-light); }
     .dex-entry.caught { border-color: var(--green); }
+    .dex-entry.selected { border-color: var(--gold); border-width: 2px; }
     .dex-entry.caught .dex-number { color: var(--green); }
     .dex-entry.unseen { opacity: .35; }
 
-    .dex-entry img { width: 40px; height: 40px; }
+    .dex-entry img { width: 36px; height: 36px; }
     .dex-entry .dex-number { font-family: var(--font-pixel); font-size: 7px; margin-top: 2px; }
+
+    /* ── Battle Log Panel ───────────────────────────────────────── */
+    .battle-log-panel {
+      position: fixed;
+      bottom: 0;
+      right: 0;
+      width: 300px;
+      max-height: 400px;
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-bottom: none;
+      border-radius: var(--radius) var(--radius) 0 0;
+      z-index: 800;
+      display: flex;
+      flex-direction: column;
+      font-size: 10px;
+      transition: width .2s ease, max-height .2s ease;
+    }
+    .battle-log-panel.has-combat {
+      width: 400px;
+      max-height: 520px;
+      border-color: var(--red);
+    }
+    .battle-log-header {
+      padding: 6px 10px;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-family: var(--font-pixel);
+      font-size: 9px;
+      color: var(--gold);
+      cursor: pointer;
+      user-select: none;
+    }
+    .battle-log-panel.has-combat .battle-log-header { color: var(--red); }
+    .battle-log-body {
+      overflow-y: auto;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+    #battleArena {
+      display: none;
+      border-bottom: 2px solid var(--border);
+      background: var(--bg);
+      padding: 4px;
+      flex-shrink: 0;
+    }
+    #battleArena.active { display: block; }
+    #battleHistory {
+      overflow-y: auto;
+      flex: 1;
+      padding: 4px;
+      max-height: 200px;
+    }
+    .battle-log-entry {
+      border-bottom: 1px solid var(--border);
+      padding: 4px 6px;
+      cursor: pointer;
+    }
+    .battle-log-entry:hover { background: rgba(255,255,255,.04); }
+    .battle-log-summary { font-size: 10px; }
+    .battle-log-detail { display: none; font-size: 9px; color: var(--text-dim); padding-top: 4px; }
+    .battle-log-entry.expanded .battle-log-detail { display: block; }
+    .battle-log-collapsed .battle-log-body { display: none; }
 
     /* ── Combat Popup ────────────────────────────────────────────── */
     #combatPopup {
@@ -1214,7 +1422,20 @@
       align-items: center;
       gap: 10px;
     }
-    .bag-item .bag-icon { font-size: 24px; flex-shrink: 0; }
+    .bag-item .bag-icon {
+      font-family: var(--font-pixel);
+      font-size: 9px;
+      flex-shrink: 0;
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--gold);
+      background: var(--bg);
+    }
     .bag-item .bag-info { flex: 1; min-width: 0; }
     .bag-item .bag-name { font-size: 12px; color: var(--text); }
     .bag-item .bag-qty { font-family: var(--font-pixel); font-size: 10px; color: var(--gold); }
@@ -1337,6 +1558,73 @@
     .raid-title { color: #ff6644 !important; }
     .zone-combat.active .zone-combat.collapsed .combat-arena-full { display: none; }
 
+    /* ── Boost tags (text, no emoji) ────────────────────────────── */
+    .boost-tag {
+      font-family: var(--font-pixel);
+      font-size: 7px;
+      padding: 1px 4px;
+      border: 1px solid var(--gold-dim);
+      border-radius: 2px;
+      color: var(--gold);
+      margin-left: 2px;
+    }
+
+    /* ── PC Pagination ───────────────────────────────────────────── */
+    .pc-pagination {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      padding: 8px 0;
+      margin-top: 4px;
+    }
+    .pc-page-btn {
+      font-family: var(--font-pixel);
+      font-size: 10px;
+      padding: 4px 10px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      cursor: pointer;
+    }
+    .pc-page-btn:hover:not(:disabled) { border-color: var(--gold); color: var(--gold); }
+    .pc-page-btn:disabled { opacity: .35; cursor: default; }
+
+    /* ── Training Room ───────────────────────────────────────────── */
+    .training-slot {
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 10px;
+      text-align: center;
+      background: var(--bg-card);
+      min-height: 110px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    .training-slot.empty { border-style: dashed; }
+    .training-slot.filled { border-color: var(--green); }
+    .pension-slot {
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 10px;
+      text-align: center;
+      background: var(--bg-card);
+      min-height: 110px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    .pension-slot.empty { border-style: dashed; }
+    .pension-slot.filled { border-color: var(--gold-dim); }
+
+    /* ── Gym defeated badge ──────────────────────────────────────── */
+    .zone-btn.zone-type-gym.gym-done { border-color: var(--gold); }
+    .zone-btn.zone-type-gym.gym-done::after { content: ' [V]'; font-size: 7px; color: var(--gold); }
+
     /* ── Chest sprite styling ────────────────────────────────────── */
     .chest-sprite {
       font-size: 36px;
@@ -1410,17 +1698,19 @@
 
     <!-- ═══ Tab Navigation ═══ -->
     <nav id="tabNav">
-      <button class="tab-btn active" data-tab="tabGang">💀 Gang</button>
-      <button class="tab-btn" data-tab="tabAgents">👥 Agents</button>
-      <button class="tab-btn" data-tab="tabZones">🗺️ Zones</button>
-      <button class="tab-btn" data-tab="tabBag">🎒 Sac</button>
-      <button class="tab-btn" data-tab="tabMarket">💰 Marché</button>
-      <button class="tab-btn" data-tab="tabPC">💻 PC</button>
-      <button class="tab-btn" data-tab="tabMissions">📋 Missions</button>
-      <button class="tab-btn" data-tab="tabPokedex">📖 Pokédex</button>
+      <button class="tab-btn active" data-tab="tabGang">Gang</button>
+      <button class="tab-btn" data-tab="tabAgents">Agents</button>
+      <button class="tab-btn" data-tab="tabZones">Zones</button>
+      <button class="tab-btn" data-tab="tabMarket">Marche</button>
+      <button class="tab-btn" data-tab="tabPC">PC</button>
+      <button class="tab-btn" data-tab="tabTraining">Formation</button>
+      <button class="tab-btn" data-tab="tabMissions">Missions</button>
+      <button class="tab-btn" data-tab="tabPokedex">Pokedex</button>
+      <button class="tab-btn" id="btnSaveSlots" style="margin-left:auto;border-color:var(--gold-dim);color:var(--gold-dim)">Saves</button>
     </nav>
 
     <!-- ═══ Tab Content ═══ -->
+    <div id="hintBar" style="display:none;padding:6px 12px;font-family:var(--font-pixel);font-size:9px;color:var(--gold);background:rgba(0,0,0,0.6);border-bottom:1px solid var(--gold-dim);letter-spacing:.05em"></div>
     <main id="tabContent">
 
       <!-- ── Gang ── -->
@@ -1443,6 +1733,9 @@
 
       <!-- ── Agents ── -->
       <section id="tabAgents" class="tab-pane">
+        <div style="padding:6px 12px;border-bottom:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end">
+          <button id="btnUnequipAll" style="font-size:9px;padding:4px 10px;background:var(--bg);border:1px solid var(--border-light);border-radius:var(--radius-sm);color:var(--text-dim);cursor:pointer">Tout déséquiper</button>
+        </div>
         <div class="agents-grid" id="agentsGrid"></div>
       </section>
 
@@ -1452,22 +1745,25 @@
         <div id="zoneWindows"></div>
       </section>
 
-      <!-- ── Bag / Inventory ── -->
-      <section id="tabBag" class="tab-pane">
-        <h3 style="font-family:var(--font-pixel);font-size:12px;color:var(--red);margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border)">🎒 Sac</h3>
-        <div class="bag-grid" id="bagGrid"></div>
-      </section>
-
-      <!-- ── Market ── -->
+      <!-- ── Bag + Market (merged) ── -->
+      <section id="tabBag" class="tab-pane" style="display:none"></section>
       <section id="tabMarket" class="tab-pane">
+        <div id="bagPanel" style="margin-bottom:12px">
+          <h3 style="font-family:var(--font-pixel);font-size:10px;color:var(--red);margin-bottom:8px">SAC</h3>
+          <div class="bag-grid" id="bagGrid"></div>
+        </div>
         <div class="market-layout">
           <div id="sellPanel" class="market-panel">
-            <h3>💰 Vendre</h3>
+            <h3>VENDRE</h3>
             <div class="sell-list"></div>
           </div>
           <div id="shopPanel" class="market-panel">
-            <h3>🛒 Boutique</h3>
+            <h3>BOUTIQUE</h3>
             <div class="shop-list"></div>
+          </div>
+          <div id="cosmeticsPanel" class="market-panel">
+            <h3>COSMETIQUES</h3>
+            <div class="cosmetics-list"></div>
           </div>
         </div>
       </section>
@@ -1479,62 +1775,55 @@
             <div id="filterBar">
               <input type="text" id="pcSearch" placeholder="Rechercher...">
               <select id="pcSort">
-                <option value="recent">Récent</option>
-                <option value="potential">Potentiel ↓</option>
-                <option value="cp">PC ↓</option>
-                <option value="level">Niveau ↓</option>
-                <option value="species">Espèce</option>
-                <option value="id">N° Pokédex</option>
-                <option value="name">Nom A→Z</option>
+                <option value="recent">Recent</option>
+                <option value="potential">Potentiel</option>
+                <option value="cp">PC</option>
+                <option value="level">Niveau</option>
+                <option value="species">Espece</option>
+                <option value="id">No. Pokedex</option>
+                <option value="name">Nom A-Z</option>
               </select>
               <select id="pcFilter">
                 <option value="all">Tous</option>
-                <option value="fav">⭐ Favoris</option>
-                <option value="team">⚔ En équipe</option>
-                <option value="shiny">✨ Shiny</option>
-                <option value="pot5">★★★★★</option>
-                <option value="pot4">★★★★</option>
-                <option value="pot3">★★★</option>
-                <option value="pot2">★★</option>
-                <option value="pot1">★</option>
+                <option value="fav">[FAV] Favoris</option>
+                <option value="team">[EQ] En equipe</option>
+                <option value="shiny">[S] Shiny</option>
+                <option value="pot5">***** (5)</option>
+                <option value="pot4">**** (4)</option>
+                <option value="pot3">*** (3)</option>
+                <option value="pot2">** (2)</option>
+                <option value="pot1">* (1)</option>
               </select>
             </div>
             <div id="pokemonGrid"></div>
+            <div id="pcPagination" class="pc-pagination"></div>
           </div>
           <aside id="pokemonDetail" class="hidden"></aside>
         </div>
       </section>
+
+      <!-- ── Training Room ── -->
+      <section id="tabTraining" class="tab-pane"></section>
+
+      <!-- ── Science Lab ── -->
+      <section id="tabLab" class="tab-pane"></section>
 
       <!-- ── Missions ── -->
       <section id="tabMissions" class="tab-pane"></section>
 
       <!-- ── Pokédex ── -->
       <section id="tabPokedex" class="tab-pane">
-        <div id="pokedexGrid"></div>
+        <div class="dex-layout">
+          <div class="dex-left">
+            <div id="dexSearch" style="margin-bottom:8px"><input id="dexSearchInput" type="text" placeholder="Rechercher..." style="width:100%;background:var(--bg-card);color:var(--text);border:1px solid var(--border);border-radius:var(--radius-sm);padding:4px 8px;font-family:var(--font-pixel);font-size:9px"></div>
+            <div id="pokedexGrid"></div>
+          </div>
+          <aside id="dexDetail" class="dex-detail hidden"></aside>
+        </div>
       </section>
 
     </main>
 
-  </div>
-
-  <!-- ═══ Combat Popup ═══ -->
-  <div id="combatPopup">
-    <div class="combat-box">
-      <div class="combat-title">Combat</div>
-      <div class="combat-arena">
-        <div class="combatant" id="combatAlly">
-          <img src="" alt="">
-          <div class="hp-bar"><div class="hp-fill" style="width:100%"></div></div>
-        </div>
-        <div class="combat-vs">VS</div>
-        <div class="combatant" id="combatEnemy">
-          <img src="" alt="">
-          <div class="hp-bar"><div class="hp-fill" style="width:100%"></div></div>
-        </div>
-      </div>
-      <div id="combatLog"></div>
-      <div id="combatActions"></div>
-    </div>
   </div>
 
   <!-- ═══ Notifications ═══ -->
@@ -1628,6 +1917,18 @@
           <button id="btnResetAll" class="danger">⚠ Reset complet</button>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- ═══ Battle Log ═══ -->
+  <div id="battleLog" class="battle-log-panel battle-log-collapsed">
+    <div class="battle-log-header" id="battleLogHeader">
+      <span id="battleLogTitle">LOG COMBATS</span>
+      <span id="battleLogToggle" style="cursor:pointer;font-size:14px">▲</span>
+    </div>
+    <div class="battle-log-body">
+      <div id="battleArena"></div>
+      <div id="battleHistory"></div>
     </div>
   </div>
 

@@ -1,0 +1,58 @@
+{
+  "id": "npc_oak",
+  "name": "Professor Oak",
+  "age": 60,
+  "gender": "male",
+  "role": "professor",
+  "faction": "pokemon_lab",
+  "region": "kanto",
+  "personality": [
+    "wise",
+    "forgetful",
+    "cheerful",
+    "curious"
+  ],
+  "orientation": "hero",
+  "trust_level": 5,
+  "goals": {
+    "short_term": "Complete the Pok\u00e9dex.",
+    "long_term": "Understand Pok\u00e9mon and human relationships."
+  },
+  "values": [
+    "knowledge",
+    "patience",
+    "science"
+  ],
+  "speech_style": {
+    "tone": "warm",
+    "verbosity": "high",
+    "formality": "medium",
+    "language": "bilingual_en_fr"
+  },
+  "catch_phrases": [
+    "Hello there! Welcome to the world of Pok\u00e9mon!",
+    "Voici ton Pok\u00e9dex !"
+  ],
+  "pokemon_preferences": [
+    "normal",
+    "flying",
+    "rare"
+  ],
+  "possible_pokemon": [
+    "pidgeot",
+    "tauros",
+    "exeggutor"
+  ],
+  "sprite": "https://play.pokemonshowdown.com/sprites/trainers/oak.png",
+  "knowledge": [
+    "all known pokemon",
+    "evolution lines",
+    "regional ecosystems"
+  ],
+  "memories": [],
+  "relationships": {
+    "blue": "grandson",
+    "red": "protege"
+  },
+  "events_history": []
+}

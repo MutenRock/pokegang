@@ -1,0 +1,42 @@
+{
+  "npc_id": "npc_giovanni",
+  "player_id": "player_001",
+  "relationship": {
+    "trust": 22,
+    "fear": 40,
+    "respect": 55,
+    "affection": 0,
+    "faction_alignment": 60
+  },
+  "events": [
+    {
+      "turn": 3,
+      "type": "first_meeting",
+      "summary_en": "The player introduced themselves at Rocket HQ.",
+      "summary_fr": "Le joueur s'est présenté au QG Rocket.",
+      "impact": {
+        "trust": 3,
+        "respect": 4
+      }
+    },
+    {
+      "turn": 6,
+      "type": "battle_outcome",
+      "summary_en": "The player won a controlled training battle.",
+      "summary_fr": "Le joueur a gagné un combat d'entraînement contrôlé.",
+      "impact": {
+        "respect": 8
+      }
+    },
+    {
+      "turn": 8,
+      "type": "broken_promise",
+      "summary_en": "The player failed to deliver intel on time.",
+      "summary_fr": "Le joueur n'a pas livré les informations à temps.",
+      "impact": {
+        "trust": -10,
+        "fear": 5
+      }
+    }
+  ]
+}

@@ -42,7 +42,9 @@
       "Bash(mv game/v6.js game/app.js)",
       "Bash(node --check game/app.js)",
       "Bash(npx kill-port:*)",
-      "Bash(taskkill /F /IM \"http-server.cmd\")"
+      "Bash(taskkill /F /IM \"http-server.cmd\")",
+      "Bash(git add:*)",
+      "Bash(git push:*)"
     ]
   }
 }
