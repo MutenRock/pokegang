@@ -46,3 +46,4 @@ tmp/
 .history/
 pokeforge.patch
 external/
+.claude/settings.local.json
