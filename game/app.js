@@ -971,14 +971,42 @@ const BASE_PRICE = { common:100, uncommon:250, rare:600, very_rare:1500, legenda
 
 // ── Boss sprites to pick from ─────────────────────────────────
 const BOSS_SPRITES = [
-  'lorelei','agatha','giovanni','archer','ariana','proton',
-  'scientist','red','lance','blue',
+  // Kanto Gym Leaders
+  'brock','misty','ltsurge','erika','koga','sabrina','blaine','giovanni',
+  // Kanto Elite Four + Rivals
+  'lorelei','bruno','agatha','lance','blue','red','silver','oak',
+  // Team Rocket
+  'archer','ariana','proton','scientist',
+  // Johto Gym Leaders
+  'falkner','bugsy','whitney','morty','chuck','jasmine','pryce','clair',
+  // Johto Elite Four
+  'will','karen',
+  // Hoenn Gym Leaders
+  'roxanne','brawly','wattson','flannery','norman','winona','tate','liza','juan',
+  // Hoenn Elite Four + Champion
+  'sidney','phoebe','glacia','drake','steven','wallace',
+  // Sinnoh Gym Leaders
+  'roark','gardenia','maylene','fantina','byron','candice','volkner',
+  // Sinnoh Elite Four + Champion
+  'aaron','bertha','flint','lucian','cynthia',
+  // Unova
+  'n','ghetsis','iris','drayden','cheren','bianca','colress',
 ];
 
 // ── Agent name pools ──────────────────────────────────────────
 const AGENT_NAMES_M = ['Marco','Léo','Jin','Viktor','Dante','Axel','Zane','Kai','Nero','Blaze','Rex','Ash','Saul','Ren','Hugo'];
 const AGENT_NAMES_F = ['Mira','Luna','Jade','Nova','Aria','Ivy','Nyx','Zara','Kira','Elsa','Rosa','Saki','Lena','Yuki','Tess'];
-const AGENT_SPRITES = ['rocketgrunt','rocketgruntf','scientist','archer','ariana','proton','camper','picnicker','acetrainer','psychic'];
+const AGENT_SPRITES = [
+  // Team Rocket
+  'rocketgrunt','rocketgruntf','scientist','archer','ariana','proton',
+  // Common trainers
+  'camper','picnicker','acetrainer','acetrainerf',
+  'youngster','lass','bugcatcher','hiker','fisherman','beauty','blackbelt',
+  'swimmer','swimmerf','psychic','psychicf','gentleman','gambler',
+  'juggler','burglar','channeler','birdkeeper','cueball','tamer','rocker',
+  // Kanto/Johto misc
+  'cooltrainer','cooltrainerf','pokefan','pokefanf',
+];
 const AGENT_PERSONALITIES = ['loyal','nervous','reckless','calm','cunning','lazy','fierce','quiet','greedy','brave','curious','stubborn'];
 
 const TITLE_REQUIREMENTS = {
@@ -1436,9 +1464,30 @@ const SPRITE_FIX = {
   rocketgrunt:  'rocket',
   rocketgruntf: 'rocketf',
 };
+
+// Custom sprite overrides (non-Showdown sources)
+const CUSTOM_TRAINER_SPRITES = {
+  giovanni: 'https://www.pokepedia.fr/images/archive/7/73/20230124191924%21Sprite_Giovanni_RB.png',
+};
+
 function trainerSprite(name) {
+  if (CUSTOM_TRAINER_SPRITES[name]) return CUSTOM_TRAINER_SPRITES[name];
   const fixed = SPRITE_FIX[name] || name;
   return `https://play.pokemonshowdown.com/sprites/trainers/${fixed}.png`;
+}
+
+// SVG placeholder fallbacks (inline data URIs — no network dependency)
+const FALLBACK_TRAINER_SVG = `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%231a1a1a'/%3E%3Ccircle cx='32' cy='20' r='10' fill='%23444'/%3E%3Cellipse cx='32' cy='50' rx='16' ry='14' fill='%23444'/%3E%3Ctext x='32' y='62' text-anchor='middle' font-size='8' fill='%23666'%3E%3F%3F%3C/text%3E%3C/svg%3E`;
+const FALLBACK_POKEMON_SVG = `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%231a1a1a'/%3E%3Cellipse cx='32' cy='36' rx='20' ry='18' fill='%23333'/%3E%3Ccircle cx='32' cy='18' r='10' fill='%23333'/%3E%3Ctext x='32' y='62' text-anchor='middle' font-size='8' fill='%23555'%3E%3F%3C/text%3E%3C/svg%3E`;
+
+// Safe image helpers — with automatic fallback on load error
+function safeTrainerImg(name, { style = '', cls = '' } = {}) {
+  const src = trainerSprite(name);
+  return `<img src="${src}" ${cls ? `class="${cls}"` : ''} style="${style}" alt="${name}" onerror="this.src='${FALLBACK_TRAINER_SVG}';this.onerror=null">`;
+}
+function safePokeImg(species_en, { shiny = false, back = false, style = '', cls = '' } = {}) {
+  const src = back ? pokeSpriteBack(species_en, shiny) : pokeSprite(species_en, shiny);
+  return `<img src="${src}" ${cls ? `class="${cls}"` : ''} style="${style}" alt="${species_en}" onerror="this.src='${FALLBACK_POKEMON_SVG}';this.onerror=null">`;
 }
 
 function speciesName(en) {
@@ -3573,114 +3622,213 @@ const headbarExpanded = {};
 function renderZoneWindows() {
   const container = document.getElementById('zoneWindows');
   if (!container) return;
-  if (openZones.size === 0) {
-    container.innerHTML = renderGangBaseWindow() + '<div style="color:var(--text-dim);padding:40px;text-align:center">Sélectionnez une zone pour commencer</div>';
-    bindGangBase(container);
-    return;
+
+  // ── Gang Base: always rebuild (no spawns inside) ──────────────
+  const gangHtml = renderGangBaseWindow();
+  const existingBase = container.querySelector('#gangBaseWin');
+  if (existingBase) {
+    const tmp = document.createElement('div');
+    tmp.innerHTML = gangHtml;
+    container.replaceChild(tmp.firstElementChild, existingBase);
+  } else {
+    container.innerHTML = gangHtml;
   }
-  container.innerHTML = renderGangBaseWindow();
   bindGangBase(container);
 
+  // "No zones" placeholder
+  let placeholder = container.querySelector('.zone-placeholder');
+  if (openZones.size === 0) {
+    if (!placeholder) {
+      placeholder = document.createElement('div');
+      placeholder.className = 'zone-placeholder';
+      placeholder.style.cssText = 'color:var(--text-dim);padding:40px;text-align:center';
+      placeholder.textContent = 'Sélectionnez une zone pour commencer';
+      container.appendChild(placeholder);
+    }
+    return;
+  }
+  placeholder?.remove();
+
+  // ── Remove zone windows that are no longer open ───────────────
+  container.querySelectorAll('.zone-window').forEach(el => {
+    if (!openZones.has(el.id.replace('zw-', ''))) el.remove();
+  });
+
+  // ── Update or create each open zone window ────────────────────
   for (const zoneId of openZones) {
-    const zone = ZONE_BY_ID[zoneId];
-    if (!zone) continue;
-    const zState = state.zones[zoneId] || {};
-    const mastery = getZoneMastery(zoneId);
-    const name = state.lang === 'fr' ? zone.fr : zone.en;
-
-    const win = document.createElement('div');
-    win.className = 'zone-window';
-    win.id = `zw-${zoneId}`;
-
-    // Active boosts (text labels, no emoji)
-    const boosts = [];
-    if (isBoostActive('incense'))    boosts.push('INC');
-    if (isBoostActive('rarescope'))  boosts.push('SCO');
-    if (isBoostActive('aura'))       boosts.push('AUR');
-    if (isBoostActive('chestBoost')) boosts.push('CHT');
-
-    // Active event on zone?
-    const activeEvt = state.activeEvents[zoneId];
-    const eventActive = activeEvt && activeEvt.expiresAt > Date.now();
-    const eventDef = eventActive ? SPECIAL_EVENTS.find(e => e.id === activeEvt.eventId) : null;
-
-    // Agents assigned to this zone
-    const assignedAgents = state.agents.filter(a => a.assignedZone === zoneId);
-
-    // Headbar (collapsible)
-    const isExpanded = headbarExpanded[zoneId] || false;
-    const gymDefeated = zState.gymDefeated;
-    const combats = zState.combatsWon || 0;
-    const captures = zState.captures || 0;
-    const nextMastery = mastery < 3 ? (mastery < 2 ? 10 : 50) : null;
-    const progressText = zone.type === 'gym'
-      ? `Victoires: ${combats}${gymDefeated ? ' [V]' : ''}`
-      : `Combats: ${combats}${nextMastery ? `/${nextMastery}` : ''} | Cap: ${captures}`;
-    const degraded = isZoneDegraded(zoneId);
-
-    win.innerHTML = `
-      <div class="zone-headbar${degraded ? ' zone-headbar-degraded' : ''}" data-zone-hb="${zoneId}">
-        <span class="headbar-name">${name}${gymDefeated ? ' [V]' : ''}${degraded ? ' ⚠' : ''}</span>
-        <span class="headbar-stats">${'*'.repeat(mastery)} ${boosts.map(b => `<span class="boost-tag">${b}</span>`).join('')}</span>
-        <span class="headbar-toggle">${isExpanded ? 'v' : '>'}</span>
-      </div>
-      <div class="zone-headbar-content ${isExpanded ? 'expanded' : ''}" id="zt-${zoneId}"></div>
-      <div class="zone-viewport" style="${(() => { const b = ZONE_BGS[zoneId]; return b ? `background-image:url('${b.url}'),linear-gradient(180deg,${b.fb});background-size:cover,100%;background-position:center,center` : 'background:var(--bg-panel)'; })()}">
-        ${degraded ? `<div class="zone-degraded-banner">⚠ ${state.lang === 'fr' ? 'MODE COMBAT — Réputation insuffisante' : 'COMBAT MODE — Reputation too low'}</div>` : ''}
-        ${boosts.length ? `<div class="zone-boosts">${boosts.map(b => `<span class="boost-badge">${b}</span>`).join('')}</div>` : ''}
-        ${eventActive && eventDef ? `<div class="zone-event-banner">${state.lang === 'fr' ? eventDef.fr : eventDef.en}</div>` : ''}
-        ${assignedAgents.map((a, i) => `
-          <div class="zone-agent" data-agent-id="${a.id}" style="left:${8 + i * 44}px">
-            <img src="${a.sprite}" alt="${a.name}" onerror="this.src='${trainerSprite('acetrainer')}'">
-            <span class="agent-label">${a.name}</span>
-            <span class="agent-cd-label" style="display:none;font-family:var(--font-pixel);font-size:7px;color:var(--red);background:rgba(0,0,0,.8);border-radius:2px;padding:1px 3px;white-space:nowrap;position:absolute;top:-16px;left:50%;transform:translateX(-50%)"></span>
-          </div>
-        `).join('')}
-        ${state.gang.bossSprite && state.gang.bossZone === zoneId ? `<div class="zone-boss" data-boss-cd>
-          <img src="${trainerSprite(state.gang.bossSprite)}" alt="Boss" onerror="this.src='${trainerSprite('acetrainer')}'">
-          <span class="boss-cd-label" style="display:none;font-family:var(--font-pixel);font-size:7px;color:var(--red);background:rgba(0,0,0,.8);border-radius:2px;padding:1px 3px;white-space:nowrap;position:absolute;top:-16px;left:50%;transform:translateX(-50%)"></span>
-        </div>` : ''}
-        <div class="zone-info">
-          <span class="zone-name">${zone.type === 'gym' ? '[GYM] ' : ''}${name}</span>
-          <span class="zone-level">${progressText}${zone.type === 'gym' ? ` <span style="color:var(--gold);font-size:8px">XP*${zone.xpBonus}</span>` : ''}</span>
-        </div>
-      </div>
-    `;
-    container.appendChild(win);
-
-    // Headbar toggle click
-    const headbar = win.querySelector(`[data-zone-hb="${zoneId}"]`);
-    if (headbar) {
-      headbar.addEventListener('click', () => {
-        headbarExpanded[zoneId] = !headbarExpanded[zoneId];
-        const content = document.getElementById(`zt-${zoneId}`);
-        if (content) content.classList.toggle('expanded', headbarExpanded[zoneId]);
-        const toggle = headbar.querySelector('.headbar-toggle');
-        if (toggle) toggle.textContent = headbarExpanded[zoneId] ? '▲' : '▼';
-      });
-    }
-
-    // Double-click zone to move boss there
-    const viewport = win.querySelector('.zone-viewport');
-    if (viewport) {
-      viewport.addEventListener('dblclick', (e) => {
-        if (e.target.closest('.zone-spawn')) return;
-        state.gang.bossZone = zoneId;
-        saveState();
-        renderZoneWindows();
-      });
-    }
-
-    // Initial timer render
-    updateZoneTimers(zoneId);
-
-    // Render existing spawns
-    if (zoneSpawns[zoneId]) {
-      for (const spawn of zoneSpawns[zoneId]) {
-        renderSpawnInWindow(zoneId, spawn);
-      }
+    const existing = document.getElementById(`zw-${zoneId}`);
+    if (existing) {
+      patchZoneWindow(zoneId, existing);
+    } else {
+      const win = buildZoneWindowEl(zoneId);
+      container.appendChild(win);
+      updateZoneTimers(zoneId);
+      (zoneSpawns[zoneId] || []).forEach(s => renderSpawnInWindow(zoneId, s));
     }
   }
+}
+
+// Build a fresh zone window element (used on first open)
+function buildZoneWindowEl(zoneId) {
+  const zone = ZONE_BY_ID[zoneId];
+  const zState = state.zones[zoneId] || {};
+  const mastery = getZoneMastery(zoneId);
+  const name = state.lang === 'fr' ? zone.fr : zone.en;
+  const degraded = isZoneDegraded(zoneId);
+
+  const boosts = [];
+  if (isBoostActive('incense'))    boosts.push('INC');
+  if (isBoostActive('rarescope'))  boosts.push('SCO');
+  if (isBoostActive('aura'))       boosts.push('AUR');
+  if (isBoostActive('chestBoost')) boosts.push('CHT');
+
+  const activeEvt = state.activeEvents[zoneId];
+  const eventActive = activeEvt && activeEvt.expiresAt > Date.now();
+  const eventDef = eventActive ? SPECIAL_EVENTS.find(e => e.id === activeEvt.eventId) : null;
+
+  const assignedAgents = state.agents.filter(a => a.assignedZone === zoneId);
+  const isExpanded = headbarExpanded[zoneId] || false;
+  const gymDefeated = zState.gymDefeated;
+  const combats = zState.combatsWon || 0;
+  const captures = zState.captures || 0;
+  const nextMastery = mastery < 3 ? (mastery < 2 ? 10 : 50) : null;
+  const progressText = zone.type === 'gym'
+    ? `Victoires: ${combats}${gymDefeated ? ' [V]' : ''}`
+    : `Combats: ${combats}${nextMastery ? `/${nextMastery}` : ''} | Cap: ${captures}`;
+
+  const bgStyle = (() => {
+    const b = ZONE_BGS[zoneId];
+    return b ? `background-image:url('${b.url}'),linear-gradient(180deg,${b.fb});background-size:cover,100%;background-position:center,center` : 'background:var(--bg-panel)';
+  })();
+
+  const win = document.createElement('div');
+  win.className = 'zone-window';
+  win.id = `zw-${zoneId}`;
+
+  win.innerHTML = `
+    <div class="zone-headbar${degraded ? ' zone-headbar-degraded' : ''}" data-zone-hb="${zoneId}">
+      <span class="headbar-name">${name}${gymDefeated ? ' [V]' : ''}${degraded ? ' ⚠' : ''}</span>
+      <span class="headbar-stats">${'*'.repeat(mastery)} ${boosts.map(b => `<span class="boost-tag">${b}</span>`).join('')}</span>
+      <span class="headbar-toggle">${isExpanded ? '▲' : '▼'}</span>
+    </div>
+    <div class="zone-headbar-content ${isExpanded ? 'expanded' : ''}" id="zt-${zoneId}"></div>
+    <div class="zone-viewport" style="${bgStyle}">
+      ${degraded ? `<div class="zone-degraded-banner">⚠ ${state.lang === 'fr' ? 'MODE COMBAT — Réputation insuffisante' : 'COMBAT MODE — Reputation too low'}</div>` : ''}
+      ${boosts.length ? `<div class="zone-boosts">${boosts.map(b => `<span class="boost-badge">${b}</span>`).join('')}</div>` : ''}
+      ${eventActive && eventDef ? `<div class="zone-event-banner">${state.lang === 'fr' ? eventDef.fr : eventDef.en}</div>` : ''}
+      ${assignedAgents.map((a, i) => `
+        <div class="zone-agent" data-agent-id="${a.id}" style="left:${8 + i * 44}px">
+          <img src="${a.sprite}" alt="${a.name}" onerror="this.src='${trainerSprite('acetrainer')}'">
+          <span class="agent-label">${a.name}</span>
+          <span class="agent-cd-label" style="display:none;font-family:var(--font-pixel);font-size:7px;color:var(--red);background:rgba(0,0,0,.8);border-radius:2px;padding:1px 3px;white-space:nowrap;position:absolute;top:-16px;left:50%;transform:translateX(-50%)"></span>
+        </div>
+      `).join('')}
+      ${state.gang.bossSprite && state.gang.bossZone === zoneId ? `<div class="zone-boss" data-boss-cd>
+        <img src="${trainerSprite(state.gang.bossSprite)}" alt="Boss" onerror="this.src='${trainerSprite('acetrainer')}'">
+        <span class="boss-cd-label" style="display:none;font-family:var(--font-pixel);font-size:7px;color:var(--red);background:rgba(0,0,0,.8);border-radius:2px;padding:1px 3px;white-space:nowrap;position:absolute;top:-16px;left:50%;transform:translateX(-50%)"></span>
+      </div>` : ''}
+      <div class="zone-info">
+        <span class="zone-name">${zone.type === 'gym' ? '[GYM] ' : ''}${name}</span>
+        <span class="zone-level">${progressText}${zone.type === 'gym' ? ` <span style="color:var(--gold);font-size:8px">XP*${zone.xpBonus}</span>` : ''}</span>
+      </div>
+    </div>
+  `;
+
+  win.querySelector(`[data-zone-hb="${zoneId}"]`)?.addEventListener('click', () => {
+    headbarExpanded[zoneId] = !headbarExpanded[zoneId];
+    document.getElementById(`zt-${zoneId}`)?.classList.toggle('expanded', headbarExpanded[zoneId]);
+    const toggle = win.querySelector('.headbar-toggle');
+    if (toggle) toggle.textContent = headbarExpanded[zoneId] ? '▲' : '▼';
+  });
+
+  win.querySelector('.zone-viewport')?.addEventListener('dblclick', (e) => {
+    if (e.target.closest('.zone-spawn')) return;
+    state.gang.bossZone = zoneId;
+    saveState();
+    renderZoneWindows();
+  });
+
+  return win;
+}
+
+// Patch an existing zone window in place — leaves spawns untouched
+function patchZoneWindow(zoneId, win) {
+  const zone = ZONE_BY_ID[zoneId];
+  if (!zone) return;
+  const zState = state.zones[zoneId] || {};
+  const mastery = getZoneMastery(zoneId);
+  const name = state.lang === 'fr' ? zone.fr : zone.en;
+  const degraded = isZoneDegraded(zoneId);
+  const gymDefeated = zState.gymDefeated;
+  const combats = zState.combatsWon || 0;
+  const captures = zState.captures || 0;
+  const nextMastery = mastery < 3 ? (mastery < 2 ? 10 : 50) : null;
+  const progressText = zone.type === 'gym'
+    ? `Victoires: ${combats}${gymDefeated ? ' [V]' : ''}`
+    : `Combats: ${combats}${nextMastery ? `/${nextMastery}` : ''} | Cap: ${captures}`;
+
+  const boosts = [];
+  if (isBoostActive('incense'))    boosts.push('INC');
+  if (isBoostActive('rarescope'))  boosts.push('SCO');
+  if (isBoostActive('aura'))       boosts.push('AUR');
+  if (isBoostActive('chestBoost')) boosts.push('CHT');
+
+  // Headbar
+  const headbar = win.querySelector(`[data-zone-hb="${zoneId}"]`);
+  if (headbar) {
+    headbar.className = `zone-headbar${degraded ? ' zone-headbar-degraded' : ''}`;
+    const nameEl = headbar.querySelector('.headbar-name');
+    if (nameEl) nameEl.innerHTML = `${name}${gymDefeated ? ' [V]' : ''}${degraded ? ' ⚠' : ''}`;
+    const statsEl = headbar.querySelector('.headbar-stats');
+    if (statsEl) statsEl.innerHTML = `${'*'.repeat(mastery)} ${boosts.map(b => `<span class="boost-tag">${b}</span>`).join('')}`;
+  }
+
+  const viewport = win.querySelector('.zone-viewport');
+  if (!viewport) return;
+
+  // Degraded banner
+  let banner = viewport.querySelector('.zone-degraded-banner');
+  if (degraded && !banner) {
+    banner = document.createElement('div');
+    banner.className = 'zone-degraded-banner';
+    banner.textContent = `⚠ ${state.lang === 'fr' ? 'MODE COMBAT — Réputation insuffisante' : 'COMBAT MODE — Reputation too low'}`;
+    viewport.insertBefore(banner, viewport.firstChild);
+  } else if (!degraded && banner) {
+    banner.remove();
+  }
+
+  // Agent overlays — remove + re-add (they're static overlays, not live spawns)
+  const zoneInfo = viewport.querySelector('.zone-info');
+  viewport.querySelectorAll('.zone-agent').forEach(el => el.remove());
+  state.agents.filter(a => a.assignedZone === zoneId).forEach((a, i) => {
+    const agEl = document.createElement('div');
+    agEl.className = 'zone-agent';
+    agEl.dataset.agentId = a.id;
+    agEl.style.left = `${8 + i * 44}px`;
+    agEl.innerHTML = `<img src="${a.sprite}" alt="${a.name}" onerror="this.src='${trainerSprite('acetrainer')}'">`
+      + `<span class="agent-label">${a.name}</span>`
+      + `<span class="agent-cd-label" style="display:none;font-family:var(--font-pixel);font-size:7px;color:var(--red);background:rgba(0,0,0,.8);border-radius:2px;padding:1px 3px;white-space:nowrap;position:absolute;top:-16px;left:50%;transform:translateX(-50%)"></span>`;
+    viewport.insertBefore(agEl, zoneInfo);
+  });
+
+  // Boss overlay
+  viewport.querySelectorAll('.zone-boss').forEach(el => el.remove());
+  if (state.gang.bossSprite && state.gang.bossZone === zoneId) {
+    const bossEl = document.createElement('div');
+    bossEl.className = 'zone-boss';
+    bossEl.dataset.bossCd = '';
+    bossEl.innerHTML = `<img src="${trainerSprite(state.gang.bossSprite)}" alt="Boss" onerror="this.src='${trainerSprite('acetrainer')}'">`
+      + `<span class="boss-cd-label" style="display:none;font-family:var(--font-pixel);font-size:7px;color:var(--red);background:rgba(0,0,0,.8);border-radius:2px;padding:1px 3px;white-space:nowrap;position:absolute;top:-16px;left:50%;transform:translateX(-50%)"></span>`;
+    viewport.insertBefore(bossEl, zoneInfo);
+  }
+
+  // Zone info text
+  if (zoneInfo) {
+    const levelEl = zoneInfo.querySelector('.zone-level');
+    if (levelEl) levelEl.innerHTML = `${progressText}${zone.type === 'gym' ? ` <span style="color:var(--gold);font-size:8px">XP*${zone.xpBonus}</span>` : ''}`;
+  }
+
+  updateZoneTimers(zoneId);
 }
 
 // ── Gang Base Window (always first in zone windows) ─────────
@@ -3736,7 +3884,9 @@ function renderGangBaseWindow() {
     </div>` : '';
 
   return `<div class="gang-base-window" id="gangBaseWin" style="${qgBgStyle}background-blend-mode:overlay,overlay,normal;">
-    ${state.gang.bossSprite ? `<img class="base-boss-sprite" src="${trainerSprite(state.gang.bossSprite)}" alt="Boss">` : '<div style="width:64px;height:64px;background:var(--bg);border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;font-size:24px">💀</div>'}
+    ${state.gang.bossSprite
+      ? `<img class="base-boss-sprite" src="${trainerSprite(state.gang.bossSprite)}" alt="Boss" onerror="this.src='${FALLBACK_TRAINER_SVG}';this.onerror=null">`
+      : '<div style="width:64px;height:64px;background:var(--bg);border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;font-size:24px">💀</div>'}
     <div style="font-family:var(--font-pixel);font-size:10px;color:var(--text)">${state.gang.bossName}</div>
     <div style="font-size:9px;color:var(--red)">${state.gang.name}</div>
     <div class="base-team-slots">${bossTeamHtml}</div>
@@ -5615,7 +5765,7 @@ function renderAgentsTab() {
 
     html += `<div class="agent-card-full" data-agent-id="${a.id}">
       <div class="agent-header">
-        <img src="${a.sprite}" alt="${a.name}">
+        <img src="${a.sprite}" alt="${a.name}" onerror="this.src='${FALLBACK_TRAINER_SVG}';this.onerror=null">
         <div class="agent-meta">
           <div class="agent-name">${a.name}</div>
           <div class="agent-title">${a.title} — Lv.${a.level}</div>
@@ -5758,6 +5908,7 @@ function renderAgentsTab() {
       ]);
     });
   });
+
 }
 
 // ════════════════════════════════════════════════════════════════

@@ -51,7 +51,11 @@
       "Bash(git commit -m ':*)",
       "Bash(git checkout:*)",
       "Bash(git merge:*)",
-      "Bash(node -e ':*)"
+      "Bash(node -e ':*)",
+      "Bash(node -e \"const fs=require\\('fs'\\);try{new Function\\(fs.readFileSync\\('/c/Users/pierr/Documents/GitHub/pokeforge/game/app.js','utf8'\\)\\);console.log\\('OK'\\)}catch\\(e\\){console.error\\(e.message\\)}\")",
+      "Bash(node -e \"const fs=require\\('fs'\\);try{new Function\\(fs.readFileSync\\('C:/Users/pierr/Documents/GitHub/pokeforge/game/app.js','utf8'\\)\\);console.log\\('OK'\\)}catch\\(e\\){console.error\\(e.message\\)}\")",
+      "Bash(node -e \"const fs=require\\('fs'\\);try{new Function\\(fs.readFileSync\\('game/app.js','utf8'\\)\\);console.log\\('OK'\\)}catch\\(e\\){console.error\\(e.message\\)}\")",
+      "Bash(node -e \"const fs=require\\('fs'\\);const src=fs.readFileSync\\('C:/Users/pierr/Documents/GitHub/pokeforge/game/app.js','utf8'\\);try{new Function\\(src\\);console.log\\('OK'\\)}catch\\(e\\){console.error\\(e.message\\)}\")"
     ]
   }
 }
