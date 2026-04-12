@@ -1478,15 +1478,17 @@ function pokeSpriteBack(en, shiny = false) {
 }
 
 const SPRITE_FIX = {
-  ltsurge:      'surge',
+  // ltsurge.png exists directly on Showdown — no fix needed
   rocketgrunt:  'rocket',
   rocketgruntf: 'rocketf',
+  // Elite Four sprites need suffix on Showdown
+  agatha:   'agatha-gen1',
+  lorelei:  'lorelei-gen1',
 };
 
 // Custom sprite overrides (non-Showdown sources)
 const CUSTOM_TRAINER_SPRITES = {
   giovanni: 'https://www.pokepedia.fr/images/archive/7/73/20230124191924%21Sprite_Giovanni_RB.png',
-  lorelei:  'https://www.pokepedia.fr/images/archive/8/8c/20230124193209%21Sprite_Olga_RB.png',
 };
 
 function trainerSprite(name) {
@@ -3048,20 +3050,10 @@ function buyItem(itemDef) {
     return true;
   }
 
-  if (BOOST_ITEMS.has(itemDef.id)) {
-    // For boost items: add to inventory then immediately activate (cumulates duration)
-    state.inventory[itemDef.id] = (state.inventory[itemDef.id] || 0) + itemDef.qty;
-    // Activate all newly added charges
-    for (let i = 0; i < itemDef.qty; i++) activateBoost(itemDef.id);
-    const rem = Math.ceil(boostRemaining(itemDef.id));
-    const name = state.lang === 'fr' ? (itemDef.fr || itemDef.id) : (itemDef.en || itemDef.id);
-    notify(`${name} activé — ${rem}s restants`, 'success');
-  } else {
-    // Regular items: just stack into inventory
-    state.inventory[itemDef.id] = (state.inventory[itemDef.id] || 0) + itemDef.qty;
-    const name = state.lang === 'fr' ? (itemDef.fr || BALLS[itemDef.id]?.fr || itemDef.id) : (itemDef.en || BALLS[itemDef.id]?.en || itemDef.id);
-    notify(`${itemDef.qty}× ${name}`, 'success');
-  }
+  // All consumables go to inventory — player activates manually from the Zone bag bar
+  state.inventory[itemDef.id] = (state.inventory[itemDef.id] || 0) + itemDef.qty;
+  const _itemName = state.lang === 'fr' ? (itemDef.fr || BALLS[itemDef.id]?.fr || itemDef.id) : (itemDef.en || BALLS[itemDef.id]?.en || itemDef.id);
+  notify(`${itemDef.qty}× ${_itemName} → sac`, 'success');
   saveState();
   return true;
 }
@@ -3246,11 +3238,11 @@ function renderActiveTab() {
   switch (activeTab) {
     case 'tabGang':     renderGangTab(); break;
     case 'tabZones':    renderZonesTab(); break;
-    case 'tabMarket':   renderMarketTab(); renderBagTab(); break;
+    case 'tabMarket':   renderMarketTab(); break;
     case 'tabPC':       renderPCTab(); break;
     case 'tabPokedex':  renderPokedexTab(); break;
     case 'tabAgents':   renderAgentsTab(); break;
-    case 'tabBag':      renderMarketTab(); renderBagTab(); break;
+    case 'tabBag':      switchTab('tabMarket'); break;
     case 'tabMissions': renderMissionsTab(); break;
     case 'tabTraining': renderTrainingTab(); break;
     case 'tabLab':      pcView = 'lab'; switchTab('tabPC'); break;
@@ -3887,47 +3879,65 @@ function renderGangBaseWindow() {
       ${readyEggs.length > 0 ? `<span class="qg-inc-ready">!</span>` : ''}
     </div>` : '';
 
-  // ── Pokemon preview (up to 8 most powerful)
-  const topPokes = [...state.pokemons]
-    .sort((a, b) => getPokemonPower(b) - getPokemonPower(a))
-    .slice(0, 8);
-  const pokePreviewHtml = topPokes.length > 0 ? `
-    <div class="qg-pokemon-preview">
-      ${topPokes.map(p => `<img src="${pokeSprite(p.species_en, p.shiny)}" title="${speciesName(p.species_en)} Lv.${p.level}" alt="${speciesName(p.species_en)}">`).join('')}
-    </div>` : '';
+  // ── Glass layer: scattered pokemon + agents behind the frosted pane
+  const _BG_POSITIONS = [
+    {left:'6%',bottom:'28%'},{left:'18%',bottom:'58%'},{left:'32%',bottom:'18%'},
+    {left:'48%',bottom:'50%'},{left:'62%',bottom:'68%'},{left:'76%',bottom:'26%'},
+    {left:'86%',bottom:'46%'},{left:'12%',bottom:'78%'},{left:'42%',bottom:'74%'},
+    {left:'58%',bottom:'12%'},{left:'28%',bottom:'44%'},{left:'70%',bottom:'82%'},
+  ];
+  const _bgPokes = [...state.pokemons].sort((a, b) => getPokemonPower(b) - getPokemonPower(a)).slice(0, 12);
+  const _bgPokeHtml = _bgPokes.map((p, i) => {
+    const pos = _BG_POSITIONS[i % _BG_POSITIONS.length];
+    const sz = i < 3 ? 48 : i < 6 ? 36 : 28;
+    return `<img src="${pokeSprite(p.species_en, p.shiny)}" style="position:absolute;left:${pos.left};bottom:${pos.bottom};width:${sz}px;height:${sz}px;image-rendering:pixelated;opacity:.35;filter:brightness(.5)" alt="">`;
+  }).join('');
+  const _agentPositions = [{left:'4%',bottom:'4%'},{left:'72%',bottom:'4%'},{left:'22%',bottom:'4%'},{left:'50%',bottom:'4%'},{left:'88%',bottom:'4%'}];
+  const _bgAgentHtml = state.agents.slice(0, 5).map((a, i) => {
+    const pos = _agentPositions[i];
+    return `<img src="${a.sprite}" style="position:absolute;left:${pos.left};bottom:${pos.bottom};width:30px;height:30px;image-rendering:pixelated;opacity:.28;filter:brightness(.45)" onerror="this.src='${trainerSprite('acetrainer')}'" alt="">`;
+  }).join('');
+  const glassLayerHtml = `
+    <div style="position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:0">
+      ${_bgPokeHtml}${_bgAgentHtml}
+      <div style="position:absolute;inset:0;background:rgba(12,4,4,.52);backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px)"></div>
+    </div>`;
 
-  // ── Dynamic QG background: top 2 pokemon as bg sprites
-  const bgPokes = [...state.pokemons].sort((a, b) => getPokemonPower(b) - getPokemonPower(a)).slice(0, 2);
-  const bgLayer1 = bgPokes[0] ? `url('${pokeSprite(bgPokes[0].species_en, bgPokes[0].shiny)}') no-repeat 90% 85% / 80px auto` : '';
-  const bgLayer2 = bgPokes[1] ? `url('${pokeSprite(bgPokes[1].species_en, bgPokes[1].shiny)}') no-repeat 8% 85% / 64px auto` : '';
-  const bgLayers = [bgLayer1, bgLayer2].filter(Boolean).join(', ') + (bgLayer1 || bgLayer2 ? ', ' : '');
-  const qgBgStyle = `background: ${bgLayers}linear-gradient(180deg, #1a0808 0%, #2d1111 30%, #1c0c0c 70%, #0f0505 100%);`;
+  // ── Bag mini-bar: items owned > 0, usable directly
+  const _BAG_DEFS = [
+    {id:'pokeball',  isBall:true}, {id:'greatball', isBall:true}, {id:'ultraball', isBall:true},
+    {id:'duskball',  isBall:true}, {id:'masterball', isBall:true},
+    {id:'lure',      usable:true}, {id:'superlure', usable:true}, {id:'potion', usable:true},
+    {id:'incense',   usable:true}, {id:'rarescope', usable:true}, {id:'aura',   usable:true},
+    {id:'rarecandy', usable:true}, {id:'evostone'}, {id:'incubator'},
+  ];
+  const bagBarHtml = _BAG_DEFS.map(def => {
+    const qty = state.inventory[def.id] || 0;
+    if (!qty) return '';
+    const isActive  = def.isBall && state.activeBall === def.id;
+    const isBoosted = def.usable && isBoostActive(def.id);
+    const remStr    = isBoosted ? `<span style="position:absolute;bottom:1px;left:50%;transform:translateX(-50%);font-size:6px;color:var(--green);white-space:nowrap">${Math.ceil(boostRemaining(def.id))}s</span>` : '';
+    return `<div class="base-bag-item" data-bag-item="${def.id}" title="${def.id} ×${qty}"
+      style="position:relative;display:flex;flex-direction:column;align-items:center;gap:1px;padding:3px 4px;border-radius:4px;cursor:pointer;min-width:32px;
+        background:${isActive ? 'rgba(204,51,51,.3)' : isBoosted ? 'rgba(255,204,0,.18)' : 'rgba(0,0,0,.55)'};
+        border:1px solid ${isActive ? 'var(--red)' : isBoosted ? 'var(--gold-dim)' : 'rgba(255,255,255,.12)'}">
+      ${itemSprite(def.id)}
+      <span style="font-size:7px;color:var(--gold);font-family:var(--font-pixel)">×${qty}</span>
+      ${remStr}
+    </div>`;
+  }).filter(Boolean).join('');
 
-  // ── Agents in foreground bar
-  const gangAgentsHtml = state.agents.length > 0 ? `
-    <div style="display:flex;gap:4px;align-items:flex-end;justify-content:center;width:100%">
-      ${state.agents.slice(0, 5).map(a => `
-        <div style="display:flex;flex-direction:column;align-items:center;gap:1px" title="${a.name}">
-          <img src="${a.sprite}" alt="${a.name}" style="width:32px;height:32px;image-rendering:pixelated;opacity:.85" onerror="this.src='${trainerSprite('acetrainer')}'">
-          <span style="font-size:7px;color:var(--text-dim);white-space:nowrap;overflow:hidden;max-width:34px;text-overflow:ellipsis">${a.name}</span>
-        </div>`).join('')}
-    </div>` : '';
-
-  return `<div class="gang-base-window" id="gangBaseWin" style="${qgBgStyle}background-blend-mode:overlay,overlay,normal;">
-    ${state.gang.bossSprite
-      ? `<img class="base-boss-sprite" src="${trainerSprite(state.gang.bossSprite)}" alt="Boss" onerror="this.src='${FALLBACK_TRAINER_SVG}';this.onerror=null">`
-      : '<div style="width:64px;height:64px;background:var(--bg);border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;font-size:24px">💀</div>'}
-    <div style="font-family:var(--font-pixel);font-size:10px;color:var(--text)">${state.gang.bossName}</div>
-    <div style="font-size:9px;color:var(--red)">${state.gang.name}</div>
-    <div class="base-team-slots">${bossTeamHtml}</div>
-    ${pokePreviewHtml}
-    ${incWidgetHtml}
-    ${gangAgentsHtml}
-    <div class="base-actions">
-      <button class="base-action-btn" data-base-action="bag">🎒 Sac</button>
-      <button class="base-action-btn" data-base-action="agents">👥 Agents</button>
-      <button class="base-action-btn" data-base-action="pc">🖥 PC</button>
-      <button class="base-action-btn" data-base-action="gang">📊 Gang</button>
+  return `<div class="gang-base-window" id="gangBaseWin">
+    ${glassLayerHtml}
+    <div style="position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:8px;width:100%">
+      ${state.gang.bossSprite
+        ? `<img class="base-boss-sprite" src="${trainerSprite(state.gang.bossSprite)}" alt="Boss" onerror="this.src='${FALLBACK_TRAINER_SVG}';this.onerror=null">`
+        : '<div style="width:64px;height:64px;background:var(--bg);border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;font-size:24px">💀</div>'}
+      <div style="font-family:var(--font-pixel);font-size:10px;color:var(--text)">${state.gang.bossName}</div>
+      <div style="font-size:9px;color:var(--red)">${state.gang.name}</div>
+      <div class="base-team-slots">${bossTeamHtml}</div>
+      ${incWidgetHtml}
+      ${bagBarHtml ? `<div class="base-bag-bar">${bagBarHtml}</div>` : ''}
     </div>
   </div>`;
 }
@@ -3939,30 +3949,65 @@ function bindGangBase(container) {
       const idx = parseInt(slot.dataset.bossSlot);
       const pkId = state.gang.bossTeam[idx];
       if (pkId) {
-        // Remove from boss team
         state.gang.bossTeam.splice(idx, 1);
         saveState();
         renderZoneWindows();
       } else {
-        // Show picker
         openTeamPicker('boss', null, () => renderZoneWindows());
       }
     });
   });
-  // Quick nav buttons + incubator widget
-  container.querySelectorAll('[data-base-action]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const action = btn.dataset.baseAction;
-      const tabMap = { bag: 'tabBag', agents: 'tabAgents', pc: 'tabPC', gang: 'tabGang', pension: 'tabBag' };
-      if (tabMap[action]) {
-        switchTab(tabMap[action]);
-        // For pension: also scroll to pension section
-        if (action === 'pension') {
-          setTimeout(() => {
-            const pensionEl = document.getElementById('pensionSection') || document.querySelector('.pension-section');
-            pensionEl?.scrollIntoView({ behavior: 'smooth' });
-          }, 100);
+
+  // Incubator widget → navigate to pension
+  container.querySelector('[data-base-action="pension"]')?.addEventListener('click', () => {
+    switchTab('tabMarket');
+    setTimeout(() => {
+      const pensionEl = document.getElementById('pensionSection') || document.querySelector('.pension-section');
+      pensionEl?.scrollIntoView({ behavior: 'smooth' });
+    }, 100);
+  });
+
+  // Bag mini-bar: use items directly from zone
+  container.querySelectorAll('.base-bag-item').forEach(el => {
+    el.addEventListener('click', () => {
+      const id = el.dataset.bagItem;
+      const def = {
+        pokeball: {isBall:true}, greatball: {isBall:true}, ultraball: {isBall:true},
+        duskball: {isBall:true}, masterball: {isBall:true},
+        lure: {usable:true}, superlure: {usable:true}, potion: {usable:true},
+        incense: {usable:true}, rarescope: {usable:true}, aura: {usable:true},
+        rarecandy: {usable:true},
+      }[id] || {};
+
+      if (def.isBall) {
+        state.activeBall = id;
+        saveState();
+        renderZoneWindows();
+        return;
+      }
+      if (id === 'potion') {
+        let removed = 0;
+        for (const p of state.pokemons) { if (p.cooldown > 0) { p.cooldown = 0; removed++; } }
+        if (removed > 0) {
+          state.inventory.potion--;
+          notify(state.lang === 'fr' ? `Cooldown retiré de ${removed} Pokémon` : `Cooldown removed from ${removed} Pokémon`, 'success');
+          saveState();
+        } else {
+          notify(state.lang === 'fr' ? 'Aucun Pokémon en cooldown' : 'No Pokémon on cooldown');
         }
+        renderZoneWindows();
+        return;
+      }
+      if (id === 'rarecandy') {
+        openRareCandyPicker();
+        return;
+      }
+      if (def.usable) {
+        if (activateBoost(id)) {
+          const rem = Math.ceil(boostRemaining(id));
+          notify(`Boost activé — ${rem}s`, 'success');
+        }
+        renderZoneWindows();
       }
     });
   });
@@ -4783,8 +4828,8 @@ function closeCombatPopup() {
 const selectedForSale = new Set();
 
 function renderMarketTab() {
-  renderSellPanel();
   renderShopPanel();
+  renderSellPanel();
   const cosPanel = document.querySelector('#cosmeticsPanel .cosmetics-list');
   if (cosPanel) renderCosmeticsPanel(cosPanel);
 }
