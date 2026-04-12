@@ -1224,7 +1224,7 @@ function saveState() {
   state._savedAt = Date.now();
   localStorage.setItem(SAVE_KEY, JSON.stringify(state));
   // Cloud sync : throttlé, non-bloquant
-  if (supabase && supaSession) {
+  if (_supabase && supaSession) {
     const now = Date.now();
     if (now - _supaLastSaveAt >= SUPA_SAVE_THROTTLE_MS) {
       _supaLastSaveAt = now;
@@ -1653,8 +1653,56 @@ const SFX = (() => {
     error() {
       playTone(200, 0.2, 'sawtooth', 0.1);
     },
+    levelUp() {
+      // Ascending fanfare
+      playTone(523, 0.1, 'square', 0.1);
+      setTimeout(() => playTone(659, 0.1, 'square', 0.1), 110);
+      setTimeout(() => playTone(784, 0.15, 'square', 0.1), 220);
+      setTimeout(() => playTone(1047, 0.2, 'sine',  0.12), 360);
+    },
+    coin() {
+      // Money sound
+      playTone(988, 0.06, 'sine', 0.1);
+      setTimeout(() => playTone(1318, 0.1, 'sine', 0.1), 80);
+    },
   };
 })();
+
+// ════════════════════════════════════════════════════════════════
+//  3b.  DOPAMINE POPUP HELPERS
+// ════════════════════════════════════════════════════════════════
+
+let _shinyPopupTimer = null;
+
+function showShinyPopup(species_en) {
+  try {
+    const el = document.getElementById('shinyPopup');
+    const sprite = document.getElementById('shinyPopupSprite');
+    const label  = document.getElementById('shinyPopupLabel');
+    if (!el) return;
+    sprite.src = pokeSprite(species_en, true);
+    label.textContent = (state.lang === 'fr' ? '✨ SHINY ' : '✨ SHINY ') + speciesName(species_en) + ' !';
+    el.classList.add('show');
+    clearTimeout(_shinyPopupTimer);
+    _shinyPopupTimer = setTimeout(() => el.classList.remove('show'), 3000);
+  } catch {}
+}
+
+let _rarePopupTimer = null;
+
+function showRarePopup(species_en) {
+  try {
+    const el = document.getElementById('rarePopup');
+    const sprite = document.getElementById('rarePopupSprite');
+    const label  = document.getElementById('rarePopupLabel');
+    if (!el) return;
+    sprite.src = pokeSprite(species_en);
+    label.textContent = (state.lang === 'fr' ? '⚡ Rare aperçu: ' : '⚡ Rare spotted: ') + speciesName(species_en);
+    el.classList.add('show');
+    clearTimeout(_rarePopupTimer);
+    _rarePopupTimer = setTimeout(() => el.classList.remove('show'), 2500);
+  } catch {}
+}
 
 // ════════════════════════════════════════════════════════════════
 //  4.  POKEMON MODULE
@@ -1881,7 +1929,10 @@ function levelUpPokemon(pokemon, xpGain) {
     // Show popup only for boss team / active training (not passive background XP spam)
     const isBossTeam = state.gang.bossTeam.includes(pokemon.id);
     const isInTraining = state.trainingRoom?.pokemon?.includes(pokemon.id);
-    if (isBossTeam || isInTraining) showPokemonLevelPopup(pokemon, pokemon.level);
+    if (isBossTeam || isInTraining) {
+      showPokemonLevelPopup(pokemon, pokemon.level);
+      try { SFX.levelUp(); } catch {}
+    }
   }
   return leveled;
 }
@@ -2343,6 +2394,7 @@ function tryCapture(zoneId, speciesEN) {
   const shinyTag = pokemon.shiny ? ' ✨SHINY✨' : '';
   if (pokemon.shiny) {
     notify(`${name} ${stars}${shinyTag}`, 'gold');
+    setTimeout(() => showShinyPopup(pokemon.species_en), 200);
   } else {
     notify(`${name} ${stars}`, pokemon.potential >= 4 ? 'gold' : 'success');
   }
@@ -2921,10 +2973,7 @@ function calculatePrice(pokemon) {
   const shinyMult = pokemon.shiny ? 10 : 1;
   const nat = NATURES[pokemon.nature];
   const natMult = nat ? (nat.atk + nat.def + nat.spd) / 3 : 1;
-  // Supply modifier: each recent sale of same species lowers price (-8% per unit, max -60%)
-  const sales = state.marketSales[pokemon.species_en];
-  const supplyMult = sales ? Math.max(0.4, 1 - sales.count * 0.08) : 1;
-  return Math.round(base * potMult * shinyMult * natMult * supplyMult);
+  return Math.round(base * potMult * shinyMult * natMult);
 }
 
 // Returns the supply pressure as a percentage (0 = normal, 60 = max saturation)
@@ -2977,12 +3026,6 @@ function sellPokemon(pokemonIds) {
     if (idx === -1) continue;
     const p = state.pokemons[idx];
     total += calculatePrice(p);
-    // Track supply for this species
-    if (!state.marketSales[p.species_en]) {
-      state.marketSales[p.species_en] = { count: 0, lastSale: Date.now() };
-    }
-    state.marketSales[p.species_en].count++;
-    state.marketSales[p.species_en].lastSale = Date.now();
     state.pokemons.splice(idx, 1);
     state.stats.totalSold++;
   }
@@ -2990,6 +3033,7 @@ function sellPokemon(pokemonIds) {
   state.stats.totalMoneyEarned += total;
   notify(t('sold', { n: pokemonIds.length, price: total }), 'gold');
   addLog(t('sold', { n: pokemonIds.length, price: total }));
+  try { SFX.coin(); } catch {}
   saveState();
   return total;
 }
@@ -3724,7 +3768,7 @@ function buildZoneWindowEl(zoneId) {
   })();
 
   const win = document.createElement('div');
-  win.className = 'zone-window';
+  win.className = `zone-window zone-type-${zone.type || 'field'}`;
   win.id = `zw-${zoneId}`;
 
   win.innerHTML = `
@@ -3938,6 +3982,10 @@ function renderGangBaseWindow() {
       <div class="base-team-slots">${bossTeamHtml}</div>
       ${incWidgetHtml}
       ${bagBarHtml ? `<div class="base-bag-bar">${bagBarHtml}</div>` : ''}
+      <button class="base-export-btn" title="${state.lang === 'fr' ? 'Exporter mon gang (image)' : 'Export my gang (image)'}"
+        style="margin-top:4px;font-family:var(--font-pixel);font-size:7px;padding:3px 8px;background:rgba(0,0,0,.6);border:1px solid rgba(255,255,255,.2);border-radius:var(--radius-sm);color:var(--text-dim);cursor:pointer;transition:color .2s,border-color .2s">
+        ${state.lang === 'fr' ? '📷 Exporter' : '📷 Export'}
+      </button>
     </div>
   </div>`;
 }
@@ -4011,6 +4059,106 @@ function bindGangBase(container) {
       }
     });
   });
+
+  // Export button
+  container.querySelector('.base-export-btn')?.addEventListener('click', exportGangImage);
+}
+
+// ── Gang Export (Canvas screenshot) ──────────────────────────
+async function exportGangImage() {
+  const win = document.getElementById('gangBaseWin');
+  if (!win) return;
+  try {
+    // Build a canvas from gang info
+    const W = 400, H = 480;
+    const canvas = document.createElement('canvas');
+    canvas.width = W; canvas.height = H;
+    const ctx = canvas.getContext('2d');
+
+    // Background
+    const grad = ctx.createLinearGradient(0, 0, 0, H);
+    grad.addColorStop(0,   '#1a0808');
+    grad.addColorStop(0.3, '#2d1111');
+    grad.addColorStop(0.7, '#1c0c0c');
+    grad.addColorStop(1,   '#0f0505');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W, H);
+
+    // Border
+    ctx.strokeStyle = '#cc3333';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(2, 2, W - 4, H - 4);
+
+    // Helper: load image as promise
+    function loadImg(src) {
+      return new Promise(resolve => {
+        const img = new Image(); img.crossOrigin = 'anonymous';
+        img.onload = () => resolve(img);
+        img.onerror = () => resolve(null);
+        img.src = src;
+      });
+    }
+
+    // Boss sprite
+    const bossImgSrc = state.gang.bossSprite ? trainerSprite(state.gang.bossSprite) : null;
+    if (bossImgSrc) {
+      const bossImg = await loadImg(bossImgSrc);
+      if (bossImg) { ctx.drawImage(bossImg, W/2 - 48, 24, 96, 96); }
+    }
+
+    // Gang name & boss name
+    ctx.fillStyle = '#cc3333';
+    ctx.font = 'bold 18px "Courier New", monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(state.gang.name, W/2, 140);
+    ctx.fillStyle = '#e0e0e0';
+    ctx.font = '14px "Courier New", monospace';
+    ctx.fillText(state.gang.bossName, W/2, 160);
+
+    // Team pokémon
+    const teamPks = state.gang.bossTeam.map(id => state.pokemons.find(p => p.id === id)).filter(Boolean);
+    let tx = W/2 - teamPks.length * 30;
+    for (const pk of teamPks) {
+      const img = await loadImg(pokeSprite(pk.species_en, pk.shiny));
+      if (img) { ctx.drawImage(img, tx, 170, 56, 56); }
+      tx += 62;
+    }
+
+    // Stats row
+    ctx.fillStyle = '#ffcc5a';
+    ctx.font = '12px "Courier New", monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(`Niv. moyen: ${teamPks.length ? Math.round(teamPks.reduce((s, p) => s + p.level, 0) / teamPks.length) : '--'}  |  Pokémon: ${state.pokemons.length}  |  ₽ ${state.gang.money.toLocaleString()}`, W/2, 248);
+
+    // Top 6 pokemon
+    const top6 = [...state.pokemons].sort((a, b) => getPokemonPower(b) - getPokemonPower(a)).slice(0, 6);
+    ctx.fillStyle = '#888';
+    ctx.font = '10px "Courier New", monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('MEILLEURS POKÉMON', W/2, 275);
+    let px = W/2 - top6.length * 27;
+    for (const pk of top6) {
+      const img = await loadImg(pokeSprite(pk.species_en, pk.shiny));
+      if (img) { ctx.drawImage(img, px, 285, 48, 48); }
+      px += 54;
+    }
+
+    // Watermark
+    ctx.fillStyle = 'rgba(255,255,255,.25)';
+    ctx.font = '10px "Courier New", monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('PokéForge', W/2, H - 14);
+
+    // Download
+    const link = document.createElement('a');
+    link.download = `pokeforge-${state.gang.name.replace(/\s+/g, '-')}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+    notify(state.lang === 'fr' ? '📷 Image exportée !' : '📷 Image exported!', 'success');
+  } catch (err) {
+    console.error('Export failed:', err);
+    notify(state.lang === 'fr' ? 'Export impossible' : 'Export failed', 'error');
+  }
 }
 
 // ── Team Picker Modal ────────────────────────────────────────
@@ -4334,6 +4482,10 @@ function renderSpawnInWindow(zoneId, spawnObj) {
     const sp = SPECIES_BY_EN[spawnObj.species_en];
     el.innerHTML = `<img src="${pokeSprite(spawnObj.species_en)}" style="width:56px;height:56px" alt="${sp?.fr || spawnObj.species_en}">`;
     el.title = sp ? (state.lang === 'fr' ? sp.fr : sp.en) : spawnObj.species_en;
+    // Rare / very_rare / legendary popup notification
+    if (sp && (sp.rarity === 'very_rare' || sp.rarity === 'legendary')) {
+      setTimeout(() => showRarePopup(spawnObj.species_en), 300);
+    }
     el.addEventListener('click', () => {
       if (el.classList.contains('catching')) return;
       el.classList.add('catching');
@@ -4481,6 +4633,7 @@ function animateCapture(zoneId, spawnObj, spawnEl) {
     // Try capture
     const caught = tryCapture(zoneId, spawnObj.species_en);
     if (caught) {
+      if (caught.shiny) spawnEl.classList.add('shiny-flash');
       showCaptureBurst(viewport, targetX, targetY, caught.potential, caught.shiny);
       removeSpawn(zoneId, spawnObj.id);
       updateTopBar();
@@ -7256,7 +7409,7 @@ function startGameLoop() {
 // 23.  SUPABASE — AUTH & CLOUD SAVE
 // ════════════════════════════════════════════════════════════════
 
-let supabase    = null;
+let _supabase    = null;
 let supaSession = null;
 let supaLastSync = null;   // timestamp dernier cloud save réussi
 let supaSyncing  = false;
@@ -7276,17 +7429,17 @@ function initSupabase() {
     return;
   }
   try {
-    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     // Restaurer la session existante (localStorage Supabase)
-    supabase.auth.getSession().then(({ data }) => {
+    _supabase.auth.getSession().then(({ data }) => {
       supaSession = data.session || null;
       updateSupaIndicator();
       if (activeTab === 'tabCompte') renderCompteTab();
     });
 
     // Écouter les changements d'auth (login / logout / refresh token)
-    supabase.auth.onAuthStateChange((_event, session) => {
+    _supabase.auth.onAuthStateChange((_event, session) => {
       supaSession = session;
       updateSupaIndicator();
       updateSupaTabLabel();
@@ -7299,8 +7452,8 @@ function initSupabase() {
 
 // ── Auth ──────────────────────────────────────────────────────────
 async function supaSignIn(email, password) {
-  if (!supabase) return { error: 'Supabase non configuré' };
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  if (!_supabase) return { error: 'Supabase non configuré' };
+  const { data, error } = await _supabase.auth.signInWithPassword({ email, password });
   if (error) return { error: error.message };
   // Après connexion : proposer de charger la save cloud si plus récente
   await supaCheckCloudLoad();
@@ -7308,15 +7461,15 @@ async function supaSignIn(email, password) {
 }
 
 async function supaSignUp(email, password) {
-  if (!supabase) return { error: 'Supabase non configuré' };
-  const { data, error } = await supabase.auth.signUp({ email, password });
+  if (!_supabase) return { error: 'Supabase non configuré' };
+  const { data, error } = await _supabase.auth.signUp({ email, password });
   if (error) return { error: error.message };
   return { data };
 }
 
 async function supaSignOut() {
-  if (!supabase) return;
-  await supabase.auth.signOut();
+  if (!_supabase) return;
+  await _supabase.auth.signOut();
   supaLastSync = null;
   supaSession  = null;
   updateSupaIndicator();
@@ -7326,12 +7479,12 @@ async function supaSignOut() {
 
 // ── Cloud Save ────────────────────────────────────────────────────
 async function supaCloudSave() {
-  if (!supabase || !supaSession) return;
+  if (!_supabase || !supaSession) return;
   if (supaSyncing) return;
   supaSyncing = true;
   updateSupaIndicator();
   try {
-    const { error } = await supabase
+    const { error } = await _supabase
       .from('player_saves')
       .upsert({
         user_id:  supaSession.user.id,
@@ -7350,8 +7503,8 @@ async function supaCloudSave() {
 }
 
 async function supaCheckCloudLoad() {
-  if (!supabase || !supaSession) return;
-  const { data, error } = await supabase
+  if (!_supabase || !supaSession) return;
+  const { data, error } = await _supabase
     .from('player_saves')
     .select('state, saved_at')
     .eq('user_id', supaSession.user.id)
@@ -7373,8 +7526,8 @@ async function supaCheckCloudLoad() {
 }
 
 async function supaForceCloudLoad() {
-  if (!supabase || !supaSession) return;
-  const { data, error } = await supabase
+  if (!_supabase || !supaSession) return;
+  const { data, error } = await _supabase
     .from('player_saves')
     .select('state, saved_at')
     .eq('user_id', supaSession.user.id)
@@ -7392,10 +7545,10 @@ async function supaForceCloudLoad() {
 }
 
 async function supaUpdateLeaderboard() {
-  if (!supabase || !supaSession) return;
+  if (!_supabase || !supaSession) return;
   const shinyCount  = (state.pokemons || []).filter(p => p.shiny).length;
   const dexCount    = Object.values(state.pokedex || {}).filter(v => v > 0).length;
-  await supabase.from('players').upsert({
+  await _supabase.from('players').upsert({
     user_id:       supaSession.user.id,
     gang_name:     state.gang.name     || 'Team ???',
     boss_name:     state.gang.bossName || 'Boss',
@@ -7574,8 +7727,8 @@ async function renderCompteTab() {
 }
 
 async function supaFetchLeaderboard() {
-  if (!supabase) return '<div style="color:var(--text-dim);font-size:10px">Non disponible.</div>';
-  const { data, error } = await supabase
+  if (!_supabase) return '<div style="color:var(--text-dim);font-size:10px">Non disponible.</div>';
+  const { data, error } = await _supabase
     .from('players')
     .select('user_id, gang_name, boss_name, reputation, shiny_count, pokedex_count')
     .order('reputation', { ascending: false })
