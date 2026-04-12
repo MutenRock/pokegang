@@ -2193,6 +2193,64 @@
       #bossProfile { flex-direction: column; text-align: center; }
       #tabContent { padding: 10px; }
     }
+    /* ── Info Modal ───────────────────────────────────────────────── */
+    #infoModal {
+      position: fixed; inset: 0; z-index: 9000;
+      background: rgba(0,0,0,.8);
+      display: none; align-items: center; justify-content: center;
+    }
+    #infoModal.active { display: flex; }
+    #infoModal .info-box {
+      background: var(--bg-panel); border: 2px solid var(--gold-dim);
+      border-radius: var(--radius); padding: 24px; max-width: 560px; width: 90%;
+      max-height: 80vh; display: flex; flex-direction: column; gap: 12px;
+      overflow-y: auto;
+    }
+    #infoModal .info-title { font-family: var(--font-pixel); font-size: 11px; color: var(--gold); }
+    #infoModal .info-section { font-size: 12px; line-height: 1.6; color: var(--text); }
+    #infoModal .info-section strong { color: var(--gold); }
+    #infoModal .info-close { align-self: flex-end; font-family: var(--font-pixel); font-size: 9px;
+      padding: 6px 14px; background: var(--bg); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); color: var(--text-dim); cursor: pointer; }
+    #infoModal .info-close:hover { border-color: var(--gold-dim); color: var(--gold); }
+
+    /* ── Tab Info Buttons ─────────────────────────────────────────── */
+    .tab-info-btn {
+      font-family: var(--font-pixel); font-size: 9px; font-weight: bold;
+      width: 16px; height: 16px; border-radius: 50%; border: 1px solid var(--text-dim);
+      background: transparent; color: var(--text-dim); cursor: pointer;
+      display: inline-flex; align-items: center; justify-content: center;
+      padding: 0; margin-left: 4px; vertical-align: middle; transition: color .15s, border-color .15s;
+      flex-shrink: 0;
+    }
+    .tab-info-btn:hover { color: var(--gold); border-color: var(--gold); }
+
+    /* ── Zone Income ──────────────────────────────────────────────── */
+    .zone-income-btn {
+      position: absolute; bottom: 6px; right: 6px;
+      font-family: var(--font-pixel); font-size: 10px; cursor: pointer;
+      padding: 3px 6px; border-radius: 4px; border: 1px solid transparent;
+      transition: all .2s; user-select: none; z-index: 10;
+    }
+    .income-tier1 { color: #888; border-color: #555; }
+    .income-tier2 { color: #ccc; border-color: #999; text-shadow: 0 0 4px #fff; }
+    .income-tier3 { color: var(--gold); border-color: var(--gold-dim); box-shadow: 0 0 6px rgba(255,204,90,.3); }
+    .income-tier4 { color: var(--gold); border-color: var(--gold); box-shadow: 0 0 12px var(--gold); animation: incomeGlowPulse 1.5s ease-in-out infinite; }
+    .income-tier5 { color: #fff; border-color: var(--gold); box-shadow: 0 0 16px var(--gold), 0 0 30px rgba(255,200,50,.4); animation: incomeRainbow 2s linear infinite, incomeVibrate .15s ease-in-out infinite; }
+
+    @keyframes incomeGlowPulse {
+      0%,100% { box-shadow: 0 0 8px rgba(255,204,90,.4); }
+      50% { box-shadow: 0 0 20px rgba(255,204,90,.8), 0 0 35px rgba(255,204,90,.3); }
+    }
+    @keyframes incomeRainbow {
+      0% { filter: hue-rotate(0deg) brightness(1.2); }
+      100% { filter: hue-rotate(360deg) brightness(1.2); }
+    }
+    @keyframes incomeVibrate {
+      0%,100% { transform: translateX(0); }
+      25% { transform: translateX(-1px); }
+      75% { transform: translateX(1px); }
+    }
   </style>
 </head>
 <body>
@@ -2220,14 +2278,14 @@
 
     <!-- ═══ Tab Navigation ═══ -->
     <nav id="tabNav">
-      <button class="tab-btn active" data-tab="tabGang">Gang</button>
-      <button class="tab-btn" data-tab="tabAgents">Agents</button>
-      <button class="tab-btn" data-tab="tabZones">Zones</button>
-      <button class="tab-btn" data-tab="tabMarket">Marche</button>
-      <button class="tab-btn" data-tab="tabPC">PC</button>
+      <button class="tab-btn active" data-tab="tabGang">Gang<button class="tab-info-btn" onclick="showInfoModal('tabGang');event.stopPropagation()">i</button></button>
+      <button class="tab-btn" data-tab="tabAgents">Agents<button class="tab-info-btn" onclick="showInfoModal('tabAgents');event.stopPropagation()">i</button></button>
+      <button class="tab-btn" data-tab="tabZones">Zones<button class="tab-info-btn" onclick="showInfoModal('tabZones');event.stopPropagation()">i</button></button>
+      <button class="tab-btn" data-tab="tabMarket">Marche<button class="tab-info-btn" onclick="showInfoModal('tabMarket');event.stopPropagation()">i</button></button>
+      <button class="tab-btn" data-tab="tabPC">PC<button class="tab-info-btn" onclick="showInfoModal('tabPC');event.stopPropagation()">i</button></button>
       <button class="tab-btn" data-tab="tabTraining">Formation</button>
       <button class="tab-btn" data-tab="tabMissions">Missions</button>
-      <button class="tab-btn" data-tab="tabPokedex">Pokedex</button>
+      <button class="tab-btn" data-tab="tabPokedex">Pokedex<button class="tab-info-btn" onclick="showInfoModal('tabPokedex');event.stopPropagation()">i</button></button>
       <button class="tab-btn" data-tab="tabCompte" id="tabBtnCompte" style="margin-left:auto">☁ Compte</button>
       <button class="tab-btn" id="btnSaveSlots" style="border-color:var(--gold-dim);color:var(--gold-dim)">Saves</button>
     </nav>

@@ -449,31 +449,31 @@ const ZONES = [
   // ══ ARÈNES (combats uniquement, pas d'investissement) ══
   { id:'pewter_gym',    fr:'Arène d\'Argenta',  en:'Pewter Gym',        rep:150, spawnRate:0.06, type:'gym',
     pool:['geodude','onix','graveler','sandshrew'],
-    trainers:['hiker','camper'], eliteTrainer:'brock', investCost:0,
+    trainers:['hiker','camper','pokemonranger'], eliteTrainer:'brock', investCost:0,
     gymLeader:'brock', xpBonus:1.5 },
   { id:'cerulean_gym',  fr:'Arène d\'Azuria',   en:'Cerulean Gym',      rep:300, spawnRate:0.06, type:'gym',
     pool:['staryu','psyduck','goldeen','horsea','seel'],
-    trainers:['swimmer','picnicker'], eliteTrainer:'misty', investCost:0,
+    trainers:['swimmer','picnicker','pokemonranger'], eliteTrainer:'misty', investCost:0,
     gymLeader:'misty', xpBonus:1.5 },
   { id:'celadon_gym',   fr:'Arène de Céladopole',en:'Celadon Gym',      rep:450, spawnRate:0.06, type:'gym',
     pool:['bellsprout','oddish','gloom','weepinbell','victreebel','vileplume'],
-    trainers:['lass','beauty','acetrainer'], eliteTrainer:'erika', investCost:0,
+    trainers:['lass','beauty','acetrainer','pokemonranger'], eliteTrainer:'erika', investCost:0,
     gymLeader:'erika', xpBonus:1.8 },
   { id:'fuchsia_gym',   fr:'Arène de Parmanie', en:'Fuchsia Gym',       rep:650, spawnRate:0.06, type:'gym',
     pool:['venonat','venomoth','koffing','weezing','grimer','muk'],
-    trainers:['juggler','psychic'], eliteTrainer:'koga', investCost:0,
+    trainers:['juggler','psychic','pokemonranger'], eliteTrainer:'koga', investCost:0,
     gymLeader:'koga', xpBonus:2.0 },
   { id:'saffron_gym',   fr:'Arène de Safrania', en:'Saffron Gym',       rep:800, spawnRate:0.06, type:'gym',
     pool:['abra','kadabra','alakazam','mr-mime','jynx','hypno'],
-    trainers:['psychic','channeler'], eliteTrainer:'sabrina', investCost:0,
+    trainers:['psychic','channeler','pokemonranger'], eliteTrainer:'sabrina', investCost:0,
     gymLeader:'sabrina', xpBonus:2.2 },
   { id:'cinnabar_gym',  fr:'Arène de Cramois\'île',en:'Cinnabar Gym',   rep:850, spawnRate:0.06, type:'gym',
     pool:['growlithe','ponyta','rapidash','magmar','vulpix','ninetales','flareon','moltres'],
-    trainers:['supernerd','scientist','acetrainer'], eliteTrainer:'blaine', investCost:0,
+    trainers:['supernerd','scientist','acetrainer','pokemonranger'], eliteTrainer:'blaine', investCost:0,
     gymLeader:'blaine', xpBonus:2.5 },
   { id:'indigo_plateau',fr:'Plateau Indigo',    en:'Indigo Plateau',    rep:1000,spawnRate:0.06, type:'gym',
     pool:['dragonair','dragonite','gyarados','lapras','snorlax'],
-    trainers:['acetrainer'], eliteTrainer:'blue', investCost:0,
+    trainers:['acetrainer','pokemonranger'], eliteTrainer:'blue', investCost:0,
     gymLeader:'blue', xpBonus:3.0 },
 
   // ══ LIEUX SPÉCIAUX (hybride : captures + events, investissement possible) ══
@@ -508,11 +508,11 @@ const ZONES = [
   { id:'celadon_casino',fr:'Casino de Céladopole',en:'Celadon Casino',  rep:600, spawnRate:0.07, type:'special',
     unlockItem:'casino_ticket',
     pool:['porygon','abra','clefairy','meowth','voltorb','dratini'],
-    trainers:['rocketgrunt','rocketgruntf','gentleman','juggler'], eliteTrainer:'archer', investCost:15000 },
+    trainers:['rocketgrunt','rocketgruntf','gentleman','juggler','policeman'], eliteTrainer:'archer', investCost:15000 },
   { id:'silph_co',      fr:'Sylphe SARL',       en:'Silph Co.',         rep:900, spawnRate:0.07, type:'special',
     unlockItem:'silph_keycard',
     pool:['porygon','electrode','magnemite','magneton','voltorb','lapras'],
-    trainers:['rocketgrunt','rocketgruntf','scientist','archer','proton'], eliteTrainer:'giovanni', investCost:30000 },
+    trainers:['rocketgrunt','rocketgruntf','scientist','archer','proton','policeman'], eliteTrainer:'giovanni', investCost:30000 },
 
   // ══ NOUVELLES ZONES ══
   { id:'pallet_garden', fr:'Jardin de Pallet',  en:'Pallet Garden',     rep:30,  spawnRate:0.07, type:'route',
@@ -889,6 +889,11 @@ const TRAINER_TYPES = {
   ariana:       { fr:'Ariane',       en:'Ariana',       sprite:'ariana',       diff:4, reward:[300,800],  rep:12 },
   proton:       { fr:'Lambda',       en:'Proton',       sprite:'proton',       diff:4, reward:[300,800],  rep:12 },
   giovanni:     { fr:'Giovanni',     en:'Giovanni',     sprite:'giovanni',     diff:5, reward:[5000,10000],rep:25},
+  // Rangers (combat zones, pokémon puissants)
+  pokemonranger:  { fr:'Ranger Pokémon', en:'Pokémon Ranger', sprite:'pokemonranger',  diff:4, reward:[250,700],  rep:10 },
+  pokemonrangerf: { fr:'Ranger Pokémon', en:'Pokémon Ranger', sprite:'pokemonrangerf', diff:4, reward:[250,700],  rep:10 },
+  // Police (zones Rocket, pokémon comme Arcanin/Caninos)
+  policeman:      { fr:'Policier',       en:'Policeman',      sprite:'policeman',      diff:4, reward:[300,800],  rep:12 },
   // Gym Leaders
   brock:        { fr:'Pierre',       en:'Brock',        sprite:'brock',        diff:3, reward:[2000,4000],rep:15 },
   misty:        { fr:'Ondine',       en:'Misty',        sprite:'misty',        diff:3, reward:[2000,5000],rep:15 },
@@ -929,7 +934,6 @@ const SHOP_ITEMS = [
   { id:'duskball',  qty:5,  cost:7500,  icon:'DB'  },
   { id:'lure',      qty:1,  cost:500,   icon:'LR',  fr:'Leurre',       en:'Lure',            desc_fr:'x2 spawns 60s',         desc_en:'x2 spawns 60s' },
   { id:'superlure', qty:1,  cost:2000,  icon:'SL',  fr:'Super Leurre', en:'Super Lure',      desc_fr:'x3 spawns 60s',         desc_en:'x3 spawns 60s' },
-  { id:'potion',    qty:1,  cost:300,   icon:'PT',  fr:'Potion',       en:'Potion',          desc_fr:'Retire cooldown',       desc_en:'Remove cooldown' },
   { id:'incense',   qty:1,  cost:1500,  icon:'IN',  fr:'Encens Chance',en:'Lucky Incense',   desc_fr:'*+1 potentiel 90s',     desc_en:'*+1 potential 90s' },
   { id:'rarescope', qty:1,  cost:3000,  icon:'SC',  fr:'Rarioscope',   en:'Rare Scope',      desc_fr:'Spawns rares x3 90s',   desc_en:'Rare spawns x3 90s' },
   { id:'aura',      qty:1,  cost:5000,  icon:'AU',  fr:'Aura Shiny',   en:'Shiny Aura',      desc_fr:'Shiny x5 90s',          desc_en:'Shiny x5 90s' },
@@ -983,7 +987,7 @@ const BOSS_SPRITES = [
   // Kanto Elite Four + Rivals
   'lorelei','bruno','agatha','lance','blue','red','silver','oak',
   // Team Rocket
-  'archer','ariana','proton','scientist',
+  'archer','ariana','proton','scientist','rocketexecutive','teamrocket',
   // Johto Gym Leaders
   'falkner','bugsy','whitney','morty','chuck','jasmine','pryce','clair',
   // Johto Elite Four
@@ -1006,6 +1010,8 @@ const AGENT_NAMES_F = ['Mira','Luna','Jade','Nova','Aria','Ivy','Nyx','Zara','Ki
 const AGENT_SPRITES = [
   // Team Rocket
   'rocketgrunt','rocketgruntf','scientist','archer','ariana','proton',
+  // Rangers & Police
+  'pokemonranger','pokemonrangerf','policeman',
   // Common trainers
   'camper','picnicker','acetrainer','acetrainerf',
   'youngster','lass','bugcatcher','hiker','fisherman','beauty','blackbelt',
@@ -1213,6 +1219,7 @@ const DEFAULT_STATE = {
   },
   eggs: [],         // [{ id, species_en, hatchAt, potential, shiny }]
   lastBillCall: 0,
+  openZoneOrder: [], // array of zoneIds — drag & drop ordering
 };
 
 let state = structuredClone(DEFAULT_STATE);
@@ -1479,11 +1486,13 @@ function pokeSpriteBack(en, shiny = false) {
 
 const SPRITE_FIX = {
   // ltsurge.png exists directly on Showdown — no fix needed
-  rocketgrunt:  'rocket',
-  rocketgruntf: 'rocketf',
   // Elite Four sprites need suffix on Showdown
   agatha:   'agatha-gen1',
   lorelei:  'lorelei-gen1',
+  // Ranger gen3 female variant
+  pokemonrangerf: 'pokemonranger-gen3',
+  // Team Rocket executive sprite
+  rocketexecutive: 'rocketexecutive-gen2',
 };
 
 // Custom sprite overrides (non-Showdown sources)
@@ -1948,10 +1957,14 @@ function initZone(zoneId) {
       combatsWon: 0,
       captures: 0,
       assignedAgents: [],
+      pendingIncome: 0,
+      pendingItems: {},
     };
   }
   // Migration
   if (state.zones[zoneId].captures === undefined) state.zones[zoneId].captures = 0;
+  if (state.zones[zoneId].pendingIncome === undefined) state.zones[zoneId].pendingIncome = 0;
+  if (state.zones[zoneId].pendingItems === undefined) state.zones[zoneId].pendingItems = {};
   // Remove legacy invest fields
   delete state.zones[zoneId].invested;
   delete state.zones[zoneId].investPower;
@@ -2178,7 +2191,7 @@ function spawnInZone(zoneId) {
 }
 
 // ── Chest loot resolution ─────────────────────────────────────
-function rollChestLoot(zoneId) {
+function rollChestLoot(zoneId, pendingMode = false) {
   const totalWeight = CHEST_LOOT.reduce((s, l) => s + l.weight, 0);
   let roll = Math.random() * totalWeight;
   let loot = CHEST_LOOT[0];
@@ -2197,7 +2210,12 @@ function rollChestLoot(zoneId) {
     }
     case 'money': {
       const amount = randInt(loot.qty[0], loot.qty[1]);
-      state.gang.money += amount;
+      if (pendingMode && zoneId) {
+        const zs = initZone(zoneId);
+        zs.pendingIncome = (zs.pendingIncome || 0) + amount;
+      } else {
+        state.gang.money += amount;
+      }
       state.stats.totalMoneyEarned += amount;
       return { msg: `📦 ${amount}₽`, type: 'gold' };
     }
@@ -2484,11 +2502,10 @@ function applyCombatResult(result, playerTeamIds, trainerData) {
     }
   } else {
     state.gang.reputation = Math.max(0, state.gang.reputation + result.repGain);
-    // Cooldown on team
+    // No cooldown on defeat — reputation loss is the only punishment
     for (const id of playerTeamIds) {
       const p = state.pokemons.find(pk => pk.id === id);
       if (p) {
-        p.cooldown = 3;
         if (p.history) p.history.push({ type: 'combat', ts: Date.now(), won: false });
       }
     }
@@ -2763,7 +2780,9 @@ function passiveAgentTick() {
       if (win) {
         const reward = randInt(entry.trainer.reward[0], entry.trainer.reward[1]);
         const repGain = getCombatRepGain(entry.trainerKey || entry.trainer?.sprite, true);
-        state.gang.money += reward;
+        // Accumulate in pending income (collected when player clicks zone income button)
+        const zs = initZone(zoneId);
+        zs.pendingIncome = (zs.pendingIncome || 0) + reward;
         state.stats.totalMoneyEarned += reward;
         state.gang.reputation += repGain;
         state.stats.totalFights++;
@@ -2798,7 +2817,7 @@ function passiveAgentTick() {
 
     } else if (entry.type === 'chest') {
       state.stats.chestsOpened = (state.stats.chestsOpened || 0) + 1;
-      const loot = rollChestLoot(zoneId);
+      const loot = rollChestLoot(zoneId, true);
       if (agent.notifyCaptures) notify(`📦 ${agent.name} — ${loot.msg}`, loot.type);
       changed = true;
     }
@@ -3184,6 +3203,120 @@ function notify(msg, type = '') {
 }
 
 // ════════════════════════════════════════════════════════════════
+// 11b. UI — IN-GAME MODALS (confirm/info — no native dialogs)
+// ════════════════════════════════════════════════════════════════
+
+function showConfirm(message, onConfirm, onCancel = null, opts = {}) {
+  const { confirmLabel = (state?.lang === 'fr' ? 'Confirmer' : 'Confirm'),
+          cancelLabel  = (state?.lang === 'fr' ? 'Annuler'   : 'Cancel'),
+          danger = false } = opts;
+
+  // Remove any existing confirm modal
+  document.getElementById('inGameConfirmModal')?.remove();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'inGameConfirmModal';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:9100;background:rgba(0,0,0,.82);display:flex;align-items:center;justify-content:center';
+
+  overlay.innerHTML = `
+    <div style="background:var(--bg-panel);border:2px solid var(--border);border-radius:var(--radius);padding:24px;max-width:420px;width:90%;display:flex;flex-direction:column;gap:14px">
+      <div style="font-size:12px;line-height:1.6;color:var(--text);white-space:pre-wrap">${message}</div>
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button id="igcCancel" style="font-family:var(--font-pixel);font-size:9px;padding:6px 14px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-dim);cursor:pointer">${cancelLabel}</button>
+        <button id="igcConfirm" style="font-family:var(--font-pixel);font-size:9px;padding:6px 14px;background:${danger ? 'var(--red-dark)' : 'var(--bg)'};border:1px solid ${danger ? 'var(--red)' : 'var(--gold-dim)'};border-radius:var(--radius-sm);color:${danger ? 'var(--red)' : 'var(--gold)'};cursor:pointer">${confirmLabel}</button>
+      </div>
+    </div>`;
+
+  document.body.appendChild(overlay);
+
+  overlay.querySelector('#igcConfirm').addEventListener('click', () => {
+    overlay.remove();
+    if (onConfirm) onConfirm();
+  });
+  overlay.querySelector('#igcCancel').addEventListener('click', () => {
+    overlay.remove();
+    if (onCancel) onCancel();
+  });
+  overlay.addEventListener('click', e => {
+    if (e.target === overlay) { overlay.remove(); if (onCancel) onCancel(); }
+  });
+}
+
+function showInfoModal(tabId) {
+  document.getElementById('infoModal')?.remove();
+
+  const INFO = {
+    tabGang: {
+      title: 'LE GANG — Stats & Mécaniques',
+      content: `<strong>Réputation</strong> : débloque zones, achats, quêtes. Perte si défaite.<br>
+<strong>Argent (₽)</strong> : gagné en combats, ventes, coffres.<br>
+<strong>Boss</strong> : ton avatar, assigne jusqu'à 3 pokémon à son équipe.<br>
+<strong>Équipe Boss</strong> : pokémon utilisés dans les combats manuels et lors des récoltes de zone.`
+    },
+    tabAgents: {
+      title: 'AGENTS — Stats',
+      content: `<strong>Capture (CAP)</strong> : chance de capturer automatiquement les pokémon dans les zones non-ouvertes.<br>
+<strong>Chance (LCK)</strong> : influence la rareté des captures passives et des récompenses.<br>
+<strong>Combat (ATK)</strong> : puissance en combat automatique dans les zones.<br>
+<strong>Niveaux</strong> : XP gagnée en combattant/capturant. Grade (Grunt→Lieutenant→Captain) donne bonus ATK.<br>
+<strong>Zone assignée</strong> : l'agent farm passivement cette zone (captures + combats + coffres).`
+    },
+    tabZones: {
+      title: 'ZONES — Types & Fonctionnement',
+      content: `<strong>Zone de capture</strong> (field/safari/water/cave) : des pokémon sauvages spawn, tu cliques pour les capturer. Agents assignés capturent automatiquement.<br>
+<strong>Zone d'arène</strong> (gym/elite) : uniquement des combats contre dresseurs. Pas de captures. Récompenses en argent + réputation élevées.<br>
+<strong>Maîtrise ★</strong> : augmente avec les victoires dans la zone, améliore les spawns.<br>
+<strong>Boost de zone</strong> : achète des améliorations dans le Marché pour améliorer les taux.<br>
+<strong>Investissement</strong> : dépense des ₽ pour augmenter le niveau de la zone.`
+    },
+    tabMarket: {
+      title: 'MARCHÉ — Achats',
+      content: `<strong>Balls</strong> : améliore le potentiel max des pokémon capturés.<br>
+<strong>Boosts temporaires</strong> : activés depuis le Sac dans la fenêtre de zone.<br>
+<strong>Objets de zone</strong> : débloquent des zones secrètes (usage unique).<br>
+<strong>La Master Ball</strong> a 90% de chance de donner ★5, mais coûte cher.`
+    },
+    tabPC: {
+      title: 'PC — Gestion',
+      content: `<strong>Grille PC</strong> : tous tes pokémon. Filtre par type/rareté/shiny.<br>
+<strong>Statistiques</strong> : ATK/DEF/SPD calculées depuis la nature × niveau × potentiel.<br>
+<strong>Potentiel ★</strong> : permanent, détermine le plafond de puissance. ★5 = top tier.<br>
+<strong>Nature</strong> : chaque nature booste 2 stats et pénalise 1. Hardy = équilibré.<br>
+<strong>Vente</strong> : le prix est basé sur rareté × potentiel × nature. Pas de malus de revente.<br>
+<strong>Labo</strong> : fais évoluer tes pokémon (pierre d'évolution ou niveau requis).<br>
+<strong>Pension</strong> : laisse deux pokémon ensemble pour obtenir un oeuf. Coûte des incubateurs.<br>
+<strong>Oeufs</strong> : gère tes oeufs en attente/incubation. Chaque oeuf est unique.`
+    },
+    tabPokedex: {
+      title: 'POKÉDEX',
+      content: `<strong>Vu</strong> : tu as aperçu ce pokémon dans une zone.<br>
+<strong>Capturé</strong> : tu en possèdes un dans ton PC.<br>
+<strong>Shiny</strong> : tu as capturé une version chromatique (chance très faible, boost avec Aura Shiny).<br>
+<strong>Progression</strong> : compléter le dex donne des bonus de réputation et de récompenses.`
+    },
+  };
+
+  const info = INFO[tabId] || { title: tabId, content: 'Aucune information disponible.' };
+
+  const overlay = document.createElement('div');
+  overlay.id = 'infoModal';
+  overlay.className = 'active';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.8);display:flex;align-items:center;justify-content:center';
+
+  overlay.innerHTML = `
+    <div class="info-box">
+      <div class="info-title">${info.title}</div>
+      <div class="info-section">${info.content}</div>
+      <button class="info-close">${state?.lang === 'fr' ? 'Fermer' : 'Close'}</button>
+    </div>`;
+
+  document.body.appendChild(overlay);
+
+  overlay.querySelector('.info-close').addEventListener('click', () => overlay.remove());
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+}
+
+// ════════════════════════════════════════════════════════════════
 // 12.  UI — TABS & LAYOUT
 // ════════════════════════════════════════════════════════════════
 
@@ -3360,11 +3493,12 @@ function openSaveSlotModal() {
   });
   overlay.querySelectorAll('.slot-del').forEach(btn => {
     btn.addEventListener('click', () => {
-      if (confirm(`Supprimer le slot ${parseInt(btn.dataset.slot) + 1} ?`)) {
-        localStorage.removeItem(SAVE_KEYS[parseInt(btn.dataset.slot)]);
+      const slotNum = parseInt(btn.dataset.slot);
+      showConfirm(`Supprimer le slot ${slotNum + 1} ?`, () => {
+        localStorage.removeItem(SAVE_KEYS[slotNum]);
         overlay.remove();
         notify('Slot supprime.', 'success');
-      }
+      }, null, { danger: true });
     });
   });
 }
@@ -3465,14 +3599,15 @@ function renderCosmeticsPanel(container) {
         renderCosmeticsPanel(container);
       } else {
         if (state.gang.money < c.cost) { notify('Fonds insuffisants.'); return; }
-        if (!confirm(`Acheter le fond "${c.fr}" pour ${c.cost.toLocaleString()}₽ ?`)) return;
-        state.gang.money -= c.cost;
-        state.cosmetics.unlockedBgs = [...(state.cosmetics.unlockedBgs || []), key];
-        state.cosmetics.gameBg = key;
-        saveState(); applyCosmetics();
-        updateTopBar();
-        notify(`Fond "${c.fr}" debloque !`, 'gold');
-        renderCosmeticsPanel(container);
+        showConfirm(`Acheter le fond "${c.fr}" pour ${c.cost.toLocaleString()}₽ ?`, () => {
+          state.gang.money -= c.cost;
+          state.cosmetics.unlockedBgs = [...(state.cosmetics.unlockedBgs || []), key];
+          state.cosmetics.gameBg = key;
+          saveState(); applyCosmetics();
+          updateTopBar();
+          notify(`Fond "${c.fr}" debloque !`, 'gold');
+          renderCosmeticsPanel(container);
+        });
       }
     });
   });
@@ -3612,14 +3747,25 @@ function renderZoneSelector() {
     const degraded = isZoneDegraded(zone.id);
     if (unlocked) {
       const degradedTag = degraded ? ' ⚠' : '';
+      const pendingIncome = zState.pendingIncome || 0;
+      let incomeTier = '';
+      if (pendingIncome >= 15000)      incomeTier = 'income-tier5';
+      else if (pendingIncome >= 5000)  incomeTier = 'income-tier4';
+      else if (pendingIncome >= 2000)  incomeTier = 'income-tier3';
+      else if (pendingIncome >= 500)   incomeTier = 'income-tier2';
+      else if (pendingIncome >= 1)     incomeTier = 'income-tier1';
+      const incomeBtn = incomeTier
+        ? `<button class="zone-income-btn ${incomeTier}" data-income-zone="${zone.id}" title="Collecter ${pendingIncome.toLocaleString()}₽">₽${pendingIncome >= 1000 ? Math.floor(pendingIncome/1000) + 'k' : pendingIncome}</button>`
+        : '';
       html += `<div class="fog-tile unlocked ${isOpen ? 'fog-open' : ''} zone-type-${zone.type}${degraded ? ' fog-degraded' : ''}"
-        data-zone="${zone.id}" style="${bgStyle}">
+        data-zone="${zone.id}" style="${bgStyle}position:relative;">
         <div class="fog-tile-overlay"></div>
         <div class="fog-tile-content">
           <div class="fog-tile-name">${name}${gymTag}${degradedTag}</div>
           <div class="fog-tile-stats">${'*'.repeat(mastery)} ${combats}W</div>
           <div class="fog-tile-status">${isOpen ? '[OUVERT]' : (degraded ? '[COMBAT]' : '[ENTRER]')}</div>
         </div>
+        ${incomeBtn}
       </div>`;
     } else {
       const repDiff = zone.rep > state.gang.reputation ? zone.rep - state.gang.reputation : 0;
@@ -3647,11 +3793,124 @@ function renderZoneSelector() {
       else openZoneWindow(zid);
     });
   });
+
+  el.querySelectorAll('.zone-income-btn').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const zid = btn.dataset.incomeZone;
+      openCollectionModal(zid);
+    });
+  });
+}
+
+function openCollectionModal(zoneId) {
+  const zs = initZone(zoneId);
+  const income = zs.pendingIncome || 0;
+  if (!income) return;
+
+  document.getElementById('zoneCollectionModal')?.remove();
+
+  const agents = state.agents.filter(a => a.assignedZone === zoneId || !a.assignedZone);
+  const agentChoices = agents.slice(0, 6);
+
+  const overlay = document.createElement('div');
+  overlay.id = 'zoneCollectionModal';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:9050;background:rgba(0,0,0,.82);display:flex;align-items:center;justify-content:center';
+
+  overlay.innerHTML = `
+    <div style="background:var(--bg-panel);border:2px solid var(--gold-dim);border-radius:var(--radius);padding:24px;max-width:420px;width:90%;display:flex;flex-direction:column;gap:14px">
+      <div style="font-family:var(--font-pixel);font-size:11px;color:var(--gold)">COLLECTE — ${income.toLocaleString()}₽</div>
+      <div style="font-size:10px;color:var(--text-dim)">Sélectionne jusqu'à 3 agents pour escorter le revenu.</div>
+      <div id="collectionAgents" style="display:flex;flex-direction:column;gap:4px;max-height:160px;overflow-y:auto">
+        <label style="display:flex;align-items:center;gap:8px;font-size:9px;padding:4px;border-radius:var(--radius-sm);cursor:pointer;background:rgba(255,204,0,.08)">
+          <input type="checkbox" checked disabled value="boss"> <span style="color:var(--gold)">${state.gang.bossName} (Boss)</span>
+        </label>
+        ${agentChoices.map(a => `
+          <label style="display:flex;align-items:center;gap:8px;font-size:9px;padding:4px;border-radius:var(--radius-sm);cursor:pointer">
+            <input type="checkbox" class="coll-agent-check" value="${a.id}">
+            <span>${a.name} (ATK:${a.stats.atk})</span>
+          </label>`).join('')}
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button id="collCancel" style="font-family:var(--font-pixel);font-size:9px;padding:6px 14px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-dim);cursor:pointer">Annuler</button>
+        <button id="collConfirm" style="font-family:var(--font-pixel);font-size:9px;padding:6px 14px;background:var(--bg);border:1px solid var(--gold-dim);border-radius:var(--radius-sm);color:var(--gold);cursor:pointer">Collecter</button>
+      </div>
+    </div>`;
+
+  document.body.appendChild(overlay);
+
+  overlay.querySelector('#collCancel').addEventListener('click', () => overlay.remove());
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+
+  overlay.querySelector('#collConfirm').addEventListener('click', () => {
+    const selected = [...overlay.querySelectorAll('.coll-agent-check:checked')].map(el => el.value);
+    overlay.remove();
+    startZoneCollection(zoneId, selected);
+  });
+}
+
+function startZoneCollection(zoneId, selectedAgentIds) {
+  const zs = initZone(zoneId);
+  const income = zs.pendingIncome || 0;
+  if (!income) return;
+
+  // Compute player power
+  let playerPower = getTeamPower(state.gang.bossTeam);
+  for (const id of selectedAgentIds) {
+    const agent = state.agents.find(a => a.id === id);
+    if (agent) playerPower += getAgentCombatPower(agent);
+  }
+
+  // 3 policemen enemy
+  const ENEMY_POWER = 1500;
+  const pRoll = playerPower * (0.8 + Math.random() * 0.4);
+  const eRoll = ENEMY_POWER * (0.8 + Math.random() * 0.4);
+  const win = pRoll >= eRoll;
+
+  const mult = win ? 1.0 : 0.75;
+  const collected = Math.round(income * mult);
+  state.gang.money += collected;
+  state.stats.totalMoneyEarned = (state.stats.totalMoneyEarned || 0) + collected;
+  zs.pendingIncome = 0;
+  zs.pendingItems = {};
+  saveState();
+  updateTopBar();
+
+  // Result modal with animated increment
+  document.getElementById('zoneCollectionResult')?.remove();
+  const result = document.createElement('div');
+  result.id = 'zoneCollectionResult';
+  result.style.cssText = 'position:fixed;inset:0;z-index:9060;background:rgba(0,0,0,.82);display:flex;align-items:center;justify-content:center';
+  result.innerHTML = `
+    <div style="background:var(--bg-panel);border:2px solid ${win ? 'var(--gold-dim)' : 'var(--red)'};border-radius:var(--radius);padding:28px;max-width:320px;width:90%;text-align:center;display:flex;flex-direction:column;gap:14px">
+      <div style="font-family:var(--font-pixel);font-size:12px;color:${win ? 'var(--gold)' : 'var(--red)'}">${win ? 'VICTOIRE !' : 'DÉFAITE...'}</div>
+      <div style="font-size:11px;color:var(--text-dim)">${win ? 'Revenu collecté' : 'Collecté (×75%)'}</div>
+      <div id="collAnimCount" style="font-family:var(--font-pixel);font-size:18px;color:var(--gold)">0₽</div>
+      <button id="collResClose" style="font-family:var(--font-pixel);font-size:9px;padding:6px 14px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-dim);cursor:pointer">Fermer</button>
+    </div>`;
+  document.body.appendChild(result);
+  result.querySelector('#collResClose').addEventListener('click', () => { result.remove(); renderZoneSelector(); });
+  result.addEventListener('click', e => { if (e.target === result) { result.remove(); renderZoneSelector(); } });
+
+  // Animated increment
+  const countEl = result.querySelector('#collAnimCount');
+  let cur = 0;
+  const step = Math.max(1, Math.round(collected / 40));
+  const timer = setInterval(() => {
+    cur = Math.min(cur + step, collected);
+    countEl.textContent = cur.toLocaleString() + '₽';
+    if (cur >= collected) clearInterval(timer);
+  }, 30);
+
+  renderZoneSelector();
 }
 
 function openZoneWindow(zoneId) {
   openZones.add(zoneId);
   initZone(zoneId);
+  // Track order for drag & drop
+  if (!state.openZoneOrder) state.openZoneOrder = [];
+  if (!state.openZoneOrder.includes(zoneId)) state.openZoneOrder.push(zoneId);
   zoneSpawns[zoneId] = [];
   // Boss auto-moves to first opened zone if not set
   if (!state.gang.bossZone || !openZones.has(state.gang.bossZone)) {
@@ -3668,6 +3927,7 @@ function openZoneWindow(zoneId) {
 
 function closeZoneWindow(zoneId) {
   openZones.delete(zoneId);
+  if (state.openZoneOrder) state.openZoneOrder = state.openZoneOrder.filter(id => id !== zoneId);
   if (zoneSpawnTimers[zoneId]) {
     clearInterval(zoneSpawnTimers[zoneId]);
     delete zoneSpawnTimers[zoneId];
@@ -3720,18 +3980,55 @@ function renderZoneWindows() {
     if (!openZones.has(el.id.replace('zw-', ''))) el.remove();
   });
 
-  // ── Update or create each open zone window ────────────────────
-  for (const zoneId of openZones) {
+  // ── Update or create each open zone window (sorted by drag order) ────────
+  const openZoneOrder = (state.openZoneOrder || []).filter(id => openZones.has(id));
+  // Append any zones not yet in order array
+  for (const id of openZones) {
+    if (!openZoneOrder.includes(id)) openZoneOrder.push(id);
+  }
+  for (const zoneId of openZoneOrder) {
     const existing = document.getElementById(`zw-${zoneId}`);
     if (existing) {
       patchZoneWindow(zoneId, existing);
+      container.appendChild(existing); // re-order in DOM
     } else {
       const win = buildZoneWindowEl(zoneId);
+      win.draggable = true;
       container.appendChild(win);
       updateZoneTimers(zoneId);
       (zoneSpawns[zoneId] || []).forEach(s => renderSpawnInWindow(zoneId, s));
     }
   }
+
+  // Drag & drop handlers
+  let _dragSrc = null;
+  container.querySelectorAll('.zone-window').forEach(win => {
+    win.draggable = true;
+    win.addEventListener('dragstart', e => {
+      _dragSrc = win.id.replace('zw-', '');
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    win.addEventListener('dragover', e => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+    });
+    win.addEventListener('drop', e => {
+      e.preventDefault();
+      const targetId = win.id.replace('zw-', '');
+      if (!_dragSrc || _dragSrc === targetId) return;
+      const order = [...new Set([...(state.openZoneOrder || []), ...[...openZones]])];
+      const srcIdx = order.indexOf(_dragSrc);
+      const tgtIdx = order.indexOf(targetId);
+      if (srcIdx !== -1 && tgtIdx !== -1) {
+        order.splice(srcIdx, 1);
+        order.splice(tgtIdx, 0, _dragSrc);
+        state.openZoneOrder = order;
+        saveState();
+        renderZoneWindows();
+      }
+      _dragSrc = null;
+    });
+  });
 }
 
 // Build a fresh zone window element (used on first open)
@@ -3951,7 +4248,7 @@ function renderGangBaseWindow() {
   const _BAG_DEFS = [
     {id:'pokeball',  isBall:true}, {id:'greatball', isBall:true}, {id:'ultraball', isBall:true},
     {id:'duskball',  isBall:true}, {id:'masterball', isBall:true},
-    {id:'lure',      usable:true}, {id:'superlure', usable:true}, {id:'potion', usable:true},
+    {id:'lure',      usable:true}, {id:'superlure', usable:true},
     {id:'incense',   usable:true}, {id:'rarescope', usable:true}, {id:'aura',   usable:true},
     {id:'rarecandy', usable:true}, {id:'evostone'}, {id:'incubator'},
   ];
@@ -4022,7 +4319,7 @@ function bindGangBase(container) {
       const def = {
         pokeball: {isBall:true}, greatball: {isBall:true}, ultraball: {isBall:true},
         duskball: {isBall:true}, masterball: {isBall:true},
-        lure: {usable:true}, superlure: {usable:true}, potion: {usable:true},
+        lure: {usable:true}, superlure: {usable:true},
         incense: {usable:true}, rarescope: {usable:true}, aura: {usable:true},
         rarecandy: {usable:true},
       }[id] || {};
@@ -4030,19 +4327,6 @@ function bindGangBase(container) {
       if (def.isBall) {
         state.activeBall = id;
         saveState();
-        renderZoneWindows();
-        return;
-      }
-      if (id === 'potion') {
-        let removed = 0;
-        for (const p of state.pokemons) { if (p.cooldown > 0) { p.cooldown = 0; removed++; } }
-        if (removed > 0) {
-          state.inventory.potion--;
-          notify(state.lang === 'fr' ? `Cooldown retiré de ${removed} Pokémon` : `Cooldown removed from ${removed} Pokémon`, 'success');
-          saveState();
-        } else {
-          notify(state.lang === 'fr' ? 'Aucun Pokémon en cooldown' : 'No Pokémon on cooldown');
-        }
         renderZoneWindows();
         return;
       }
@@ -4724,10 +5008,6 @@ function openCombatPopup(zoneId, spawnObj) {
   const zoneDef = ZONE_BY_ID[zoneId];
   if (logTitle) logTitle.textContent = `COMBAT — ${zoneDef ? (state.lang === 'fr' ? zoneDef.fr : zoneDef.en) : zoneId}`;
 
-  const trainerName = state.lang === 'fr' ? spawnObj.trainer.fr : spawnObj.trainer.en;
-  const dialogue = getTrainerDialogue();
-  const isRaid = spawnObj.isRaid;
-
   // ── Agent at rest check
   const agentsInZone = state.agents.filter(a => a.assignedZone === zoneId);
   const agentsAtRest = agentsInZone.filter(a => {
@@ -4736,8 +5016,21 @@ function openCombatPopup(zoneId, spawnObj) {
   });
   if (agentsAtRest.length > 0) {
     const names = agentsAtRest.map(a => a.name).join(', ');
-    if (!confirm(`${names} est en repos. Attaquer seul quand meme ?`)) return;
+    showConfirm(`${names} est en repos. Attaquer seul quand meme ?`, () => {
+      _proceedCombatPopup(zoneId, spawnObj, available);
+    });
+    return;
   }
+
+  _proceedCombatPopup(zoneId, spawnObj, available);
+}
+
+function _proceedCombatPopup(zoneId, spawnObj, available) {
+  const inlineCombat = document.getElementById('battleArena');
+  if (!inlineCombat) return;
+  const trainerName = state.lang === 'fr' ? spawnObj.trainer.fr : spawnObj.trainer.en;
+  const dialogue = getTrainerDialogue();
+  const isRaid = spawnObj.isRaid;
 
   // ── Ally side: group by source (Boss always included + each Agent)
   const zoneAgents = state.agents.filter(a => a.assignedZone === zoneId);
@@ -5356,7 +5649,8 @@ function renderPCTab() {
       switcher.innerHTML = `
         <button class="pc-view-btn" id="pcBtnGrid" data-pcview="grid">[PC]</button>
         <button class="pc-view-btn" id="pcBtnLab" data-pcview="lab">[LABO]</button>
-        <button class="pc-view-btn" id="pcBtnPension" data-pcview="pension">[PENSION${state.eggs.length ? ` (${state.eggs.length})` : ''}]</button>`;
+        <button class="pc-view-btn" id="pcBtnPension" data-pcview="pension">[PENSION${state.eggs.length ? ` (${state.eggs.length})` : ''}]</button>
+        <button class="pc-view-btn" id="pcBtnEggs" data-pcview="eggs">[OEUFS${state.eggs.length ? ` (${state.eggs.length})` : ''}]</button>`;
       pcLayout.parentNode.insertBefore(switcher, pcLayout);
       switcher.querySelectorAll('.pc-view-btn').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -5370,7 +5664,7 @@ function renderPCTab() {
       btn.classList.toggle('active', btn.dataset.pcview === pcView);
     });
 
-    const subViews = ['labInPC', 'pensionInPC'];
+    const subViews = ['labInPC', 'pensionInPC', 'eggsInPC'];
     if (pcView === 'lab') {
       pcLayout.style.display = 'none';
       subViews.forEach(id => { const el = document.getElementById(id); if (el) el.style.display = id === 'labInPC' ? '' : 'none'; });
@@ -5394,6 +5688,18 @@ function renderPCTab() {
       }
       pensionInPC.style.display = '';
       renderPensionView(pensionInPC);
+      return;
+    } else if (pcView === 'eggs') {
+      pcLayout.style.display = 'none';
+      subViews.forEach(id => { const el = document.getElementById(id); if (el) el.style.display = id === 'eggsInPC' ? '' : 'none'; });
+      let eggsInPC = document.getElementById('eggsInPC');
+      if (!eggsInPC) {
+        eggsInPC = document.createElement('div');
+        eggsInPC.id = 'eggsInPC';
+        pcLayout.parentNode.appendChild(eggsInPC);
+      }
+      eggsInPC.style.display = '';
+      renderEggsView(eggsInPC);
       return;
     } else {
       pcLayout.style.display = '';
@@ -6316,7 +6622,6 @@ function renderBagTab() {
     { id: 'duskball',  icon: 'DB', fr: 'Sombre Ball',     en: 'Dusk Ball',      desc_fr: 'Potentiel equilibre',   desc_en: 'Balanced potential' },
     { id: 'lure',      icon: 'LR', fr: 'Leurre',          en: 'Lure',           desc_fr: 'x2 spawns 60s',         desc_en: 'x2 spawns 60s',      usable: true },
     { id: 'superlure', icon: 'SL', fr: 'Super Leurre',    en: 'Super Lure',     desc_fr: 'x3 spawns 60s',         desc_en: 'x3 spawns 60s',      usable: true },
-    { id: 'potion',    icon: 'PT', fr: 'Potion',           en: 'Potion',         desc_fr: 'Retire cooldown',       desc_en: 'Remove cooldown',    usable: true },
     { id: 'incense',   icon: 'IN', fr: 'Encens Chance',   en: 'Lucky Incense',  desc_fr: '*+1 potentiel 90s',     desc_en: '*+1 potential 90s',  usable: true },
     { id: 'rarescope', icon: 'SC', fr: 'Rarioscope',       en: 'Rare Scope',     desc_fr: 'Spawns rares x3 90s',   desc_en: 'Rare spawns x3 90s', usable: true },
     { id: 'aura',      icon: 'AU', fr: 'Aura Shiny',       en: 'Shiny Aura',     desc_fr: 'Shiny x5 90s',          desc_en: 'Shiny x5 90s',       usable: true },
@@ -6366,20 +6671,7 @@ function renderBagTab() {
   grid.querySelectorAll('[data-use-item]').forEach(btn => {
     btn.addEventListener('click', () => {
       const itemId = btn.dataset.useItem;
-      if (itemId === 'potion') {
-        // Remove cooldown from all pokemon
-        let removed = 0;
-        for (const p of state.pokemons) {
-          if (p.cooldown > 0) { p.cooldown = 0; removed++; }
-        }
-        if (removed > 0) {
-          state.inventory.potion--;
-          notify(state.lang === 'fr' ? `Cooldown retiré de ${removed} Pokémon` : `Cooldown removed from ${removed} Pokémon`, 'success');
-          saveState();
-        } else {
-          notify(state.lang === 'fr' ? 'Aucun Pokémon en cooldown' : 'No Pokémon on cooldown');
-        }
-      } else if (itemId === 'rarecandy') {
+      if (itemId === 'rarecandy') {
         openRareCandyPicker();
       } else if (activateBoost(itemId)) {
         notify(state.lang === 'fr' ? 'Boost activé !' : 'Boost activated!', 'success');
@@ -6723,7 +7015,7 @@ function initSettings() {
   });
 
   document.getElementById('btnResetAll')?.addEventListener('click', () => {
-    if (confirm(t('reset_confirm'))) {
+    showConfirm(t('reset_confirm'), () => {
       localStorage.removeItem(SAVE_KEY);
       state = structuredClone(DEFAULT_STATE);
       // Close all zone windows
@@ -6731,7 +7023,7 @@ function initSettings() {
       pcSelectedId = null;
       selectedForSale.clear();
       showIntro();
-    }
+    }, null, { danger: true });
   });
 
   document.getElementById('btnPurgeSprites')?.addEventListener('click', () => {
@@ -7399,14 +7691,15 @@ function renderPensionView(container) {
       const price = parseInt(btn.dataset.sellPrice) || 0;
       const rarity = egg.rarity || 'common';
       const parentsStr = egg.mystery ? 'Oeuf Mystère' : (egg.parentA && egg.parentB) ? `${speciesName(egg.parentA)} × ${speciesName(egg.parentB)}` : 'oeuf';
-      if (!confirm(`Vendre cet oeuf (${parentsStr}) pour ${price.toLocaleString()}₽ ?\nVous ne saurez jamais quel Pokémon était dedans.`)) return;
-      state.eggs = state.eggs.filter(eg => eg.id !== egg.id);
-      state.gang.money += price;
-      state.stats.totalMoneyEarned = (state.stats.totalMoneyEarned || 0) + price;
-      saveState();
-      updateTopBar();
-      notify(`Oeuf vendu pour ${price.toLocaleString()}₽`, 'success');
-      renderPensionView(container);
+      showConfirm(`Vendre cet oeuf (${parentsStr}) pour ${price.toLocaleString()}₽ ?\nVous ne saurez jamais quel Pokémon était dedans.`, () => {
+        state.eggs = state.eggs.filter(eg => eg.id !== egg.id);
+        state.gang.money += price;
+        state.stats.totalMoneyEarned = (state.stats.totalMoneyEarned || 0) + price;
+        saveState();
+        updateTopBar();
+        notify(`Oeuf vendu pour ${price.toLocaleString()}₽`, 'success');
+        renderPensionView(container);
+      }, null, { danger: true });
     });
   });
 
@@ -7418,6 +7711,138 @@ function renderPensionView(container) {
       else return;
       saveState();
       renderPensionView(container);
+    });
+  });
+}
+
+function renderEggsView(container) {
+  const now = Date.now();
+  const eggs = state.eggs || [];
+  const incubatorCount = state.inventory.incubator || 0;
+  const freeSlots = incubatorCount - eggs.filter(e => e.incubating).length;
+
+  if (!eggs.length) {
+    container.innerHTML = `<div style="padding:32px;text-align:center;color:var(--text-dim);font-size:10px">Aucun oeuf — visite la Pension ou achète un Oeuf Mystère au Marché.</div>`;
+    return;
+  }
+
+  const rows = eggs.map(egg => {
+    const rarity = egg.rarity || SPECIES_BY_EN[egg.species_en]?.rarity || 'common';
+    const sellPrice = Math.round((BASE_PRICE[rarity] || 100) * (POTENTIAL_MULT[(egg.potential || 1) - 1] || 1) * 0.5);
+    const isIncubating = !!egg.incubating;
+    const isReady = isIncubating && egg.hatchAt && egg.hatchAt <= now;
+    const total = EGG_HATCH_MS[rarity] || EGG_HATCH_MS.common;
+    const rem = egg.hatchAt ? Math.max(0, egg.hatchAt - now) : 0;
+    const remStr = isReady ? '✅ Prêt à éclore !' : isIncubating ? (rem < 60000 ? `En incubation — ${Math.ceil(rem / 1000)}s restantes` : `En incubation — ${Math.ceil(rem / 60000)} min restantes`) : 'En attente d\'incubateur';
+    const pct = total > 0 ? Math.round((1 - rem / total) * 100) : 0;
+
+    // Parent display
+    let parentHtml = '';
+    if (egg.mystery) {
+      parentHtml = `<div style="font-size:8px;color:var(--gold)">Oeuf Mystère</div>`;
+    } else if (egg.parentA && egg.parentB) {
+      parentHtml = `<div style="display:flex;align-items:center;gap:4px;font-size:8px;color:var(--text-dim)">
+        <img src="${pokeSprite(egg.parentA)}" style="width:20px;height:20px;image-rendering:pixelated">
+        ♥
+        <img src="${pokeSprite(egg.parentB)}" style="width:20px;height:20px;image-rendering:pixelated">
+        ${speciesName(egg.parentA)} × ${speciesName(egg.parentB)}
+      </div>`;
+    } else {
+      parentHtml = `<div style="font-size:8px;color:var(--text-dim)">${egg.capturedZone ? `Zone : ${egg.capturedZone}` : 'Mystère'}</div>`;
+    }
+
+    const btnHatch = isReady ? `<button class="egg-hatch-btn" data-egg-id="${egg.id}" style="font-size:8px;padding:3px 8px;background:rgba(0,200,0,.2);border:1px solid var(--green);border-radius:var(--radius-sm);color:var(--green);cursor:pointer">Éclore</button>` : '';
+    const btnIncubate = !isIncubating && freeSlots > 0 ? `<button class="egg-incubate-btn" data-egg-id="${egg.id}" style="font-size:8px;padding:3px 8px;background:var(--bg);border:1px solid var(--gold-dim);border-radius:var(--radius-sm);color:var(--gold);cursor:pointer">Incuber</button>` : '';
+    const btnSell = !isIncubating ? `<button class="egg-sell-btn" data-egg-id="${egg.id}" data-sell-price="${sellPrice}" style="font-size:8px;padding:3px 8px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-dim);cursor:pointer">Vendre ${sellPrice.toLocaleString()}₽</button>` : '';
+
+    return `<div style="display:flex;gap:10px;align-items:center;padding:10px;border-bottom:1px solid var(--border)">
+      <img src="${ITEM_SPRITES.mysteryegg || ITEM_SPRITES.incubator}" style="width:36px;height:36px;image-rendering:pixelated;flex-shrink:0" onerror="this.style.display='none'">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:9px;color:var(--gold)">${rarity} ${'★'.repeat(egg.potential || 1)}</div>
+        ${parentHtml}
+        ${isIncubating ? `
+          <div style="background:var(--border);border-radius:2px;height:4px;margin-top:4px;max-width:200px">
+            <div style="background:var(--gold-dim);height:4px;border-radius:2px;width:${pct}%"></div>
+          </div>` : ''}
+        <div style="font-size:8px;margin-top:3px;color:${isReady ? 'var(--green)' : 'var(--text-dim)'}">${remStr}</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:3px;align-items:flex-end;flex-shrink:0">
+        ${btnHatch}${btnIncubate}${btnSell}
+      </div>
+    </div>`;
+  });
+
+  container.innerHTML = `<div style="padding:12px">
+    <div style="font-family:var(--font-pixel);font-size:10px;color:var(--gold);margin-bottom:10px">OEUFS (${eggs.length}) — ${incubatorCount} incubateur(s), ${freeSlots} libre(s)</div>
+    <div>${rows.join('')}</div>
+  </div>`;
+
+  // Bind buttons
+  container.querySelectorAll('.egg-hatch-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const eggId = btn.dataset.eggId;
+      const egg = state.eggs.find(e => e.id === eggId);
+      if (!egg || !egg.hatchAt || egg.hatchAt > Date.now()) return;
+      // Hatch immediately (replicate game loop logic)
+      const sp = SPECIES_BY_EN[egg.species_en];
+      if (sp) {
+        const hatched = makePokemon(egg.species_en, 'pension', 'pokeball');
+        if (hatched) {
+          hatched.level = 1; hatched.xp = 0;
+          hatched.potential = egg.potential; hatched.shiny = egg.shiny;
+          hatched.stats = calculateStats(hatched);
+          hatched.history = [{ type: 'hatched', ts: Date.now() }];
+          state.pokemons.push(hatched);
+          state.stats.totalCaught++;
+          state.stats.eggsHatched = (state.stats.eggsHatched || 0) + 1;
+          if (!state.pokedex[egg.species_en]) {
+            state.pokedex[egg.species_en] = { seen: true, caught: true, shiny: egg.shiny, count: 1 };
+          } else {
+            state.pokedex[egg.species_en].caught = true;
+            state.pokedex[egg.species_en].count++;
+            if (egg.shiny) state.pokedex[egg.species_en].shiny = true;
+          }
+          notify(`L'oeuf a eclore ! ${egg.shiny ? '[SHINY] ' : ''}${speciesName(egg.species_en)} Lv.1 ${'*'.repeat(egg.potential)} rejoint le PC.`, 'gold');
+        }
+      }
+      state.eggs = state.eggs.filter(e => e.id !== eggId);
+      saveState();
+      renderEggsView(container);
+      renderPCTab();
+    });
+  });
+
+  container.querySelectorAll('.egg-incubate-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const eggId = btn.dataset.eggId;
+      const egg = state.eggs.find(e => e.id === eggId);
+      if (!egg) return;
+      const rarity = egg.rarity || SPECIES_BY_EN[egg.species_en]?.rarity || 'common';
+      egg.incubating = true;
+      egg.hatchAt = Date.now() + (EGG_HATCH_MS[rarity] || EGG_HATCH_MS.common);
+      saveState();
+      renderEggsView(container);
+    });
+  });
+
+  container.querySelectorAll('.egg-sell-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const eggId = btn.dataset.eggId;
+      const egg = state.eggs.find(e => e.id === eggId);
+      if (!egg || egg.incubating) return;
+      const price = parseInt(btn.dataset.sellPrice) || 0;
+      const rarity = egg.rarity || 'common';
+      const parentsStr = egg.mystery ? 'Oeuf Mystère' : (egg.parentA && egg.parentB) ? `${speciesName(egg.parentA)} × ${speciesName(egg.parentB)}` : 'oeuf';
+      showConfirm(`Vendre cet oeuf (${parentsStr}) pour ${price.toLocaleString()}₽ ?\nVous ne saurez jamais quel Pokémon était dedans.`, () => {
+        state.eggs = state.eggs.filter(e => e.id !== eggId);
+        state.gang.money += price;
+        state.stats.totalMoneyEarned = (state.stats.totalMoneyEarned || 0) + price;
+        saveState();
+        updateTopBar();
+        notify(`Oeuf vendu pour ${price.toLocaleString()}₽`, 'success');
+        renderEggsView(container);
+        renderPCTab();
+      }, null, { danger: true });
     });
   });
 }
@@ -7609,12 +8034,12 @@ async function supaCheckCloudLoad() {
   const localTs = state._savedAt || 0;
   if (cloudTs > localTs) {
     const fmt = new Date(cloudTs).toLocaleString('fr-FR');
-    if (confirm(`Une sauvegarde cloud plus récente existe (${fmt}).\nCharger la sauvegarde cloud ? (La save locale sera remplacée)`)) {
+    showConfirm(`Une sauvegarde cloud plus récente existe (${fmt}).\nCharger la sauvegarde cloud ? (La save locale sera remplacée)`, () => {
       state = migrate(data.state);
       saveState();
       renderAll();
       notify('Sauvegarde cloud chargée !', 'success');
-    }
+    });
   }
 }
 
@@ -7629,12 +8054,12 @@ async function supaForceCloudLoad() {
   if (error || !data) { notify('Aucune sauvegarde cloud trouvée.', 'error'); return; }
 
   const fmt = new Date(data.saved_at).toLocaleString('fr-FR');
-  if (confirm(`Charger la save cloud du ${fmt} ?\nLa save locale sera écrasée.`)) {
+  showConfirm(`Charger la save cloud du ${fmt} ?\nLa save locale sera écrasée.`, () => {
     state = migrate(data.state);
     saveState();
     renderAll();
     notify('Sauvegarde cloud chargée !', 'success');
-  }
+  });
 }
 
 async function supaUpdateLeaderboard() {
@@ -7807,8 +8232,10 @@ async function renderCompteTab() {
     tab.querySelector('#btnSupaLoadCloud')?.addEventListener('click', async () => {
       await supaForceCloudLoad();
     });
-    tab.querySelector('#btnSupaLogout')?.addEventListener('click', async () => {
-      if (confirm('Se déconnecter du compte cloud ?')) await supaSignOut();
+    tab.querySelector('#btnSupaLogout')?.addEventListener('click', () => {
+      showConfirm('Se déconnecter du compte cloud ?', async () => {
+        await supaSignOut();
+      });
     });
 
     // Charger le classement en async
