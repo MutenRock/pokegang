@@ -1478,15 +1478,17 @@ function pokeSpriteBack(en, shiny = false) {
 }
 
 const SPRITE_FIX = {
-  ltsurge:      'surge',
+  // ltsurge.png exists directly on Showdown — no fix needed
   rocketgrunt:  'rocket',
   rocketgruntf: 'rocketf',
+  // Elite Four sprites need suffix on Showdown
+  agatha:   'agatha-gen1',
+  lorelei:  'lorelei-gen1',
 };
 
 // Custom sprite overrides (non-Showdown sources)
 const CUSTOM_TRAINER_SPRITES = {
   giovanni: 'https://www.pokepedia.fr/images/archive/7/73/20230124191924%21Sprite_Giovanni_RB.png',
-  lorelei:  'https://www.pokepedia.fr/images/archive/8/8c/20230124193209%21Sprite_Olga_RB.png',
 };
 
 function trainerSprite(name) {
