@@ -1559,8 +1559,8 @@ const ITEM_SPRITES = {
   ultraball:  'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/ultra-ball.png',
   duskball:   'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/dusk-ball.png',
   masterball: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/master-ball.png',
-  lure:       'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/lure.png',
-  superlure:  'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/super-lure.png',
+  lure:       'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/honey.png',
+  superlure:  'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/lure-ball.png',
   potion:     'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/potion.png',
   incense:    'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/luck-incense.png',
   rarescope:  'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/scope-lens.png',
@@ -6581,6 +6581,94 @@ function showIntro() {
 }
 
 // ════════════════════════════════════════════════════════════════
+// 19b. BOSS SPRITE VALIDATOR — detect broken sprite on save load
+// ════════════════════════════════════════════════════════════════
+
+function checkBossSpriteValidity() {
+  if (!state.gang.initialized || !state.gang.bossSprite) return;
+  const url = trainerSprite(state.gang.bossSprite);
+  const testImg = new Image();
+  testImg.onload = () => {}; // fine
+  testImg.onerror = () => {
+    // Sprite is broken — show picker modal
+    showBossSpriteRepairModal();
+  };
+  testImg.src = url + '?v=' + Date.now(); // cache-bust
+}
+
+function showBossSpriteRepairModal() {
+  // Avoid opening twice
+  if (document.getElementById('spriteRepairModal')) return;
+
+  const modal = document.createElement('div');
+  modal.id = 'spriteRepairModal';
+  modal.style.cssText = `
+    position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.85);
+    display:flex;align-items:center;justify-content:center;
+  `;
+
+  const spriteOptionsHtml = BOSS_SPRITES.map(s =>
+    `<div class="sprite-option" data-sprite="${s}" style="
+      display:flex;flex-direction:column;align-items:center;gap:4px;padding:6px;
+      border:2px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;
+      background:var(--bg-card);transition:border-color .15s;min-width:60px
+    ">
+      <img src="${trainerSprite(s)}" style="width:44px;height:44px;image-rendering:pixelated"
+           onerror="this.parentElement.style.display='none'">
+      <span style="font-family:var(--font-pixel);font-size:6px;color:var(--text-dim)">${s}</span>
+    </div>`
+  ).join('');
+
+  modal.innerHTML = `
+    <div style="background:var(--bg-panel);border:2px solid var(--red);border-radius:var(--radius);padding:24px;max-width:600px;width:90%;max-height:80vh;display:flex;flex-direction:column;gap:16px">
+      <div style="font-family:var(--font-pixel);font-size:12px;color:var(--gold)">⚠ Sprite invalide</div>
+      <div style="font-size:13px;color:var(--text-dim)">
+        ${state.lang === 'fr'
+          ? `Le sprite "<b style="color:var(--text)">${state.gang.bossSprite}</b>" est introuvable. Choisis un nouveau sprite pour ton Boss :`
+          : `The sprite "<b style="color:var(--text)">${state.gang.bossSprite}</b>" could not be found. Pick a new sprite for your Boss:`
+        }
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;overflow-y:auto;max-height:320px;padding:4px">
+        ${spriteOptionsHtml}
+      </div>
+      <button id="spriteRepairConfirm" style="
+        font-family:var(--font-pixel);font-size:10px;padding:10px 20px;
+        background:var(--red-dark);border:1px solid var(--red);border-radius:var(--radius);
+        color:var(--text);cursor:pointer;align-self:center
+      ">${state.lang === 'fr' ? 'Confirmer' : 'Confirm'}</button>
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+
+  let selected = BOSS_SPRITES[0];
+
+  // Selection logic
+  modal.querySelectorAll('.sprite-option').forEach(opt => {
+    opt.addEventListener('click', () => {
+      modal.querySelectorAll('.sprite-option').forEach(o => o.style.borderColor = 'var(--border)');
+      opt.style.borderColor = 'var(--gold)';
+      selected = opt.dataset.sprite;
+    });
+  });
+  // Auto-select first visible
+  const firstVisible = modal.querySelector('.sprite-option');
+  if (firstVisible) firstVisible.style.borderColor = 'var(--gold)';
+
+  document.getElementById('spriteRepairConfirm').addEventListener('click', () => {
+    state.gang.bossSprite = selected;
+    saveState();
+    modal.remove();
+    // Refresh boss sprite displays
+    document.querySelectorAll('[data-boss-sprite-img]').forEach(img => {
+      img.src = trainerSprite(selected);
+    });
+    renderAll();
+    notify(state.lang === 'fr' ? 'Sprite mis à jour !' : 'Sprite updated!', 'success');
+  });
+}
+
+// ════════════════════════════════════════════════════════════════
 // 20.  UI — SETTINGS MODAL
 // ════════════════════════════════════════════════════════════════
 
@@ -7032,9 +7120,10 @@ function renderLabTab() {
 
 // ════════════════════════════════════════════════════════════════
 
-let agentTickInterval = null;
-let autoSaveInterval = null;
-let cooldownInterval = null;
+let agentTickInterval   = null;
+let autoSaveInterval    = null;
+let cooldownInterval    = null;
+let _gameLoopStarted    = false;  // guard against double-start
 
 // ════════════════════════════════════════════════════════════════
 // 22.  PENSION & EGGS
@@ -7334,6 +7423,10 @@ function renderPensionView(container) {
 }
 
 function startGameLoop() {
+  // Guard: only start once — prevents interval accumulation on hot-reload
+  if (_gameLoopStarted) return;
+  _gameLoopStarted = true;
+
   // Agent automation every 2 seconds (agents interact with visible spawns)
   agentTickInterval = setInterval(agentTick, 2000);
 
@@ -7852,6 +7945,9 @@ function boot() {
 
   // Initial render
   renderAll();
+
+  // Check boss sprite validity (broken save migration)
+  checkBossSpriteValidity();
 
   // Start game loop
   startGameLoop();
