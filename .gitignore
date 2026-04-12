@@ -47,4 +47,6 @@ tmp/
 pokeforge.patch
 external/
 .claude/settings.local.json
-.claude/settings.local.json
+
+# Supabase — clés privées (copier config.example.js → config.js)
+game/config.js

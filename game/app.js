@@ -1217,9 +1217,20 @@ const DEFAULT_STATE = {
 
 let state = structuredClone(DEFAULT_STATE);
 
+let _supaLastSaveAt = 0;
+const SUPA_SAVE_THROTTLE_MS = 30_000; // max 1 cloud save / 30s
+
 function saveState() {
   state._savedAt = Date.now();
   localStorage.setItem(SAVE_KEY, JSON.stringify(state));
+  // Cloud sync : throttlé, non-bloquant
+  if (supabase && supaSession) {
+    const now = Date.now();
+    if (now - _supaLastSaveAt >= SUPA_SAVE_THROTTLE_MS) {
+      _supaLastSaveAt = now;
+      supaCloudSave();
+    }
+  }
 }
 
 function loadState() {
@@ -3243,6 +3254,7 @@ function renderActiveTab() {
     case 'tabMissions': renderMissionsTab(); break;
     case 'tabTraining': renderTrainingTab(); break;
     case 'tabLab':      pcView = 'lab'; switchTab('tabPC'); break;
+    case 'tabCompte':   renderCompteTab(); break;
   }
 }
 
@@ -7195,6 +7207,360 @@ function startGameLoop() {
   }, 5 * 60 * 1000); // check every 5 minutes
 }
 
+// ════════════════════════════════════════════════════════════════
+// 23.  SUPABASE — AUTH & CLOUD SAVE
+// ════════════════════════════════════════════════════════════════
+
+let supabase    = null;
+let supaSession = null;
+let supaLastSync = null;   // timestamp dernier cloud save réussi
+let supaSyncing  = false;
+
+// ── Helpers ───────────────────────────────────────────────────────
+function supaConfigured() {
+  return typeof SUPABASE_URL !== 'undefined'
+    && SUPABASE_URL
+    && !SUPABASE_URL.includes('VOTRE_PROJET');
+}
+
+// ── Init ──────────────────────────────────────────────────────────
+function initSupabase() {
+  if (!supaConfigured()) return;
+  if (typeof window.supabase === 'undefined') {
+    console.warn('PokéForge: Supabase SDK non chargé.');
+    return;
+  }
+  try {
+    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    // Restaurer la session existante (localStorage Supabase)
+    supabase.auth.getSession().then(({ data }) => {
+      supaSession = data.session || null;
+      updateSupaIndicator();
+      if (activeTab === 'tabCompte') renderCompteTab();
+    });
+
+    // Écouter les changements d'auth (login / logout / refresh token)
+    supabase.auth.onAuthStateChange((_event, session) => {
+      supaSession = session;
+      updateSupaIndicator();
+      updateSupaTabLabel();
+      if (activeTab === 'tabCompte') renderCompteTab();
+    });
+  } catch (e) {
+    console.warn('PokéForge: Supabase init error', e);
+  }
+}
+
+// ── Auth ──────────────────────────────────────────────────────────
+async function supaSignIn(email, password) {
+  if (!supabase) return { error: 'Supabase non configuré' };
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) return { error: error.message };
+  // Après connexion : proposer de charger la save cloud si plus récente
+  await supaCheckCloudLoad();
+  return { data };
+}
+
+async function supaSignUp(email, password) {
+  if (!supabase) return { error: 'Supabase non configuré' };
+  const { data, error } = await supabase.auth.signUp({ email, password });
+  if (error) return { error: error.message };
+  return { data };
+}
+
+async function supaSignOut() {
+  if (!supabase) return;
+  await supabase.auth.signOut();
+  supaLastSync = null;
+  supaSession  = null;
+  updateSupaIndicator();
+  updateSupaTabLabel();
+  if (activeTab === 'tabCompte') renderCompteTab();
+}
+
+// ── Cloud Save ────────────────────────────────────────────────────
+async function supaCloudSave() {
+  if (!supabase || !supaSession) return;
+  if (supaSyncing) return;
+  supaSyncing = true;
+  updateSupaIndicator();
+  try {
+    const { error } = await supabase
+      .from('player_saves')
+      .upsert({
+        user_id:  supaSession.user.id,
+        slot:     activeSaveSlot,
+        state:    state,
+        saved_at: new Date().toISOString(),
+      });
+    if (!error) {
+      supaLastSync = Date.now();
+      await supaUpdateLeaderboard();
+    }
+  } catch { /* silencieux — la save locale est toujours là */ }
+  supaSyncing = false;
+  updateSupaIndicator();
+  if (activeTab === 'tabCompte') renderCompteTab();
+}
+
+async function supaCheckCloudLoad() {
+  if (!supabase || !supaSession) return;
+  const { data, error } = await supabase
+    .from('player_saves')
+    .select('state, saved_at')
+    .eq('user_id', supaSession.user.id)
+    .eq('slot', activeSaveSlot)
+    .single();
+  if (error || !data) return;
+
+  const cloudTs = new Date(data.saved_at).getTime();
+  const localTs = state._savedAt || 0;
+  if (cloudTs > localTs) {
+    const fmt = new Date(cloudTs).toLocaleString('fr-FR');
+    if (confirm(`Une sauvegarde cloud plus récente existe (${fmt}).\nCharger la sauvegarde cloud ? (La save locale sera remplacée)`)) {
+      state = migrate(data.state);
+      saveState();
+      renderAll();
+      notify('Sauvegarde cloud chargée !', 'success');
+    }
+  }
+}
+
+async function supaForceCloudLoad() {
+  if (!supabase || !supaSession) return;
+  const { data, error } = await supabase
+    .from('player_saves')
+    .select('state, saved_at')
+    .eq('user_id', supaSession.user.id)
+    .eq('slot', activeSaveSlot)
+    .single();
+  if (error || !data) { notify('Aucune sauvegarde cloud trouvée.', 'error'); return; }
+
+  const fmt = new Date(data.saved_at).toLocaleString('fr-FR');
+  if (confirm(`Charger la save cloud du ${fmt} ?\nLa save locale sera écrasée.`)) {
+    state = migrate(data.state);
+    saveState();
+    renderAll();
+    notify('Sauvegarde cloud chargée !', 'success');
+  }
+}
+
+async function supaUpdateLeaderboard() {
+  if (!supabase || !supaSession) return;
+  const shinyCount  = (state.pokemons || []).filter(p => p.shiny).length;
+  const dexCount    = Object.values(state.pokedex || {}).filter(v => v > 0).length;
+  await supabase.from('players').upsert({
+    user_id:       supaSession.user.id,
+    gang_name:     state.gang.name     || 'Team ???',
+    boss_name:     state.gang.bossName || 'Boss',
+    reputation:    state.gang.reputation  || 0,
+    total_caught:  state.stats?.caught    || 0,
+    total_sold:    state.stats?.sold      || 0,
+    shiny_count:   shinyCount,
+    pokedex_count: dexCount,
+    updated_at:    new Date().toISOString(),
+  });
+}
+
+// ── Top-bar indicator ─────────────────────────────────────────────
+function updateSupaIndicator() {
+  const el = document.getElementById('supaIndicator');
+  if (!el) return;
+  if (!supaConfigured()) { el.style.display = 'none'; return; }
+
+  el.style.display = 'flex';
+  if (!supaSession) {
+    el.textContent = '☁';
+    el.style.color = 'var(--text-dim)';
+    el.title       = 'Non connecté — cliquer pour se connecter';
+  } else if (supaSyncing) {
+    el.textContent = '⟳';
+    el.style.color = 'var(--gold)';
+    el.title       = 'Synchronisation en cours…';
+  } else if (supaLastSync) {
+    const ago = Math.round((Date.now() - supaLastSync) / 1000);
+    el.textContent = '☁';
+    el.style.color = 'var(--green)';
+    el.title       = `Cloud syncé il y a ${ago}s`;
+  } else {
+    el.textContent = '☁';
+    el.style.color = '#ff9900';
+    el.title       = 'Connecté — non encore syncé';
+  }
+
+  // Clic = aller sur l'onglet Compte
+  el.onclick = () => switchTab('tabCompte');
+}
+
+// Mettre à jour le label du bouton tab Compte (connecté / non connecté)
+function updateSupaTabLabel() {
+  const btn = document.getElementById('tabBtnCompte');
+  if (!btn) return;
+  btn.textContent = supaSession ? '☁ Compte ●' : '☁ Compte';
+  btn.style.color = supaSession ? 'var(--green)' : '';
+}
+
+// ── Compte Tab UI ─────────────────────────────────────────────────
+async function renderCompteTab() {
+  const tab = document.getElementById('tabCompte');
+  if (!tab) return;
+
+  if (!supaConfigured()) {
+    tab.innerHTML = `
+      <div style="padding:40px;text-align:center;color:var(--text-dim)">
+        <div style="font-family:var(--font-pixel);font-size:12px;color:var(--gold);margin-bottom:20px">☁ COMPTE CLOUD</div>
+        <div style="font-size:11px;margin-bottom:12px">Supabase non configuré.</div>
+        <div style="font-size:10px;line-height:1.8">
+          1. Copie <code style="color:var(--gold)">game/config.example.js</code> → <code style="color:var(--gold)">game/config.js</code><br>
+          2. Remplis <code>SUPABASE_URL</code> et <code>SUPABASE_ANON_KEY</code><br>
+          3. Suis le guide SQL dans <code>docs/supabase-setup.md</code>
+        </div>
+      </div>`;
+    return;
+  }
+
+  if (!supaSession) {
+    // ── Formulaire de connexion ──────────────────────────────────
+    tab.innerHTML = `
+      <div style="max-width:380px;margin:48px auto;padding:28px;background:var(--bg-panel);border:1px solid var(--border);border-radius:var(--radius)">
+        <div style="font-family:var(--font-pixel);font-size:12px;color:var(--gold);margin-bottom:8px;text-align:center">☁ COMPTE CLOUD</div>
+        <div style="font-size:9px;color:var(--text-dim);text-align:center;margin-bottom:24px">
+          Connecte-toi pour activer la sauvegarde cloud et le classement.
+        </div>
+        <div id="supaMsg" style="font-size:10px;min-height:18px;text-align:center;margin-bottom:12px"></div>
+        <div style="margin-bottom:12px">
+          <label style="font-size:9px;display:block;margin-bottom:4px;color:var(--text-dim);letter-spacing:.05em">EMAIL</label>
+          <input id="supaEmail" type="email" placeholder="joueur@exemple.com" style="width:100%;padding:9px 10px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:11px;outline:none">
+        </div>
+        <div style="margin-bottom:24px">
+          <label style="font-size:9px;display:block;margin-bottom:4px;color:var(--text-dim);letter-spacing:.05em">MOT DE PASSE</label>
+          <input id="supaPassword" type="password" placeholder="••••••••" style="width:100%;padding:9px 10px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:11px;outline:none">
+        </div>
+        <div style="display:flex;gap:8px">
+          <button id="btnSupaLogin"    style="flex:1;padding:11px;background:var(--red);border:none;border-radius:var(--radius-sm);color:#fff;font-family:var(--font-pixel);font-size:9px;cursor:pointer;letter-spacing:.04em">CONNEXION</button>
+          <button id="btnSupaRegister" style="flex:1;padding:11px;background:var(--bg);border:1px solid var(--border-light);border-radius:var(--radius-sm);color:var(--text);font-family:var(--font-pixel);font-size:9px;cursor:pointer;letter-spacing:.04em">CRÉER COMPTE</button>
+        </div>
+      </div>`;
+
+    const msg = () => tab.querySelector('#supaMsg');
+    const setMsg = (txt, color) => {
+      const el = msg();
+      if (el) { el.textContent = txt; el.style.color = color || 'var(--text)'; }
+    };
+
+    tab.querySelector('#btnSupaLogin')?.addEventListener('click', async () => {
+      const email    = tab.querySelector('#supaEmail')?.value.trim();
+      const password = tab.querySelector('#supaPassword')?.value;
+      if (!email || !password) { setMsg('Remplis tous les champs.', 'var(--red)'); return; }
+      setMsg('Connexion…', 'var(--gold)');
+      const { error } = await supaSignIn(email, password);
+      if (error) setMsg(error, 'var(--red)');
+    });
+
+    tab.querySelector('#btnSupaRegister')?.addEventListener('click', async () => {
+      const email    = tab.querySelector('#supaEmail')?.value.trim();
+      const password = tab.querySelector('#supaPassword')?.value;
+      if (!email || !password) { setMsg('Remplis tous les champs.', 'var(--red)'); return; }
+      if (password.length < 6) { setMsg('Mot de passe trop court (6 caractères min).', 'var(--red)'); return; }
+      setMsg('Création du compte…', 'var(--gold)');
+      const { error } = await supaSignUp(email, password);
+      if (error) setMsg(error, 'var(--red)');
+      else setMsg('Compte créé ! Vérifie ton email pour confirmer, puis connecte-toi.', 'var(--green)');
+    });
+
+  } else {
+    // ── Interface connectée ──────────────────────────────────────
+    const user     = supaSession.user;
+    const syncAgo  = supaLastSync
+      ? `il y a ${Math.round((Date.now() - supaLastSync) / 1000)}s`
+      : 'jamais';
+    const syncColor = supaLastSync ? 'var(--green)' : '#ff9900';
+    const syncLabel = supaSyncing ? '⟳ Synchronisation…' : supaLastSync ? `✅ Syncé ${syncAgo}` : '⚠ Non encore syncé';
+
+    tab.innerHTML = `
+      <div style="padding:16px;max-width:760px">
+        <div style="font-family:var(--font-pixel);font-size:12px;color:var(--gold);margin-bottom:16px">☁ COMPTE CLOUD</div>
+
+        <!-- Carte joueur -->
+        <div style="background:var(--bg-panel);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:16px;display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+          ${state.gang.bossSprite
+            ? `<img src="https://play.pokemonshowdown.com/sprites/gen5/${state.gang.bossSprite}.png" style="width:64px;height:64px;image-rendering:pixelated">`
+            : ''}
+          <div style="flex:1;min-width:160px">
+            <div style="font-family:var(--font-pixel);font-size:11px;margin-bottom:6px">${state.gang.name}</div>
+            <div style="font-size:10px;color:var(--text-dim);margin-bottom:4px">${user.email}</div>
+            <div style="font-size:10px">⭐ <b style="color:var(--gold)">${state.gang.reputation || 0}</b> réputation</div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:6px;min-width:160px">
+            <div style="font-size:9px;color:${syncColor};text-align:right;margin-bottom:2px">${syncLabel}</div>
+            <button id="btnSupaForceSave"  style="padding:7px 12px;background:var(--bg);border:1px solid var(--green);border-radius:var(--radius-sm);color:var(--green);font-size:9px;cursor:pointer;letter-spacing:.04em">↑ Sauvegarder maintenant</button>
+            <button id="btnSupaLoadCloud"  style="padding:7px 12px;background:var(--bg);border:1px solid var(--blue);border-radius:var(--radius-sm);color:var(--blue);font-size:9px;cursor:pointer;letter-spacing:.04em">↓ Charger depuis le cloud</button>
+            <button id="btnSupaLogout"     style="padding:7px 12px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-dim);font-size:9px;cursor:pointer">Déconnexion</button>
+          </div>
+        </div>
+
+        <!-- Classement -->
+        <div style="background:var(--bg-panel);border:1px solid var(--border);border-radius:var(--radius);padding:16px">
+          <div style="font-family:var(--font-pixel);font-size:10px;color:var(--gold);margin-bottom:12px">🏆 CLASSEMENT — TOP GANGS</div>
+          <div id="supaLeaderboard" style="min-height:60px">
+            <div style="color:var(--text-dim);font-size:10px;padding:8px">Chargement…</div>
+          </div>
+        </div>
+      </div>`;
+
+    tab.querySelector('#btnSupaForceSave')?.addEventListener('click', async () => {
+      _supaLastSaveAt = 0; // forcer le throttle
+      await supaCloudSave();
+    });
+    tab.querySelector('#btnSupaLoadCloud')?.addEventListener('click', async () => {
+      await supaForceCloudLoad();
+    });
+    tab.querySelector('#btnSupaLogout')?.addEventListener('click', async () => {
+      if (confirm('Se déconnecter du compte cloud ?')) await supaSignOut();
+    });
+
+    // Charger le classement en async
+    supaFetchLeaderboard().then(html => {
+      const el = document.getElementById('supaLeaderboard');
+      if (el) el.innerHTML = html;
+    });
+  }
+}
+
+async function supaFetchLeaderboard() {
+  if (!supabase) return '<div style="color:var(--text-dim);font-size:10px">Non disponible.</div>';
+  const { data, error } = await supabase
+    .from('players')
+    .select('user_id, gang_name, boss_name, reputation, shiny_count, pokedex_count')
+    .order('reputation', { ascending: false })
+    .limit(10);
+
+  if (error || !data?.length) {
+    return '<div style="color:var(--text-dim);font-size:10px;padding:8px">Aucun joueur classé pour l\'instant — sois le premier !</div>';
+  }
+
+  const myId = supaSession?.user?.id;
+  return data.map((p, i) => {
+    const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `<span style="font-family:var(--font-pixel);font-size:9px">${i + 1}.</span>`;
+    const isMe  = p.user_id === myId;
+    return `
+      <div style="display:flex;align-items:center;gap:10px;padding:9px 6px;border-bottom:1px solid var(--border);background:${isMe ? 'rgba(255,204,90,.06)' : ''};border-left:${isMe ? '2px solid var(--gold)' : '2px solid transparent'}">
+        <span style="width:28px;text-align:center;font-size:14px">${medal}</span>
+        <div style="flex:1">
+          <div style="font-family:var(--font-pixel);font-size:9px;color:${isMe ? 'var(--gold)' : 'var(--text)'}">${p.gang_name}${isMe ? ' ◀ toi' : ''}</div>
+          <div style="font-size:9px;color:var(--text-dim)">${p.boss_name}</div>
+        </div>
+        <div style="text-align:right">
+          <div style="color:var(--gold);font-size:10px;font-weight:bold">${p.reputation.toLocaleString('fr-FR')} rép</div>
+          <div style="color:var(--text-dim);font-size:8px;margin-top:2px">✨ ${p.shiny_count} shiny &nbsp;·&nbsp; 📖 ${p.pokedex_count}/151</div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// ════════════════════════════════════════════════════════════════
+
 function boot() {
   // Try to load saved state
   const saved = loadState();
@@ -7274,6 +7640,9 @@ function boot() {
 
   // Detect LLM
   detectLLM();
+
+  // Init Supabase (auth + cloud save)
+  initSupabase();
 
   // Show intro if not initialized
   if (!state.gang.initialized) {
