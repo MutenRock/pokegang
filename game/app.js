@@ -449,31 +449,31 @@ const ZONES = [
   // ══ ARÈNES (combats uniquement, pas d'investissement) ══
   { id:'pewter_gym',    fr:'Arène d\'Argenta',  en:'Pewter Gym',        rep:150, spawnRate:0.06, type:'gym',
     pool:['geodude','onix','graveler','sandshrew'],
-    trainers:['hiker','camper'], eliteTrainer:'brock', investCost:0,
+    trainers:['hiker','camper','pokemonranger'], eliteTrainer:'brock', investCost:0,
     gymLeader:'brock', xpBonus:1.5 },
   { id:'cerulean_gym',  fr:'Arène d\'Azuria',   en:'Cerulean Gym',      rep:300, spawnRate:0.06, type:'gym',
     pool:['staryu','psyduck','goldeen','horsea','seel'],
-    trainers:['swimmer','picnicker'], eliteTrainer:'misty', investCost:0,
+    trainers:['swimmer','picnicker','pokemonranger'], eliteTrainer:'misty', investCost:0,
     gymLeader:'misty', xpBonus:1.5 },
   { id:'celadon_gym',   fr:'Arène de Céladopole',en:'Celadon Gym',      rep:450, spawnRate:0.06, type:'gym',
     pool:['bellsprout','oddish','gloom','weepinbell','victreebel','vileplume'],
-    trainers:['lass','beauty','acetrainer'], eliteTrainer:'erika', investCost:0,
+    trainers:['lass','beauty','acetrainer','pokemonranger'], eliteTrainer:'erika', investCost:0,
     gymLeader:'erika', xpBonus:1.8 },
   { id:'fuchsia_gym',   fr:'Arène de Parmanie', en:'Fuchsia Gym',       rep:650, spawnRate:0.06, type:'gym',
     pool:['venonat','venomoth','koffing','weezing','grimer','muk'],
-    trainers:['juggler','psychic'], eliteTrainer:'koga', investCost:0,
+    trainers:['juggler','psychic','pokemonranger'], eliteTrainer:'koga', investCost:0,
     gymLeader:'koga', xpBonus:2.0 },
   { id:'saffron_gym',   fr:'Arène de Safrania', en:'Saffron Gym',       rep:800, spawnRate:0.06, type:'gym',
     pool:['abra','kadabra','alakazam','mr-mime','jynx','hypno'],
-    trainers:['psychic','channeler'], eliteTrainer:'sabrina', investCost:0,
+    trainers:['psychic','channeler','pokemonranger'], eliteTrainer:'sabrina', investCost:0,
     gymLeader:'sabrina', xpBonus:2.2 },
   { id:'cinnabar_gym',  fr:'Arène de Cramois\'île',en:'Cinnabar Gym',   rep:850, spawnRate:0.06, type:'gym',
     pool:['growlithe','ponyta','rapidash','magmar','vulpix','ninetales','flareon','moltres'],
-    trainers:['supernerd','scientist','acetrainer'], eliteTrainer:'blaine', investCost:0,
+    trainers:['supernerd','scientist','acetrainer','pokemonranger'], eliteTrainer:'blaine', investCost:0,
     gymLeader:'blaine', xpBonus:2.5 },
   { id:'indigo_plateau',fr:'Plateau Indigo',    en:'Indigo Plateau',    rep:1000,spawnRate:0.06, type:'gym',
     pool:['dragonair','dragonite','gyarados','lapras','snorlax'],
-    trainers:['acetrainer'], eliteTrainer:'blue', investCost:0,
+    trainers:['acetrainer','pokemonranger','pokemonrangerf'], eliteTrainer:'blue', investCost:0,
     gymLeader:'blue', xpBonus:3.0 },
 
   // ══ LIEUX SPÉCIAUX (hybride : captures + events, investissement possible) ══
@@ -508,11 +508,11 @@ const ZONES = [
   { id:'celadon_casino',fr:'Casino de Céladopole',en:'Celadon Casino',  rep:600, spawnRate:0.07, type:'special',
     unlockItem:'casino_ticket',
     pool:['porygon','abra','clefairy','meowth','voltorb','dratini'],
-    trainers:['rocketgrunt','rocketgruntf','gentleman','juggler'], eliteTrainer:'archer', investCost:15000 },
+    trainers:['rocketgrunt','rocketgruntf','gentleman','juggler','policeman'], eliteTrainer:'archer', investCost:15000 },
   { id:'silph_co',      fr:'Sylphe SARL',       en:'Silph Co.',         rep:900, spawnRate:0.07, type:'special',
     unlockItem:'silph_keycard',
     pool:['porygon','electrode','magnemite','magneton','voltorb','lapras'],
-    trainers:['rocketgrunt','rocketgruntf','scientist','archer','proton'], eliteTrainer:'giovanni', investCost:30000 },
+    trainers:['rocketgrunt','rocketgruntf','scientist','archer','proton','policeman'], eliteTrainer:'giovanni', investCost:30000 },
 
   // ══ NOUVELLES ZONES ══
   { id:'pallet_garden', fr:'Jardin de Pallet',  en:'Pallet Garden',     rep:30,  spawnRate:0.07, type:'route',
@@ -898,12 +898,17 @@ const TRAINER_TYPES = {
   sabrina:      { fr:'Morgane',      en:'Sabrina',      sprite:'sabrina',      diff:5, reward:[5000,10000],rep:22},
   blaine:       { fr:'Auguste',      en:'Blaine',       sprite:'blaine',       diff:5, reward:[5000,10000],rep:22},
   // Elite Four & Champion
-  lorelei:      { fr:'Olga',         en:'Lorelei',      sprite:'lorelei',      diff:6, reward:[8000,15000],rep:30},
-  bruno:        { fr:'Aldo',         en:'Bruno',        sprite:'bruno',        diff:6, reward:[8000,15000],rep:30},
-  agatha:       { fr:'Agatha',       en:'Agatha',       sprite:'agatha',       diff:6, reward:[8000,15000],rep:30},
-  lance:        { fr:'Peter',        en:'Lance',        sprite:'lance',        diff:7, reward:[10000,20000],rep:40},
-  blue:         { fr:'Blue',         en:'Blue',         sprite:'blue',         diff:7, reward:[12000,25000],rep:50},
-  red:          { fr:'Red',          en:'Red',          sprite:'red',          diff:8, reward:[15000,30000],rep:60},
+  lorelei:        { fr:'Olga',           en:'Lorelei',        sprite:'lorelei',        diff:6, reward:[8000,15000], rep:30},
+  bruno:          { fr:'Aldo',           en:'Bruno',          sprite:'bruno',          diff:6, reward:[8000,15000], rep:30},
+  agatha:         { fr:'Agatha',         en:'Agatha',         sprite:'agatha',         diff:6, reward:[8000,15000], rep:30},
+  lance:          { fr:'Peter',          en:'Lance',          sprite:'lance',          diff:7, reward:[10000,20000],rep:40},
+  blue:           { fr:'Blue',           en:'Blue',           sprite:'blue',           diff:7, reward:[12000,25000],rep:50},
+  red:            { fr:'Red',            en:'Red',            sprite:'red',            diff:8, reward:[15000,30000],rep:60},
+  // Rangers Pokémon (forces de l'ordre, pokémon puissants : Tauros, Scarabrute, etc.)
+  pokemonranger:  { fr:'Ranger Pokémon', en:'Pokémon Ranger', sprite:'pokemonranger',  diff:4, reward:[250,700],   rep:10},
+  pokemonrangerf: { fr:'Ranger Pokémon', en:'Pokémon Ranger', sprite:'pokemonrangerf', diff:4, reward:[250,700],   rep:10},
+  // Police (Arcanin, Caninos — zones Rocket)
+  policeman:      { fr:'Policier',       en:'Policeman',      sprite:'policeman',      diff:4, reward:[300,800],   rep:12},
 };
 
 // Trainers qui donnent +10 rep (gym leaders, Elite 4, personnages d'histoire)
@@ -983,7 +988,7 @@ const BOSS_SPRITES = [
   // Kanto Elite Four + Rivals
   'lorelei','bruno','agatha','lance','blue','red','silver','oak',
   // Team Rocket
-  'archer','ariana','proton','scientist',
+  'archer','ariana','proton','scientist','rocketexecutive','teamrocket',
   // Johto Gym Leaders
   'falkner','bugsy','whitney','morty','chuck','jasmine','pryce','clair',
   // Johto Elite Four
@@ -1013,6 +1018,8 @@ const AGENT_SPRITES = [
   'juggler','burglar','channeler','birdkeeper','cueball','tamer','rocker',
   // Kanto/Johto misc
   'cooltrainer','cooltrainerf','pokefan','pokefanf',
+  // Forces de l'ordre
+  'pokemonranger','pokemonrangerf','policeman',
 ];
 const AGENT_PERSONALITIES = ['loyal','nervous','reckless','calm','cunning','lazy','fierce','quiet','greedy','brave','curious','stubborn'];
 
@@ -1478,12 +1485,24 @@ function pokeSpriteBack(en, shiny = false) {
 }
 
 const SPRITE_FIX = {
-  // ltsurge.png exists directly on Showdown — no fix needed
-  rocketgrunt:  'rocket',
-  rocketgruntf: 'rocketf',
-  // Elite Four sprites need suffix on Showdown
-  agatha:   'agatha-gen1',
-  lorelei:  'lorelei-gen1',
+  // ltsurge, rocketgrunt, rocketgruntf exist directly on Showdown — no fix needed
+  // Elite Four sprites need suffix
+  agatha:          'agatha-gen1',
+  lorelei:         'lorelei-gen1',
+  phoebe:          'phoebe-gen3',
+  drake:           'drake-gen3',
+  // Common trainers that 404 without suffix
+  channeler:       'channeler-gen1',
+  cueball:         'cueball-gen1',
+  rocker:          'rocker-gen1',
+  tamer:           'tamer-gen1',
+  // cooltrainer doesn't exist on Showdown → use acetrainer
+  cooltrainer:     'acetrainer',
+  cooltrainerf:    'acetrainerf',
+  // New trainers — pick the most iconic version
+  rocketexecutive: 'rocketexecutive-gen2',
+  pokemonrangerf:  'pokemonrangerf-gen3',
+  policeman:       'policeman-gen8',
 };
 
 // Custom sprite overrides (non-Showdown sources)
