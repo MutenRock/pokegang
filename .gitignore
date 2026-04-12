@@ -50,3 +50,8 @@ external/
 
 # Supabase — clés privées (copier config.example.js → config.js)
 game/config.js
+.claude/worktrees/agent-a1b6fc0d/
+.claude/settings.local.json
+.claude/settings.local.json
+.claude/settings.local.json
+/.claude
