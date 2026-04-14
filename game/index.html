@@ -2180,6 +2180,26 @@
     }
     .btn-remove-team:hover { background: var(--red-dark); color: var(--text); }
 
+    /* ── Tab info buttons ────────────────────────────────────────── */
+    .tab-info-btn {
+      display: inline-block; margin-left: 4px;
+      font-family: sans-serif; font-size: 10px; font-style: normal;
+      color: var(--text-dim); cursor: pointer; border-radius: 50%;
+      width: 14px; height: 14px; line-height: 14px; text-align: center;
+      border: 1px solid var(--border); transition: color .15s, border-color .15s;
+      vertical-align: middle;
+    }
+    .tab-info-btn:hover { color: var(--gold); border-color: var(--gold-dim); }
+    #infoModal { position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.8);display:none;align-items:center;justify-content:center; }
+    #infoModal.active { display:flex; }
+    #infoModal .info-box { background:var(--bg-panel);border:2px solid var(--gold-dim);border-radius:var(--radius);padding:24px;max-width:560px;width:90%;max-height:80vh;display:flex;flex-direction:column;gap:12px;overflow-y:auto; }
+    #infoModal .info-title { font-family:var(--font-pixel);font-size:11px;color:var(--gold); }
+    #infoModal .info-section { font-size:12px;line-height:1.7;color:var(--text); }
+    #infoModal .info-section strong { color:var(--gold); }
+    #infoModal .info-section .dim { color:var(--text-dim); }
+    #infoModal .info-close { align-self:flex-end;font-family:var(--font-pixel);font-size:9px;padding:6px 14px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-dim);cursor:pointer; }
+    #infoModal .info-close:hover { border-color:var(--gold-dim);color:var(--gold); }
+
     /* ── Utility ─────────────────────────────────────────────────── */
     .hidden { display: none !important; }
     .pop { animation: pop .35s ease; }
@@ -2220,14 +2240,14 @@
 
     <!-- ═══ Tab Navigation ═══ -->
     <nav id="tabNav">
-      <button class="tab-btn active" data-tab="tabGang">Gang</button>
-      <button class="tab-btn" data-tab="tabAgents">Agents</button>
-      <button class="tab-btn" data-tab="tabZones">Zones</button>
-      <button class="tab-btn" data-tab="tabMarket">Marche</button>
-      <button class="tab-btn" data-tab="tabPC">PC</button>
+      <button class="tab-btn active" data-tab="tabGang">Gang <span class="tab-info-btn" data-info-tab="tabGang">ℹ</span></button>
+      <button class="tab-btn" data-tab="tabAgents">Agents <span class="tab-info-btn" data-info-tab="tabAgents">ℹ</span></button>
+      <button class="tab-btn" data-tab="tabZones">Zones <span class="tab-info-btn" data-info-tab="tabZones">ℹ</span></button>
+      <button class="tab-btn" data-tab="tabMarket">Marche <span class="tab-info-btn" data-info-tab="tabMarket">ℹ</span></button>
+      <button class="tab-btn" data-tab="tabPC">PC <span class="tab-info-btn" data-info-tab="tabPC">ℹ</span></button>
       <button class="tab-btn" data-tab="tabTraining">Formation</button>
       <button class="tab-btn" data-tab="tabMissions">Missions</button>
-      <button class="tab-btn" data-tab="tabPokedex">Pokedex</button>
+      <button class="tab-btn" data-tab="tabPokedex">Pokedex <span class="tab-info-btn" data-info-tab="tabPokedex">ℹ</span></button>
       <button class="tab-btn" data-tab="tabCompte" id="tabBtnCompte" style="margin-left:auto">☁ Compte</button>
       <button class="tab-btn" id="btnSaveSlots" style="border-color:var(--gold-dim);color:var(--gold-dim)">Saves</button>
     </nav>
@@ -2506,6 +2526,15 @@
     <div class="battle-log-body">
       <div id="battleArena"></div>
       <div id="battleHistory"></div>
+    </div>
+  </div>
+
+  <!-- Info Modal -->
+  <div id="infoModal">
+    <div class="info-box">
+      <div class="info-title" id="infoModalTitle"></div>
+      <div class="info-section" id="infoModalBody"></div>
+      <button class="info-close" id="infoModalClose">✕ Fermer</button>
     </div>
   </div>
 

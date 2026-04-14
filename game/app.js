@@ -1756,6 +1756,116 @@ function showRarePopup(species_en) {
 }
 
 // ════════════════════════════════════════════════════════════════
+//  3c.  MODAL HELPERS (confirm + info)
+// ════════════════════════════════════════════════════════════════
+
+function showConfirm(message, onConfirm, onCancel = null, opts = {}) {
+  const existing = document.getElementById('confirmModal');
+  if (existing) existing.remove();
+
+  const modal = document.createElement('div');
+  modal.id = 'confirmModal';
+  modal.style.cssText = 'position:fixed;inset:0;z-index:9500;background:rgba(0,0,0,.82);display:flex;align-items:center;justify-content:center;';
+
+  const danger = opts.danger ? 'var(--red)' : 'var(--gold-dim)';
+  const confirmLabel = opts.confirmLabel || (opts.lang === 'fr' ? 'Confirmer' : 'Confirm');
+  const cancelLabel  = opts.cancelLabel  || (opts.lang === 'fr' ? 'Annuler'   : 'Cancel');
+
+  modal.innerHTML = `
+    <div style="background:var(--bg-panel);border:2px solid ${danger};border-radius:var(--radius);padding:24px 28px;max-width:440px;width:90%;display:flex;flex-direction:column;gap:16px">
+      <div style="font-size:13px;color:var(--text);line-height:1.6">${message}</div>
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button id="confirmModalCancel" style="font-family:var(--font-pixel);font-size:9px;padding:8px 16px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-dim);cursor:pointer">${cancelLabel}</button>
+        <button id="confirmModalOk" style="font-family:var(--font-pixel);font-size:9px;padding:8px 16px;background:${opts.danger ? 'var(--red-dark)' : 'var(--bg)'};border:1px solid ${danger};border-radius:var(--radius-sm);color:${opts.danger ? '#fff' : 'var(--gold)'};cursor:pointer">${confirmLabel}</button>
+      </div>
+    </div>`;
+
+  document.body.appendChild(modal);
+
+  document.getElementById('confirmModalOk').addEventListener('click', () => { modal.remove(); onConfirm?.(); });
+  document.getElementById('confirmModalCancel').addEventListener('click', () => { modal.remove(); onCancel?.(); });
+  modal.addEventListener('click', e => { if (e.target === modal) { modal.remove(); onCancel?.(); } });
+}
+
+function showInfoModal(tabId) {
+  const INFO = {
+    tabGang: {
+      title: '💀 LE GANG',
+      body: `
+        <strong>Réputation</strong> — Débloque zones, quêtes et achats. Augmente en gagnant des combats, diminue en perdant.<br><br>
+        <strong>Argent (₽)</strong> — Gagné lors des combats, ventes de Pokémon, coffres et récoltes de zone.<br><br>
+        <strong>Boss</strong> — Ton avatar. Assigne jusqu'à <strong>3 Pokémon</strong> à son équipe depuis le PC.<br><br>
+        <strong>Zone Boss</strong> — Quand le Boss est dans une zone, il boost les captures et combat avec les agents.<br><br>
+        <span class="dim">Conseil : assigne tes meilleurs Pokémon au Boss pour maximiser tes chances en combat.</span>
+      `
+    },
+    tabAgents: {
+      title: '👥 AGENTS',
+      body: `
+        <strong>CAP (Capture)</strong> — Chance de capturer automatiquement des Pokémon dans les zones non-ouvertes. Plus c'est haut, plus l'agent est efficace.<br><br>
+        <strong>LCK (Chance)</strong> — Influence la rareté des captures passives et la qualité des récompenses de coffres.<br><br>
+        <strong>ATK (Combat)</strong> — Puissance en combat automatique. Un agent fort bat des dresseurs difficiles.<br><br>
+        <strong>Grade</strong> — Grunt → Lieutenant (50+ combats gagnés) → Captain (200+). Chaque grade donne un bonus ATK.<br><br>
+        <strong>Zone assignée</strong> — L'agent farm passivement : captures, combats contre dresseurs, ouverture de coffres.<br><br>
+        <span class="dim">Un agent sans zone assignée ne fait rien. Assigne-les toujours !</span>
+      `
+    },
+    tabZones: {
+      title: '🗺️ ZONES',
+      body: `
+        <strong>Zone de capture</strong> (field / safari / water / cave) — Des Pokémon sauvages apparaissent. Tu cliques pour les capturer avec tes balls. Les agents assignés capturent automatiquement.<br><br>
+        <strong>Zone d'arène</strong> (gym / elite) — Uniquement des combats contre dresseurs. Pas de capture possible. Récompenses en ₽ et réputation élevées.<br><br>
+        <strong>Maîtrise ★</strong> — Augmente avec les victoires dans la zone. Améliore les spawns et débloque les dresseurs élites.<br><br>
+        <strong>Boosts actifs</strong> — Leurre (×2 spawns), Super Leurre (×3), Rarioscope (rares ×3), Aura Shiny (shiny ×5).<br><br>
+        <strong>Investissement</strong> — Dépense des ₽ dans une zone pour augmenter son niveau et ses récompenses.<br><br>
+        <span class="dim">Les zones dégradées (⚠) n'ont plus que des combats — remonte ta réputation pour les débloquer.</span>
+      `
+    },
+    tabMarket: {
+      title: '💰 MARCHÉ',
+      body: `
+        <strong>Balls</strong> — Chaque type améliore le potentiel max des Pokémon capturés. La Master Ball donne 90% de chance de ★5.<br><br>
+        <strong>Boosts temporaires</strong> — S'activent depuis le Sac dans la fenêtre de zone. Durée 60-90s.<br><br>
+        <strong>Rare Candy</strong> — Donne +5 niveaux à un Pokémon de ton choix.<br><br>
+        <strong>Pierre d'évolution</strong> — Permet d'évoluer un Pokémon qui en a besoin.<br><br>
+        <strong>Objets de zone</strong> — Débloquent des zones secrètes (Casino, Sylphe SARL, etc.). Usage unique.<br><br>
+        <span class="dim">Les prix sont fixes. Vends des Pokémon pour financer tes achats.</span>
+      `
+    },
+    tabPC: {
+      title: '💻 PC',
+      body: `
+        <strong>Potentiel ★</strong> — Permanent, détermine le plafond de puissance. ★5 = top tier. Dépend de la Ball utilisée.<br><br>
+        <strong>Nature</strong> — Chaque nature booste 2 stats et en pénalise 1. <em>Hardy</em> = équilibré.<br><br>
+        <strong>ATK/DEF/SPD</strong> — Calculées depuis base × nature × niveau × potentiel.<br><br>
+        <strong>Vente</strong> — Prix = rareté × potentiel × nature. Pas de malus de revente.<br><br>
+        <strong>Labo</strong> — Fais évoluer tes Pokémon (pierre ou niveau requis).<br><br>
+        <strong>Pension</strong> — 2 Pokémon compatibles → oeuf. Nécessite un incubateur. Les Pokémon de pension ont le "mal du pays" et ne peuvent pas être vendus.<br><br>
+        <strong>Oeufs</strong> — Gère tes oeufs en attente d'incubation ou prêts à éclore.<br><br>
+        <span class="dim">Filtre par rareté, type ou shiny pour retrouver facilement tes Pokémon.</span>
+      `
+    },
+    tabPokedex: {
+      title: '📖 POKÉDEX',
+      body: `
+        <strong>Vu 👁</strong> — Tu as aperçu ce Pokémon dans une zone (spawn visible).<br><br>
+        <strong>Capturé ✓</strong> — Tu en possèdes au moins un dans ton PC.<br><br>
+        <strong>Shiny ✨</strong> — Tu as capturé une version chromatique. Chance de base très faible, boostée par l'Aura Shiny.<br><br>
+        <strong>Progression</strong> — Compléter le Pokédex donne des bonus de réputation et de récompenses de quêtes.<br><br>
+        <span class="dim">Les légendaires et très rares n'apparaissent que dans des zones spécifiques avec le bon équipement.</span>
+      `
+    },
+  };
+
+  const info = INFO[tabId];
+  if (!info) return;
+
+  document.getElementById('infoModalTitle').textContent = info.title;
+  document.getElementById('infoModalBody').innerHTML = info.body;
+  document.getElementById('infoModal').classList.add('active');
+}
+
+// ════════════════════════════════════════════════════════════════
 //  4.  POKEMON MODULE
 // ════════════════════════════════════════════════════════════════
 
@@ -3413,11 +3523,11 @@ function openSaveSlotModal() {
   });
   overlay.querySelectorAll('.slot-del').forEach(btn => {
     btn.addEventListener('click', () => {
-      if (confirm(`Supprimer le slot ${parseInt(btn.dataset.slot) + 1} ?`)) {
+      showConfirm(`Supprimer le slot ${parseInt(btn.dataset.slot) + 1} ?`, () => {
         localStorage.removeItem(SAVE_KEYS[parseInt(btn.dataset.slot)]);
         overlay.remove();
         notify('Slot supprime.', 'success');
-      }
+      }, null, { danger: true, confirmLabel: 'Supprimer', cancelLabel: 'Annuler' });
     });
   });
 }
@@ -3518,14 +3628,15 @@ function renderCosmeticsPanel(container) {
         renderCosmeticsPanel(container);
       } else {
         if (state.gang.money < c.cost) { notify('Fonds insuffisants.'); return; }
-        if (!confirm(`Acheter le fond "${c.fr}" pour ${c.cost.toLocaleString()}₽ ?`)) return;
-        state.gang.money -= c.cost;
-        state.cosmetics.unlockedBgs = [...(state.cosmetics.unlockedBgs || []), key];
-        state.cosmetics.gameBg = key;
-        saveState(); applyCosmetics();
-        updateTopBar();
-        notify(`Fond "${c.fr}" debloque !`, 'gold');
-        renderCosmeticsPanel(container);
+        showConfirm(`Acheter le fond "${c.fr}" pour ${c.cost.toLocaleString()}₽ ?`, () => {
+          state.gang.money -= c.cost;
+          state.cosmetics.unlockedBgs = [...(state.cosmetics.unlockedBgs || []), key];
+          state.cosmetics.gameBg = key;
+          saveState(); applyCosmetics();
+          updateTopBar();
+          notify(`Fond "${c.fr}" debloque !`, 'gold');
+          renderCosmeticsPanel(container);
+        }, null, { confirmLabel: 'Acheter', cancelLabel: 'Annuler' });
       }
     });
   });
@@ -4143,7 +4254,14 @@ async function exportGangImage() {
     const bossImgSrc = state.gang.bossSprite ? trainerSprite(state.gang.bossSprite) : null;
     if (bossImgSrc) {
       const bossImg = await loadImg(bossImgSrc);
-      if (bossImg) { ctx.drawImage(bossImg, W/2 - 48, 24, 96, 96); }
+      if (bossImg) {
+        try { ctx.drawImage(bossImg, W/2 - 48, 24, 96, 96); }
+        catch(e) {
+          ctx.fillStyle = '#333'; ctx.fillRect(W/2 - 48, 24, 96, 96);
+          ctx.fillStyle = '#666'; ctx.font = '10px monospace'; ctx.textAlign = 'center';
+          ctx.fillText('Boss', W/2, 72);
+        }
+      }
     }
 
     // Gang name & boss name
@@ -4160,7 +4278,10 @@ async function exportGangImage() {
     let tx = W/2 - teamPks.length * 30;
     for (const pk of teamPks) {
       const img = await loadImg(pokeSprite(pk.species_en, pk.shiny));
-      if (img) { ctx.drawImage(img, tx, 170, 56, 56); }
+      if (img) {
+        try { ctx.drawImage(img, tx, 170, 56, 56); }
+        catch(e) { ctx.fillStyle = '#333'; ctx.fillRect(tx, 170, 56, 56); }
+      }
       tx += 62;
     }
 
@@ -4179,7 +4300,10 @@ async function exportGangImage() {
     let px = W/2 - top6.length * 27;
     for (const pk of top6) {
       const img = await loadImg(pokeSprite(pk.species_en, pk.shiny));
-      if (img) { ctx.drawImage(img, px, 285, 48, 48); }
+      if (img) {
+        try { ctx.drawImage(img, px, 285, 48, 48); }
+        catch(e) { ctx.fillStyle = '#333'; ctx.fillRect(px, 285, 48, 48); }
+      }
       px += 54;
     }
 
@@ -4782,11 +4906,7 @@ function openCombatPopup(zoneId, spawnObj) {
     const avail = a.team.map(id => state.pokemons.find(p => p.id === id)).filter(Boolean);
     return a.team.length > 0 && avail.length === 0;
   });
-  if (agentsAtRest.length > 0) {
-    const names = agentsAtRest.map(a => a.name).join(', ');
-    if (!confirm(`${names} est en repos. Attaquer seul quand meme ?`)) return;
-  }
-
+  function proceedWithCombat() {
   // ── Ally side: group by source (Boss always included + each Agent)
   const zoneAgents = state.agents.filter(a => a.assignedZone === zoneId);
 
@@ -4882,6 +5002,14 @@ function openCombatPopup(zoneId, spawnObj) {
   inlineCombat.querySelector(`[data-zone-combat-toggle="${zoneId}"]`)?.addEventListener('click', () => {
     inlineCombat.classList.toggle('collapsed');
   });
+  } // end proceedWithCombat
+
+  if (agentsAtRest.length > 0) {
+    const names = agentsAtRest.map(a => a.name).join(', ');
+    showConfirm(`${names} est en repos. Attaquer seul quand même ?`, proceedWithCombat, null, { confirmLabel: 'Attaquer', cancelLabel: 'Annuler' });
+  } else {
+    proceedWithCombat();
+  }
 }
 
 function renderCombatPoke(p, isBack) {
@@ -5404,7 +5532,8 @@ function renderPCTab() {
       switcher.innerHTML = `
         <button class="pc-view-btn" id="pcBtnGrid" data-pcview="grid">[PC]</button>
         <button class="pc-view-btn" id="pcBtnLab" data-pcview="lab">[LABO]</button>
-        <button class="pc-view-btn" id="pcBtnPension" data-pcview="pension">[PENSION${state.eggs.length ? ` (${state.eggs.length})` : ''}]</button>`;
+        <button class="pc-view-btn" id="pcBtnPension" data-pcview="pension">[PENSION]</button>
+        <button class="pc-view-btn" id="pcBtnEggs" data-pcview="eggs">[OEUFS${state.eggs.length ? ` (${state.eggs.length})` : ''}]</button>`;
       pcLayout.parentNode.insertBefore(switcher, pcLayout);
       switcher.querySelectorAll('.pc-view-btn').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -5418,7 +5547,7 @@ function renderPCTab() {
       btn.classList.toggle('active', btn.dataset.pcview === pcView);
     });
 
-    const subViews = ['labInPC', 'pensionInPC'];
+    const subViews = ['labInPC', 'pensionInPC', 'eggsInPC'];
     if (pcView === 'lab') {
       pcLayout.style.display = 'none';
       subViews.forEach(id => { const el = document.getElementById(id); if (el) el.style.display = id === 'labInPC' ? '' : 'none'; });
@@ -5443,6 +5572,18 @@ function renderPCTab() {
       pensionInPC.style.display = '';
       renderPensionView(pensionInPC);
       return;
+    } else if (pcView === 'eggs') {
+      pcLayout.style.display = 'none';
+      subViews.forEach(id => { const el = document.getElementById(id); if (el) el.style.display = id === 'eggsInPC' ? '' : 'none'; });
+      let eggsInPC = document.getElementById('eggsInPC');
+      if (!eggsInPC) {
+        eggsInPC = document.createElement('div');
+        eggsInPC.id = 'eggsInPC';
+        pcLayout.parentNode.appendChild(eggsInPC);
+      }
+      eggsInPC.style.display = '';
+      renderEggsView(eggsInPC);
+      return;
     } else {
       pcLayout.style.display = '';
       subViews.forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
@@ -5450,6 +5591,104 @@ function renderPCTab() {
   }
   renderPokemonGrid();
   renderPokemonDetail();
+}
+
+function renderEggsView(container) {
+  const eggs = state.eggs || [];
+  if (eggs.length === 0) {
+    container.innerHTML = `<div style="padding:24px;text-align:center;color:var(--text-dim);font-family:var(--font-pixel);font-size:10px">Aucun oeuf pour le moment.<br><br>Utilise la <b style="color:var(--text)">Pension</b> ou achète un <b style="color:var(--text)">Oeuf Mystère</b> au Marché.</div>`;
+    return;
+  }
+
+  const now = Date.now();
+  container.innerHTML = `
+    <div style="display:flex;flex-wrap:wrap;gap:12px;padding:8px">
+      ${eggs.map(egg => {
+        const isIncubating = egg.incubating;
+        const isReady = isIncubating && egg.hatchAt && egg.hatchAt <= now;
+        const timeLeft = isIncubating && egg.hatchAt ? Math.max(0, Math.ceil((egg.hatchAt - now) / 60000)) : null;
+        const progress = isIncubating && egg.hatchAt && egg.incubatedAt
+          ? Math.min(100, Math.round((now - egg.incubatedAt) / (egg.hatchAt - egg.incubatedAt) * 100))
+          : 0;
+
+        // Parents info
+        let parentHtml = '';
+        if (egg.parentA && egg.parentB) {
+          const pA = state.pokemons.find(p => p.id === egg.parentA) || { species_en: egg.parentASpecies };
+          const pB = state.pokemons.find(p => p.id === egg.parentB) || { species_en: egg.parentBSpecies };
+          parentHtml = `<div style="display:flex;align-items:center;gap:4px;margin-top:4px">
+            ${pA?.species_en ? `<img src="${pokeSprite(pA.species_en)}" style="width:20px;height:20px">` : ''}
+            <span style="font-size:9px;color:var(--text-dim)">♥</span>
+            ${pB?.species_en ? `<img src="${pokeSprite(pB.species_en)}" style="width:20px;height:20px">` : ''}
+          </div>`;
+        } else if (egg.source) {
+          parentHtml = `<div style="font-size:8px;color:var(--text-dim);margin-top:4px">${egg.source}</div>`;
+        } else {
+          parentHtml = `<div style="font-size:8px;color:var(--text-dim);margin-top:4px">Mystère</div>`;
+        }
+
+        const statusColor = isReady ? 'var(--green)' : isIncubating ? 'var(--gold)' : 'var(--text-dim)';
+        const statusText = isReady
+          ? '✅ Prêt à éclore !'
+          : isIncubating ? `🥚 ${timeLeft}min restantes`
+          : '⏳ En attente d\'incubateur';
+
+        return `<div style="background:var(--bg-card);border:1px solid ${isReady ? 'var(--green)' : 'var(--border)'};border-radius:var(--radius);padding:10px;min-width:130px;max-width:150px;display:flex;flex-direction:column;align-items:center;gap:6px;${isReady ? 'box-shadow:0 0 8px rgba(68,187,85,.3)' : ''}">
+          <div style="font-size:28px">${isReady ? '🐣' : '🥚'}</div>
+          ${parentHtml}
+          <div style="font-size:8px;color:${statusColor};text-align:center;font-family:var(--font-pixel);line-height:1.4">${statusText}</div>
+          ${isIncubating && !isReady ? `
+            <div style="width:100%;height:4px;background:var(--bg);border-radius:2px;overflow:hidden">
+              <div style="height:100%;width:${progress}%;background:var(--gold);transition:width .5s"></div>
+            </div>` : ''}
+          <div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:center">
+            ${isReady ? `<button class="egg-hatch-btn" data-egg-id="${egg.id}" style="font-family:var(--font-pixel);font-size:7px;padding:4px 8px;background:var(--green);border:none;border-radius:var(--radius-sm);color:#000;cursor:pointer">Éclore !</button>` : ''}
+            ${!isIncubating && (state.inventory?.incubator || 0) > 0 ? `<button class="egg-incubate-btn" data-egg-id="${egg.id}" style="font-family:var(--font-pixel);font-size:7px;padding:4px 8px;background:var(--bg);border:1px solid var(--gold-dim);border-radius:var(--radius-sm);color:var(--gold);cursor:pointer">Incuber</button>` : ''}
+            <button class="egg-sell-btn" data-egg-id="${egg.id}" style="font-family:var(--font-pixel);font-size:7px;padding:4px 8px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-dim);cursor:pointer">Vendre</button>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`;
+
+  // Bind buttons
+  container.querySelectorAll('.egg-hatch-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const egg = state.eggs.find(e => e.id === btn.dataset.eggId);
+      if (egg) hatchEgg(egg.id);
+      renderPCTab();
+    });
+  });
+  container.querySelectorAll('.egg-incubate-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const egg = state.eggs.find(e => e.id === btn.dataset.eggId);
+      if (!egg) return;
+      egg.incubating = true;
+      egg.incubatedAt = Date.now();
+      egg.hatchAt = Date.now() + (egg.hatchMs || 2700000); // 45min default
+      saveState();
+      renderPCTab();
+      notify('Oeuf mis en incubation !', 'success');
+    });
+  });
+  container.querySelectorAll('.egg-sell-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const egg = state.eggs.find(e => e.id === btn.dataset.eggId);
+      if (!egg) return;
+      const price = egg.sellPrice || 500;
+      showConfirm(
+        `Vendre cet oeuf pour <strong style="color:var(--gold)">${price.toLocaleString()}₽</strong> ?<br><span style="color:var(--text-dim);font-size:11px">Tu ne sauras jamais quel Pokémon était dedans.</span>`,
+        () => {
+          state.eggs = state.eggs.filter(e => e.id !== egg.id);
+          state.gang.money += price;
+          saveState();
+          renderPCTab();
+          notify(`Oeuf vendu — ${price}₽`, 'gold');
+        },
+        null,
+        { confirmLabel: 'Vendre', cancelLabel: 'Garder', danger: true }
+      );
+    });
+  });
 }
 
 function renderPokemonGrid() {
@@ -6757,7 +6996,7 @@ function initSettings() {
   });
 
   document.getElementById('btnResetAll')?.addEventListener('click', () => {
-    if (confirm(t('reset_confirm'))) {
+    showConfirm(t('reset_confirm'), () => {
       localStorage.removeItem(SAVE_KEY);
       state = structuredClone(DEFAULT_STATE);
       // Close all zone windows
@@ -6765,7 +7004,7 @@ function initSettings() {
       pcSelectedId = null;
       selectedForSale.clear();
       showIntro();
-    }
+    }, null, { danger: true, confirmLabel: 'Réinitialiser', cancelLabel: 'Annuler' });
   });
 
   document.getElementById('btnPurgeSprites')?.addEventListener('click', () => {
@@ -7433,14 +7672,20 @@ function renderPensionView(container) {
       const price = parseInt(btn.dataset.sellPrice) || 0;
       const rarity = egg.rarity || 'common';
       const parentsStr = egg.mystery ? 'Oeuf Mystère' : (egg.parentA && egg.parentB) ? `${speciesName(egg.parentA)} × ${speciesName(egg.parentB)}` : 'oeuf';
-      if (!confirm(`Vendre cet oeuf (${parentsStr}) pour ${price.toLocaleString()}₽ ?\nVous ne saurez jamais quel Pokémon était dedans.`)) return;
-      state.eggs = state.eggs.filter(eg => eg.id !== egg.id);
-      state.gang.money += price;
-      state.stats.totalMoneyEarned = (state.stats.totalMoneyEarned || 0) + price;
-      saveState();
-      updateTopBar();
-      notify(`Oeuf vendu pour ${price.toLocaleString()}₽`, 'success');
-      renderPensionView(container);
+      showConfirm(
+        `Vendre cet oeuf (${parentsStr}) pour ${price.toLocaleString()}₽ ?<br><span style="color:var(--text-dim);font-size:11px">Vous ne saurez jamais quel Pokémon était dedans.</span>`,
+        () => {
+          state.eggs = state.eggs.filter(eg => eg.id !== egg.id);
+          state.gang.money += price;
+          state.stats.totalMoneyEarned = (state.stats.totalMoneyEarned || 0) + price;
+          saveState();
+          updateTopBar();
+          notify(`Oeuf vendu pour ${price.toLocaleString()}₽`, 'success');
+          renderPensionView(container);
+        },
+        null,
+        { danger: true, confirmLabel: 'Vendre', cancelLabel: 'Garder' }
+      );
     });
   });
 
@@ -7643,12 +7888,17 @@ async function supaCheckCloudLoad() {
   const localTs = state._savedAt || 0;
   if (cloudTs > localTs) {
     const fmt = new Date(cloudTs).toLocaleString('fr-FR');
-    if (confirm(`Une sauvegarde cloud plus récente existe (${fmt}).\nCharger la sauvegarde cloud ? (La save locale sera remplacée)`)) {
-      state = migrate(data.state);
-      saveState();
-      renderAll();
-      notify('Sauvegarde cloud chargée !', 'success');
-    }
+    showConfirm(
+      `Une sauvegarde cloud plus récente existe (${fmt}).<br>Charger la sauvegarde cloud ? <span style="color:var(--text-dim);font-size:11px">(La save locale sera remplacée)</span>`,
+      () => {
+        state = migrate(data.state);
+        saveState();
+        renderAll();
+        notify('Sauvegarde cloud chargée !', 'success');
+      },
+      null,
+      { confirmLabel: 'Charger', cancelLabel: 'Ignorer' }
+    );
   }
 }
 
@@ -7663,12 +7913,17 @@ async function supaForceCloudLoad() {
   if (error || !data) { notify('Aucune sauvegarde cloud trouvée.', 'error'); return; }
 
   const fmt = new Date(data.saved_at).toLocaleString('fr-FR');
-  if (confirm(`Charger la save cloud du ${fmt} ?\nLa save locale sera écrasée.`)) {
-    state = migrate(data.state);
-    saveState();
-    renderAll();
-    notify('Sauvegarde cloud chargée !', 'success');
-  }
+  showConfirm(
+    `Charger la save cloud du ${fmt} ?<br><span style="color:var(--text-dim);font-size:11px">La save locale sera écrasée.</span>`,
+    () => {
+      state = migrate(data.state);
+      saveState();
+      renderAll();
+      notify('Sauvegarde cloud chargée !', 'success');
+    },
+    null,
+    { confirmLabel: 'Charger', cancelLabel: 'Annuler', danger: true }
+  );
 }
 
 async function supaUpdateLeaderboard() {
@@ -7841,8 +8096,8 @@ async function renderCompteTab() {
     tab.querySelector('#btnSupaLoadCloud')?.addEventListener('click', async () => {
       await supaForceCloudLoad();
     });
-    tab.querySelector('#btnSupaLogout')?.addEventListener('click', async () => {
-      if (confirm('Se déconnecter du compte cloud ?')) await supaSignOut();
+    tab.querySelector('#btnSupaLogout')?.addEventListener('click', () => {
+      showConfirm('Se déconnecter du compte cloud ?', async () => { await supaSignOut(); }, null, { danger: true, confirmLabel: 'Déconnecter', cancelLabel: 'Annuler' });
     });
 
     // Charger le classement en async
@@ -7956,6 +8211,20 @@ function boot() {
   });
   document.getElementById('pcFilter')?.addEventListener('change', () => {
     if (activeTab === 'tabPC') { pcPage = 0; renderPokemonGrid(); }
+  });
+
+  // Info buttons (ℹ on tab nav)
+  document.querySelectorAll('.tab-info-btn').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      showInfoModal(btn.dataset.infoTab);
+    });
+  });
+  document.getElementById('infoModalClose')?.addEventListener('click', () => {
+    document.getElementById('infoModal')?.classList.remove('active');
+  });
+  document.getElementById('infoModal')?.addEventListener('click', e => {
+    if (e.target.id === 'infoModal') e.target.classList.remove('active');
   });
 
   // Init settings
