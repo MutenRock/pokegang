@@ -1221,6 +1221,7 @@ const DEFAULT_STATE = {
   lastBillCall: 0,
   playtime: 0,      // secondes de jeu total
   sessionStart: 0,  // timestamp début session
+  openZoneOrder: [],
 };
 
 let state = structuredClone(DEFAULT_STATE);
@@ -1484,6 +1485,11 @@ function openLegacyImportModal(legacyData) {
 // ════════════════════════════════════════════════════════════════
 
 function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+function formatIncome(n) {
+  if (n >= 10000) return Math.round(n / 1000) + 'k';
+  if (n >= 1000) return (n / 1000).toFixed(1) + 'k';
+  return n.toString();
+}
 function weightedPick(arr) {
   // arr: [{en, w}, ...] — returns en string
   const total = arr.reduce((s, e) => s + e.w, 0);
@@ -2109,10 +2115,14 @@ function initZone(zoneId) {
       combatsWon: 0,
       captures: 0,
       assignedAgents: [],
+      pendingIncome: 0,
+      pendingItems: {},
     };
   }
   // Migration
   if (state.zones[zoneId].captures === undefined) state.zones[zoneId].captures = 0;
+  if (state.zones[zoneId].pendingIncome === undefined) state.zones[zoneId].pendingIncome = 0;
+  if (state.zones[zoneId].pendingItems === undefined) state.zones[zoneId].pendingItems = {};
   // Remove legacy invest fields
   delete state.zones[zoneId].invested;
   delete state.zones[zoneId].investPower;
@@ -2339,7 +2349,7 @@ function spawnInZone(zoneId) {
 }
 
 // ── Chest loot resolution ─────────────────────────────────────
-function rollChestLoot(zoneId) {
+function rollChestLoot(zoneId, passive = false) {
   const totalWeight = CHEST_LOOT.reduce((s, l) => s + l.weight, 0);
   let roll = Math.random() * totalWeight;
   let loot = CHEST_LOOT[0];
@@ -2353,12 +2363,23 @@ function rollChestLoot(zoneId) {
   switch (loot.type) {
     case 'balls': {
       const qty = randInt(loot.qty[0], loot.qty[1]);
-      state.inventory[loot.ballType] = (state.inventory[loot.ballType] || 0) + qty;
+      if (passive) {
+        const zs = initZone(zoneId);
+        zs.pendingItems = zs.pendingItems || {};
+        zs.pendingItems[loot.ballType] = (zs.pendingItems[loot.ballType] || 0) + qty;
+      } else {
+        state.inventory[loot.ballType] = (state.inventory[loot.ballType] || 0) + qty;
+      }
       return { msg: `📦 ${qty}x ${name}`, type: 'success' };
     }
     case 'money': {
       const amount = randInt(loot.qty[0], loot.qty[1]);
-      state.gang.money += amount;
+      if (passive) {
+        const zs = initZone(zoneId);
+        zs.pendingIncome = (zs.pendingIncome || 0) + amount;
+      } else {
+        state.gang.money += amount;
+      }
       state.stats.totalMoneyEarned += amount;
       return { msg: `📦 ${amount}₽`, type: 'gold' };
     }
@@ -2922,7 +2943,9 @@ function passiveAgentTick() {
       if (win) {
         const reward = randInt(entry.trainer.reward[0], entry.trainer.reward[1]);
         const repGain = getCombatRepGain(entry.trainerKey || entry.trainer?.sprite, true);
-        state.gang.money += reward;
+        // Accumulate in zone instead of direct payment
+        const zs = initZone(zoneId);
+        zs.pendingIncome = (zs.pendingIncome || 0) + reward;
         state.stats.totalMoneyEarned += reward;
         state.gang.reputation += repGain;
         state.stats.totalFights++;
@@ -2941,8 +2964,7 @@ function passiveAgentTick() {
           if (p) levelUpPokemon(p, xpEach);
         }
         // Zone combats counter
-        const zState = initZone(zoneId);
-        zState.combatsWon = (zState.combatsWon || 0) + 1;
+        zs.combatsWon = (zs.combatsWon || 0) + 1;
         if (agent.notifyCaptures) {
           notify(`[WIN] ${agent.name} +${reward}P`, 'success');
         }
@@ -2957,7 +2979,7 @@ function passiveAgentTick() {
 
     } else if (entry.type === 'chest') {
       state.stats.chestsOpened = (state.stats.chestsOpened || 0) + 1;
-      const loot = rollChestLoot(zoneId);
+      const loot = rollChestLoot(zoneId, true);
       if (agent.notifyCaptures) notify(`📦 ${agent.name} — ${loot.msg}`, loot.type);
       changed = true;
     }
@@ -3747,6 +3769,154 @@ function renderGangTab() {
 }
 
 // ════════════════════════════════════════════════════════════════
+// 13b.  ZONE INCOME COLLECTION
+// ════════════════════════════════════════════════════════════════
+
+function openCollectionModal(zoneId) {
+  const zs = initZone(zoneId);
+  const zone = ZONE_BY_ID[zoneId];
+  const income = zs.pendingIncome || 0;
+  const items  = zs.pendingItems  || {};
+  if (income === 0 && Object.keys(items).length === 0) return;
+
+  const zoneName = state.lang === 'fr' ? zone.fr : zone.en;
+
+  const agentsHtml = state.agents.map(a => `
+    <label style="display:flex;align-items:center;gap:8px;padding:6px;border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;transition:border-color .15s">
+      <input type="checkbox" class="collect-agent-cb" value="${a.id}" style="accent-color:var(--gold)">
+      <img src="${a.sprite}" style="width:28px;height:28px;image-rendering:pixelated" onerror="this.src='${trainerSprite('acetrainer')}'">
+      <span style="font-size:11px">${a.name}</span>
+      <span style="font-size:9px;color:var(--text-dim);margin-left:auto">ATK ${a.stats?.combat || 0}</span>
+    </label>`).join('');
+
+  const itemsSummaryHtml = Object.entries(items).length > 0
+    ? Object.entries(items).map(([id, qty]) => `${itemSprite(id)}<span style="font-size:9px">×${qty}</span>`).join(' ')
+    : '';
+
+  const modal = document.createElement('div');
+  modal.id = 'collectionModal';
+  modal.style.cssText = 'position:fixed;inset:0;z-index:9200;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center;';
+  modal.innerHTML = `
+    <div style="background:var(--bg-panel);border:2px solid var(--gold-dim);border-radius:var(--radius);padding:20px;max-width:420px;width:92%;display:flex;flex-direction:column;gap:14px">
+      <div style="font-family:var(--font-pixel);font-size:11px;color:var(--gold)">💰 Récolte — ${zoneName}</div>
+      <div style="font-size:12px;color:var(--text)">
+        Revenus accumulés : <strong style="color:var(--gold)">${income.toLocaleString()}₽</strong>
+        ${itemsSummaryHtml ? `<br>Objets : ${itemsSummaryHtml}` : ''}
+      </div>
+      <div style="font-size:11px;color:var(--text-dim)">Sélectionne jusqu'à 3 agents pour escorter le Boss :</div>
+      <div style="display:flex;flex-direction:column;gap:6px;max-height:200px;overflow-y:auto">${agentsHtml}</div>
+      <div style="font-size:10px;color:var(--text-dim)">⚔ Victoire → 100% · Défaite → 75%</div>
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button id="collectCancel" style="font-family:var(--font-pixel);font-size:9px;padding:8px 14px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-dim);cursor:pointer">Annuler</button>
+        <button id="collectConfirm" style="font-family:var(--font-pixel);font-size:9px;padding:8px 14px;background:var(--bg);border:1px solid var(--gold-dim);border-radius:var(--radius-sm);color:var(--gold);cursor:pointer">Collecter</button>
+      </div>
+    </div>`;
+
+  document.body.appendChild(modal);
+
+  modal.querySelectorAll('.collect-agent-cb').forEach(cb => {
+    cb.addEventListener('change', () => {
+      const checked = [...modal.querySelectorAll('.collect-agent-cb:checked')];
+      if (checked.length > 3) { cb.checked = false; }
+    });
+  });
+
+  document.getElementById('collectCancel').addEventListener('click', () => modal.remove());
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+
+  document.getElementById('collectConfirm').addEventListener('click', () => {
+    const selectedIds = [...modal.querySelectorAll('.collect-agent-cb:checked')].map(cb => cb.value);
+    modal.remove();
+    startZoneCollection(zoneId, selectedIds);
+  });
+}
+
+function startZoneCollection(zoneId, agentIds) {
+  const zs = initZone(zoneId);
+  const income = zs.pendingIncome || 0;
+  const items  = { ...zs.pendingItems } || {};
+
+  // Player power: boss team + selected agents
+  let playerPower = 0;
+  for (const pkId of state.gang.bossTeam) {
+    const p = state.pokemons.find(pk => pk.id === pkId);
+    if (p) playerPower += getPokemonPower(p);
+  }
+  for (const agId of agentIds) {
+    const ag = state.agents.find(a => a.id === agId);
+    if (ag) playerPower += getAgentCombatPower(ag);
+  }
+
+  const enemyBase = 800 + Math.floor(income / 100);
+  const enemyPower = enemyBase * (0.8 + Math.random() * 0.4);
+  const playerRoll = playerPower * (0.75 + Math.random() * 0.5);
+  const win = playerRoll >= enemyPower;
+
+  const collected = Math.round(income * (win ? 1.0 : 0.75));
+
+  state.gang.money += collected;
+  zs.pendingIncome = 0;
+
+  for (const [itemId, qty] of Object.entries(items)) {
+    state.inventory[itemId] = (state.inventory[itemId] || 0) + qty;
+  }
+  zs.pendingItems = {};
+
+  if (win) {
+    state.stats.totalFightsWon = (state.stats.totalFightsWon || 0) + 1;
+  } else {
+    state.gang.reputation = Math.max(0, state.gang.reputation - 3);
+  }
+
+  saveState();
+  updateTopBar();
+
+  showCollectionResult(win, collected, items, agentIds);
+}
+
+function showCollectionResult(win, amount, items, agentIds) {
+  const modal = document.createElement('div');
+  modal.id = 'collectionResult';
+  modal.style.cssText = 'position:fixed;inset:0;z-index:9300;background:rgba(0,0,0,.88);display:flex;align-items:center;justify-content:center;';
+
+  const itemsHtml = Object.entries(items).length > 0
+    ? `<div style="display:flex;gap:6px;align-items:center;justify-content:center;flex-wrap:wrap;margin-top:8px">
+        ${Object.entries(items).map(([id, qty]) => `${itemSprite(id)}<span style="font-size:10px;color:var(--text)">×${qty}</span>`).join('')}
+       </div>` : '';
+
+  modal.innerHTML = `
+    <div style="background:var(--bg-panel);border:2px solid ${win ? 'var(--gold)' : 'var(--red)'};border-radius:var(--radius);padding:28px;max-width:380px;width:90%;display:flex;flex-direction:column;align-items:center;gap:16px;text-align:center">
+      <div style="font-size:40px">${win ? '💰' : '😤'}</div>
+      <div style="font-family:var(--font-pixel);font-size:12px;color:${win ? 'var(--gold)' : 'var(--red)'}">
+        ${win ? 'Récolte réussie !' : 'Défaite — 75% récupérés'}
+      </div>
+      <div style="font-family:var(--font-pixel);font-size:18px;color:var(--gold)" id="collectAmountDisplay">0₽</div>
+      ${itemsHtml}
+      <button id="collectResultClose" style="font-family:var(--font-pixel);font-size:9px;padding:8px 20px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-dim);cursor:pointer;margin-top:4px">Fermer</button>
+    </div>`;
+
+  document.body.appendChild(modal);
+  document.getElementById('collectResultClose').addEventListener('click', () => { modal.remove(); renderZonesTab(); });
+  modal.addEventListener('click', e => { if (e.target === modal) { modal.remove(); renderZonesTab(); } });
+
+  const display = document.getElementById('collectAmountDisplay');
+  let current = 0;
+  const steps = 40;
+  const stepVal = amount / steps;
+  let step = 0;
+  const interval = setInterval(() => {
+    step++;
+    current = Math.min(amount, Math.round(stepVal * step * step / steps));
+    display.textContent = current.toLocaleString() + '₽';
+    if (step >= steps || current >= amount) {
+      display.textContent = amount.toLocaleString() + '₽';
+      clearInterval(interval);
+      try { SFX.coin(); } catch {}
+    }
+  }, 30);
+}
+
+// ════════════════════════════════════════════════════════════════
 // 14.  UI — ZONES TAB
 // ════════════════════════════════════════════════════════════════
 
@@ -3776,6 +3946,12 @@ function renderZoneSelector() {
     const degraded = isZoneDegraded(zone.id);
     if (unlocked) {
       const degradedTag = degraded ? ' ⚠' : '';
+      const income = zState.pendingIncome || 0;
+      const incomeTier = income <= 0 ? 0 : income < 500 ? 1 : income < 2000 ? 2 : income < 5000 ? 3 : income < 15000 ? 4 : 5;
+      const incomeHtml = incomeTier > 0 ? `
+        <div class="zone-income-btn income-tier${incomeTier}" data-collect-zone="${zone.id}" title="Collecter ${income.toLocaleString()}₽">
+          ₽${incomeTier >= 3 ? ' ' + formatIncome(income) : ''}
+        </div>` : '';
       html += `<div class="fog-tile unlocked ${isOpen ? 'fog-open' : ''} zone-type-${zone.type}${degraded ? ' fog-degraded' : ''}"
         data-zone="${zone.id}" style="${bgStyle}">
         <div class="fog-tile-overlay"></div>
@@ -3784,6 +3960,7 @@ function renderZoneSelector() {
           <div class="fog-tile-stats">${'*'.repeat(mastery)} ${combats}W</div>
           <div class="fog-tile-status">${isOpen ? '[OUVERT]' : (degraded ? '[COMBAT]' : '[ENTRER]')}</div>
         </div>
+        ${incomeHtml}
       </div>`;
     } else {
       const repDiff = zone.rep > state.gang.reputation ? zone.rep - state.gang.reputation : 0;
@@ -3809,6 +3986,13 @@ function renderZoneSelector() {
       const zid = tile.dataset.zone;
       if (openZones.has(zid)) closeZoneWindow(zid);
       else openZoneWindow(zid);
+    });
+  });
+
+  el.querySelectorAll('[data-collect-zone]').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      openCollectionModal(btn.dataset.collectZone);
     });
   });
 }
@@ -3884,13 +4068,46 @@ function renderZoneWindows() {
     if (!openZones.has(el.id.replace('zw-', ''))) el.remove();
   });
 
+  // ── Sort open zones by saved order ───────────────────────────
+  const ordered = [...openZones].sort((a, b) => {
+    const order = state.openZoneOrder || [];
+    const oa = order.indexOf(a);
+    const ob = order.indexOf(b);
+    return (oa === -1 ? 999 : oa) - (ob === -1 ? 999 : ob);
+  });
+
   // ── Update or create each open zone window ────────────────────
-  for (const zoneId of openZones) {
+  for (const zoneId of ordered) {
     const existing = document.getElementById(`zw-${zoneId}`);
     if (existing) {
       patchZoneWindow(zoneId, existing);
     } else {
       const win = buildZoneWindowEl(zoneId);
+      // Drag & drop reordering
+      win.setAttribute('draggable', 'true');
+      win.addEventListener('dragstart', e => {
+        e.dataTransfer.setData('text/plain', zoneId);
+        win.style.opacity = '0.5';
+      });
+      win.addEventListener('dragend', () => { win.style.opacity = ''; });
+      win.addEventListener('dragover', e => { e.preventDefault(); win.style.borderColor = 'var(--gold)'; });
+      win.addEventListener('dragleave', () => { win.style.borderColor = ''; });
+      win.addEventListener('drop', e => {
+        e.preventDefault();
+        win.style.borderColor = '';
+        const sourceId = e.dataTransfer.getData('text/plain');
+        if (sourceId === zoneId) return;
+        const order = [...openZones];
+        const fromIdx = order.indexOf(sourceId);
+        const toIdx = order.indexOf(zoneId);
+        if (fromIdx !== -1 && toIdx !== -1) {
+          order.splice(fromIdx, 1);
+          order.splice(toIdx, 0, sourceId);
+          state.openZoneOrder = order;
+          saveState();
+          renderZoneWindows();
+        }
+      });
       container.appendChild(win);
       updateZoneTimers(zoneId);
       (zoneSpawns[zoneId] || []).forEach(s => renderSpawnInWindow(zoneId, s));

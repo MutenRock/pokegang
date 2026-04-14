@@ -2213,6 +2213,30 @@
       #bossProfile { flex-direction: column; text-align: center; }
       #tabContent { padding: 10px; }
     }
+    /* ── Zone Income Button ───────────────────────────────────────── */
+    .zone-income-btn {
+      position: absolute; bottom: 6px; right: 6px;
+      font-family: var(--font-pixel); font-size: 9px;
+      cursor: pointer; padding: 2px 6px; border-radius: 4px;
+      border: 1px solid transparent; z-index: 10; user-select: none;
+      transition: transform .1s;
+    }
+    .zone-income-btn:hover { transform: scale(1.1); }
+    .income-tier1 { color: #777; border-color: #555; }
+    .income-tier2 { color: #bbb; border-color: #999; }
+    .income-tier3 { color: var(--gold); border-color: var(--gold-dim); box-shadow: 0 0 6px rgba(255,204,90,.25); }
+    .income-tier4 { color: var(--gold); border-color: var(--gold); animation: incomeGlow 1.5s ease-in-out infinite; }
+    .income-tier5 { color: #fff; border-color: var(--gold); animation: incomeGlow 1s ease-in-out infinite, incomeShake .12s ease-in-out infinite; }
+
+    @keyframes incomeGlow {
+      0%,100% { box-shadow: 0 0 4px rgba(255,204,90,.4); }
+      50% { box-shadow: 0 0 14px rgba(255,204,90,.9), 0 0 24px rgba(255,204,90,.4); }
+    }
+    @keyframes incomeShake {
+      0%,100% { transform: translateX(0); }
+      33% { transform: translateX(-1px); }
+      66% { transform: translateX(1px); }
+    }
   </style>
 </head>
 <body>
