@@ -934,7 +934,6 @@ const SHOP_ITEMS = [
   { id:'duskball',  qty:5,  cost:7500,  icon:'DB'  },
   { id:'lure',      qty:1,  cost:500,   icon:'LR',  fr:'Leurre',       en:'Lure',            desc_fr:'x2 spawns 60s',         desc_en:'x2 spawns 60s' },
   { id:'superlure', qty:1,  cost:2000,  icon:'SL',  fr:'Super Leurre', en:'Super Lure',      desc_fr:'x3 spawns 60s',         desc_en:'x3 spawns 60s' },
-  { id:'potion',    qty:1,  cost:300,   icon:'PT',  fr:'Potion',       en:'Potion',          desc_fr:'Retire cooldown',       desc_en:'Remove cooldown' },
   { id:'incense',   qty:1,  cost:1500,  icon:'IN',  fr:'Encens Chance',en:'Lucky Incense',   desc_fr:'*+1 potentiel 90s',     desc_en:'*+1 potential 90s' },
   { id:'rarescope', qty:1,  cost:3000,  icon:'SC',  fr:'Rarioscope',   en:'Rare Scope',      desc_fr:'Spawns rares x3 90s',   desc_en:'Rare spawns x3 90s' },
   { id:'aura',      qty:1,  cost:5000,  icon:'AU',  fr:'Aura Shiny',   en:'Shiny Aura',      desc_fr:'Shiny x5 90s',          desc_en:'Shiny x5 90s' },
@@ -1220,6 +1219,8 @@ const DEFAULT_STATE = {
   },
   eggs: [],         // [{ id, species_en, hatchAt, potential, shiny }]
   lastBillCall: 0,
+  playtime: 0,      // secondes de jeu total
+  sessionStart: 0,  // timestamp début session
 };
 
 let state = structuredClone(DEFAULT_STATE);
@@ -1228,8 +1229,33 @@ let _supaLastSaveAt = 0;
 const SUPA_SAVE_THROTTLE_MS = 30_000; // max 1 cloud save / 30s
 
 function saveState() {
+  // Cleanup avant save
+  for (const p of state.pokemons) {
+    if (p.history && p.history.length > 20) {
+      p.history = p.history.slice(-20);
+    }
+  }
+  delete state.marketSales; // legacy cleanup
+
+  // Playtime accumulation
+  if (state.sessionStart) {
+    state.playtime = (state.playtime || 0) + Math.floor((Date.now() - state.sessionStart) / 1000);
+    state.sessionStart = Date.now(); // reset pour la prochaine période
+  }
+
   state._savedAt = Date.now();
-  localStorage.setItem(SAVE_KEY, JSON.stringify(state));
+  const data = JSON.stringify(state);
+  try {
+    localStorage.setItem(SAVE_KEY, data);
+  } catch (e) {
+    if (e.name === 'QuotaExceededError') {
+      notify('⚠ Save trop volumineuse — historiques tronqués', 'error');
+      // Retry sans historiques
+      const slim = JSON.parse(data);
+      for (const p of slim.pokemons) { p.history = []; }
+      try { localStorage.setItem(SAVE_KEY, JSON.stringify(slim)); } catch {}
+    }
+  }
   // Cloud sync : throttlé, non-bloquant
   if (_supabase && supaSession) {
     const now = Date.now();
@@ -1238,6 +1264,12 @@ function saveState() {
       supaCloudSave();
     }
   }
+}
+
+function formatPlaytime(seconds) {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  return h > 0 ? `${h}h${m.toString().padStart(2, '0')}` : `${m}min`;
 }
 
 function loadState() {
@@ -2438,7 +2470,7 @@ function getTeamPower(pokemonIds) {
   let power = 0;
   for (const id of pokemonIds) {
     const p = state.pokemons.find(pk => pk.id === id);
-    if (p && p.cooldown <= 0) power += getPokemonPower(p);
+    if (p) power += getPokemonPower(p);
   }
   return power;
 }
@@ -2503,11 +2535,9 @@ function applyCombatResult(result, playerTeamIds, trainerData) {
     }
   } else {
     state.gang.reputation = Math.max(0, state.gang.reputation + result.repGain);
-    // Cooldown on team
     for (const id of playerTeamIds) {
       const p = state.pokemons.find(pk => pk.id === id);
       if (p) {
-        p.cooldown = 3;
         if (p.history) p.history.push({ type: 'combat', ts: Date.now(), won: false });
       }
     }
@@ -2848,7 +2878,7 @@ function agentTick() {
 
     // Priority: raids > trainers > pokemon > chests
     const trainerSpawn = spawns.find(s => (s.type === 'trainer' || s.type === 'raid') && !s._agentClaimed);
-    const pokemonSpawn = spawns.find(s => s.type === 'pokemon' && !s._agentClaimed);
+    const pokemonSpawn = spawns.find(s => s.type === 'pokemon' && !s._agentClaimed && !s.playerCatching);
     const chestSpawn = spawns.find(s => s.type === 'chest' && !s._agentClaimed);
 
     if (trainerSpawn) {
@@ -2879,6 +2909,9 @@ function agentCaptureVisibleSpawn(agent, zoneId, spawnObj) {
   if (!viewport) return;
   const spawnEl = viewport.querySelector(`[data-spawn-id="${spawnObj.id}"]`);
   if (!spawnEl) return;
+
+  // Skip if player is already capturing this spawn
+  if (spawnObj.playerCatching) return;
 
   // Mark as catching to prevent player clicks
   spawnEl.classList.add('catching');
@@ -3328,6 +3361,7 @@ function getSlotPreview(slotIdx) {
       pokemon: (s.pokemons || []).length,
       rep: s.gang?.reputation || 0,
       ts: s._savedAt || 0,
+      playtime: s.playtime || 0,
     };
   } catch { return null; }
 }
@@ -3343,7 +3377,7 @@ function openSaveSlotModal() {
     const label = prev
       ? `<div style="font-family:var(--font-pixel);font-size:9px;color:${isActive ? 'var(--gold)' : 'var(--text)'};margin-bottom:4px">${prev.name}</div>
          <div style="font-size:10px;color:var(--text-dim)">${prev.pokemon} Pokemon  |  ${prev.money.toLocaleString()}P  |  Rep ${prev.rep}</div>
-         <div style="font-size:9px;color:var(--text-dim);margin-top:2px">${prev.ts ? new Date(prev.ts).toLocaleString() : ''}</div>`
+         <div style="font-size:9px;color:var(--text-dim);margin-top:2px">${prev.ts ? new Date(prev.ts).toLocaleString() : ''}${prev.playtime ? ' — ' + formatPlaytime(prev.playtime) : ''}</div>`
       : `<div style="font-size:10px;color:var(--text-dim);font-style:italic">Slot vide</div>`;
     return `<div style="border:2px solid ${isActive ? 'var(--gold)' : 'var(--border)'};border-radius:var(--radius);padding:12px;margin-bottom:10px;background:var(--bg-panel)">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
@@ -3970,7 +4004,7 @@ function renderGangBaseWindow() {
   const _BAG_DEFS = [
     {id:'pokeball',  isBall:true}, {id:'greatball', isBall:true}, {id:'ultraball', isBall:true},
     {id:'duskball',  isBall:true}, {id:'masterball', isBall:true},
-    {id:'lure',      usable:true}, {id:'superlure', usable:true}, {id:'potion', usable:true},
+    {id:'lure',      usable:true}, {id:'superlure', usable:true},
     {id:'incense',   usable:true}, {id:'rarescope', usable:true}, {id:'aura',   usable:true},
     {id:'rarecandy', usable:true}, {id:'evostone'}, {id:'incubator'},
   ];
@@ -4041,7 +4075,7 @@ function bindGangBase(container) {
       const def = {
         pokeball: {isBall:true}, greatball: {isBall:true}, ultraball: {isBall:true},
         duskball: {isBall:true}, masterball: {isBall:true},
-        lure: {usable:true}, superlure: {usable:true}, potion: {usable:true},
+        lure: {usable:true}, superlure: {usable:true},
         incense: {usable:true}, rarescope: {usable:true}, aura: {usable:true},
         rarecandy: {usable:true},
       }[id] || {};
@@ -4049,19 +4083,6 @@ function bindGangBase(container) {
       if (def.isBall) {
         state.activeBall = id;
         saveState();
-        renderZoneWindows();
-        return;
-      }
-      if (id === 'potion') {
-        let removed = 0;
-        for (const p of state.pokemons) { if (p.cooldown > 0) { p.cooldown = 0; removed++; } }
-        if (removed > 0) {
-          state.inventory.potion--;
-          notify(state.lang === 'fr' ? `Cooldown retiré de ${removed} Pokémon` : `Cooldown removed from ${removed} Pokémon`, 'success');
-          saveState();
-        } else {
-          notify(state.lang === 'fr' ? 'Aucun Pokémon en cooldown' : 'No Pokémon on cooldown');
-        }
         renderZoneWindows();
         return;
       }
@@ -4508,6 +4529,7 @@ function renderSpawnInWindow(zoneId, spawnObj) {
     el.addEventListener('click', () => {
       if (el.classList.contains('catching')) return;
       el.classList.add('catching');
+      spawnObj.playerCatching = true;
       animateCapture(zoneId, spawnObj, el);
     });
   } else if (spawnObj.type === 'raid') {
@@ -4515,13 +4537,19 @@ function renderSpawnInWindow(zoneId, spawnObj) {
     el.innerHTML = `<img src="${ITEM_SPRITES.masterball}" style="width:48px;height:48px;image-rendering:pixelated;filter:drop-shadow(0 0 8px #ff4444)">`;
     el.title = state.lang === 'fr' ? spawnObj.trainer.fr : spawnObj.trainer.en;
     el.style.animation = 'glow 1s ease-in-out infinite, float 2s ease-in-out infinite';
-    el.addEventListener('click', () => openCombatPopup(zoneId, spawnObj));
+    el.addEventListener('click', () => {
+      if (el.dataset.challenged) return;
+      el.dataset.challenged = '1';
+      openCombatPopup(zoneId, spawnObj);
+    });
   } else if (spawnObj.type === 'trainer') {
     const eliteTag = spawnObj.elite ? ' style="filter:drop-shadow(0 0 6px gold)"' : '';
     el.innerHTML = `<img src="${trainerSprite(spawnObj.trainer.sprite)}"${eliteTag} style="width:56px;height:56px${spawnObj.elite ? ';filter:drop-shadow(0 0 6px gold)' : ''}" alt="${spawnObj.trainer.fr}">`;
     el.title = (state.lang === 'fr' ? spawnObj.trainer.fr : spawnObj.trainer.en) + (spawnObj.elite ? ' ⭐' : '');
     if (spawnObj.elite) el.style.animation = 'glow 1.5s ease-in-out infinite, float 3s ease-in-out infinite';
     el.addEventListener('click', () => {
+      if (el.dataset.challenged) return;
+      el.dataset.challenged = '1';
       openCombatPopup(zoneId, spawnObj);
     });
   } else if (spawnObj.type === 'chest') {
@@ -4713,15 +4741,16 @@ function buildPlayerTeamForZone(zoneId) {
   for (const agent of zoneAgents) allAllyIds.push(...agent.team);
   if (allAllyIds.length === 0) {
     allAllyIds = state.pokemons
-      .filter(p => p.cooldown <= 0)
       .sort((a, b) => getPokemonPower(b) - getPokemonPower(a))
       .slice(0, 3)
       .map(p => p.id);
   }
-  return allAllyIds.map(id => state.pokemons.find(p => p.id === id)).filter(p => p && p.cooldown <= 0);
+  return allAllyIds.map(id => state.pokemons.find(p => p.id === id)).filter(Boolean);
 }
 
 function openCombatPopup(zoneId, spawnObj) {
+  // Prevent opening multiple combat popups simultaneously
+  if (currentCombat) return;
   const available = buildPlayerTeamForZone(zoneId);
   if (available.length === 0) {
     notify(state.lang === 'fr' ? 'Aucun Pokémon disponible !' : 'No Pokémon available!');
@@ -4750,7 +4779,7 @@ function openCombatPopup(zoneId, spawnObj) {
   // ── Agent at rest check
   const agentsInZone = state.agents.filter(a => a.assignedZone === zoneId);
   const agentsAtRest = agentsInZone.filter(a => {
-    const avail = a.team.map(id => state.pokemons.find(p => p.id === id)).filter(p => p && p.cooldown <= 0);
+    const avail = a.team.map(id => state.pokemons.find(p => p.id === id)).filter(Boolean);
     return a.team.length > 0 && avail.length === 0;
   });
   if (agentsAtRest.length > 0) {
@@ -4766,7 +4795,7 @@ function openCombatPopup(zoneId, spawnObj) {
   if (state.gang.bossTeam.length > 0) {
     const bossPokemons = state.gang.bossTeam
       .map(id => state.pokemons.find(p => p.id === id))
-      .filter(p => p && p.cooldown <= 0);
+      .filter(Boolean);
     if (bossPokemons.length) {
       allyGroupsHtml += `<div class="combat-group">
         <div class="combat-group-label">${state.gang.bossName}</div>
@@ -4777,7 +4806,7 @@ function openCombatPopup(zoneId, spawnObj) {
   for (const agent of zoneAgents) {
     const agentPokemons = agent.team
       .map(id => state.pokemons.find(p => p.id === id))
-      .filter(p => p && p.cooldown <= 0);
+      .filter(Boolean);
     if (agentPokemons.length) {
       allyGroupsHtml += `<div class="combat-group">
         <div class="combat-group-label">${agent.name}</div>
@@ -6335,7 +6364,6 @@ function renderBagTab() {
     { id: 'duskball',  icon: 'DB', fr: 'Sombre Ball',     en: 'Dusk Ball',      desc_fr: 'Potentiel equilibre',   desc_en: 'Balanced potential' },
     { id: 'lure',      icon: 'LR', fr: 'Leurre',          en: 'Lure',           desc_fr: 'x2 spawns 60s',         desc_en: 'x2 spawns 60s',      usable: true },
     { id: 'superlure', icon: 'SL', fr: 'Super Leurre',    en: 'Super Lure',     desc_fr: 'x3 spawns 60s',         desc_en: 'x3 spawns 60s',      usable: true },
-    { id: 'potion',    icon: 'PT', fr: 'Potion',           en: 'Potion',         desc_fr: 'Retire cooldown',       desc_en: 'Remove cooldown',    usable: true },
     { id: 'incense',   icon: 'IN', fr: 'Encens Chance',   en: 'Lucky Incense',  desc_fr: '*+1 potentiel 90s',     desc_en: '*+1 potential 90s',  usable: true },
     { id: 'rarescope', icon: 'SC', fr: 'Rarioscope',       en: 'Rare Scope',     desc_fr: 'Spawns rares x3 90s',   desc_en: 'Rare spawns x3 90s', usable: true },
     { id: 'aura',      icon: 'AU', fr: 'Aura Shiny',       en: 'Shiny Aura',     desc_fr: 'Shiny x5 90s',          desc_en: 'Shiny x5 90s',       usable: true },
@@ -6385,20 +6413,7 @@ function renderBagTab() {
   grid.querySelectorAll('[data-use-item]').forEach(btn => {
     btn.addEventListener('click', () => {
       const itemId = btn.dataset.useItem;
-      if (itemId === 'potion') {
-        // Remove cooldown from all pokemon
-        let removed = 0;
-        for (const p of state.pokemons) {
-          if (p.cooldown > 0) { p.cooldown = 0; removed++; }
-        }
-        if (removed > 0) {
-          state.inventory.potion--;
-          notify(state.lang === 'fr' ? `Cooldown retiré de ${removed} Pokémon` : `Cooldown removed from ${removed} Pokémon`, 'success');
-          saveState();
-        } else {
-          notify(state.lang === 'fr' ? 'Aucun Pokémon en cooldown' : 'No Pokémon on cooldown');
-        }
-      } else if (itemId === 'rarecandy') {
+      if (itemId === 'rarecandy') {
         openRareCandyPicker();
       } else if (activateBoost(itemId)) {
         notify(state.lang === 'fr' ? 'Boost activé !' : 'Boost activated!', 'success');
@@ -6535,7 +6550,7 @@ function showIntro() {
         return `<div class="intro-slot has-data" data-slot="${i}" title="Charger cette sauvegarde">
           <div class="intro-slot-label">SLOT ${i + 1}</div>
           <div class="intro-slot-name">${preview.name}</div>
-          <div class="intro-slot-info">${preview.pokemon} Pkm — ${preview.money}₽<br>${dateStr}</div>
+          <div class="intro-slot-info">${preview.pokemon} Pkm — ${preview.money}₽<br>${dateStr}${preview.playtime ? ' · ' + formatPlaytime(preview.playtime) : ''}</div>
         </div>`;
       } else {
         const isSelected = selectedSlotIdx === i;
@@ -7877,6 +7892,7 @@ function boot() {
   if (saved) {
     state = saved;
   }
+  state.sessionStart = Date.now();
 
   // Init tab navigation
   document.querySelectorAll('.tab-btn[data-tab]').forEach(btn => {
