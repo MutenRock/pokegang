@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="app-version" content="2.1.0">
+  <meta name="app-version" content="2.2.0">
   <title>PokéGang — Gang Wars</title>
   <link rel="icon" type="image/png" href="../data/pokegang_logo/pokegang_logo_little.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -526,11 +526,59 @@
       border-bottom: 1px solid var(--border);
     }
 
-    #sellPanel .sell-list,
-    #shopPanel .shop-list {
+    #shopPanel .shop-list,
+    #questPanel .quest-list,
+    #cosmeticsPanel .cosmetics-list {
       flex: 1;
       overflow-y: auto;
     }
+
+    /* ── Quest panel ─────────────────────────────────────────────── */
+    .quest-section-title {
+      font-family: var(--font-pixel);
+      font-size: 9px;
+      color: var(--gold);
+      padding: 8px 0 6px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .quest-section-title .quest-timer {
+      font-size: 8px;
+      color: var(--text-dim);
+    }
+    .quest-entry {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 4px;
+      border-bottom: 1px solid rgba(255,255,255,.04);
+    }
+    .quest-entry.claimed { opacity: .45; }
+    .quest-entry .quest-icon { font-size: 16px; flex-shrink: 0; }
+    .quest-entry .quest-body { flex: 1; min-width: 0; }
+    .quest-entry .quest-name { font-size: 10px; }
+    .quest-entry .quest-name.done { text-decoration: line-through; color: var(--text-dim); }
+    .quest-entry .quest-desc { font-size: 8px; color: var(--text-dim); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .quest-progress-bar { background: var(--bg); border-radius: 3px; height: 5px; margin-top: 4px; overflow: hidden; }
+    .quest-progress-fill { height: 100%; border-radius: 3px; transition: width .3s; }
+    .quest-reward { font-size: 8px; color: var(--text-dim); margin-top: 2px; }
+    .btn-claim-quest {
+      font-family: var(--font-pixel);
+      font-size: 8px;
+      padding: 5px 10px;
+      background: var(--green);
+      border: none;
+      border-radius: var(--radius-sm);
+      color: var(--bg);
+      cursor: pointer;
+      white-space: nowrap;
+      flex-shrink: 0;
+      animation: glow 1.5s ease-in-out infinite;
+    }
+    .btn-claim-quest:hover { filter: brightness(1.15); }
 
     /* ── PC Tab ───────────────────────────────────────────────────── */
     #tabPC .pc-layout {
@@ -1601,7 +1649,105 @@
     #rarePopup .rare-hint  { font-family: var(--font-pixel); font-size: 7px; color: var(--text-dim); margin-top: 2px; }
     #rarePopup .rare-sprite { image-rendering: pixelated; width: 40px; height: 40px; }
 
+    /* ── Loot Popup (post-combat reward) ─────────────────────────── */
+    #lootPopup {
+      position: fixed;
+      bottom: 90px;
+      left: 50%;
+      transform: translateX(-50%) translateY(14px);
+      background: rgba(10,10,10,.93);
+      border: 2px solid var(--gold-dim);
+      border-radius: var(--radius);
+      padding: 10px 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      opacity: 0;
+      z-index: 9998;
+      transition: opacity .3s ease, transform .3s ease;
+      pointer-events: none;
+      box-shadow: 0 0 18px rgba(255,204,90,.25);
+    }
+    #lootPopup.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    #lootPopup .loot-icon { font-size: 22px; }
+    #lootPopup .loot-money { font-family: var(--font-pixel); font-size: 10px; color: var(--gold); }
+    #lootPopup .loot-rep   { font-family: var(--font-pixel); font-size: 9px;  color: var(--blue); margin-top: 3px; }
+
+    /* ── Zone Unlock Popup ───────────────────────────────────────── */
+    #zoneUnlockPopup {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0,0,0,.55);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .3s ease;
+    }
+    #zoneUnlockPopup.show { opacity: 1; pointer-events: auto; }
+    .unlock-box {
+      background: var(--bg-panel);
+      border: 2px solid var(--gold);
+      border-radius: var(--radius);
+      padding: 22px 28px;
+      text-align: center;
+      max-width: 320px;
+      width: 90%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      box-shadow: 0 0 30px rgba(255,204,90,.3);
+      animation: pop .25s ease;
+    }
+    .unlock-title { font-family: var(--font-pixel); font-size: 11px; color: var(--gold); }
+    .unlock-zone  { font-family: var(--font-pixel); font-size: 10px; color: var(--text); margin-top: 4px; }
+    .unlock-rep   { font-size: 9px; color: var(--text-dim); }
+    .unlock-btns  { display: flex; gap: 10px; margin-top: 4px; }
+    .unlock-btn-go    { background: var(--gold-dim); color: #0a0a0a; border: none; border-radius: var(--radius-sm); padding: 7px 14px; font-family: var(--font-pixel); font-size: 8px; cursor: pointer; transition: background .15s; }
+    .unlock-btn-go:hover { background: var(--gold); }
+    .unlock-btn-later { background: transparent; color: var(--text-dim); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 7px 14px; font-family: var(--font-pixel); font-size: 8px; cursor: pointer; transition: color .15s; }
+    .unlock-btn-later:hover { color: var(--text); }
+
+    /* ── Combat fighters spotlight strip ─────────────────────────── */
+    .combat-fighters-strip {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      padding: 6px 10px;
+      background: rgba(0,0,0,.35);
+      border-radius: var(--radius-sm);
+      margin-bottom: 6px;
+      border: 1px solid var(--border);
+    }
+    .fighter-col { display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 62px; }
+    .fighter-col-vs { min-width: 46px; align-items: center; gap: 4px; }
+    .fighter-sprite { image-rendering: pixelated; width: 54px; height: 54px; transition: opacity .3s; }
+    .fighter-sprite.fighter-active { animation: fighterPulse .25s ease; }
+    .fighter-sprite.fighter-ko { opacity: .25; filter: grayscale(1); }
+    .fighter-name { font-size: 7px; color: var(--text-dim); text-align: center; max-width: 70px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .fighter-vs-icon { font-family: var(--font-pixel); font-size: 11px; color: var(--gold); }
+
+    /* ── Ball wobble animation ───────────────────────────────────── */
+    @keyframes ballWobble {
+      0%   { transform: rotate(0deg) scale(1); }
+      20%  { transform: rotate(22deg) scale(1.05); }
+      40%  { transform: rotate(-20deg) scale(1.05); }
+      60%  { transform: rotate(16deg) scale(1.02); }
+      80%  { transform: rotate(-12deg) scale(1.02); }
+      100% { transform: rotate(0deg) scale(1); }
+    }
+    .ball-wobble { animation: ballWobble .45s ease-in-out forwards; }
+
     /* ── Keyframe Animations ─────────────────────────────────────── */
+    @keyframes fighterPulse {
+      0%   { transform: scale(1); }
+      50%  { transform: scale(1.12); }
+      100% { transform: scale(1); }
+    }
     @keyframes zoneGymPulse {
       0%, 100% { box-shadow: 0 0 4px rgba(255,204,90,.2); border-color: var(--gold-dim); }
       50%      { box-shadow: 0 0 14px rgba(255,204,90,.5), 0 0 28px rgba(255,204,90,.2); border-color: var(--gold); }
@@ -2037,6 +2183,7 @@
     .zone-combat .combat-actions-inline button:hover { background: var(--red); }
     .zone-combat.collapsed .combat-arena,
     .zone-combat.collapsed .combat-arena-full,
+    .zone-combat.collapsed .combat-fighters-strip,
     .zone-combat.collapsed .combat-log-inline,
     .zone-combat.collapsed .combat-actions-inline { display: none; }
     .zone-combat .combat-summary {
@@ -2270,6 +2417,28 @@
     </div>
   </div>
 
+  <!-- Loot popup (post-combat) -->
+  <div id="lootPopup">
+    <div class="loot-icon">⚔</div>
+    <div>
+      <div class="loot-money" id="lootMoney"></div>
+      <div class="loot-rep"   id="lootRep"></div>
+    </div>
+  </div>
+
+  <!-- Zone unlock popup -->
+  <div id="zoneUnlockPopup">
+    <div class="unlock-box">
+      <div class="unlock-title">🗺 ZONE DÉBLOQUÉE !</div>
+      <div class="unlock-zone" id="zoneUnlockName">—</div>
+      <div class="unlock-rep"  id="zoneUnlockRep"></div>
+      <div class="unlock-btns">
+        <button class="unlock-btn-go"    id="zoneUnlockGo">→ Aller à la zone</button>
+        <button class="unlock-btn-later" id="zoneUnlockClose">Plus tard</button>
+      </div>
+    </div>
+  </div>
+
   <div id="app">
 
     <!-- ═══ Top Bar ═══ -->
@@ -2335,9 +2504,9 @@
       <section id="tabBag" class="tab-pane" style="display:none"></section>
       <section id="tabMarket" class="tab-pane">
         <div class="market-layout">
-          <div id="sellPanel" class="market-panel">
-            <h3>VENDRE</h3>
-            <div class="sell-list"></div>
+          <div id="questPanel" class="market-panel quest-panel">
+            <h3>QUÊTES</h3>
+            <div class="quest-list"></div>
           </div>
           <div id="shopPanel" class="market-panel">
             <h3>BOUTIQUE</h3>

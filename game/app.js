@@ -859,6 +859,30 @@ const MISSIONS = [
     desc_en:'Catch at least 1 Pokémon in 15 different zones. Explore all of Kanto!' },
 ];
 
+// ── Quêtes horaires (pool aléatoire 3 medium + 2 hard, reset 1h) ──
+const HOURLY_QUEST_POOL = [
+  // MEDIUM
+  { id:'hq_catch3',   diff:'medium', fr:'Attraper 3 Pokémon',    icon:'🎯', stat:'totalCaught',      target:3,   reward:{ money:600,  rep:3  } },
+  { id:'hq_catch6',   diff:'medium', fr:'Attraper 6 Pokémon',    icon:'🎯', stat:'totalCaught',      target:6,   reward:{ money:1000, rep:4  } },
+  { id:'hq_win2',     diff:'medium', fr:'Gagner 2 combats',      icon:'⚔',  stat:'totalFightsWon',   target:2,   reward:{ money:700,  rep:4  } },
+  { id:'hq_win4',     diff:'medium', fr:'Gagner 4 combats',      icon:'⚔',  stat:'totalFightsWon',   target:4,   reward:{ money:1200, rep:5  } },
+  { id:'hq_earn800',  diff:'medium', fr:'Gagner 800₽',           icon:'💰', stat:'totalMoneyEarned', target:800, reward:{ money:600,  rep:2  } },
+  { id:'hq_earn2000', diff:'medium', fr:'Gagner 2 000₽',         icon:'💰', stat:'totalMoneyEarned', target:2000,reward:{ money:1000, rep:4  } },
+  { id:'hq_chest1',   diff:'medium', fr:'Ouvrir 1 coffre',       icon:'📦', stat:'chestsOpened',     target:1,   reward:{ money:500,  rep:2  } },
+  { id:'hq_sold3',    diff:'medium', fr:'Vendre 3 Pokémon',      icon:'💱', stat:'totalSold',        target:3,   reward:{ money:800,  rep:2  } },
+  { id:'hq_event1',   diff:'medium', fr:'Compléter 1 événement', icon:'🎪', stat:'eventsCompleted',  target:1,   reward:{ money:700,  rep:3  } },
+  // HARD
+  { id:'hq_catch15',  diff:'hard',   fr:'Attraper 15 Pokémon',   icon:'🎯', stat:'totalCaught',      target:15,  reward:{ money:3500, rep:12 } },
+  { id:'hq_catch25',  diff:'hard',   fr:'Attraper 25 Pokémon',   icon:'🎯', stat:'totalCaught',      target:25,  reward:{ money:5000, rep:16 } },
+  { id:'hq_win8',     diff:'hard',   fr:'Gagner 8 combats',      icon:'⚔',  stat:'totalFightsWon',   target:8,   reward:{ money:4000, rep:14 } },
+  { id:'hq_win12',    diff:'hard',   fr:'Gagner 12 combats',     icon:'⚔',  stat:'totalFightsWon',   target:12,  reward:{ money:6000, rep:18 } },
+  { id:'hq_earn6000', diff:'hard',   fr:'Gagner 6 000₽',         icon:'💰', stat:'totalMoneyEarned', target:6000,reward:{ money:3000, rep:10 } },
+  { id:'hq_rocket3',  diff:'hard',   fr:'Vaincre 3 Rocket',      icon:'🚀', stat:'rocketDefeated',   target:3,   reward:{ money:4500, rep:20 } },
+  { id:'hq_shiny',    diff:'hard',   fr:'Capturer un Shiny',     icon:'✨', stat:'shinyCaught',      target:1,   reward:{ money:9000, rep:30 } },
+  { id:'hq_chest5',   diff:'hard',   fr:'Ouvrir 5 coffres',      icon:'📦', stat:'chestsOpened',     target:5,   reward:{ money:3000, rep:12 } },
+];
+const HOURLY_QUEST_REROLL_COST = 10; // réputation par reroll
+
 // ── Trainers ──────────────────────────────────────────────────
 const TRAINER_TYPES = {
   // Basic trainers
@@ -1121,7 +1145,7 @@ function t(key, vars = {}) {
 // ════════════════════════════════════════════════════════════════
 
 // ── App version — bump on every deploy to force client reload ──
-const APP_VERSION = '2.1.0';
+const APP_VERSION = '2.2.0';
 
 const SAVE_KEYS = ['pokeforge.v6', 'pokeforge.v6.s2', 'pokeforge.v6.s3'];
 let activeSaveSlot = Math.min(2, parseInt(localStorage.getItem('pokeforge.activeSlot') || '0'));
@@ -1171,9 +1195,10 @@ const DEFAULT_STATE = {
   pokedex: {},
   activeEvents: {}, // zoneId -> { eventId, expiresAt, data }
   missions: {
-    completed: [],       // IDs of completed story missions
-    daily: { reset: 0, progress: {}, claimed: [] },   // daily reset timestamp
-    weekly: { reset: 0, progress: {}, claimed: [] },   // weekly reset timestamp
+    completed: [],
+    daily:  { reset: 0, progress: {}, claimed: [] },
+    weekly: { reset: 0, progress: {}, claimed: [] },
+    hourly: { reset: 0, slots: [], baseline: {}, claimed: [] },
   },
   stats: {
     totalCaught: 0,
@@ -1318,6 +1343,7 @@ function migrate(saved) {
   if (!merged.missions.daily) merged.missions.daily = { reset: 0, progress: {}, claimed: [] };
   if (!merged.missions.weekly) merged.missions.weekly = { reset: 0, progress: {}, claimed: [] };
   if (!merged.missions.completed) merged.missions.completed = [];
+  if (!merged.missions.hourly) merged.missions.hourly = { reset: 0, slots: [], baseline: {}, claimed: [] };
   // Migration: trainingRoom + cosmetics + purchases
   if (!merged.trainingRoom) merged.trainingRoom = { pokemon: [], log: [], level: 1 };
   if (!merged.trainingRoom.log) merged.trainingRoom.log = [];
@@ -2624,7 +2650,7 @@ function investInZone(zoneId) {
 //  6.  CAPTURE MODULE
 // ════════════════════════════════════════════════════════════════
 
-function tryCapture(zoneId, speciesEN) {
+function tryCapture(zoneId, speciesEN, bonusPotential = 0) {
   const ball = state.activeBall;
   if ((state.inventory[ball] || 0) <= 0) {
     notify(t('no_balls', { ball: BALLS[ball]?.fr || ball }));
@@ -2634,6 +2660,7 @@ function tryCapture(zoneId, speciesEN) {
   state.inventory[ball]--;
   const pokemon = makePokemon(speciesEN, zoneId, ball);
   if (!pokemon) return null;
+  if (bonusPotential > 0) pokemon.potential = Math.min(5, pokemon.potential + bonusPotential);
   state.pokemons.push(pokemon);
   state.stats.totalCaught++;
   // Zone captures counter
@@ -2705,7 +2732,9 @@ function applyCombatResult(result, playerTeamIds, trainerData) {
     state.stats.totalMoneyEarned += result.reward;
     // Rep sur toutes les victoires (spécial = +10, normal = +1)
     if (result.repGain > 0) {
+      const prevRep = state.gang.reputation;
       state.gang.reputation += result.repGain;
+      checkForNewlyUnlockedZones(prevRep);
     }
     // Ball drops for regular trainer battles (2x less than before)
     if (!trainerData.isSpecial && !trainerData.isRaid) {
@@ -2751,6 +2780,40 @@ function applyCombatResult(result, playerTeamIds, trainerData) {
     }
   }
   saveState();
+}
+
+// ── Zone unlock detection ──────────────────────────────────────
+function checkForNewlyUnlockedZones(prevRep) {
+  const newZones = ZONES.filter(z => {
+    if (!z.rep || z.rep === 0) return false;
+    if (z.unlockItem && !state.purchases?.[z.unlockItem]) return false;
+    return prevRep < z.rep && state.gang.reputation >= z.rep;
+  });
+  newZones.forEach((zone, i) => {
+    setTimeout(() => showZoneUnlockPopup(zone), 400 + i * 300);
+  });
+}
+
+let _zoneUnlockQueue = [];
+let _zoneUnlockActive = false;
+
+function showZoneUnlockPopup(zone) {
+  _zoneUnlockQueue.push(zone);
+  if (!_zoneUnlockActive) _processZoneUnlockQueue();
+}
+
+function _processZoneUnlockQueue() {
+  if (_zoneUnlockQueue.length === 0) { _zoneUnlockActive = false; return; }
+  _zoneUnlockActive = true;
+  const zone = _zoneUnlockQueue.shift();
+  const popup = document.getElementById('zoneUnlockPopup');
+  const nameEl = document.getElementById('zoneUnlockName');
+  const repEl  = document.getElementById('zoneUnlockRep');
+  if (!popup || !nameEl) return;
+  nameEl.textContent = state.lang === 'fr' ? zone.fr : zone.en;
+  if (repEl) repEl.textContent = `Réputation requise : ${zone.rep}`;
+  popup._zoneId = zone.id;
+  popup.classList.add('show');
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -2800,6 +2863,73 @@ function initMissions() {
     }
     state.missions.weekly = { reset: now, progress: baseline, claimed: [] };
   }
+}
+
+// ── Hourly quests ─────────────────────────────────────────────
+const HOUR_MS = 3600000;
+
+function initHourlyQuests() {
+  if (!state.missions.hourly) state.missions.hourly = { reset: 0, slots: [], baseline: {}, claimed: [] };
+  const h = state.missions.hourly;
+  if (Date.now() - h.reset >= HOUR_MS) {
+    // Draw 3 medium + 2 hard from pool (no duplicates)
+    const medium = HOURLY_QUEST_POOL.filter(q => q.diff === 'medium');
+    const hard   = HOURLY_QUEST_POOL.filter(q => q.diff === 'hard');
+    const pickRand = (arr, n) => {
+      const shuffled = [...arr].sort(() => Math.random() - 0.5);
+      return shuffled.slice(0, n).map(q => q.id);
+    };
+    const slots = [...pickRand(medium, 3), ...pickRand(hard, 2)];
+    const baseline = {};
+    for (const qId of slots) {
+      const q = HOURLY_QUEST_POOL.find(x => x.id === qId);
+      if (q) baseline[q.stat] = (baseline[q.stat] === undefined) ? getMissionStat(q.stat) : baseline[q.stat];
+    }
+    state.missions.hourly = { reset: Date.now(), slots, baseline, claimed: [] };
+    saveState();
+  }
+}
+
+function getHourlyQuest(slotIdx) {
+  const id = state.missions.hourly?.slots?.[slotIdx];
+  return id ? HOURLY_QUEST_POOL.find(q => q.id === id) : null;
+}
+
+function getHourlyProgress(q) {
+  const baseline = state.missions.hourly.baseline?.[q.stat] || 0;
+  return Math.min(getMissionStat(q.stat) - baseline, q.target);
+}
+
+function isHourlyComplete(q)  { return getHourlyProgress(q) >= q.target; }
+function isHourlyClaimed(idx) { return (state.missions.hourly.claimed || []).includes(idx); }
+
+function claimHourlyQuest(idx) {
+  const q = getHourlyQuest(idx);
+  if (!q || !isHourlyComplete(q) || isHourlyClaimed(idx)) return;
+  if (!state.missions.hourly.claimed) state.missions.hourly.claimed = [];
+  state.missions.hourly.claimed.push(idx);
+  if (q.reward.money) { state.gang.money += q.reward.money; state.stats.totalMoneyEarned += q.reward.money; }
+  if (q.reward.rep)   { const prev = state.gang.reputation; state.gang.reputation += q.reward.rep; checkForNewlyUnlockedZones(prev); }
+  notify(`✓ Quête : ${q.fr} — +${q.reward.money?.toLocaleString() || 0}₽${q.reward.rep ? ' +'+q.reward.rep+' rep' : ''}`, 'gold');
+  try { SFX.coin(); } catch {}
+  saveState();
+}
+
+function rerollHourlyQuest(idx) {
+  if (state.gang.reputation < HOURLY_QUEST_REROLL_COST) { notify('Réputation insuffisante (10 req)'); return; }
+  const h = state.missions.hourly;
+  if (!h || isHourlyClaimed(idx)) return;
+  const current = getHourlyQuest(idx);
+  if (!current) return;
+  state.gang.reputation -= HOURLY_QUEST_REROLL_COST;
+  // Pick a different quest of same difficulty
+  const pool = HOURLY_QUEST_POOL.filter(q => q.diff === current.diff && q.id !== current.id && !h.slots.includes(q.id));
+  if (pool.length === 0) { notify('Aucune quête disponible pour le reroll'); state.gang.reputation += HOURLY_QUEST_REROLL_COST; return; }
+  const newQ = pool[Math.floor(Math.random() * pool.length)];
+  h.slots[idx] = newQ.id;
+  if (h.baseline[newQ.stat] === undefined) h.baseline[newQ.stat] = getMissionStat(newQ.stat);
+  saveState();
+  notify(`Reroll : ${newQ.fr}`, 'success');
 }
 
 function getMissionProgress(mission) {
@@ -3686,20 +3816,20 @@ function loadSlot(slotIdx) {
 function applyCosmetics() {
   const bgKey = state.cosmetics?.gameBg;
   const bg = bgKey ? COSMETIC_BGS[bgKey] : null;
-  const app = document.getElementById('app');
-  if (!app) return;
+  // Apply background to body so it extends edge-to-edge (not constrained by #app max-width)
   if (bg) {
-    app.style.backgroundImage = `url('${bg.url}'), linear-gradient(180deg,#0a0a0a,#0a0a0a)`;
-    app.style.backgroundSize = 'cover, 100%';
-    app.style.backgroundAttachment = 'fixed, fixed';
-    app.style.backgroundPosition = 'center, center';
+    document.body.style.backgroundImage = `url('${bg.url}')`;
+    document.body.style.backgroundSize = 'cover';
+    document.body.style.backgroundAttachment = 'fixed';
+    document.body.style.backgroundPosition = 'center';
+    document.body.style.backgroundRepeat = 'no-repeat';
     // Make game panels semi-transparent so background shows through
     document.documentElement.style.setProperty('--bg', 'rgba(10,10,10,0.72)');
     document.documentElement.style.setProperty('--bg-card', 'rgba(20,20,20,0.70)');
     document.documentElement.style.setProperty('--bg-panel', 'rgba(26,26,26,0.70)');
     document.documentElement.style.setProperty('--bg-hover', 'rgba(34,34,34,0.80)');
   } else {
-    app.style.backgroundImage = '';
+    document.body.style.backgroundImage = '';
     document.documentElement.style.setProperty('--bg', '#0a0a0a');
     document.documentElement.style.setProperty('--bg-card', '#141414');
     document.documentElement.style.setProperty('--bg-panel', '#1a1a1a');
@@ -4729,154 +4859,244 @@ function bindGangBase(container) {
 // ── Gang Export (Canvas screenshot) ──────────────────────────
 async function exportGangImage() {
   try {
-    const W = 600, H = 820;
-    const canvas = document.createElement('canvas');
-    canvas.width = W; canvas.height = H;
-    const ctx = canvas.getContext('2d');
+    const W = 640, H = 900;
 
-    function loadImg(src) {
+    async function loadImg(src) {
+      // Fetch as blob → blob URL avoids canvas-taint from CORS cache conflicts
+      try {
+        const resp = await fetch(src, { cache: 'no-cache' });
+        if (resp.ok) {
+          const blob = await resp.blob();
+          const blobUrl = URL.createObjectURL(blob);
+          const img = await new Promise((resolve, reject) => {
+            const i = new Image();
+            i.onload  = () => resolve(i);
+            i.onerror = () => reject();
+            i.src = blobUrl;
+          });
+          URL.revokeObjectURL(blobUrl);
+          return img;
+        }
+      } catch(e) {}
+      // Fallback: standard img with crossOrigin flag
       return new Promise(resolve => {
         const img = new Image(); img.crossOrigin = 'anonymous';
-        img.onload = () => resolve(img);
+        img.onload  = () => resolve(img);
         img.onerror = () => resolve(null);
         img.src = src;
       });
     }
+    function px(sz)  { return `${sz}px "Courier New",monospace`; }
+    function pxB(sz) { return `bold ${sz}px "Courier New",monospace`; }
 
-    // Background
-    const grad = ctx.createLinearGradient(0, 0, 0, H);
-    grad.addColorStop(0, '#180606'); grad.addColorStop(0.4, '#200c0c');
-    grad.addColorStop(0.7, '#160808'); grad.addColorStop(1, '#0e0404');
-    ctx.fillStyle = grad; ctx.fillRect(0, 0, W, H);
-
-    // Outer border
-    ctx.strokeStyle = '#cc3333'; ctx.lineWidth = 3;
-    ctx.strokeRect(2, 2, W - 4, H - 4);
-    ctx.strokeStyle = 'rgba(204,51,51,0.3)'; ctx.lineWidth = 1;
-    ctx.strokeRect(7, 7, W - 14, H - 14);
-
-    // ── Header: Boss ──────────────────────────────────────────────
-    let yOff = 18;
-    const bossImgSrc = state.gang.bossSprite ? trainerSprite(state.gang.bossSprite) : null;
-    if (bossImgSrc) {
-      const bossImg = await loadImg(bossImgSrc);
-      if (bossImg) {
-        try { ctx.drawImage(bossImg, W/2 - 52, yOff, 104, 104); }
-        catch(e) {}
-      }
+    function drawDefaultBg(ctx) {
+      const grad = ctx.createLinearGradient(0, 0, 0, H);
+      grad.addColorStop(0, '#180606'); grad.addColorStop(0.45, '#200d0d');
+      grad.addColorStop(0.8, '#160808'); grad.addColorStop(1, '#0e0404');
+      ctx.fillStyle = grad; ctx.fillRect(0, 0, W, H);
     }
-    yOff += 112;
-    ctx.fillStyle = '#cc3333'; ctx.font = 'bold 20px "Courier New",monospace';
-    ctx.textAlign = 'center'; ctx.fillText(state.gang.name, W/2, yOff); yOff += 22;
-    ctx.fillStyle = '#e0e0e0'; ctx.font = '14px "Courier New",monospace';
-    ctx.fillText(state.gang.bossName, W/2, yOff); yOff += 16;
 
-    // Separator
-    ctx.strokeStyle = '#cc3333'; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(20, yOff); ctx.lineTo(W-20, yOff); ctx.stroke(); yOff += 10;
+    async function drawPage(canvas, agentsSlice, pageIdx, totalPages) {
+      const ctx = canvas.getContext('2d');
 
-    // ── Boss team ─────────────────────────────────────────────────
-    ctx.fillStyle = '#888'; ctx.font = '9px "Courier New",monospace';
-    ctx.fillText('— ÉQUIPE BOSS —', W/2, yOff); yOff += 8;
-    const teamPks = state.gang.bossTeam.map(id => state.pokemons.find(p => p.id === id)).filter(Boolean);
-    if (teamPks.length > 0) {
-      const slotW = 60, startX = W/2 - (teamPks.length * slotW)/2;
-      for (let i = 0; i < teamPks.length; i++) {
-        const pk = teamPks[i];
-        const img = await loadImg(pokeSprite(pk.species_en, pk.shiny));
-        const sx = startX + i * slotW;
-        if (img) { try { ctx.drawImage(img, sx + 2, yOff, 52, 52); } catch(e) {} }
-        ctx.fillStyle = '#aaa'; ctx.font = '7px "Courier New",monospace';
-        ctx.textAlign = 'center';
-        ctx.fillText(`Lv.${pk.level}`, sx + 28, yOff + 62);
-      }
-      yOff += 72;
-    } else { yOff += 8; }
+      // ── Background (player wallpaper or default) ───────────────
+      const bgKey = state.cosmetics?.gameBg;
+      const bgDef = bgKey ? COSMETIC_BGS[bgKey] : null;
+      if (bgDef) {
+        const bgImg = await loadImg(bgDef.url);
+        if (bgImg) {
+          ctx.drawImage(bgImg, 0, 0, W, H);
+          ctx.fillStyle = 'rgba(0,0,0,0.68)'; ctx.fillRect(0, 0, W, H);
+        } else { drawDefaultBg(ctx); }
+      } else { drawDefaultBg(ctx); }
 
-    // Separator
-    ctx.strokeStyle = '#333'; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(20, yOff); ctx.lineTo(W-20, yOff); ctx.stroke(); yOff += 10;
+      // ── Borders ────────────────────────────────────────────────
+      ctx.strokeStyle = '#cc3333'; ctx.lineWidth = 3; ctx.strokeRect(2, 2, W-4, H-4);
+      ctx.strokeStyle = 'rgba(204,51,51,0.28)'; ctx.lineWidth = 1; ctx.strokeRect(8, 8, W-16, H-16);
 
-    // ── Agents ───────────────────────────────────────────────────
-    if (state.agents.length > 0) {
-      ctx.fillStyle = '#888'; ctx.font = '9px "Courier New",monospace';
-      ctx.textAlign = 'center';
-      ctx.fillText('— AGENTS —', W/2, yOff); yOff += 10;
+      let y = 18;
 
-      for (const agent of state.agents) {
-        const agImg = await loadImg(agent.sprite || trainerSprite('acetrainer'));
-        const agX = 20;
-        if (agImg) { try { ctx.drawImage(agImg, agX, yOff, 40, 40); } catch(e) {} }
-        ctx.fillStyle = '#e0e0e0'; ctx.font = '9px "Courier New",monospace';
-        ctx.textAlign = 'left';
-        ctx.fillText(agent.name, agX + 46, yOff + 12);
-        ctx.fillStyle = '#888'; ctx.font = '8px "Courier New",monospace';
-        const zoneName = agent.assignedZone ? (ZONE_BY_ID[agent.assignedZone]?.fr || agent.assignedZone) : 'Sans zone';
-        ctx.fillText(zoneName, agX + 46, yOff + 26);
+      // ══════════════════════════════════════════════════════════
+      //  PAGE 0: Boss header + team + MVP box
+      // ══════════════════════════════════════════════════════════
+      if (pageIdx === 0) {
+        // Boss sprite + gang info side by side
+        const bossImg = state.gang.bossSprite ? await loadImg(trainerSprite(state.gang.bossSprite)) : null;
+        const BSIZ = 88;
+        if (bossImg) { try { ctx.drawImage(bossImg, 18, y, BSIZ, BSIZ); } catch(e) {} }
 
-        // Agent team
-        const agPks = agent.team.map(id => state.pokemons.find(p => p.id === id)).filter(Boolean);
-        let pkX = agX + 46 + 60;
-        for (const pk of agPks) {
-          const pkImg = await loadImg(pokeSprite(pk.species_en, pk.shiny));
-          if (pkImg) { try { ctx.drawImage(pkImg, pkX, yOff, 36, 36); } catch(e) {} }
-          ctx.fillStyle = '#888'; ctx.font = '6px "Courier New",monospace'; ctx.textAlign = 'center';
-          ctx.fillText(`${pk.level}`, pkX + 18, yOff + 44);
-          pkX += 42;
+        const ix = 18 + BSIZ + 14;
+        ctx.fillStyle = '#cc3333'; ctx.font = pxB(18); ctx.textAlign = 'left';
+        // Truncate gang name if long
+        const gName = state.gang.name.length > 22 ? state.gang.name.slice(0, 21) + '…' : state.gang.name;
+        ctx.fillText(gName, ix, y + 16);
+        ctx.fillStyle = '#aaa'; ctx.font = px(10);
+        ctx.fillText(`Boss : ${state.gang.bossName}`, ix, y + 32);
+        ctx.fillStyle = '#ffcc5a'; ctx.font = px(9);
+        ctx.fillText(`⭐ Réputation : ${state.gang.reputation}`, ix, y + 48);
+        ctx.fillStyle = '#e0e0e0'; ctx.font = px(9);
+        ctx.fillText(`₽ ${state.gang.money.toLocaleString()}`, ix + 180, y + 48);
+        ctx.fillStyle = '#aaa'; ctx.font = px(8);
+        const s = state.stats;
+        ctx.fillText(`Pokémon : ${state.pokemons.length}   Shiny : ${s.shinyCaught||0}`, ix, y + 62);
+        ctx.fillText(`Victoires : ${s.totalFightsWon||0}   Captures : ${s.totalCaught||0}`, ix, y + 76);
+
+        // Pokédex progress (grisé unless complete)
+        const dexCaught = Object.values(state.pokedex).filter(e => e.caught).length;
+        const dexTotal = POKEMON_GEN1.length;
+        const dexDone = dexCaught >= dexTotal;
+        ctx.fillStyle = dexDone ? '#ffcc5a' : '#555';
+        ctx.font = px(8);
+        ctx.fillText(`📖 Pokédex : ${dexCaught}/${dexTotal}${dexDone ? ' ✓ COMPLET !' : ''}`, ix, y + 90);
+
+        y = Math.max(y + BSIZ, y + 96) + 10;
+
+        // Separator
+        ctx.strokeStyle = '#cc3333'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(18, y); ctx.lineTo(W-18, y); ctx.stroke(); y += 12;
+
+        // ── Boss team ──────────────────────────────────────────
+        ctx.fillStyle = '#888'; ctx.font = px(8); ctx.textAlign = 'center';
+        ctx.fillText('— ÉQUIPE BOSS —', W/2, y); y += 10;
+
+        const teamPks = state.gang.bossTeam.map(id => state.pokemons.find(p => p.id === id)).filter(Boolean);
+
+        // MVP: highest value pokemon across entire collection
+        const mvp = state.pokemons.length > 0
+          ? state.pokemons.reduce((best, p) => calculatePrice(p) > calculatePrice(best) ? p : best)
+          : null;
+        const mvpBoxW = 96, mvpBoxX = W - mvpBoxW - 16;
+
+        if (teamPks.length > 0) {
+          const slotW = 54;
+          const teamW = teamPks.length * slotW;
+          const startX = mvp ? Math.min(18, (mvpBoxX - teamW) / 2) : (W - teamW) / 2;
+          for (let i = 0; i < teamPks.length; i++) {
+            const pk = teamPks[i];
+            const img = await loadImg(pokeSprite(pk.species_en, pk.shiny));
+            const sx = startX + i * slotW;
+            if (img) { try { ctx.drawImage(img, sx + 2, y, 48, 48); } catch(e) {} }
+            ctx.fillStyle = pk.shiny ? '#ffcc5a' : '#888'; ctx.font = px(6.5); ctx.textAlign = 'center';
+            ctx.fillText(`Lv.${pk.level} ${'★'.repeat(pk.potential)}`, sx + 26, y + 56);
+          }
         }
-        yOff += 52;
+
+        // MVP box (special highlight)
+        if (mvp) {
+          const mvpImg = await loadImg(pokeSprite(mvp.species_en, mvp.shiny));
+          ctx.save();
+          ctx.strokeStyle = '#ffcc5a'; ctx.lineWidth = 2;
+          ctx.fillStyle = 'rgba(255,204,90,0.10)';
+          const r = 5;
+          ctx.beginPath();
+          if (ctx.roundRect) ctx.roundRect(mvpBoxX, y - 6, mvpBoxW, 72, r);
+          else ctx.rect(mvpBoxX, y - 6, mvpBoxW, 72);
+          ctx.fill(); ctx.stroke(); ctx.restore();
+          ctx.fillStyle = '#ffcc5a'; ctx.font = pxB(7); ctx.textAlign = 'center';
+          ctx.fillText('💰 MVP', mvpBoxX + mvpBoxW/2, y + 2);
+          if (mvpImg) { try { ctx.drawImage(mvpImg, mvpBoxX + (mvpBoxW-44)/2, y + 6, 44, 44); } catch(e) {} }
+          ctx.fillStyle = '#e0e0e0'; ctx.font = px(6.5); ctx.textAlign = 'center';
+          const mvpName = speciesName(mvp.species_en);
+          ctx.fillText(mvpName.length > 12 ? mvpName.slice(0,11)+'…' : mvpName, mvpBoxX + mvpBoxW/2, y + 54);
+          ctx.fillStyle = '#ffcc5a'; ctx.font = px(6);
+          ctx.fillText(`${calculatePrice(mvp).toLocaleString()}₽`, mvpBoxX + mvpBoxW/2, y + 64);
+        }
+
+        y += 72;
       }
+
+      // ══════════════════════════════════════════════════════════
+      //  AGENTS section
+      // ══════════════════════════════════════════════════════════
+      if (agentsSlice.length > 0) {
+        ctx.strokeStyle = '#333'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(18, y); ctx.lineTo(W-18, y); ctx.stroke(); y += 10;
+        ctx.fillStyle = '#888'; ctx.font = px(8); ctx.textAlign = 'center';
+        ctx.fillText(pageIdx === 0 ? '— AGENTS —' : '— AGENTS (suite) —', W/2, y); y += 12;
+
+        for (const agent of agentsSlice) {
+          const agImg = await loadImg(agent.sprite || trainerSprite('acetrainer'));
+          if (agImg) { try { ctx.drawImage(agImg, 18, y, 40, 40); } catch(e) {} }
+          ctx.fillStyle = '#e0e0e0'; ctx.font = pxB(9); ctx.textAlign = 'left';
+          ctx.fillText(`${agent.name}  Lv.${agent.level}`, 64, y + 13);
+          ctx.fillStyle = '#888'; ctx.font = px(7.5);
+          const zn = agent.assignedZone ? (ZONE_BY_ID[agent.assignedZone]?.fr || agent.assignedZone) : 'Sans zone';
+          ctx.fillText(zn, 64, y + 26);
+          ctx.fillStyle = '#555'; ctx.font = px(6.5);
+          ctx.fillText(`ATK:${agent.stats?.combat||0}  CAP:${agent.stats?.capture||0}  LCK:${agent.stats?.luck||0}`, 64, y + 38);
+          // Team
+          const agPks = agent.team.map(id => state.pokemons.find(p => p.id === id)).filter(Boolean);
+          let pkX = 64 + 140;
+          for (const pk of agPks.slice(0, 6)) {
+            const pkImg = await loadImg(pokeSprite(pk.species_en, pk.shiny));
+            if (pkImg) { try { ctx.drawImage(pkImg, pkX, y + 2, 34, 34); } catch(e) {} }
+            ctx.fillStyle = pk.shiny ? '#ffcc5a' : '#666'; ctx.font = px(6); ctx.textAlign = 'center';
+            ctx.fillText(`${pk.level}`, pkX + 17, y + 42);
+            pkX += 38;
+          }
+          y += 52;
+        }
+      }
+
+      // ══════════════════════════════════════════════════════════
+      //  STATS (last page only)
+      // ══════════════════════════════════════════════════════════
+      if (pageIdx === totalPages - 1) {
+        y += 6;
+        ctx.strokeStyle = '#cc3333'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(18, y); ctx.lineTo(W-18, y); ctx.stroke(); y += 12;
+        ctx.fillStyle = '#ffcc5a'; ctx.font = pxB(8); ctx.textAlign = 'center';
+        ctx.fillText('— STATISTIQUES —', W/2, y); y += 14;
+
+        const s = state.stats;
+        const topSp = Object.entries(state.pokedex).sort((a,b)=>(b[1].count||0)-(a[1].count||0))[0];
+        const richest = state.pokemons.length > 0
+          ? state.pokemons.reduce((best, p) => calculatePrice(p) > calculatePrice(best) ? p : best)
+          : null;
+        const lines = [
+          [`✨ Shiny : ${s.shinyCaught||0}`,            `⚔ Victoires : ${s.totalFightsWon||0}`],
+          [`🎯 Captures totales : ${s.totalCaught||0}`, `📦 Coffres : ${s.chestsOpened||0}`],
+          [`₽ Actuels : ${state.gang.money.toLocaleString()}`, `₽ Gagné : ${(s.totalMoneyEarned||0).toLocaleString()}`],
+          [`⭐ Réputation : ${state.gang.reputation}`,  topSp ? `🏆 Top : ${speciesName(topSp[0])} ×${topSp[1].count||1}` : ''],
+        ];
+        if (richest) lines.push([`💰 Pokémon le + cher : ${speciesName(richest.species_en)}${richest.shiny ? ' ★' : ''} — ${calculatePrice(richest).toLocaleString()}₽`, '']);
+        if (s.mostExpensiveSold)     lines.push([`💎 Vente record : ${s.mostExpensiveSold.name} — ${(s.mostExpensiveSold.price||0).toLocaleString()}₽`, '']);
+        if (s.mostExpensiveObtained) lines.push([`🌟 Capture record : ${s.mostExpensiveObtained.name} — ${(s.mostExpensiveObtained.price||0).toLocaleString()}₽`, '']);
+
+        ctx.font = px(8.5);
+        for (const [l, r] of lines) {
+          ctx.fillStyle = '#ccc'; ctx.textAlign = 'left';  ctx.fillText(l, 20, y);
+          if (r) { ctx.textAlign = 'right'; ctx.fillText(r, W-20, y); }
+          y += 15;
+        }
+      }
+
+      // Watermark
+      ctx.fillStyle = 'rgba(255,255,255,0.18)'; ctx.font = px(9); ctx.textAlign = 'center';
+      const pageTag = totalPages > 1 ? ` — ${pageIdx+1}/${totalPages}` : '';
+      ctx.fillText(`PokéGang — Gang Wars${pageTag}`, W/2, H - 10);
     }
 
-    // Separator
-    yOff += 4;
-    ctx.strokeStyle = '#cc3333'; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(20, yOff); ctx.lineTo(W-20, yOff); ctx.stroke(); yOff += 12;
+    // ── Pagination ────────────────────────────────────────────────
+    // Rough estimate: header ~200px, each agent ~52px, stats ~100px
+    const AGENTS_PER_FIRST = Math.max(1, Math.floor((H - 300) / 52));
+    const AGENTS_PER_NEXT  = Math.max(1, Math.floor((H - 80)  / 52));
+    const allAgents = [...state.agents];
+    const firstBatch = allAgents.splice(0, AGENTS_PER_FIRST);
+    const pages = [firstBatch];
+    while (allAgents.length > 0) pages.push(allAgents.splice(0, AGENTS_PER_NEXT));
 
-    // ── Stats panel ───────────────────────────────────────────────
-    ctx.fillStyle = '#ffcc5a'; ctx.font = '9px "Courier New",monospace';
-    ctx.textAlign = 'center';
-    ctx.fillText('— STATISTIQUES —', W/2, yOff); yOff += 14;
-
-    const s = state.stats;
-    // Top species
-    const sortedPokedex = Object.entries(state.pokedex).sort((a, b) => (b[1].count||0) - (a[1].count||0));
-    const topSpecies = sortedPokedex[0];
-    const topSpeciesName = topSpecies ? speciesName(topSpecies[0]) : '—';
-    const topSpeciesCount = topSpecies ? (topSpecies[1].count || 1) : 0;
-
-    const statsLines = [
-      [`✨ Shiny capturés: ${s.shinyCaught || 0}`,  `⚔ Victoires: ${s.totalFightsWon || 0}`],
-      [`🎯 Captures totales: ${s.totalCaught || 0}`, `📦 Coffres: ${s.chestsOpened || 0}`],
-      [`₽ Actuels: ${state.gang.money.toLocaleString()}`, `₽ Total gagné: ${(s.totalMoneyEarned || 0).toLocaleString()}`],
-      [`⭐ Réputation: ${state.gang.reputation}`,    `🏆 Top espèce: ${topSpeciesName} ×${topSpeciesCount}`],
-    ];
-    if (s.mostExpensiveSold) {
-      statsLines.push([`💎 Vente record: ${s.mostExpensiveSold.name} ${(s.mostExpensiveSold.price||0).toLocaleString()}₽`, ``]);
+    for (let i = 0; i < pages.length; i++) {
+      const canvas = document.createElement('canvas');
+      canvas.width = W; canvas.height = H;
+      await drawPage(canvas, pages[i], i, pages.length);
+      const link = document.createElement('a');
+      link.download = `pokegang-${state.gang.name.replace(/\s+/g,'-')}${pages.length > 1 ? `-p${i+1}` : ''}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+      if (i < pages.length - 1) await new Promise(r => setTimeout(r, 250));
     }
-    if (s.mostExpensiveObtained) {
-      statsLines.push([`🌟 Capture record: ${s.mostExpensiveObtained.name} ${(s.mostExpensiveObtained.price||0).toLocaleString()}₽`, ``]);
-    }
-
-    ctx.font = '9px "Courier New",monospace';
-    for (const [left, right] of statsLines) {
-      ctx.fillStyle = '#ccc'; ctx.textAlign = 'left';
-      ctx.fillText(left, 20, yOff);
-      if (right) { ctx.textAlign = 'right'; ctx.fillText(right, W - 20, yOff); }
-      yOff += 16;
-    }
-
-    // Watermark
-    ctx.fillStyle = 'rgba(255,255,255,0.2)'; ctx.font = '10px "Courier New",monospace';
-    ctx.textAlign = 'center';
-    ctx.fillText('PokéGang — Gang Wars', W/2, H - 12);
-
-    // Download
-    const link = document.createElement('a');
-    link.download = `pokegang-${state.gang.name.replace(/\s+/g, '-')}.png`;
-    link.href = canvas.toDataURL('image/png');
-    link.click();
-    notify('📷 Image exportée !', 'success');
+    notify(`📷 Exporté !${pages.length > 1 ? ` (${pages.length} pages)` : ''}`, 'success');
   } catch (err) {
     console.error('Export failed:', err);
     notify('Export impossible', 'error');
@@ -5380,20 +5600,54 @@ function animateCapture(zoneId, spawnObj, spawnEl) {
   });
 
   setTimeout(() => {
-    ball.remove();
-    // Try capture
-    const caught = tryCapture(zoneId, spawnObj.species_en);
-    if (caught) {
-      if (caught.shiny) spawnEl.classList.add('shiny-flash');
-      showCaptureBurst(viewport, targetX, targetY, caught.potential, caught.shiny);
-      removeSpawn(zoneId, spawnObj.id);
-      updateTopBar();
-      if (activeTab === 'tabPC') renderPCTab();
-      // Update zone timers display
-      updateZoneTimers(zoneId);
+    // Ball lands — wobble 0-3 times (0 = critical catch, ★+1 bonus)
+    const wobbles = Math.floor(Math.random() * 4); // 0, 1, 2, 3
+    const isCritical = wobbles === 0;
+
+    // Position ball on target (stop flight transition)
+    ball.style.transition = 'none';
+    ball.style.left = targetX - 10 + 'px';
+    ball.style.top  = targetY - 10 + 'px';
+
+    if (isCritical) {
+      // Flash gold for critical
+      ball.style.filter = 'drop-shadow(0 0 6px gold)';
+    }
+
+    function doCaptureAttempt() {
+      ball.remove();
+      const caught = tryCapture(zoneId, spawnObj.species_en, isCritical ? 1 : 0);
+      if (caught) {
+        if (isCritical) notify(`★ Capture critique ! +1 potentiel`, 'gold');
+        if (caught.shiny) spawnEl.classList.add('shiny-flash');
+        showCaptureBurst(viewport, targetX, targetY, caught.potential, caught.shiny);
+        removeSpawn(zoneId, spawnObj.id);
+        updateTopBar();
+        if (activeTab === 'tabPC') renderPCTab();
+        updateZoneTimers(zoneId);
+      } else {
+        spawnEl.classList.remove('catching');
+      }
+    }
+
+    if (wobbles === 0) {
+      // Critical — instant capture (no wobble)
+      setTimeout(doCaptureAttempt, 150);
     } else {
-      // No balls — just un-freeze the spawn
-      spawnEl.classList.remove('catching');
+      // Wobble N times then attempt
+      let w = 0;
+      function nextWobble() {
+        w++;
+        ball.classList.remove('ball-wobble');
+        void ball.offsetWidth; // force reflow to restart animation
+        ball.classList.add('ball-wobble');
+        if (w < wobbles) {
+          setTimeout(nextWobble, 480);
+        } else {
+          setTimeout(doCaptureAttempt, 520);
+        }
+      }
+      setTimeout(nextWobble, 100);
     }
   }, 380);
 }
@@ -5534,10 +5788,30 @@ function openCombatPopup(zoneId, spawnObj) {
     </div>`
   ).join('');
 
+  const leadAlly  = available[0];
+  const leadEnemy = spawnObj.team[0];
+  const fighterTrainerHtml = isRaid
+    ? `<img src="${trainerSprite(spawnObj.raidTrainers[0].key)}" style="width:32px;height:32px;image-rendering:pixelated">`
+    : `<img src="${trainerSprite(spawnObj.trainer.sprite || spawnObj.trainerKey)}" style="width:32px;height:32px;image-rendering:pixelated${spawnObj.elite ? ';filter:drop-shadow(0 0 4px gold)' : ''}">`;
+
   inlineCombat.innerHTML = `
     <div class="combat-title ${isRaid ? 'raid-title' : ''}" data-zone-combat-toggle="${zoneId}">
       ${isRaid ? '[RAID] ' : '[ATK] '}${trainerName}
       <span style="font-size:8px;color:var(--text-dim);margin-left:4px">${spawnObj.team.length} Pok.</span>
+    </div>
+    <div class="combat-fighters-strip" id="combatFighters-${zoneId}">
+      <div class="fighter-col fighter-col-ally">
+        <img src="${pokeSpriteBack(leadAlly.species_en, leadAlly.shiny)}" class="fighter-sprite" id="combatFighterAlly-${zoneId}">
+        <div class="fighter-name" id="combatFighterAllyName-${zoneId}">${speciesName(leadAlly.species_en)} Lv.${leadAlly.level}</div>
+      </div>
+      <div class="fighter-col fighter-col-vs">
+        <span class="fighter-vs-icon">⚔</span>
+        ${fighterTrainerHtml}
+      </div>
+      <div class="fighter-col fighter-col-enemy">
+        <img src="${pokeSprite(leadEnemy.species_en)}" class="fighter-sprite" id="combatFighterEnemy-${zoneId}">
+        <div class="fighter-name" id="combatFighterEnemyName-${zoneId}">${speciesName(leadEnemy.species_en)} Lv.${leadEnemy.level}</div>
+      </div>
     </div>
     <div class="combat-arena-full">
       <div class="combat-side ally-side">
@@ -5642,6 +5916,18 @@ function executeCombat() {
       pSlots.forEach((s, i) => s.style.opacity = i === m.playerIdx ? '1' : '0.4');
       if (eSlot) eSlot.style.outline = '2px solid var(--red)';
 
+      // Update fighters strip spotlight
+      const fAlly  = document.getElementById(`combatFighterAlly-${zoneId}`);
+      const fEnemy = document.getElementById(`combatFighterEnemy-${zoneId}`);
+      const fAllyName  = document.getElementById(`combatFighterAllyName-${zoneId}`);
+      const fEnemyName = document.getElementById(`combatFighterEnemyName-${zoneId}`);
+      const curAlly  = playerQueue[m.playerIdx];
+      const curEnemy = enemyQueue[m.enemyIdx];
+      if (fAlly  && curAlly)  { fAlly.src  = pokeSpriteBack(curAlly.species_en, curAlly.shiny);  fAlly.classList.add('fighter-active'); }
+      if (fEnemy && curEnemy) { fEnemy.src  = pokeSprite(curEnemy.species_en);                    fEnemy.classList.add('fighter-active'); }
+      if (fAllyName  && curAlly)  fAllyName.textContent  = `${speciesName(curAlly.species_en)} Lv.${curAlly.level}`;
+      if (fEnemyName && curEnemy) fEnemyName.textContent = `${speciesName(curEnemy.species_en)} Lv.${curEnemy.level}`;
+
       const logLine = m.playerWins
         ? `<div style="color:var(--green)">✓ ${m.pName} bat ${m.eName}</div>`
         : `<div style="color:var(--red)">✗ ${m.pName} est KO</div>`;
@@ -5696,20 +5982,41 @@ function executeCombat() {
         if (logEl) logEl.innerHTML += `<div style="color:var(--red)">Defaite...</div>`;
         if (summary) summary.innerHTML = `<span style="color:var(--red)">Defaite</span>`;
       }
-      if (actionsEl) {
-        actionsEl.innerHTML = `<button class="inline-close-btn" data-zone-close="${zoneId}">OK</button>`;
-        actionsEl.querySelector(`[data-zone-close]`)?.addEventListener('click', () => {
-          inlineCombat.classList.remove('active');
-          removeSpawn(zoneId, spawnObj.id);
-          updateTopBar();
-          currentCombat = null;
-          if (activeTab === 'tabGang') renderGangTab();
-        });
+      // Flash loser sprite in fighters strip
+      if (!overallWin) {
+        document.getElementById(`combatFighterAlly-${zoneId}`)?.classList.add('fighter-ko');
+      } else {
+        document.getElementById(`combatFighterEnemy-${zoneId}`)?.classList.add('fighter-ko');
       }
+
+      if (actionsEl) actionsEl.innerHTML = `<span style="color:var(--text-dim);font-size:9px;font-family:var(--font-pixel)">Fermeture...</span>`;
       logEl?.scrollTo(0, logEl.scrollHeight);
+
+      // Auto-close after 2.5s + loot popup on victory
+      setTimeout(() => {
+        if (inlineCombat) inlineCombat.classList.remove('active');
+        removeSpawn(zoneId, spawnObj.id);
+        updateTopBar();
+        currentCombat = null;
+        if (activeTab === 'tabGang') renderGangTab();
+        if (overallWin) showLootPopup(reward, repGain);
+      }, 2500);
     }
   }
   animateStep();
+}
+
+let _lootPopupTimer = null;
+function showLootPopup(money, rep) {
+  const popup = document.getElementById('lootPopup');
+  if (!popup) return;
+  const moneyEl = document.getElementById('lootMoney');
+  const repEl   = document.getElementById('lootRep');
+  if (moneyEl) moneyEl.textContent = money > 0 ? `+${money.toLocaleString()} ₽` : '';
+  if (repEl)   repEl.textContent   = rep > 0   ? `+${rep} réputation`            : '';
+  popup.classList.add('show');
+  clearTimeout(_lootPopupTimer);
+  _lootPopupTimer = setTimeout(() => popup.classList.remove('show'), 3000);
 }
 
 function closeCombatPopup() {
@@ -5729,245 +6036,259 @@ function closeCombatPopup() {
 // 16.  UI — MARKET TAB
 // ════════════════════════════════════════════════════════════════
 
-const selectedForSale = new Set();
-
 function renderMarketTab() {
+  renderQuestPanel();
   renderShopPanel();
-  renderSellPanel();
   const cosPanel = document.querySelector('#cosmeticsPanel .cosmetics-list');
   if (cosPanel) renderCosmeticsPanel(cosPanel);
 }
 
-let sellSort = 'potential';
-let sellGroupMode = 'group'; // 'group' | 'list'
-
-function renderSellPanel() {
-  const panel = document.querySelector('#sellPanel .sell-list');
+// ── Quest Panel (replaces sell panel) ────────────────────────────
+function renderQuestPanel() {
+  const panel = document.querySelector('#questPanel .quest-list');
   if (!panel) return;
+  initMissions();
+  initHourlyQuests();
 
-  // Build excluded IDs (teams + favorites)
-  const teamPokemonIds = new Set();
-  for (const agent of state.agents) agent.team.forEach(id => teamPokemonIds.add(id));
-  state.gang.bossTeam.forEach(id => teamPokemonIds.add(id));
-
-  const sellable = state.pokemons.filter(p => !teamPokemonIds.has(p.id) && !p.favorite && !p.shiny);
-
-  if (sellable.length === 0) {
-    panel.innerHTML = buildSellToolbar([], 0) + '<div style="color:var(--text-dim);padding:12px;text-align:center">Aucun Pokémon disponible (hors équipes & favoris)</div>' + buildSellFooter(0);
-    bindSellPanel(panel, []);
-    return;
-  }
-
-  const sortFns = {
-    price:     (a, b) => calculatePrice(b) - calculatePrice(a),
-    name:      (a, b) => speciesName(a.species_en).localeCompare(speciesName(b.species_en)),
-    level:     (a, b) => b.level - a.level,
-    potential: (a, b) => (b.potential + (b.shiny ? 10 : 0)) - (a.potential + (a.shiny ? 10 : 0)),
-    recent:    (a, b) => state.pokemons.indexOf(b) - state.pokemons.indexOf(a),
-  };
-  const sorted = [...sellable].sort(sortFns[sellSort] || sortFns.potential);
-
-  let listHtml = '';
-
-  if (sellGroupMode === 'group') {
-    // Group by species → then by potential
-    const groups = {};
-    for (const p of sorted) {
-      const key = p.species_en;
-      if (!groups[key]) groups[key] = {};
-      const pk = p.potential;
-      if (!groups[key][pk]) groups[key][pk] = [];
-      groups[key][pk].push(p);
-    }
-    // Sort groups by dex
-    const speciesOrder = Object.keys(groups).sort((a, b) => (SPECIES_BY_EN[a]?.dex || 0) - (SPECIES_BY_EN[b]?.dex || 0));
-    for (const species of speciesOrder) {
-      const potGroups = groups[species];
-      const sp = SPECIES_BY_EN[species];
-      // Sort potential groups descending
-      for (const pot of Object.keys(potGroups).map(Number).sort((a, b) => b - a)) {
-        const poks = potGroups[pot];
-        const allSel = poks.every(p => selectedForSale.has(p.id));
-        const anySel = poks.some(p => selectedForSale.has(p.id));
-        const samplePrice = calculatePrice(poks[0]);
-        const totalGroupPrice = poks.reduce((s, p) => s + calculatePrice(p), 0);
-        const saturation = getMarketSaturation(species);
-        listHtml += `<div class="sell-group ${allSel ? 'sell-group-sel' : ''}" data-group-species="${species}" data-group-pot="${pot}" style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-bottom:1px solid var(--border);cursor:pointer;background:${allSel ? 'var(--bg-hover)' : anySel ? 'rgba(255,204,90,.06)' : 'transparent'}">
-          <img src="${pokeSprite(species)}" style="width:36px;height:36px">
-          <div style="flex:1;min-width:0">
-            <div style="font-size:12px">${speciesName(species)} <span style="color:var(--gold)">${'★'.repeat(pot)}</span>${poks.some(p => p.shiny) ? ' ✨' : ''}</div>
-            <div style="font-size:10px;color:var(--text-dim)">×${poks.length} — ${samplePrice}₽/u${saturation > 0 ? ` <span style="color:var(--red)">▼${saturation}%</span>` : ''}</div>
-          </div>
-          <div style="text-align:right">
-            <div style="font-family:var(--font-pixel);font-size:10px;color:var(--gold)">${totalGroupPrice}₽</div>
-            <div style="font-size:9px;color:var(--text-dim)">${allSel ? '✓ tout' : anySel ? '~ partiel' : ''}</div>
-          </div>
-        </div>`;
-      }
-    }
-  } else {
-    // List mode
-    listHtml = sorted.map(p => {
-      const price = calculatePrice(p);
-      const sel = selectedForSale.has(p.id);
-      const sat = getMarketSaturation(p.species_en);
-      return `<div style="display:flex;align-items:center;gap:8px;padding:6px 4px;border-bottom:1px solid var(--border);cursor:pointer;background:${sel ? 'var(--bg-hover)' : 'transparent'}" data-sell-id="${p.id}">
-        <img src="${pokeSprite(p.species_en, p.shiny)}" style="width:36px;height:36px">
-        <div style="flex:1;min-width:0">
-          <div style="font-size:12px">${speciesName(p.species_en)} ${'★'.repeat(p.potential)}${p.shiny ? ' ✨' : ''}</div>
-          <div style="font-size:10px;color:var(--text-dim)">Lv.${p.level}</div>
+  // ── Helper: build a classic mission section ──────────────────
+  function buildSection(title, timer, missions) {
+    if (missions.length === 0) return '';
+    let html = `<div class="quest-section-title">${title}${timer ? `<span class="quest-timer">${timer}</span>` : ''}</div>`;
+    for (const m of missions) {
+      const progress = getMissionProgress(m);
+      const complete  = isMissionComplete(m);
+      const claimed   = isMissionClaimed(m);
+      const pct = Math.min(100, (progress / m.target) * 100);
+      const name = state.lang === 'fr' ? m.fr : m.en;
+      const rewardStr = [m.reward.money ? m.reward.money.toLocaleString() + '₽' : '', m.reward.rep ? '+' + m.reward.rep + ' rep' : ''].filter(Boolean).join('  ');
+      const fillColor = complete ? 'var(--green)' : 'var(--red)';
+      html += `<div class="quest-entry${claimed ? ' claimed' : ''}">
+        <span class="quest-icon">${m.icon}</span>
+        <div class="quest-body">
+          <div class="quest-name${claimed ? ' done' : ''}">${name}</div>
+          ${m.desc_fr ? `<div class="quest-desc">${state.lang === 'fr' ? m.desc_fr : m.desc_en}</div>` : ''}
+          <div class="quest-progress-bar"><div class="quest-progress-fill" style="width:${pct}%;background:${fillColor}"></div></div>
+          <div class="quest-reward">${progress}/${m.target}${rewardStr ? '  —  ' + rewardStr : ''}</div>
         </div>
-        <div style="font-family:var(--font-pixel);font-size:10px;color:var(--gold)">${price}₽${sat > 0 ? `<br><span style="color:var(--red);font-size:8px">▼${sat}%</span>` : ''}</div>
+        ${complete && !claimed
+          ? `<button class="btn-claim-quest" data-mission-id="${m.id}">Réclamer</button>`
+          : claimed ? '<span style="font-size:12px;color:var(--green)">✓</span>' : ''}
       </div>`;
-    }).join('');
-  }
-
-  let total = 0;
-  for (const id of selectedForSale) {
-    const p = state.pokemons.find(pk => pk.id === id);
-    if (p) total += calculatePrice(p);
-  }
-
-  panel.innerHTML = buildSellToolbar(sorted, sorted.length) + listHtml + buildSellFooter(total);
-  bindSellPanel(panel, sorted);
-}
-
-function buildSellToolbar(sorted, count) {
-  const sortLabels = { potential: '★ Potentiel', price: '₽ Prix', name: 'Nom', level: 'Niv.', recent: 'Récent' };
-  let bar = '<div style="display:flex;gap:4px;padding:4px;border-bottom:1px solid var(--border);flex-wrap:wrap;align-items:center">';
-  for (const [key, label] of Object.entries(sortLabels)) {
-    bar += `<button class="sell-sort-btn" data-sort="${key}" style="font-size:9px;padding:3px 7px;border-radius:4px;border:1px solid ${sellSort === key ? 'var(--red)' : 'var(--border)'};background:${sellSort === key ? 'var(--red-dark)' : 'var(--bg)'};color:var(--text);cursor:pointer">${label}</button>`;
-  }
-  bar += `<div style="margin-left:auto;display:flex;gap:4px">`;
-  bar += `<button class="sell-sort-btn" data-sort="toggle-group" style="font-size:9px;padding:3px 7px;border-radius:4px;border:1px solid ${sellGroupMode === 'group' ? 'var(--gold)' : 'var(--border)'};background:${sellGroupMode === 'group' ? 'var(--gold-dim)' : 'var(--bg)'};color:var(--text);cursor:pointer">Grouper</button>`;
-  bar += `<button class="sell-sort-btn" data-sort="select-all" style="font-size:9px;padding:3px 7px;border-radius:4px;border:1px solid var(--border);background:var(--bg);color:var(--gold);cursor:pointer">☑ Tout</button>`;
-  bar += '</div></div>';
-  return bar;
-}
-
-function buildSellFooter(total) {
-  return `<div style="padding:10px;text-align:center;border-top:2px solid var(--border);position:sticky;bottom:0;background:var(--bg-panel)">
-    <div style="font-family:var(--font-pixel);font-size:11px;color:var(--gold);margin-bottom:8px">
-      ${selectedForSale.size > 0 ? `${selectedForSale.size} sélectionné(s) — ${total}₽` : '<span style="color:var(--text-dim);font-size:9px">Cliquer pour sélectionner · ⭐Favoris exclus</span>'}
-    </div>
-    ${selectedForSale.size > 0 ? `<button id="btnSellSelected" style="font-family:var(--font-pixel);font-size:10px;padding:8px 20px;background:var(--red-dark);border:1px solid var(--red);border-radius:var(--radius);color:var(--text);cursor:pointer">Vendre (${total}₽)</button>` : ''}
-  </div>`;
-}
-
-function bindSellPanel(panel, sorted) {
-  // Sort + mode toggles
-  panel.querySelectorAll('.sell-sort-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const s = btn.dataset.sort;
-      if (s === 'toggle-group') {
-        sellGroupMode = sellGroupMode === 'group' ? 'list' : 'group';
-        selectedForSale.clear();
-      } else if (s === 'select-all') {
-        if (selectedForSale.size >= sorted.length) selectedForSale.clear();
-        else sorted.forEach(p => selectedForSale.add(p.id));
-      } else {
-        sellSort = s;
-        selectedForSale.clear();
-      }
-      renderSellPanel();
-    });
-  });
-
-  // Group click: toggle all pokemon in group
-  panel.querySelectorAll('[data-group-species]').forEach(el => {
-    el.addEventListener('click', () => {
-      const species = el.dataset.groupSpecies;
-      const pot = parseInt(el.dataset.groupPot);
-      const teamIds = new Set([...state.gang.bossTeam]);
-      for (const a of state.agents) a.team.forEach(id => teamIds.add(id));
-      const group = state.pokemons.filter(p => p.species_en === species && p.potential === pot && !teamIds.has(p.id) && !p.favorite);
-      const allSel = group.every(p => selectedForSale.has(p.id));
-      group.forEach(p => allSel ? selectedForSale.delete(p.id) : selectedForSale.add(p.id));
-      renderSellPanel();
-    });
-  });
-
-  // Individual list click
-  panel.querySelectorAll('[data-sell-id]').forEach(el => {
-    el.addEventListener('click', () => {
-      const id = el.dataset.sellId;
-      if (selectedForSale.has(id)) selectedForSale.delete(id);
-      else selectedForSale.add(id);
-      renderSellPanel();
-    });
-  });
-
-  // Sell button
-  document.getElementById('btnSellSelected')?.addEventListener('click', () => {
-    if (selectedForSale.size > 0) {
-      sellPokemon([...selectedForSale]);
-      selectedForSale.clear();
-      updateTopBar();
-      renderMarketTab();
     }
+    return html;
+  }
+
+  // ── Hourly section ────────────────────────────────────────────
+  const hourlyRem = Math.max(0, HOUR_MS - (Date.now() - state.missions.hourly.reset));
+  const hMin = Math.floor(hourlyRem / 60000);
+  const hSec = Math.floor((hourlyRem % 60000) / 1000);
+  const hourlyCountdown = `${hMin}m${String(hSec).padStart(2,'0')}s`;
+
+  let hourlyHtml = `<div class="quest-section-title">Quêtes Horaires <span class="quest-timer">${hourlyCountdown}</span></div>`;
+  for (let i = 0; i < 5; i++) {
+    const q = getHourlyQuest(i);
+    if (!q) continue;
+    const progress = getHourlyProgress(q);
+    const complete  = isHourlyComplete(q);
+    const claimed   = isHourlyClaimed(i);
+    const pct = Math.min(100, (progress / q.target) * 100);
+    const rewardStr = [q.reward.money ? q.reward.money.toLocaleString() + '₽' : '', q.reward.rep ? '+' + q.reward.rep + ' rep' : ''].filter(Boolean).join('  ');
+    const diffColor = q.diff === 'hard' ? 'var(--red)' : 'var(--blue)';
+    const fillColor = complete ? 'var(--green)' : diffColor;
+    hourlyHtml += `<div class="quest-entry${claimed ? ' claimed' : ''}" style="border-left:3px solid ${diffColor};padding-left:6px">
+      <span class="quest-icon">${q.icon}</span>
+      <div class="quest-body">
+        <div class="quest-name${claimed ? ' done' : ''}" style="display:flex;align-items:center;gap:5px">
+          ${q.fr}
+          <span style="font-size:7px;padding:1px 4px;border-radius:3px;background:${diffColor};color:#fff;font-family:var(--font-pixel)">${q.diff === 'hard' ? 'HARD' : 'MED'}</span>
+        </div>
+        <div class="quest-progress-bar"><div class="quest-progress-fill" style="width:${pct}%;background:${fillColor}"></div></div>
+        <div class="quest-reward">${progress}/${q.target}  —  ${rewardStr}</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end">
+        ${complete && !claimed
+          ? `<button class="btn-claim-quest btn-claim-hourly" data-slot="${i}">Réclamer</button>`
+          : claimed ? '<span style="font-size:12px;color:var(--green)">✓</span>' : ''}
+        ${!claimed ? `<button class="btn-reroll-hourly" data-slot="${i}" title="Reroll (-${HOURLY_QUEST_REROLL_COST} rep)" style="font-size:7px;padding:3px 6px;background:var(--bg);border:1px solid var(--border);border-radius:3px;color:var(--text-dim);cursor:pointer">↻ ${HOURLY_QUEST_REROLL_COST}rep</button>` : ''}
+      </div>
+    </div>`;
+  }
+
+  // ── Regular missions ──────────────────────────────────────────
+  const dailyRem  = Math.max(0, 86400000  - (Date.now() - state.missions.daily.reset));
+  const weeklyRem = Math.max(0, 604800000 - (Date.now() - state.missions.weekly.reset));
+  const dH = Math.floor(dailyRem / 3600000), dM = Math.floor((dailyRem % 3600000) / 60000);
+  const wD = Math.floor(weeklyRem / 86400000), wH = Math.floor((weeklyRem % 86400000) / 3600000);
+
+  const daily   = MISSIONS.filter(m => m.type === 'daily');
+  const weekly  = MISSIONS.filter(m => m.type === 'weekly');
+  const story   = MISSIONS.filter(m => m.type === 'story' && !isMissionClaimed(m));
+  const done    = MISSIONS.filter(m => m.type === 'story' &&  isMissionClaimed(m));
+
+  panel.innerHTML = hourlyHtml +
+    buildSection('Quotidiennes', `${dH}h${String(dM).padStart(2,'0')}`, daily) +
+    buildSection('Hebdomadaires', `${wD}j ${wH}h`, weekly) +
+    buildSection('Histoire & Objectifs', '', story) +
+    (done.length ? buildSection('Terminées', '', done) : '');
+
+  // Bind buttons
+  panel.querySelectorAll('.btn-claim-quest').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const m = MISSIONS.find(m => m.id === btn.dataset.missionId);
+      if (m) { claimMission(m); renderQuestPanel(); }
+    });
+  });
+  panel.querySelectorAll('.btn-claim-hourly').forEach(btn => {
+    btn.addEventListener('click', () => {
+      claimHourlyQuest(parseInt(btn.dataset.slot));
+      renderQuestPanel();
+    });
+  });
+  panel.querySelectorAll('.btn-reroll-hourly').forEach(btn => {
+    btn.addEventListener('click', () => {
+      rerollHourlyQuest(parseInt(btn.dataset.slot));
+      renderQuestPanel();
+    });
   });
 }
+
+
+let shopMultiplier = 1; // ×1, ×5, ×10
 
 function renderShopPanel() {
   const panel = document.querySelector('#shopPanel .shop-list');
   if (!panel) return;
 
   const ZONE_UNLOCK_ITEM_IDS = new Set(['map_pallet','casino_ticket','silph_keycard','boat_ticket']);
-  panel.innerHTML = SHOP_ITEMS.map(item => {
+  const ONE_OFF_IDS = new Set(['mysteryegg','incubator','translator','map_pallet','casino_ticket','silph_keycard','boat_ticket']);
+
+  // ── Multiplier toolbar ─────────────────────────────────────────
+  const multBar = [1,5,10].map(m =>
+    `<button class="shop-mult-btn" data-mult="${m}" style="font-family:var(--font-pixel);font-size:9px;padding:4px 10px;border-radius:var(--radius-sm);cursor:pointer;
+      background:${shopMultiplier===m?'var(--gold-dim)':'var(--bg)'};
+      border:1px solid ${shopMultiplier===m?'var(--gold)':'var(--border)'};
+      color:${shopMultiplier===m?'#0a0a0a':'var(--text)'}"
+    >×${m}</button>`
+  ).join('');
+
+  // ── Shop items ─────────────────────────────────────────────────
+  const itemsHtml = SHOP_ITEMS.map(item => {
     const ballInfo = BALLS[item.id];
     const name = ballInfo ? (state.lang === 'fr' ? ballInfo.fr : ballInfo.en) : (state.lang === 'fr' ? (item.fr || item.id) : (item.en || item.id));
-    const desc = item.desc_fr ? (state.lang === 'fr' ? item.desc_fr : item.desc_en) : `x${item.qty}`;
     const owned = state.inventory[item.id] || 0;
-    const displayCost = item.id === 'mysteryegg' ? getMysteryEggCost()
-      : item.id === 'incubator' ? Math.round(15000 * Math.pow(2, state.inventory.incubator || 0))
+    const isOneOff = ONE_OFF_IDS.has(item.id);
+    const mult = isOneOff ? 1 : shopMultiplier;
+    const baseCost = item.id === 'mysteryegg' ? getMysteryEggCost()
+      : item.id === 'incubator' ? Math.round(15000 * Math.pow(2, owned))
       : item.cost;
+    const totalCost = baseCost * mult;
+    const totalQty  = item.qty * mult;
     const isUnlockItem = ZONE_UNLOCK_ITEM_IDS.has(item.id);
     const alreadyOwned = isUnlockItem && state.purchases?.[item.id];
-    const incubatorMaxed = item.id === 'incubator' && (state.inventory.incubator || 0) >= 10;
+    const incubatorMaxed = item.id === 'incubator' && owned >= 10;
+    const desc = item.desc_fr
+      ? (state.lang === 'fr' ? item.desc_fr : item.desc_en)
+      : `×${totalQty}`;
     const extraInfo = item.id === 'mysteryegg'
-      ? `<div style="font-size:9px;color:var(--text-dim)">Achat #${(state.purchases?.mysteryEggCount||0)+1} — 45min eclosion</div>`
+      ? `<div style="font-size:9px;color:var(--text-dim)">Achat #${(state.purchases?.mysteryEggCount||0)+1} — 45min éclosion</div>`
       : item.id === 'incubator'
         ? `<div style="font-size:10px;color:var(--text-dim)">Possédés: ${owned}/10${incubatorMaxed ? ' <span style="color:var(--red)">MAX</span>' : ''}</div>`
         : isUnlockItem
-          ? `<div style="font-size:10px;color:${alreadyOwned ? 'var(--green)' : 'var(--text-dim)'}">${alreadyOwned ? (state.lang === 'fr' ? '✓ Possédé' : '✓ Owned') : (state.lang === 'fr' ? 'Débloque une zone' : 'Unlocks a zone')}</div>`
-          : `<div style="font-size:10px;color:var(--text-dim)">En stock: ${owned}</div>`;
+          ? `<div style="font-size:10px;color:${alreadyOwned?'var(--green)':'var(--text-dim)'}"> ${alreadyOwned ? '✓ Possédé' : 'Débloque une zone'}</div>`
+          : `<div style="font-size:10px;color:var(--text-dim)">Stock: ${owned}${!isOneOff && mult>1 ? ` (+${totalQty})` : ''}</div>`;
     const btnDisabled = alreadyOwned || incubatorMaxed;
-    return `<div style="display:flex;align-items:center;gap:8px;padding:8px 4px;border-bottom:1px solid var(--border);opacity:${btnDisabled ? '0.6' : '1'}">
+    const btnLabel = btnDisabled
+      ? (incubatorMaxed ? 'MAX' : 'Acquis')
+      : `${totalCost.toLocaleString()}₽${mult>1&&!isOneOff ? ` ×${mult}` : ''}`;
+    return `<div style="display:flex;align-items:center;gap:8px;padding:8px 4px;border-bottom:1px solid var(--border);opacity:${btnDisabled?'0.6':'1'}">
       ${itemSprite(item.id)}
       <div style="flex:1">
         <div style="font-size:12px">${name} <span style="color:var(--text-dim)">(${desc})</span></div>
         ${extraInfo}
       </div>
-      <button style="font-family:var(--font-pixel);font-size:9px;padding:6px 12px;background:var(--bg);border:1px solid ${btnDisabled ? 'var(--border)' : 'var(--gold-dim)'};border-radius:var(--radius-sm);color:${btnDisabled ? 'var(--text-dim)' : 'var(--gold)'};cursor:${btnDisabled ? 'default' : 'pointer'}"
-        data-shop-idx="${SHOP_ITEMS.indexOf(item)}" ${btnDisabled ? 'disabled' : ''}>${btnDisabled ? (incubatorMaxed ? 'MAX' : (state.lang === 'fr' ? 'Acquis' : 'Owned')) : displayCost.toLocaleString()+'₽'}</button>
+      <button style="font-family:var(--font-pixel);font-size:9px;padding:6px 10px;background:var(--bg);
+        border:1px solid ${btnDisabled?'var(--border)':'var(--gold-dim)'};border-radius:var(--radius-sm);
+        color:${btnDisabled?'var(--text-dim)':'var(--gold)'};cursor:${btnDisabled?'default':'pointer'};white-space:nowrap"
+        data-shop-idx="${SHOP_ITEMS.indexOf(item)}" data-shop-mult="${mult}" ${btnDisabled?'disabled':''}>${btnLabel}</button>
     </div>`;
   }).join('');
 
-  // Active ball selector
-  panel.innerHTML += `
-    <div style="padding:10px;border-top:2px solid var(--border);margin-top:8px">
-      <div style="font-family:var(--font-pixel);font-size:9px;color:var(--gold);margin-bottom:8px">Ball active</div>
+  // ── Ball trade section ─────────────────────────────────────────
+  const pb  = state.inventory.pokeball  || 0;
+  const gb  = state.inventory.greatball || 0;
+  const ub  = state.inventory.ultraball || 0;
+  const mb  = state.inventory.masterball|| 0;
+  // Rates: 10 PB → 3 GB  |  10 GB → 3 UB  |  1000 UB → 1 MB
+  const tradeRows = [
+    { fromId:'pokeball',  fromQty:10, toId:'greatball', toQty:3,  label:`10 Poké Ball → 3 Super Ball`, canTrade: pb >= 10  },
+    { fromId:'greatball', fromQty:10, toId:'ultraball',  toQty:3,  label:`10 Super Ball → 3 Hyper Ball`, canTrade: gb >= 10  },
+    { fromId:'ultraball', fromQty:1000, toId:'masterball',toQty:1, label:`1000 Hyper Ball → 1 Master Ball`, canTrade: ub >= 1000 },
+  ];
+  const tradeHtml = `
+    <div style="padding:10px 4px;border-top:2px solid var(--border);margin-top:4px">
+      <div style="font-family:var(--font-pixel);font-size:9px;color:var(--gold);margin-bottom:8px">— ÉCHANGE —</div>
+      ${tradeRows.map((t, i) => `
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)">
+          <div style="font-size:10px;color:${t.canTrade?'var(--text)':'var(--text-dim)'}">${t.label}</div>
+          <button class="btn-ball-trade" data-trade-idx="${i}"
+            style="font-family:var(--font-pixel);font-size:8px;padding:5px 10px;background:var(--bg);
+              border:1px solid ${t.canTrade?'var(--blue)':'var(--border)'};border-radius:var(--radius-sm);
+              color:${t.canTrade?'var(--blue)':'var(--text-dim)'};cursor:${t.canTrade?'pointer':'default'}"
+            ${t.canTrade?'':'disabled'}>Échanger</button>
+        </div>`).join('')}
+    </div>`;
+
+  // ── Active ball selector ───────────────────────────────────────
+  const ballSel = `
+    <div style="padding:10px 4px;border-top:2px solid var(--border);margin-top:4px">
+      <div style="font-family:var(--font-pixel);font-size:9px;color:var(--gold);margin-bottom:8px">— BALL ACTIVE —</div>
       <div style="display:flex;gap:6px;flex-wrap:wrap">
         ${Object.entries(BALLS).map(([key, ball]) => `
-          <button style="font-size:10px;padding:4px 10px;border-radius:var(--radius-sm);cursor:pointer;
-            background:${state.activeBall === key ? 'var(--red-dark)' : 'var(--bg)'};
-            border:1px solid ${state.activeBall === key ? 'var(--red)' : 'var(--border)'};
-            color:var(--text)" data-ball="${key}">
-            ${state.lang === 'fr' ? ball.fr : ball.en} (${state.inventory[key] || 0})
-          </button>
-        `).join('')}
+          <button data-ball="${key}" style="font-size:10px;padding:4px 10px;border-radius:var(--radius-sm);cursor:pointer;
+            background:${state.activeBall===key?'var(--red-dark)':'var(--bg)'};
+            border:1px solid ${state.activeBall===key?'var(--red)':'var(--border)'};color:var(--text)">
+            ${state.lang==='fr'?ball.fr:ball.en} (${state.inventory[key]||0})
+          </button>`).join('')}
       </div>
     </div>`;
 
-  // Click handlers
+  panel.innerHTML = `
+    <div style="display:flex;align-items:center;gap:6px;padding:6px 4px 8px;border-bottom:1px solid var(--border)">
+      <span style="font-family:var(--font-pixel);font-size:8px;color:var(--text-dim)">Quantité :</span>
+      ${multBar}
+    </div>
+    ${itemsHtml}${tradeHtml}${ballSel}`;
+
+  // ── Bind events ────────────────────────────────────────────────
+  panel.querySelectorAll('.shop-mult-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      shopMultiplier = parseInt(btn.dataset.mult);
+      renderShopPanel();
+    });
+  });
   panel.querySelectorAll('[data-shop-idx]').forEach(btn => {
     btn.addEventListener('click', () => {
       const item = SHOP_ITEMS[parseInt(btn.dataset.shopIdx)];
-      if (item) {
-        buyItem(item);
-        updateTopBar();
-        renderShopPanel();
+      const mult = parseInt(btn.dataset.shopMult) || 1;
+      if (!item || btn.disabled) return;
+      for (let i = 0; i < mult; i++) {
+        if (!buyItem(item)) break;
       }
+      updateTopBar();
+      renderShopPanel();
+    });
+  });
+  panel.querySelectorAll('.btn-ball-trade').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const t = tradeRows[parseInt(btn.dataset.tradeIdx)];
+      if (!t || !t.canTrade) return;
+      state.inventory[t.fromId] -= t.fromQty;
+      state.inventory[t.toId]   = (state.inventory[t.toId] || 0) + t.toQty;
+      saveState();
+      notify(`Échange : ${t.label}`, 'gold');
+      if (t.toId === 'masterball') notify('🏆 MASTER BALL obtenue !', 'gold');
+      updateTopBar();
+      renderShopPanel();
     });
   });
   panel.querySelectorAll('[data-ball]').forEach(btn => {
@@ -5991,6 +6312,19 @@ let pcGridCols = 6;   // colonnes de la grille (configurable)
 let pcGridRows = 6;   // lignes par page (configurable)
 let pcGroupMode = false; // regroupement par espèce
 let pcGroupSpecies = null; // espèce sélectionnée en mode groupe
+
+// ── Filter PC to a specific species (from detail panel or Pokédex) ──
+function filterPCBySpecies(species_en) {
+  switchTab('tabPC');
+  // Set search to match species so grid shows only this species group
+  const searchEl = document.getElementById('pcSearch');
+  if (searchEl) searchEl.value = speciesName(species_en);
+  pcGroupMode = true;
+  pcGroupSpecies = species_en;
+  pcPage = 0;
+  _pcLastRenderKey = '';
+  renderPCTab();
+}
 
 // ── Context Menu ──────────────────────────────────────────────
 let ctxMenu = null;
@@ -6713,6 +7047,11 @@ function renderPokemonDetail() {
       <button style="flex:1;font-size:10px;padding:6px;background:var(--red-dark);border:1px solid var(--red);border-radius:var(--radius-sm);color:var(--text);cursor:pointer" id="btnSellOne">${t('sell')} (${price}₽)</button>
       <button style="flex:1;font-size:10px;padding:6px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-dim);cursor:pointer" id="btnRelease">${t('release')}</button>
     </div>
+    <div style="margin-top:8px">
+      <button id="btnFilterSpecies" style="width:100%;font-size:9px;padding:5px;background:var(--bg);border:1px solid var(--blue);border-radius:var(--radius-sm);color:var(--blue);cursor:pointer;font-family:var(--font-pixel)">
+        🔍 Voir tous les ${speciesName(p.species_en)} (×${state.pokemons.filter(x => x.species_en === p.species_en).length})
+      </button>
+    </div>
     ${renderEvolutionPanel(p)}
     ${renderPotentialUpgradePanel(p)}
     ${renderPokemonHistory(p)}
@@ -6793,6 +7132,10 @@ function renderPokemonDetail() {
     saveState();
     notify(`${speciesName(p.species_en)} retiré de la formation`, 'success');
     renderPCTab();
+  });
+
+  document.getElementById('btnFilterSpecies')?.addEventListener('click', () => {
+    filterPCBySpecies(p.species_en);
   });
 
   // Potential upgrade button
@@ -6987,8 +7330,16 @@ function renderDexDetail(species_en) {
           </div>`).join('')}
       </div>
     </div>
+    ${ownedCount > 0 ? `
+    <div style="margin-top:10px">
+      <button id="dexFilterPCBtn" style="width:100%;font-size:9px;padding:6px;background:var(--bg);border:1px solid var(--blue);border-radius:var(--radius-sm);color:var(--blue);cursor:pointer;font-family:var(--font-pixel)">
+        🔍 Voir dans le PC (×${ownedCount})
+      </button>
+    </div>` : ''}
     ` : `<div style="color:var(--text-dim);font-size:10px;padding:20px;text-align:center">Pas encore rencontré</div>`}
   `;
+
+  document.getElementById('dexFilterPCBtn')?.addEventListener('click', () => filterPCBySpecies(sp.en));
 }
 
 function renderPokedexTab() {
@@ -8678,6 +9029,20 @@ function startGameLoop() {
   // Passive agent tick every 10 seconds (closed zones, background activity)
   setInterval(passiveAgentTick, 10000);
 
+  // Hourly quests countdown refresh (every 10s when market tab open)
+  setInterval(() => {
+    if (activeTab === 'tabMarket') renderQuestPanel();
+  }, 10000);
+
+  // Hourly quest reset check (every minute)
+  setInterval(() => {
+    if (state.missions?.hourly && Date.now() - state.missions.hourly.reset >= HOUR_MS) {
+      initHourlyQuests();
+      if (activeTab === 'tabMarket') renderQuestPanel();
+      notify('⏰ Nouvelles quêtes horaires disponibles !', 'gold');
+    }
+  }, 60000);
+
   // Market decay every 5 minutes
   setInterval(decayMarketSales, 300000);
 
@@ -9340,6 +9705,30 @@ function boot() {
   if (!state.gang.initialized) {
     showIntro();
   }
+
+  // Zone unlock popup bindings
+  document.getElementById('zoneUnlockGo')?.addEventListener('click', () => {
+    const popup = document.getElementById('zoneUnlockPopup');
+    if (!popup) return;
+    popup.classList.remove('show');
+    const zoneId = popup._zoneId;
+    if (!zoneId) { _processZoneUnlockQueue(); return; }
+    switchTab('tabZones');
+    if (!openZones.has(zoneId)) openZoneWindow(zoneId);
+    else renderZonesTab();
+    setTimeout(() => {
+      const zw = document.getElementById(`zw-${zoneId}`);
+      if (zw) { zw.scrollIntoView({ behavior: 'smooth' }); zw.classList.add('zone-highlight'); setTimeout(() => zw.classList.remove('zone-highlight'), 1500); }
+    }, 150);
+    _processZoneUnlockQueue();
+  });
+  document.getElementById('zoneUnlockClose')?.addEventListener('click', () => {
+    document.getElementById('zoneUnlockPopup')?.classList.remove('show');
+    _processZoneUnlockQueue();
+  });
+  document.getElementById('zoneUnlockPopup')?.addEventListener('click', e => {
+    if (e.target.id === 'zoneUnlockPopup') { e.target.classList.remove('show'); _processZoneUnlockQueue(); }
+  });
 
   // Apply cosmetics (bg theme)
   applyCosmetics();
