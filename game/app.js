@@ -1212,6 +1212,9 @@ const DEFAULT_STATE = {
     bossBg: null,       // CSS for boss panel background
     unlockedBgs: [],    // IDs of unlocked cosmetic backgrounds
   },
+  lab: {
+    trackedSpecies: [], // espèces suivies dans le tracker du labo
+  },
   purchases: {
     translator: false,
   },
@@ -1321,6 +1324,8 @@ function migrate(saved) {
   if (!merged.trainingRoom.lastFight) merged.trainingRoom.lastFight = null;
   if (!merged.trainingRoom.level) merged.trainingRoom.level = 1;
   if (!merged.cosmetics) merged.cosmetics = { gameBg: null, bossBg: null, unlockedBgs: [] };
+  if (!merged.lab) merged.lab = { trackedSpecies: [] };
+  if (!merged.lab.trackedSpecies) merged.lab.trackedSpecies = [];
   if (!merged.purchases) merged.purchases = { translator: false, mysteryEggCount: 0 };
   if (merged.purchases.mysteryEggCount === undefined) merged.purchases.mysteryEggCount = 0;
   if (!merged.lastBillCall) merged.lastBillCall = 0;
@@ -5934,8 +5939,13 @@ function renderShopPanel() {
 // ════════════════════════════════════════════════════════════════
 
 let pcSelectedId = null;
+let pcSelectedIds = new Set(); // Ctrl+click multi-selection
 let pcPage = 0;
 const PC_PAGE_SIZE = 36;
+let pcGridCols = 6;   // colonnes de la grille (configurable)
+let pcGridRows = 6;   // lignes par page (configurable)
+let pcGroupMode = false; // regroupement par espèce
+let pcGroupSpecies = null; // espèce sélectionnée en mode groupe
 
 // ── Context Menu ──────────────────────────────────────────────
 let ctxMenu = null;
@@ -6122,6 +6132,47 @@ function renderPCTab() {
       subViews.forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
     }
   }
+
+  // ── Barre d'outils PC (grille + groupement) ───────────────────
+  let pcToolbar = document.getElementById('pcToolbar');
+  const pcGrid = document.getElementById('pokemonGrid');
+  if (!pcToolbar && pcGrid) {
+    pcToolbar = document.createElement('div');
+    pcToolbar.id = 'pcToolbar';
+    pcGrid.parentNode.insertBefore(pcToolbar, pcGrid);
+  }
+  if (pcToolbar) {
+    pcToolbar.style.cssText = 'display:flex;align-items:center;gap:8px;padding:4px 0 4px 2px;flex-wrap:wrap';
+    pcToolbar.innerHTML = `
+      <span style="font-family:var(--font-pixel);font-size:7px;color:var(--text-dim)">Grille:</span>
+      <select id="pcColsSel" style="font-size:9px;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:3px;padding:2px 4px">
+        <option value="4" ${pcGridCols===4?'selected':''}>4 col</option>
+        <option value="6" ${pcGridCols===6?'selected':''}>6 col</option>
+        <option value="8" ${pcGridCols===8?'selected':''}>8 col</option>
+        <option value="10" ${pcGridCols===10?'selected':''}>10 col</option>
+      </select>
+      <select id="pcRowsSel" style="font-size:9px;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:3px;padding:2px 4px">
+        <option value="4" ${pcGridRows===4?'selected':''}>4 lg</option>
+        <option value="6" ${pcGridRows===6?'selected':''}>6 lg</option>
+        <option value="8" ${pcGridRows===8?'selected':''}>8 lg</option>
+      </select>
+      <label style="display:flex;align-items:center;gap:4px;font-family:var(--font-pixel);font-size:8px;color:var(--text-dim);cursor:pointer;user-select:none">
+        <input type="checkbox" id="pcGroupChk" ${pcGroupMode?'checked':''} style="accent-color:var(--gold)">
+        Grouper
+      </label>`;
+    document.getElementById('pcColsSel')?.addEventListener('change', e => {
+      pcGridCols = parseInt(e.target.value); pcPage = 0; renderPokemonGrid(true);
+    });
+    document.getElementById('pcRowsSel')?.addEventListener('change', e => {
+      pcGridRows = parseInt(e.target.value); pcPage = 0; renderPokemonGrid(true);
+    });
+    document.getElementById('pcGroupChk')?.addEventListener('change', e => {
+      pcGroupMode = e.target.checked;
+      pcGroupSpecies = null; pcPage = 0;
+      renderPokemonGrid(true); renderPokemonDetail();
+    });
+  }
+
   renderPokemonGrid();
   renderPokemonDetail();
 }
@@ -6235,7 +6286,7 @@ function renderEggsView(container) {
 function _buildPCCard(p, teamIds, trainingIds) {
   const inTeam = teamIds.has(p.id);
   const inTraining = trainingIds.has(p.id);
-  return `<div class="pc-pokemon ${p.shiny ? 'shiny' : ''} ${pcSelectedId === p.id ? 'selected' : ''} ${inTeam ? 'in-team' : ''} ${inTraining ? 'in-training' : ''}" data-pk-id="${p.id}" title="${speciesName(p.species_en)} Lv.${p.level} ${'★'.repeat(p.potential)}${p.shiny ? ' ✨' : ''}${inTraining ? ' [ENTRAINEMENT]' : ''}">
+  return `<div class="pc-pokemon ${p.shiny ? 'shiny' : ''} ${pcSelectedId === p.id ? 'selected' : ''} ${pcSelectedIds.has(p.id) ? 'multi-selected' : ''} ${inTeam ? 'in-team' : ''} ${inTraining ? 'in-training' : ''}" data-pk-id="${p.id}" title="${speciesName(p.species_en)} Lv.${p.level} ${'★'.repeat(p.potential)}${p.shiny ? ' ✨' : ''}${inTraining ? ' [ENTRAINEMENT]' : ''}">
     <img src="${pokeSprite(p.species_en, p.shiny)}" alt="${speciesName(p.species_en)}">
     ${p.favorite ? '<div class="pc-fav-badge">FAV</div>' : ''}
     ${inTeam ? '<div class="pc-team-badge">EQ</div>' : ''}
@@ -6244,9 +6295,27 @@ function _buildPCCard(p, teamIds, trainingIds) {
 }
 
 function _bindPCCardListeners(el) {
-  el.addEventListener('click', () => {
-    pcSelectedId = el.dataset.pkId;
-    renderPCTab();
+  el.addEventListener('click', (e) => {
+    if (e.ctrlKey || e.metaKey) {
+      // Ctrl+Click : basculer la multi-sélection sans rebuild complet
+      const id = el.dataset.pkId;
+      if (pcSelectedIds.has(id)) {
+        pcSelectedIds.delete(id);
+        el.classList.remove('multi-selected');
+      } else {
+        pcSelectedIds.add(id);
+        el.classList.add('multi-selected');
+      }
+      renderPokemonDetail();
+    } else {
+      // Clic normal : effacer la multi-sélection, sélectionner ce Pokémon
+      if (pcSelectedIds.size > 0) {
+        pcSelectedIds.clear();
+        document.querySelectorAll('.pc-pokemon.multi-selected').forEach(c => c.classList.remove('multi-selected'));
+      }
+      pcSelectedId = el.dataset.pkId;
+      renderPCTab();
+    }
   });
   el.addEventListener('contextmenu', (e) => {
     e.preventDefault();
@@ -6307,25 +6376,30 @@ function renderPokemonGrid(forceRebuild = false) {
   }
   if (filter !== 'fav') list.sort((a, b) => (b.favorite ? 1 : 0) - (a.favorite ? 1 : 0));
 
-  const totalPages = Math.max(1, Math.ceil(list.length / PC_PAGE_SIZE));
+  const pageSize = pcGroupMode ? list.length : (pcGridCols * pcGridRows);
+  const totalPages = Math.max(1, Math.ceil(list.length / pageSize));
   if (pcPage >= totalPages) pcPage = totalPages - 1;
-  const pageList = list.slice(pcPage * PC_PAGE_SIZE, (pcPage + 1) * PC_PAGE_SIZE);
+  const pageList = list.slice(pcPage * pageSize, (pcPage + 1) * pageSize);
 
   const pagination = document.getElementById('pcPagination');
   const teamIds = new Set([...state.gang.bossTeam]);
   for (const a of state.agents) a.team.forEach(id => teamIds.add(id));
   const trainingIds = new Set(state.trainingRoom.pokemon);
 
-  // Render key: rebuild only if filters/sort/page changed
-  const renderKey = `${search}|${filter}|${sort}|${pcPage}|${totalPages}`;
+  // Render key: rebuild on any change (list length catches sells/releases, species catches evolutions)
+  const speciesHash = list.slice(pcPage * pageSize, (pcPage + 1) * pageSize).map(p => p.species_en + p.level).join(',').length;
+  const renderKey = `${search}|${filter}|${sort}|${pcPage}|${totalPages}|${list.length}|${speciesHash}|${pcGroupMode}|${pcGridCols}|${pcGroupSpecies}`;
   const needsRebuild = forceRebuild || renderKey !== _pcLastRenderKey;
 
   if (needsRebuild) {
     _pcLastRenderKey = renderKey;
 
-    // Pagination
+    // Apply dynamic grid columns
+    grid.style.gridTemplateColumns = `repeat(${pcGridCols}, 1fr)`;
+
+    // Pagination (hidden in group mode)
     if (pagination) {
-      pagination.innerHTML = totalPages <= 1 ? '' :
+      pagination.innerHTML = (pcGroupMode || totalPages <= 1) ? '' :
         `<button class="pc-page-btn" id="pcPrev" ${pcPage === 0 ? 'disabled' : ''}>&lt;</button>
          <span style="font-size:9px;color:var(--text-dim)">${pcPage + 1} / ${totalPages} (${list.length})</span>
          <button class="pc-page-btn" id="pcNext" ${pcPage >= totalPages - 1 ? 'disabled' : ''}>&gt;</button>`;
@@ -6333,31 +6407,69 @@ function renderPokemonGrid(forceRebuild = false) {
       pagination.querySelector('#pcNext')?.addEventListener('click', () => { pcPage++; renderPokemonGrid(true); });
     }
 
-    // Full grid rebuild
-    grid.innerHTML = pageList.map(p => _buildPCCard(p, teamIds, trainingIds)).join('')
-      || '<div style="color:var(--text-dim);padding:16px;grid-column:1/-1;text-align:center">Aucun Pokémon</div>';
-    grid.querySelectorAll('.pc-pokemon').forEach(el => _bindPCCardListeners(el));
+    if (pcGroupMode) {
+      // ── Mode regroupement : une carte par espèce ──────────────
+      const groups = {};
+      for (const p of list) {
+        if (!groups[p.species_en]) groups[p.species_en] = [];
+        groups[p.species_en].push(p);
+      }
+      const sortedGroups = Object.entries(groups).sort((a, b) => b[1].length - a[1].length);
+      grid.innerHTML = sortedGroups.map(([species, pks]) => {
+        const maxPot = Math.max(...pks.map(p => p.potential));
+        const maxLvl = Math.max(...pks.map(p => p.level));
+        const hasShiny = pks.some(p => p.shiny);
+        const hasFav   = pks.some(p => p.favorite);
+        const isSelected = pcGroupSpecies === species;
+        return `<div class="pc-group-card${isSelected ? ' selected' : ''}" data-group-species="${species}"
+          style="position:relative;cursor:pointer;padding:4px 2px;border-radius:var(--radius-sm);
+          border:2px solid ${isSelected ? 'var(--gold)' : 'var(--border)'};
+          background:var(--bg-card);text-align:center;transition:border-color .15s;overflow:hidden">
+          <img src="${pokeSprite(species, hasShiny)}" style="width:48px;height:48px;${hasShiny ? 'filter:drop-shadow(0 0 4px gold)' : ''}">
+          <div style="font-size:7px;font-family:var(--font-pixel);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 2px">${speciesName(species)}</div>
+          <div style="font-size:8px;color:var(--gold)">×${pks.length}</div>
+          <div style="font-size:6px;color:var(--text-dim)">${'★'.repeat(maxPot)} Lv.${maxLvl}</div>
+          ${hasFav  ? '<div style="position:absolute;top:2px;right:2px;font-size:9px;line-height:1">⭐</div>' : ''}
+          ${hasShiny ? '<div style="position:absolute;top:2px;left:2px;font-size:9px;line-height:1">✨</div>' : ''}
+        </div>`;
+      }).join('') || '<div style="color:var(--text-dim);padding:16px;grid-column:1/-1;text-align:center">Aucun Pokémon</div>';
+
+      grid.querySelectorAll('.pc-group-card').forEach(el => {
+        el.addEventListener('click', () => {
+          pcGroupSpecies = el.dataset.groupSpecies;
+          renderPokemonGrid(true);
+          renderPokemonDetailGroup(pcGroupSpecies);
+        });
+      });
+
+    } else {
+      // ── Mode normal : une carte par Pokémon ───────────────────
+      grid.innerHTML = pageList.map(p => _buildPCCard(p, teamIds, trainingIds)).join('')
+        || '<div style="color:var(--text-dim);padding:16px;grid-column:1/-1;text-align:center">Aucun Pokémon</div>';
+      grid.querySelectorAll('.pc-pokemon').forEach(el => _bindPCCardListeners(el));
+    }
 
   } else {
-    // Soft update: append new cards, update selection — no full rebuild
-    const existingIds = new Set([...grid.querySelectorAll('.pc-pokemon')].map(el => el.dataset.pkId));
-    let added = 0;
-    for (const p of pageList) {
-      if (!existingIds.has(p.id)) {
-        const wrap = document.createElement('div');
-        wrap.innerHTML = _buildPCCard(p, teamIds, trainingIds);
-        const card = wrap.firstElementChild;
-        if (card) { grid.appendChild(card); _bindPCCardListeners(card); added++; }
+    // Soft update: append new cards, sync classes — no full rebuild
+    if (!pcGroupMode) {
+      const existingIds = new Set([...grid.querySelectorAll('.pc-pokemon')].map(el => el.dataset.pkId));
+      let added = 0;
+      for (const p of pageList) {
+        if (!existingIds.has(p.id)) {
+          const wrap = document.createElement('div');
+          wrap.innerHTML = _buildPCCard(p, teamIds, trainingIds);
+          const card = wrap.firstElementChild;
+          if (card) { grid.appendChild(card); _bindPCCardListeners(card); added++; }
+        }
       }
-    }
-    // Sync .selected class (selection may have changed without filter change)
-    grid.querySelectorAll('.pc-pokemon').forEach(el => {
-      el.classList.toggle('selected', el.dataset.pkId === pcSelectedId);
-    });
-    // Update pagination count if list grew
-    if (added > 0 && pagination) {
-      const countEl = pagination.querySelector('span');
-      if (countEl) countEl.textContent = `${pcPage + 1} / ${totalPages} (${list.length})`;
+      grid.querySelectorAll('.pc-pokemon').forEach(el => {
+        el.classList.toggle('selected', el.dataset.pkId === pcSelectedId);
+        el.classList.toggle('multi-selected', pcSelectedIds.has(el.dataset.pkId));
+      });
+      if (added > 0 && pagination) {
+        const countEl = pagination.querySelector('span');
+        if (countEl) countEl.textContent = `${pcPage + 1} / ${totalPages} (${list.length})`;
+      }
     }
   }
 }
@@ -6423,6 +6535,54 @@ function renderEvolutionPanel(p) {
 function renderPokemonDetail() {
   const panel = document.getElementById('pokemonDetail');
   if (!panel) return;
+
+  // ── Mode groupe ───────────────────────────────────────────────
+  if (pcGroupMode && pcGroupSpecies) {
+    renderPokemonDetailGroup(pcGroupSpecies);
+    return;
+  }
+
+  // ── Multi-sélection ───────────────────────────────────────────
+  if (pcSelectedIds.size > 1) {
+    panel.classList.remove('hidden');
+    const pks = [...pcSelectedIds].map(id => state.pokemons.find(p => p.id === id)).filter(Boolean);
+    const tIds = new Set([...state.gang.bossTeam]);
+    for (const a of state.agents) a.team.forEach(id => tIds.add(id));
+    const sellable = pks.filter(pk => !pk.favorite && !tIds.has(pk.id));
+    const totalValue = sellable.reduce((s, pk) => s + calculatePrice(pk), 0);
+    panel.innerHTML = `
+      <div style="text-align:center;padding:14px;font-family:var(--font-pixel)">
+        <div style="font-size:12px;color:var(--gold);margin-bottom:8px">${pks.length} sélectionnés</div>
+        <div style="font-size:8px;color:var(--text-dim);margin-bottom:12px">Ctrl+Clic pour ajouter/retirer</div>
+        <div style="display:flex;flex-wrap:wrap;gap:3px;justify-content:center;margin-bottom:12px">
+          ${pks.slice(0, 15).map(pk => `<img src="${pokeSprite(pk.species_en, pk.shiny)}" style="width:30px;height:30px;${pk.shiny ? 'filter:drop-shadow(0 0 4px gold)' : ''}">`).join('')}
+          ${pks.length > 15 ? `<div style="font-size:9px;color:var(--text-dim);align-self:center">+${pks.length - 15}</div>` : ''}
+        </div>
+        ${sellable.length > 0 ? `
+          <div style="font-size:9px;color:var(--text-dim);margin-bottom:10px">${sellable.length} vendables — <span style="color:var(--gold)">${totalValue.toLocaleString()}₽</span></div>
+          <button id="btnSellMulti" style="width:100%;font-family:var(--font-pixel);font-size:9px;padding:8px;background:var(--red-dark);border:1px solid var(--red);border-radius:var(--radius-sm);color:var(--text);cursor:pointer;margin-bottom:6px">
+            Vendre ${sellable.length} Pokémon (${totalValue.toLocaleString()}₽)
+          </button>` : ''}
+        <button id="btnClearMulti" style="width:100%;font-family:var(--font-pixel);font-size:9px;padding:6px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-dim);cursor:pointer">
+          Annuler la sélection
+        </button>
+      </div>`;
+    document.getElementById('btnSellMulti')?.addEventListener('click', () => {
+      const ids = sellable.map(pk => pk.id);
+      showConfirm(`Vendre <b>${ids.length}</b> Pokémon pour <b style="color:var(--gold)">${totalValue.toLocaleString()}₽</b> ?`, () => {
+        sellPokemon(ids);
+        pcSelectedIds.clear();
+        _pcLastRenderKey = '';
+        updateTopBar(); renderPCTab();
+      }, null, { confirmLabel: 'Vendre', cancelLabel: 'Annuler', danger: true });
+    });
+    document.getElementById('btnClearMulti')?.addEventListener('click', () => {
+      pcSelectedIds.clear();
+      document.querySelectorAll('.pc-pokemon.multi-selected').forEach(c => c.classList.remove('multi-selected'));
+      renderPokemonDetail();
+    });
+    return;
+  }
 
   if (!pcSelectedId) {
     panel.classList.add('hidden');
@@ -6616,7 +6776,7 @@ function renderPokemonDetail() {
   panel.querySelectorAll('.btn-evolve-level').forEach(btn => {
     btn.addEventListener('click', () => {
       evolvePokemon(p, btn.dataset.evoTarget);
-      renderPCTab();
+      _pcLastRenderKey = ''; renderPCTab();
     });
   });
   panel.querySelectorAll('.btn-evolve-item').forEach(btn => {
@@ -6624,7 +6784,64 @@ function renderPokemonDetail() {
       if ((state.inventory.evostone || 0) <= 0) return;
       state.inventory.evostone--;
       evolvePokemon(p, btn.dataset.evoTarget);
-      renderPCTab();
+      _pcLastRenderKey = ''; renderPCTab();
+    });
+  });
+}
+
+// ── Vue détail en mode "Grouper" ─────────────────────────────
+function renderPokemonDetailGroup(species) {
+  const panel = document.getElementById('pokemonDetail');
+  if (!panel) return;
+  const pks = state.pokemons.filter(p => p.species_en === species);
+  if (!pks.length) { panel.classList.add('hidden'); return; }
+  panel.classList.remove('hidden');
+  const sp = SPECIES_BY_EN[species];
+  const tIds = new Set([...state.gang.bossTeam]);
+  for (const a of state.agents) a.team.forEach(id => tIds.add(id));
+  const sellable = pks.filter(p => !p.favorite && !tIds.has(p.id));
+  const totalValue = sellable.reduce((s, p) => s + calculatePrice(p), 0);
+  const maxPot = Math.max(...pks.map(p => p.potential));
+  const maxLvl = Math.max(...pks.map(p => p.level));
+
+  panel.innerHTML = `
+    <div style="text-align:center;margin-bottom:10px">
+      <img src="${pokeSprite(species)}" style="width:72px;height:72px">
+      <div style="font-family:var(--font-pixel);font-size:11px;margin-top:4px">${speciesName(species)}</div>
+      <div style="font-size:9px;color:var(--text-dim)">#${String(sp?.dex||0).padStart(3,'0')} — ${(sp?.types||[]).join('/')}</div>
+      <div style="font-size:9px;margin-top:2px">×${pks.length} · Max Lv.${maxLvl} · ${'★'.repeat(maxPot)}</div>
+    </div>
+    ${sellable.length > 0 ? `
+      <div style="font-size:9px;color:var(--text-dim);margin-bottom:6px;text-align:center">${sellable.length} vendables — <span style="color:var(--gold)">${totalValue.toLocaleString()}₽</span></div>
+      <button id="btnGroupSellAll" style="width:100%;font-family:var(--font-pixel);font-size:9px;padding:6px;background:var(--red-dark);border:1px solid var(--red);border-radius:var(--radius-sm);color:var(--text);cursor:pointer;margin-bottom:8px">
+        Vendre tous (${totalValue.toLocaleString()}₽)
+      </button>` : ''}
+    <div style="display:flex;flex-direction:column;gap:3px;max-height:320px;overflow-y:auto">
+      ${pks.map(p => {
+        const inTeam = tIds.has(p.id);
+        return `<div style="display:flex;align-items:center;gap:6px;padding:4px 6px;border:1px solid ${p.shiny ? 'var(--gold-dim)' : inTeam ? 'var(--green)' : 'var(--border)'};border-radius:3px;background:var(--bg);font-size:9px">
+          <img src="${pokeSprite(p.species_en, p.shiny)}" style="width:24px;height:24px">
+          <span style="flex:1">${p.shiny ? '✨ ' : ''}Lv.${p.level} ${'★'.repeat(p.potential)}</span>
+          <span style="color:var(--text-dim);font-size:8px">${inTeam ? '👥' : p.favorite ? '⭐' : ''}</span>
+          <button class="grp-detail-btn" data-pk-id="${p.id}" style="font-size:7px;padding:1px 5px;background:var(--bg);border:1px solid var(--border);border-radius:2px;color:var(--text-dim);cursor:pointer">→</button>
+        </div>`;
+      }).join('')}
+    </div>`;
+
+  document.getElementById('btnGroupSellAll')?.addEventListener('click', () => {
+    const ids = sellable.map(p => p.id);
+    showConfirm(`Vendre <b>${ids.length}</b> ${speciesName(species)} pour <b style="color:var(--gold)">${totalValue.toLocaleString()}₽</b> ?`, () => {
+      sellPokemon(ids); pcGroupSpecies = null;
+      _pcLastRenderKey = ''; updateTopBar(); renderPCTab();
+    }, null, { confirmLabel: 'Vendre', cancelLabel: 'Annuler', danger: true });
+  });
+  panel.querySelectorAll('.grp-detail-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      pcGroupMode = false; pcGroupSpecies = null;
+      const chk = document.getElementById('pcGroupChk');
+      if (chk) chk.checked = false;
+      pcSelectedId = btn.dataset.pkId;
+      _pcLastRenderKey = ''; renderPCTab();
     });
   });
 }
@@ -7864,6 +8081,7 @@ function trainingRoomTick() {
 // ════════════════════════════════════════════════════════════════
 
 let labSelectedId = null;
+let labShowAll = false; // false = seulement mutations réalisables
 
 function renderLabTabInEl(tab) {
   if (!tab) return;
@@ -7871,88 +8089,210 @@ function renderLabTabInEl(tab) {
   const teamIds = new Set([...state.gang.bossTeam]);
   for (const a of state.agents) a.team.forEach(id => teamIds.add(id));
 
-  const upgradeable = state.pokemons
+  // Tous les Pokémon améliorables
+  const allUpgradeable = state.pokemons
     .filter(p => p.potential < 5)
     .sort((a, b) => b.potential - a.potential || getPokemonPower(b) - getPokemonPower(a));
 
+  // Seulement ceux dont la mutation est réalisable maintenant
+  const possible = allUpgradeable.filter(p => {
+    const cost = POT_UPGRADE_COSTS[p.potential - 1] || 99;
+    const donors = state.pokemons.filter(d =>
+      d.species_en === p.species_en && d.id !== p.id &&
+      !d.shiny && d.potential <= p.potential &&
+      !teamIds.has(d.id) && !state.trainingRoom.pokemon?.includes(d.id)
+    );
+    return donors.length >= cost;
+  });
+
+  const displayList = labShowAll ? allUpgradeable : possible;
   const selected = labSelectedId ? state.pokemons.find(p => p.id === labSelectedId) : null;
 
-  let detailHtml = '<div style="color:var(--text-dim);font-size:10px;padding:20px;text-align:center">Selectionnez un Pokemon</div>';
+  // ── Panneau mutation ────────────────────────────────────────
+  let mutationHtml = `
+    <div style="color:var(--text-dim);font-size:9px;padding:16px;text-align:center;line-height:1.6">
+      Sélectionne un Pokémon<br><br>
+      <span style="font-size:8px">Par défaut, seules les mutations<br>réalisables sont affichées.</span>
+    </div>`;
   if (selected) {
     const cost = POT_UPGRADE_COSTS[selected.potential - 1] || 99;
-    const sameSpecies = state.pokemons.filter(p =>
-      p.species_en === selected.species_en &&
-      p.id !== selected.id &&
-      !teamIds.has(p.id) &&
-      !state.trainingRoom.pokemon.includes(p.id)
+    const donors = state.pokemons.filter(d =>
+      d.species_en === selected.species_en && d.id !== selected.id &&
+      !d.shiny && d.potential <= selected.potential &&
+      !teamIds.has(d.id) && !state.trainingRoom.pokemon?.includes(d.id)
     );
-    const canUpgrade = sameSpecies.length >= cost && selected.potential < 5;
-    detailHtml = `
+    const canUpgrade = donors.length >= cost && selected.potential < 5;
+    mutationHtml = `
       <div style="text-align:center;margin-bottom:12px">
         <img src="${pokeSprite(selected.species_en, selected.shiny)}" style="width:80px;height:80px">
         <div style="font-family:var(--font-pixel);font-size:10px;margin-top:4px">${speciesName(selected.species_en)}</div>
-        <div style="font-size:10px;color:var(--gold)">${'*'.repeat(selected.potential)} -> ${'*'.repeat(selected.potential + 1)}</div>
+        <div style="font-size:10px;color:var(--gold)">${'*'.repeat(selected.potential)} → ${'*'.repeat(selected.potential + 1)}</div>
       </div>
       <div style="font-size:10px;margin-bottom:8px">
-        <div>Potentiel actuel : <b>${selected.potential}/5</b></div>
-        <div>Cout : <b style="color:${sameSpecies.length >= cost ? 'var(--green)' : 'var(--red)'}">${sameSpecies.length}/${cost}</b> ${speciesName(selected.species_en)} sacrifies</div>
+        <div>Potentiel : <b>${selected.potential}/5</b></div>
+        <div>Spécimens : <b style="color:${donors.length >= cost ? 'var(--green)' : 'var(--red)'}">${donors.length}/${cost}</b></div>
       </div>
-      <div style="font-size:9px;color:var(--text-dim);margin-bottom:12px">
-        Les Pokemon sacrifies sont perdus definitivement.<br>
-        Les Pokemon en equipe et en salle d'entrainement sont proteges.
-      </div>
-      <button id="btnLabUpgrade" style="width:100%;font-size:10px;padding:8px;background:var(--bg);border:2px solid ${canUpgrade?'var(--gold)':'var(--border)'};border-radius:var(--radius-sm);color:${canUpgrade?'var(--gold)':'var(--text-dim)'};cursor:${canUpgrade?'pointer':'default'}"${canUpgrade?'':' disabled'}>
-        ${canUpgrade ? 'AMELIORER LE POTENTIEL' : 'Pas assez de specimens'}
+      <div style="font-size:8px;color:var(--text-dim);margin-bottom:10px">Équipe + Formation protégées.</div>
+      <button id="btnLabUpgrade" style="width:100%;font-size:10px;padding:8px;background:var(--bg);
+        border:2px solid ${canUpgrade ? 'var(--gold)' : 'var(--border)'};border-radius:var(--radius-sm);
+        color:${canUpgrade ? 'var(--gold)' : 'var(--text-dim)'};cursor:${canUpgrade ? 'pointer' : 'default'}"
+        ${canUpgrade ? '' : 'disabled'}>
+        ${canUpgrade ? '⚗ MUTER LE POTENTIEL' : 'Spécimens insuffisants'}
       </button>
-      <div style="margin-top:16px">
-        <div style="font-size:9px;color:var(--text-dim);margin-bottom:4px">TABLE DES COUTS</div>
-        ${POT_UPGRADE_COSTS.map((c, i) => `<div style="font-size:9px;${selected.potential-1===i?'color:var(--gold)':'color:var(--text-dim)'}">${'*'.repeat(i+1)} -> ${'*'.repeat(i+2)} : ${c} specimens</div>`).join('')}
+      <div style="margin-top:12px">
+        <div style="font-size:8px;color:var(--text-dim);margin-bottom:4px">COÛTS</div>
+        ${POT_UPGRADE_COSTS.map((c, i) =>
+          `<div style="font-size:8px;${selected.potential - 1 === i ? 'color:var(--gold)' : 'color:var(--text-dim)'}">
+            ${'★'.repeat(i+1)} → ${'★'.repeat(i+2)}: ${c} specimens
+          </div>`
+        ).join('')}
       </div>`;
   }
 
-  const listHtml = upgradeable.map(p => `
-    <div class="lab-candidate" data-lab-id="${p.id}" style="display:flex;align-items:center;gap:8px;padding:8px;border-bottom:1px solid var(--border);cursor:pointer;background:${labSelectedId===p.id?'var(--bg-hover)':''}">
+  // ── Panneau tracker ─────────────────────────────────────────
+  const tracked = state.lab?.trackedSpecies || [];
+  // Build a quick species list from owned pokémon for the selector
+  const ownedSpecies = [...new Set(state.pokemons.map(p => p.species_en))].sort((a, b) =>
+    speciesName(a).localeCompare(speciesName(b))
+  );
+  const trackerHtml = `
+    <div style="font-family:var(--font-pixel);font-size:9px;color:var(--gold);margin-bottom:8px">🔍 TRACKER</div>
+    <div style="display:flex;gap:6px;margin-bottom:10px">
+      <select id="labTrackerSel" style="flex:1;font-size:9px;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:3px;padding:3px">
+        <option value="">— Espèce —</option>
+        ${ownedSpecies.map(en => `<option value="${en}">${speciesName(en)}</option>`).join('')}
+      </select>
+      <button id="btnLabTrack" style="font-size:10px;padding:3px 10px;background:var(--bg);border:1px solid var(--gold-dim);border-radius:3px;color:var(--gold);cursor:pointer">+</button>
+    </div>
+    ${tracked.length === 0
+      ? '<div style="font-size:9px;color:var(--text-dim)">Aucune espèce suivie.</div>'
+      : tracked.map(species => {
+          const owned = state.pokemons.filter(p => p.species_en === species);
+          const sp = SPECIES_BY_EN[species];
+          const byPot = [1,2,3,4,5].map(pot => owned.filter(p => p.potential === pot).length);
+          // Check if any mutation is currently possible
+          const mutPossible = [1,2,3,4].some(pot => {
+            const cost = POT_UPGRADE_COSTS[pot - 1] || 99;
+            const donors = owned.filter(d => d.potential === pot &&
+              !teamIds.has(d.id) && !state.trainingRoom.pokemon?.includes(d.id));
+            const targets = owned.filter(d => d.potential === pot);
+            return targets.length > 0 && donors.length >= cost + 1;
+          });
+          return `<div style="border:1px solid ${mutPossible ? 'var(--gold-dim)' : 'var(--border)'};border-radius:var(--radius-sm);padding:8px;background:var(--bg);margin-bottom:6px">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+              <img src="${pokeSprite(species)}" style="width:26px;height:26px">
+              <span style="font-size:9px;flex:1"><b>${speciesName(species)}</b> — <span style="color:var(--gold)">${owned.length}</span></span>
+              <button class="lab-untrack" data-untrack="${species}" style="font-size:8px;padding:1px 5px;background:var(--bg);border:1px solid var(--red);border-radius:2px;color:var(--red);cursor:pointer">✕</button>
+            </div>
+            <div style="display:flex;gap:3px;flex-wrap:wrap">
+              ${byPot.map((n, i) => `<div style="font-size:8px;padding:2px 5px;border-radius:2px;
+                background:${n > 0 ? 'rgba(255,204,90,0.12)' : 'rgba(0,0,0,0)'};
+                border:1px solid ${n > 0 ? 'var(--gold-dim)' : 'var(--border)'}">
+                ${'★'.repeat(i+1)}: <b>${n}</b>
+              </div>`).join('')}
+            </div>
+            ${mutPossible ? '<div style="font-size:8px;color:var(--green);margin-top:4px">⚡ Mutation possible !</div>' : ''}
+          </div>`;
+        }).join('')
+    }`;
+
+  // ── Liste candidates ────────────────────────────────────────
+  const listHtml = displayList.map(p => {
+    const cost = POT_UPGRADE_COSTS[p.potential - 1] || 99;
+    const donors = state.pokemons.filter(d =>
+      d.species_en === p.species_en && d.id !== p.id &&
+      !d.shiny && d.potential <= p.potential &&
+      !teamIds.has(d.id) && !state.trainingRoom.pokemon?.includes(d.id)
+    );
+    const ready = donors.length >= cost;
+    return `<div class="lab-candidate" data-lab-id="${p.id}"
+      style="display:flex;align-items:center;gap:8px;padding:8px;border-bottom:1px solid var(--border);
+      cursor:pointer;background:${labSelectedId === p.id ? 'var(--bg-hover)' : ''}">
       <img src="${pokeSprite(p.species_en, p.shiny)}" style="width:36px;height:36px">
       <div style="flex:1">
-        <div style="font-size:10px">${speciesName(p.species_en)} ${'*'.repeat(p.potential)}</div>
-        <div style="font-size:9px;color:var(--text-dim)">Lv.${p.level}</div>
+        <div style="font-size:10px">${speciesName(p.species_en)} ${'★'.repeat(p.potential)}</div>
+        <div style="font-size:9px;color:${ready ? 'var(--green)' : 'var(--text-dim)'}">
+          ${ready ? `✓ Prêt (${donors.length}/${cost})` : `${donors.length}/${cost} spécimens`}
+        </div>
       </div>
-    </div>`).join('') || '<div style="color:var(--text-dim);font-size:10px;padding:12px">Tous vos Pokemon sont au potentiel max</div>';
+    </div>`;
+  }).join('') || `<div style="color:var(--text-dim);font-size:9px;padding:14px;text-align:center">
+    ${labShowAll ? 'Tous vos Pokémon sont au potentiel max' : 'Aucune mutation réalisable actuellement.<br>Activez « Tous » pour voir tous les candidats.'}
+  </div>`;
 
+  // ── Rendu principal ─────────────────────────────────────────
   tab.innerHTML = `
-    <div style="display:grid;grid-template-columns:1fr 280px;gap:16px;padding:12px">
-      <div>
-        <div style="font-family:var(--font-pixel);font-size:10px;color:var(--gold);margin-bottom:12px">LABORATOIRE</div>
-        <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);max-height:500px;overflow-y:auto">${listHtml}</div>
+    <div style="display:grid;grid-template-columns:1fr 290px;gap:14px;padding:12px;min-height:400px">
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <div style="font-family:var(--font-pixel);font-size:10px;color:var(--gold)">LABORATOIRE</div>
+          <button id="btnLabToggleAll" style="font-family:var(--font-pixel);font-size:8px;padding:3px 8px;
+            background:${labShowAll ? 'var(--gold-dim)' : 'var(--bg)'};
+            border:1px solid ${labShowAll ? 'var(--gold)' : 'var(--border)'};border-radius:3px;
+            color:${labShowAll ? 'var(--bg)' : 'var(--text-dim)'};cursor:pointer">
+            ${labShowAll ? '✓ TOUS' : 'PRÊTS seulement'}
+          </button>
+        </div>
+        <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);flex:1;overflow-y:auto;max-height:520px">${listHtml}</div>
       </div>
-      <div style="background:var(--bg-panel);border:1px solid var(--border);border-radius:var(--radius);padding:12px">${detailHtml}</div>
+      <div style="display:flex;flex-direction:column;gap:10px;overflow-y:auto;max-height:600px">
+        <div style="background:var(--bg-panel);border:1px solid var(--border);border-radius:var(--radius);padding:12px">${mutationHtml}</div>
+        <div style="background:var(--bg-panel);border:1px solid var(--border);border-radius:var(--radius);padding:12px">${trackerHtml}</div>
+      </div>
     </div>`;
 
+  // Bind — liste
   tab.querySelectorAll('.lab-candidate').forEach(el => {
     el.addEventListener('click', () => {
       labSelectedId = el.dataset.labId;
-      // Re-render in the correct context
-      if (pcView === 'lab') renderPCTab();
-      else renderLabTab();
+      if (pcView === 'lab') renderPCTab(); else renderLabTab();
     });
   });
 
+  // Bind — toggle filtre
+  tab.querySelector('#btnLabToggleAll')?.addEventListener('click', () => {
+    labShowAll = !labShowAll;
+    if (pcView === 'lab') renderPCTab(); else renderLabTab();
+  });
+
+  // Bind — mutation
   tab.querySelector('#btnLabUpgrade')?.addEventListener('click', () => {
     if (!selected) return;
     const cost = POT_UPGRADE_COSTS[selected.potential - 1];
-    const sameSpecies = state.pokemons.filter(p =>
-      p.species_en === selected.species_en && p.id !== selected.id &&
-      !teamIds.has(p.id) && !state.trainingRoom.pokemon.includes(p.id)
+    const donors = state.pokemons.filter(d =>
+      d.species_en === selected.species_en && d.id !== selected.id &&
+      !d.shiny && d.potential <= selected.potential &&
+      !teamIds.has(d.id) && !state.trainingRoom.pokemon?.includes(d.id)
     );
-    if (sameSpecies.length < cost) return;
-    const toSacrifice = sameSpecies.slice(0, cost).map(p => p.id);
+    if (donors.length < cost) return;
+    const toSacrifice = donors.slice(0, cost).map(p => p.id);
     state.pokemons = state.pokemons.filter(p => !toSacrifice.includes(p.id));
     selected.potential++;
     saveState();
-    notify(`${speciesName(selected.species_en)} est maintenant ${'*'.repeat(selected.potential)} !`, 'gold');
-    if (pcView === 'lab') renderPCTab();
-    else renderLabTab();
+    _pcLastRenderKey = '';
+    notify(`${speciesName(selected.species_en)} est maintenant ${'★'.repeat(selected.potential)} !`, 'gold');
+    if (pcView === 'lab') renderPCTab(); else renderLabTab();
     updateTopBar();
+  });
+
+  // Bind — tracker ajouter
+  tab.querySelector('#btnLabTrack')?.addEventListener('click', () => {
+    const val = document.getElementById('labTrackerSel')?.value;
+    if (!val) return;
+    if (!state.lab.trackedSpecies.includes(val)) {
+      state.lab.trackedSpecies.push(val);
+      saveState();
+      if (pcView === 'lab') renderPCTab(); else renderLabTab();
+    }
+  });
+
+  // Bind — tracker retirer
+  tab.querySelectorAll('.lab-untrack').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.lab.trackedSpecies = state.lab.trackedSpecies.filter(s => s !== btn.dataset.untrack);
+      saveState();
+      if (pcView === 'lab') renderPCTab(); else renderLabTab();
+    });
   });
 }
 

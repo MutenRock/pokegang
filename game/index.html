@@ -585,6 +585,10 @@
     }
     .pc-pokemon:hover { border-color: var(--gold-dim); transform: scale(1.08); }
     .pc-pokemon.selected { border-color: var(--gold); box-shadow: 0 0 8px var(--red-glow); }
+    .pc-pokemon.multi-selected { border-color: #4488cc; box-shadow: 0 0 6px rgba(68,136,204,0.55); background: rgba(68,136,204,0.1); }
+    .pc-group-card { transition: border-color .15s, transform .12s; }
+    .pc-group-card:hover { border-color: var(--gold-dim) !important; transform: scale(1.05); }
+    .pc-group-card.selected { border-color: var(--gold) !important; box-shadow: 0 0 8px var(--red-glow); }
     .pc-pokemon.shiny { animation: glow 2s ease-in-out infinite; }
 
     .pc-pokemon img { width: 64px; height: 64px; }
