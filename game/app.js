@@ -862,53 +862,53 @@ const MISSIONS = [
 // ── Trainers ──────────────────────────────────────────────────
 const TRAINER_TYPES = {
   // Basic trainers
-  youngster:    { fr:'Gamin',        en:'Youngster',    sprite:'youngster',    diff:1, reward:[20,60],    rep:1  },
-  lass:         { fr:'Fillette',     en:'Lass',         sprite:'lass',         diff:1, reward:[20,60],    rep:1  },
-  bugcatcher:   { fr:'Chasseur',     en:'Bug Catcher',  sprite:'bugcatcher',   diff:1, reward:[20,60],    rep:1  },
-  camper:       { fr:'Campeur',      en:'Camper',       sprite:'camper',       diff:1, reward:[30,80],    rep:1  },
-  picnicker:    { fr:'Pique-niqueuse',en:'Picnicker',   sprite:'picnicker',    diff:1, reward:[30,80],    rep:1  },
-  fisherman:    { fr:'Pêcheur',      en:'Fisherman',    sprite:'fisherman',    diff:1, reward:[40,100],   rep:2  },
+  youngster:    { fr:'Gamin',        en:'Youngster',    sprite:'youngster',    diff:1, reward:[10,30],    rep:1  },
+  lass:         { fr:'Fillette',     en:'Lass',         sprite:'lass',         diff:1, reward:[10,30],    rep:1  },
+  bugcatcher:   { fr:'Chasseur',     en:'Bug Catcher',  sprite:'bugcatcher',   diff:1, reward:[10,30],    rep:1  },
+  camper:       { fr:'Campeur',      en:'Camper',       sprite:'camper',       diff:1, reward:[15,40],    rep:1  },
+  picnicker:    { fr:'Pique-niqueuse',en:'Picnicker',   sprite:'picnicker',    diff:1, reward:[15,40],    rep:1  },
+  fisherman:    { fr:'Pêcheur',      en:'Fisherman',    sprite:'fisherman',    diff:1, reward:[20,50],    rep:2  },
   // Mid-tier trainers
-  hiker:        { fr:'Montagnard',   en:'Hiker',        sprite:'hiker',        diff:2, reward:[50,150],   rep:3  },
-  swimmer:      { fr:'Nageur',       en:'Swimmer',      sprite:'swimmer',      diff:2, reward:[50,150],   rep:3  },
-  psychic:      { fr:'Médium',       en:'Psychic',      sprite:'psychic',      diff:2, reward:[50,150],   rep:3  },
-  gentleman:    { fr:'Gentleman',    en:'Gentleman',    sprite:'gentleman',    diff:2, reward:[60,180],   rep:3  },
-  beauty:       { fr:'Canon',        en:'Beauty',       sprite:'beauty',       diff:2, reward:[60,180],   rep:3  },
-  sailor:       { fr:'Marin',        en:'Sailor',       sprite:'sailor',       diff:2, reward:[50,160],   rep:3  },
-  blackbelt:    { fr:'Karatéka',     en:'Black Belt',   sprite:'blackbelt',    diff:2, reward:[60,170],   rep:3  },
-  supernerd:    { fr:'Intello',      en:'Super Nerd',   sprite:'supernerd',    diff:2, reward:[50,150],   rep:3  },
+  hiker:        { fr:'Montagnard',   en:'Hiker',        sprite:'hiker',        diff:2, reward:[25,75],    rep:3  },
+  swimmer:      { fr:'Nageur',       en:'Swimmer',      sprite:'swimmer',      diff:2, reward:[25,75],    rep:3  },
+  psychic:      { fr:'Médium',       en:'Psychic',      sprite:'psychic',      diff:2, reward:[25,75],    rep:3  },
+  gentleman:    { fr:'Gentleman',    en:'Gentleman',    sprite:'gentleman',    diff:2, reward:[30,90],    rep:3  },
+  beauty:       { fr:'Canon',        en:'Beauty',       sprite:'beauty',       diff:2, reward:[30,90],    rep:3  },
+  sailor:       { fr:'Marin',        en:'Sailor',       sprite:'sailor',       diff:2, reward:[25,80],    rep:3  },
+  blackbelt:    { fr:'Karatéka',     en:'Black Belt',   sprite:'blackbelt',    diff:2, reward:[30,85],    rep:3  },
+  supernerd:    { fr:'Intello',      en:'Super Nerd',   sprite:'supernerd',    diff:2, reward:[25,75],    rep:3  },
   // High-tier trainers
-  acetrainer:   { fr:'Topdresseur',  en:'Ace Trainer',  sprite:'acetrainer',   diff:3, reward:[100,300],  rep:5  },
-  scientist:    { fr:'Scientifique', en:'Scientist',    sprite:'scientist',    diff:3, reward:[100,300],  rep:5  },
-  channeler:    { fr:'Mystimana',    en:'Channeler',    sprite:'channeler',    diff:3, reward:[80,250],   rep:5  },
-  juggler:      { fr:'Jongleur',     en:'Juggler',      sprite:'juggler',      diff:3, reward:[100,280],  rep:5  },
+  acetrainer:   { fr:'Topdresseur',  en:'Ace Trainer',  sprite:'acetrainer',   diff:3, reward:[50,150],   rep:5  },
+  scientist:    { fr:'Scientifique', en:'Scientist',    sprite:'scientist',    diff:3, reward:[50,150],   rep:5  },
+  channeler:    { fr:'Mystimana',    en:'Channeler',    sprite:'channeler',    diff:3, reward:[40,125],   rep:5  },
+  juggler:      { fr:'Jongleur',     en:'Juggler',      sprite:'juggler',      diff:3, reward:[50,140],   rep:5  },
   // Team Rocket
-  rocketgrunt:  { fr:'Sbire Rocket', en:'Rocket Grunt', sprite:'rocketgrunt',  diff:4, reward:[200,600],  rep:10 },
-  rocketgruntf: { fr:'Sbire Rocket', en:'Rocket Grunt', sprite:'rocketgruntf', diff:4, reward:[200,600],  rep:10 },
-  archer:       { fr:'Archer',       en:'Archer',       sprite:'archer',       diff:4, reward:[300,800],  rep:12 },
-  ariana:       { fr:'Ariane',       en:'Ariana',       sprite:'ariana',       diff:4, reward:[300,800],  rep:12 },
-  proton:       { fr:'Lambda',       en:'Proton',       sprite:'proton',       diff:4, reward:[300,800],  rep:12 },
-  giovanni:     { fr:'Giovanni',     en:'Giovanni',     sprite:'giovanni',     diff:5, reward:[5000,10000],rep:25},
+  rocketgrunt:  { fr:'Sbire Rocket', en:'Rocket Grunt', sprite:'rocketgrunt',  diff:4, reward:[100,300],  rep:10 },
+  rocketgruntf: { fr:'Sbire Rocket', en:'Rocket Grunt', sprite:'rocketgruntf', diff:4, reward:[100,300],  rep:10 },
+  archer:       { fr:'Archer',       en:'Archer',       sprite:'archer',       diff:4, reward:[150,400],  rep:12 },
+  ariana:       { fr:'Ariane',       en:'Ariana',       sprite:'ariana',       diff:4, reward:[150,400],  rep:12 },
+  proton:       { fr:'Lambda',       en:'Proton',       sprite:'proton',       diff:4, reward:[150,400],  rep:12 },
+  giovanni:     { fr:'Giovanni',     en:'Giovanni',     sprite:'giovanni',     diff:5, reward:[2500,5000], rep:25},
   // Gym Leaders
-  brock:        { fr:'Pierre',       en:'Brock',        sprite:'brock',        diff:3, reward:[2000,4000],rep:15 },
-  misty:        { fr:'Ondine',       en:'Misty',        sprite:'misty',        diff:3, reward:[2000,5000],rep:15 },
-  ltsurge:      { fr:'Maj. Bob',     en:'Lt. Surge',    sprite:'ltsurge',      diff:4, reward:[3000,6000],rep:18 },
-  erika:        { fr:'Érika',        en:'Erika',        sprite:'erika',        diff:4, reward:[3000,6000],rep:18 },
-  koga:         { fr:'Koga',         en:'Koga',         sprite:'koga',         diff:4, reward:[4000,8000],rep:20 },
-  sabrina:      { fr:'Morgane',      en:'Sabrina',      sprite:'sabrina',      diff:5, reward:[5000,10000],rep:22},
-  blaine:       { fr:'Auguste',      en:'Blaine',       sprite:'blaine',       diff:5, reward:[5000,10000],rep:22},
+  brock:        { fr:'Pierre',       en:'Brock',        sprite:'brock',        diff:3, reward:[1000,2000],rep:15 },
+  misty:        { fr:'Ondine',       en:'Misty',        sprite:'misty',        diff:3, reward:[1000,2500],rep:15 },
+  ltsurge:      { fr:'Maj. Bob',     en:'Lt. Surge',    sprite:'ltsurge',      diff:4, reward:[1500,3000],rep:18 },
+  erika:        { fr:'Érika',        en:'Erika',        sprite:'erika',        diff:4, reward:[1500,3000],rep:18 },
+  koga:         { fr:'Koga',         en:'Koga',         sprite:'koga',         diff:4, reward:[2000,4000],rep:20 },
+  sabrina:      { fr:'Morgane',      en:'Sabrina',      sprite:'sabrina',      diff:5, reward:[2500,5000], rep:22},
+  blaine:       { fr:'Auguste',      en:'Blaine',       sprite:'blaine',       diff:5, reward:[2500,5000], rep:22},
   // Elite Four & Champion
-  lorelei:        { fr:'Olga',           en:'Lorelei',        sprite:'lorelei',        diff:6, reward:[8000,15000], rep:30},
-  bruno:          { fr:'Aldo',           en:'Bruno',          sprite:'bruno',          diff:6, reward:[8000,15000], rep:30},
-  agatha:         { fr:'Agatha',         en:'Agatha',         sprite:'agatha',         diff:6, reward:[8000,15000], rep:30},
-  lance:          { fr:'Peter',          en:'Lance',          sprite:'lance',          diff:7, reward:[10000,20000],rep:40},
-  blue:           { fr:'Blue',           en:'Blue',           sprite:'blue',           diff:7, reward:[12000,25000],rep:50},
-  red:            { fr:'Red',            en:'Red',            sprite:'red',            diff:8, reward:[15000,30000],rep:60},
+  lorelei:        { fr:'Olga',           en:'Lorelei',        sprite:'lorelei',        diff:6, reward:[4000,7500],  rep:30},
+  bruno:          { fr:'Aldo',           en:'Bruno',          sprite:'bruno',          diff:6, reward:[4000,7500],  rep:30},
+  agatha:         { fr:'Agatha',         en:'Agatha',         sprite:'agatha',         diff:6, reward:[4000,7500],  rep:30},
+  lance:          { fr:'Peter',          en:'Lance',          sprite:'lance',          diff:7, reward:[5000,10000], rep:40},
+  blue:           { fr:'Blue',           en:'Blue',           sprite:'blue',           diff:7, reward:[6000,12500], rep:50},
+  red:            { fr:'Red',            en:'Red',            sprite:'red',            diff:8, reward:[7500,15000], rep:60},
   // Rangers Pokémon (forces de l'ordre, pokémon puissants : Tauros, Scarabrute, etc.)
-  pokemonranger:  { fr:'Ranger Pokémon', en:'Pokémon Ranger', sprite:'pokemonranger',  diff:4, reward:[250,700],   rep:10},
-  pokemonrangerf: { fr:'Ranger Pokémon', en:'Pokémon Ranger', sprite:'pokemonrangerf', diff:4, reward:[250,700],   rep:10},
+  pokemonranger:  { fr:'Ranger Pokémon', en:'Pokémon Ranger', sprite:'pokemonranger',  diff:4, reward:[125,350],   rep:10},
+  pokemonrangerf: { fr:'Ranger Pokémon', en:'Pokémon Ranger', sprite:'pokemonrangerf', diff:4, reward:[125,350],   rep:10},
   // Police (Arcanin, Caninos — zones Rocket)
-  policeman:      { fr:'Policier',       en:'Policeman',      sprite:'policeman',      diff:4, reward:[300,800],   rep:12},
+  policeman:      { fr:'Policier',       en:'Policeman',      sprite:'policeman',      diff:4, reward:[150,400],   rep:12},
 };
 
 // Trainers qui donnent +10 rep (gym leaders, Elite 4, personnages d'histoire)
@@ -2109,6 +2109,10 @@ function levelUpPokemon(pokemon, xpGain) {
 //  5.  ZONE MODULE
 // ════════════════════════════════════════════════════════════════
 
+// Coûts en réputation pour débloquer des slots d'agents par zone
+// slot 2 → 50 rep, slot 3 → 150, slot 4 → 400, slot 5 → 1000, slot 6 → 2000
+const ZONE_SLOT_COSTS = [50, 150, 400, 1000, 2000];
+
 function initZone(zoneId) {
   if (!state.zones[zoneId]) {
     state.zones[zoneId] = {
@@ -2118,12 +2122,14 @@ function initZone(zoneId) {
       assignedAgents: [],
       pendingIncome: 0,
       pendingItems: {},
+      slots: 1,
     };
   }
   // Migration
   if (state.zones[zoneId].captures === undefined) state.zones[zoneId].captures = 0;
   if (state.zones[zoneId].pendingIncome === undefined) state.zones[zoneId].pendingIncome = 0;
   if (state.zones[zoneId].pendingItems === undefined) state.zones[zoneId].pendingItems = {};
+  if (state.zones[zoneId].slots === undefined) state.zones[zoneId].slots = 1;
   // Remove legacy invest fields
   delete state.zones[zoneId].invested;
   delete state.zones[zoneId].investPower;
@@ -2632,12 +2638,13 @@ function applyCombatResult(result, playerTeamIds, trainerData) {
     if (result.repGain > 0) {
       state.gang.reputation += result.repGain;
     }
-    // Ball drops for regular trainer battles
+    // Ball drops for regular trainer battles (2x less than before)
     if (!trainerData.isSpecial && !trainerData.isRaid) {
       const diff = trainerData.trainer?.diff || 1;
       const ballType = diff >= 5 ? 'ultraball' : diff >= 3 ? 'greatball' : 'pokeball';
-      const qty = randInt(1, diff >= 4 ? 3 : 2);
-      state.inventory[ballType] = (state.inventory[ballType] || 0) + qty;
+      if (Math.random() < 0.5) { // 50% chance = moitié moins en moyenne
+        state.inventory[ballType] = (state.inventory[ballType] || 0) + 1;
+      }
     }
     if (trainerData.trainerKey === 'rocketgrunt' || trainerData.trainerKey === 'rocketgruntf' || trainerData.trainerKey === 'giovanni') {
       state.stats.rocketDefeated++;
@@ -2833,8 +2840,17 @@ function assignAgentToZone(agentId, zoneId) {
   agent.assignedZone = zoneId;
   if (zoneId) {
     const z = initZone(zoneId);
+    const maxSlots = z.slots || 1;
     if (!z.assignedAgents.includes(agentId)) {
-      z.assignedAgents.push(agentId);
+      if (z.assignedAgents.length < maxSlots) {
+        z.assignedAgents.push(agentId);
+      } else {
+        // Zone pleine — désassigner l'agent sans l'ajouter
+        agent.assignedZone = null;
+        notify(`Zone pleine (${maxSlots} slot${maxSlots > 1 ? 's' : ''}). Améliore la zone pour +1 agent.`, 'error');
+        saveState();
+        return;
+      }
     }
   }
   saveState();
@@ -4187,6 +4203,19 @@ function buildZoneWindowEl(zoneId) {
         <span class="zone-name">${zone.type === 'gym' ? '[GYM] ' : ''}${name}</span>
         <span class="zone-level">${progressText}${zone.type === 'gym' ? ` <span style="color:var(--gold);font-size:8px">XP*${zone.xpBonus}</span>` : ''}</span>
       </div>
+      <div class="zone-slots-bar" style="display:flex;align-items:center;gap:6px;padding:3px 8px;font-family:var(--font-pixel);font-size:8px;background:rgba(0,0,0,.4);border-top:1px solid var(--border)">
+        <span style="color:var(--text-dim)">Agents: ${assignedAgents.length}/${zState.slots || 1}</span>
+        ${(zState.slots || 1) < ZONE_SLOT_COSTS.length + 1 ? (() => {
+          const nextSlot = (zState.slots || 1);
+          const cost = ZONE_SLOT_COSTS[nextSlot - 1];
+          const canAfford = state.gang.reputation >= cost;
+          return `<button class="zone-slot-upgrade" data-zone-upgrade="${zoneId}" data-cost="${cost}"
+            style="font-family:var(--font-pixel);font-size:7px;padding:2px 6px;background:var(--bg);
+            border:1px solid ${canAfford ? 'var(--gold-dim)' : 'var(--border)'};border-radius:2px;
+            color:${canAfford ? 'var(--gold)' : 'var(--text-dim)'};cursor:${canAfford ? 'pointer' : 'default'}"
+            ${canAfford ? '' : 'disabled'}>+slot ${cost}rep</button>`;
+        })() : `<span style="color:var(--gold)">FULL</span>`}
+      </div>
     </div>
   `;
 
@@ -4201,6 +4230,18 @@ function buildZoneWindowEl(zoneId) {
     if (e.target.closest('.zone-spawn')) return;
     state.gang.bossZone = zoneId;
     saveState();
+    renderZoneWindows();
+  });
+
+  win.querySelector(`[data-zone-upgrade="${zoneId}"]`)?.addEventListener('click', () => {
+    const zs = initZone(zoneId);
+    const nextSlot = zs.slots || 1;
+    const cost = ZONE_SLOT_COSTS[nextSlot - 1];
+    if (!cost || state.gang.reputation < cost) return;
+    state.gang.reputation -= cost;
+    zs.slots = nextSlot + 1;
+    saveState();
+    notify(`Zone améliorée ! Slots agents: ${zs.slots}`, 'gold');
     renderZoneWindows();
   });
 
@@ -5112,13 +5153,11 @@ function openCombatPopup(zoneId, spawnObj) {
   const inlineCombat = document.getElementById('battleArena');
   if (!inlineCombat) return;
 
-  // Auto-expand the battle log panel and mark combat active
+  // Mark combat active — ne pas forcer l'ouverture si le log est réduit
   const logPanel = document.getElementById('battleLog');
-  logPanel?.classList.remove('battle-log-collapsed');
   logPanel?.classList.add('has-combat');
   const logTitle = document.getElementById('battleLogTitle');
   const logToggle = document.getElementById('battleLogToggle');
-  if (logToggle) logToggle.textContent = '▼';
   const zoneDef = ZONE_BY_ID[zoneId];
   if (logTitle) logTitle.textContent = `COMBAT — ${zoneDef ? (state.lang === 'fr' ? zoneDef.fr : zoneDef.en) : zoneId}`;
 
@@ -5230,12 +5269,7 @@ function openCombatPopup(zoneId, spawnObj) {
   });
   } // end proceedWithCombat
 
-  if (agentsAtRest.length > 0) {
-    const names = agentsAtRest.map(a => a.name).join(', ');
-    showConfirm(`${names} est en repos. Attaquer seul quand même ?`, proceedWithCombat, null, { confirmLabel: 'Attaquer', cancelLabel: 'Annuler' });
-  } else {
-    proceedWithCombat();
-  }
+  proceedWithCombat();
 }
 
 function renderCombatPoke(p, isBack) {
@@ -5401,7 +5435,7 @@ function renderSellPanel() {
   for (const agent of state.agents) agent.team.forEach(id => teamPokemonIds.add(id));
   state.gang.bossTeam.forEach(id => teamPokemonIds.add(id));
 
-  const sellable = state.pokemons.filter(p => !teamPokemonIds.has(p.id) && !p.favorite);
+  const sellable = state.pokemons.filter(p => !teamPokemonIds.has(p.id) && !p.favorite && !p.shiny);
 
   if (sellable.length === 0) {
     panel.innerHTML = buildSellToolbar([], 0) + '<div style="color:var(--text-dim);padding:12px;text-align:center">Aucun Pokémon disponible (hors équipes & favoris)</div>' + buildSellFooter(0);
@@ -5569,22 +5603,28 @@ function renderShopPanel() {
     const name = ballInfo ? (state.lang === 'fr' ? ballInfo.fr : ballInfo.en) : (state.lang === 'fr' ? (item.fr || item.id) : (item.en || item.id));
     const desc = item.desc_fr ? (state.lang === 'fr' ? item.desc_fr : item.desc_en) : `x${item.qty}`;
     const owned = state.inventory[item.id] || 0;
-    const displayCost = item.id === 'mysteryegg' ? getMysteryEggCost() : item.cost;
+    const displayCost = item.id === 'mysteryegg' ? getMysteryEggCost()
+      : item.id === 'incubator' ? Math.round(15000 * Math.pow(2, state.inventory.incubator || 0))
+      : item.cost;
     const isUnlockItem = ZONE_UNLOCK_ITEM_IDS.has(item.id);
     const alreadyOwned = isUnlockItem && state.purchases?.[item.id];
+    const incubatorMaxed = item.id === 'incubator' && (state.inventory.incubator || 0) >= 10;
     const extraInfo = item.id === 'mysteryegg'
       ? `<div style="font-size:9px;color:var(--text-dim)">Achat #${(state.purchases?.mysteryEggCount||0)+1} — 45min eclosion</div>`
-      : isUnlockItem
-        ? `<div style="font-size:10px;color:${alreadyOwned ? 'var(--green)' : 'var(--text-dim)'}">${alreadyOwned ? (state.lang === 'fr' ? '✓ Possédé' : '✓ Owned') : (state.lang === 'fr' ? 'Débloque une zone' : 'Unlocks a zone')}</div>`
-        : `<div style="font-size:10px;color:var(--text-dim)">En stock: ${owned}</div>`;
-    return `<div style="display:flex;align-items:center;gap:8px;padding:8px 4px;border-bottom:1px solid var(--border);opacity:${alreadyOwned ? '0.6' : '1'}">
+      : item.id === 'incubator'
+        ? `<div style="font-size:10px;color:var(--text-dim)">Possédés: ${owned}/10${incubatorMaxed ? ' <span style="color:var(--red)">MAX</span>' : ''}</div>`
+        : isUnlockItem
+          ? `<div style="font-size:10px;color:${alreadyOwned ? 'var(--green)' : 'var(--text-dim)'}">${alreadyOwned ? (state.lang === 'fr' ? '✓ Possédé' : '✓ Owned') : (state.lang === 'fr' ? 'Débloque une zone' : 'Unlocks a zone')}</div>`
+          : `<div style="font-size:10px;color:var(--text-dim)">En stock: ${owned}</div>`;
+    const btnDisabled = alreadyOwned || incubatorMaxed;
+    return `<div style="display:flex;align-items:center;gap:8px;padding:8px 4px;border-bottom:1px solid var(--border);opacity:${btnDisabled ? '0.6' : '1'}">
       ${itemSprite(item.id)}
       <div style="flex:1">
         <div style="font-size:12px">${name} <span style="color:var(--text-dim)">(${desc})</span></div>
         ${extraInfo}
       </div>
-      <button style="font-family:var(--font-pixel);font-size:9px;padding:6px 12px;background:var(--bg);border:1px solid ${alreadyOwned ? 'var(--border)' : 'var(--gold-dim)'};border-radius:var(--radius-sm);color:${alreadyOwned ? 'var(--text-dim)' : 'var(--gold)'};cursor:${alreadyOwned ? 'default' : 'pointer'}"
-        data-shop-idx="${SHOP_ITEMS.indexOf(item)}" ${alreadyOwned ? 'disabled' : ''}>${alreadyOwned ? (state.lang === 'fr' ? 'Acquis' : 'Owned') : displayCost.toLocaleString()+'₽'}</button>
+      <button style="font-family:var(--font-pixel);font-size:9px;padding:6px 12px;background:var(--bg);border:1px solid ${btnDisabled ? 'var(--border)' : 'var(--gold-dim)'};border-radius:var(--radius-sm);color:${btnDisabled ? 'var(--text-dim)' : 'var(--gold)'};cursor:${btnDisabled ? 'default' : 'pointer'}"
+        data-shop-idx="${SHOP_ITEMS.indexOf(item)}" ${btnDisabled ? 'disabled' : ''}>${btnDisabled ? (incubatorMaxed ? 'MAX' : (state.lang === 'fr' ? 'Acquis' : 'Owned')) : displayCost.toLocaleString()+'₽'}</button>
     </div>`;
   }).join('');
 
@@ -5823,6 +5863,10 @@ function renderPCTab() {
 
 function renderEggsView(container) {
   const eggs = state.eggs || [];
+  const incubatorCount = state.inventory?.incubator || 0;
+  const incubatingCount = eggs.filter(e => e.incubating).length;
+  const freeIncubators = incubatorCount - incubatingCount;
+
   if (eggs.length === 0) {
     container.innerHTML = `<div style="padding:24px;text-align:center;color:var(--text-dim);font-family:var(--font-pixel);font-size:10px">Aucun oeuf pour le moment.<br><br>Utilise la <b style="color:var(--text)">Pension</b> ou achète un <b style="color:var(--text)">Oeuf Mystère</b> au Marché.</div>`;
     return;
@@ -5871,7 +5915,9 @@ function renderEggsView(container) {
             </div>` : ''}
           <div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:center">
             ${isReady ? `<button class="egg-hatch-btn" data-egg-id="${egg.id}" style="font-family:var(--font-pixel);font-size:7px;padding:4px 8px;background:var(--green);border:none;border-radius:var(--radius-sm);color:#000;cursor:pointer">Éclore !</button>` : ''}
-            ${!isIncubating && (state.inventory?.incubator || 0) > 0 ? `<button class="egg-incubate-btn" data-egg-id="${egg.id}" style="font-family:var(--font-pixel);font-size:7px;padding:4px 8px;background:var(--bg);border:1px solid var(--gold-dim);border-radius:var(--radius-sm);color:var(--gold);cursor:pointer">Incuber</button>` : ''}
+            ${!isIncubating && freeIncubators > 0 ? `<button class="egg-incubate-btn" data-egg-id="${egg.id}" style="font-family:var(--font-pixel);font-size:7px;padding:4px 8px;background:var(--bg);border:1px solid var(--gold-dim);border-radius:var(--radius-sm);color:var(--gold);cursor:pointer">Incuber</button>` : ''}
+            ${!isIncubating && incubatorCount > 0 && freeIncubators === 0 ? `<span style="font-family:var(--font-pixel);font-size:7px;color:var(--text-dim)">Incubateurs pleins</span>` : ''}
+            ${!isIncubating && incubatorCount === 0 ? `<span style="font-family:var(--font-pixel);font-size:7px;color:var(--text-dim)">Aucun incubateur</span>` : ''}
             <button class="egg-sell-btn" data-egg-id="${egg.id}" style="font-family:var(--font-pixel);font-size:7px;padding:4px 8px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-dim);cursor:pointer">Vendre</button>
           </div>
         </div>`;
@@ -5946,7 +5992,13 @@ function _bindPCCardListeners(el) {
     const inTeam = state.gang.bossTeam.includes(pk.id) || state.agents.some(a => a.team.includes(pk.id));
     const hasCandy = (state.inventory.rarecandy || 0) > 0;
     showContextMenu(e.clientX, e.clientY, [
-      { action:'sell', label:`Vendre (${price}P)`, fn: () => { sellPokemon([pk.id]); renderPCTab(); updateTopBar(); } },
+      { action:'sell', label:`Vendre (${price}₽)${pk.shiny ? ' ✨' : ''}`, fn: () => {
+        if (pk.shiny) {
+          showConfirm(`<span style="color:gold">✨ CHROMATIQUE !</span><br>Vendre <b>${speciesName(pk.species_en)}</b> pour <b>${price.toLocaleString()}₽</b> ?<br><span style="color:var(--text-dim);font-size:11px">Cette action est irréversible.</span>`,
+            () => { sellPokemon([pk.id]); renderPCTab(); updateTopBar(); },
+            null, { confirmLabel: 'Vendre', cancelLabel: 'Garder', danger: true });
+        } else { sellPokemon([pk.id]); renderPCTab(); updateTopBar(); }
+      }},
       inTeam
         ? { action:'unteam', label:'Retirer de l\'equipe', fn: () => { state.gang.bossTeam = state.gang.bossTeam.filter(id => id !== pk.id); state.agents.forEach(a => { a.team = a.team.filter(id => id !== pk.id); }); saveState(); renderPCTab(); } }
         : { action:'team', label:'Attribuer a...', fn: () => { openAssignToPicker(pk.id); } },
@@ -6051,7 +6103,8 @@ function renderPotentialUpgradePanel(p) {
   for (const a of state.agents) a.team.forEach(id => teamIds.add(id));
   const cost = POT_UPGRADE_COSTS[p.potential - 1];
   const donors = state.pokemons.filter(d =>
-    d.species_en === p.species_en && d.id !== p.id && !d.shiny &&
+    d.species_en === p.species_en && d.id !== p.id &&
+    !d.shiny && d.potential <= p.potential &&
     !teamIds.has(d.id) && !state.trainingRoom.pokemon?.includes(d.id)
   );
   const canUpgrade = donors.length >= cost;
