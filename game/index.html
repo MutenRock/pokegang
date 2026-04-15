@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PokéForge — Gang Wars</title>
+  <title>PokéGang — Gang Wars</title>
+  <link rel="icon" type="image/png" href="../data/pokegang_logo/pokegang_logo_little.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
@@ -1082,15 +1083,14 @@
     }
 
     .intro-logo {
-      font-family: var(--font-pixel);
-      font-size: 28px;
-      color: var(--red);
-      text-shadow: 0 0 20px rgba(204,51,51,0.5);
-      letter-spacing: 2px;
       text-align: center;
+      margin-bottom: 4px;
     }
-    .intro-logo span {
-      color: var(--gold);
+    .intro-logo img {
+      max-width: 280px;
+      width: 100%;
+      height: auto;
+      filter: drop-shadow(0 0 18px rgba(204,51,51,0.55));
     }
 
     /* Scene animation container */
@@ -1360,7 +1360,7 @@
       .intro-panels { flex-direction: column; }
       .intro-showcase { flex: none; min-height: 300px; border-right: none; border-bottom: 1px solid #2a1515; padding: 20px 16px; }
       .intro-form-panel { width: 100%; flex: 1; }
-      .intro-logo { font-size: 20px; }
+      .intro-logo img { max-width: 200px; }
     }
 
     /* ── Settings Modal ──────────────────────────────────────────── */
@@ -2402,7 +2402,9 @@
 
       <!-- LEFT: animated showcase -->
       <div class="intro-showcase">
-        <div class="intro-logo">Poké<span>Forge</span></div>
+        <div class="intro-logo">
+          <img src="../data/pokegang_logo/pokegang_logo_full_B.png" alt="PokéGang">
+        </div>
         <div class="intro-scene-wrap">
           <div id="introSceneContainer" class="intro-scene">
             <!-- filled by JS -->
