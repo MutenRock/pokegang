@@ -2988,7 +2988,14 @@ function passiveAgentTick() {
   if (changed) {
     saveState();
     updateTopBar();
-    if (activeTab === 'tabPC') renderPCTab();
+    // Agent capture: only refresh grid (not full rebuild) to avoid resetting pcSelectedId / view state
+    if (activeTab === 'tabPC') {
+      if (pcView === 'grid') renderPokemonGrid();
+      else if (pcView === 'eggs') { const el = document.getElementById('eggsInPC'); if (el) renderEggsView(el); }
+      // Update eggs button count
+      const eggsBtn = document.getElementById('pcBtnEggs');
+      if (eggsBtn) eggsBtn.textContent = `[OEUFS${state.eggs.length ? ` (${state.eggs.length})` : ''}]`;
+    }
     if (activeTab === 'tabGang') renderGangTab();
   }
 }
@@ -5759,10 +5766,12 @@ function renderPCTab() {
         });
       });
     }
-    // Update active state
+    // Update active state + eggs count (always refresh)
     switcher.querySelectorAll('.pc-view-btn').forEach(btn => {
       btn.classList.toggle('active', btn.dataset.pcview === pcView);
     });
+    const eggsBtn = switcher.querySelector('#pcBtnEggs');
+    if (eggsBtn) eggsBtn.textContent = `[OEUFS${state.eggs.length ? ` (${state.eggs.length})` : ''}]`;
 
     const subViews = ['labInPC', 'pensionInPC', 'eggsInPC'];
     if (pcView === 'lab') {
@@ -7935,14 +7944,7 @@ function startGameLoop() {
   // Auto-save every 10 seconds
   autoSaveInterval = setInterval(saveState, 10000);
 
-  // Cooldown tick every 10 seconds (decrement pokemon cooldowns)
-  cooldownInterval = setInterval(() => {
-    let changed = false;
-    for (const p of state.pokemons) {
-      if (p.cooldown > 0) { p.cooldown--; changed = true; }
-    }
-    if (changed) saveState();
-  }, 10000);
+  // Cooldown tick removed — cooldowns no longer exist in gameplay
 
   // Training room tick every 60 seconds
   setInterval(trainingRoomTick, 60000);
@@ -7965,6 +7967,7 @@ function startGameLoop() {
 
   // Zone timers refresh every second (for boost countdowns + stats)
   setInterval(() => {
+    if (openZones.size === 0) return;
     for (const zoneId of openZones) {
       updateZoneTimers(zoneId);
     }
