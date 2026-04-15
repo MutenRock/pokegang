@@ -1654,6 +1654,7 @@ const TRANSLATOR_PHRASES_FR = [
 
 // PC sub-view state
 let pcView = 'grid'; // 'grid' | 'lab'
+let _pcLastRenderKey = ''; // tracks last filter/sort/page combo to avoid unnecessary rebuilds
 
 // Chest sprite URL
 const CHEST_SPRITE_URL = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/rare-candy.png';
@@ -3445,6 +3446,7 @@ function renderHint(tabId) {
 }
 
 function switchTab(tabId) {
+  if (tabId !== 'tabPC') _pcLastRenderKey = ''; // force full rebuild on next PC visit
   activeTab = tabId;
   document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.tab === tabId);
@@ -5917,7 +5919,44 @@ function renderEggsView(container) {
   });
 }
 
-function renderPokemonGrid() {
+// ── PC grid helpers ──────────────────────────────────────────────────────────
+
+function _buildPCCard(p, teamIds, trainingIds) {
+  const inTeam = teamIds.has(p.id);
+  const inTraining = trainingIds.has(p.id);
+  return `<div class="pc-pokemon ${p.shiny ? 'shiny' : ''} ${pcSelectedId === p.id ? 'selected' : ''} ${inTeam ? 'in-team' : ''} ${inTraining ? 'in-training' : ''}" data-pk-id="${p.id}" title="${speciesName(p.species_en)} Lv.${p.level} ${'★'.repeat(p.potential)}${p.shiny ? ' ✨' : ''}${inTraining ? ' [ENTRAINEMENT]' : ''}">
+    <img src="${pokeSprite(p.species_en, p.shiny)}" alt="${speciesName(p.species_en)}">
+    ${p.favorite ? '<div class="pc-fav-badge">FAV</div>' : ''}
+    ${inTeam ? '<div class="pc-team-badge">EQ</div>' : ''}
+    ${inTraining ? '<div class="pc-training-badge">TR</div>' : ''}
+  </div>`;
+}
+
+function _bindPCCardListeners(el) {
+  el.addEventListener('click', () => {
+    pcSelectedId = el.dataset.pkId;
+    renderPCTab();
+  });
+  el.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    const pId = el.dataset.pkId;
+    const pk = state.pokemons.find(p => p.id === pId);
+    if (!pk) return;
+    const price = calculatePrice(pk);
+    const inTeam = state.gang.bossTeam.includes(pk.id) || state.agents.some(a => a.team.includes(pk.id));
+    const hasCandy = (state.inventory.rarecandy || 0) > 0;
+    showContextMenu(e.clientX, e.clientY, [
+      { action:'sell', label:`Vendre (${price}P)`, fn: () => { sellPokemon([pk.id]); renderPCTab(); updateTopBar(); } },
+      inTeam
+        ? { action:'unteam', label:'Retirer de l\'equipe', fn: () => { state.gang.bossTeam = state.gang.bossTeam.filter(id => id !== pk.id); state.agents.forEach(a => { a.team = a.team.filter(id => id !== pk.id); }); saveState(); renderPCTab(); } }
+        : { action:'team', label:'Attribuer a...', fn: () => { openAssignToPicker(pk.id); } },
+      { action:'candy', label:`Super Bonbon${hasCandy ? '' : ' (aucun)'}`, fn: () => { if (!hasCandy) return; state.inventory.rarecandy--; for (let i=0;i<5;i++) levelUpPokemon(pk, pk.level*20); saveState(); notify(`${speciesName(pk.species_en)} -> Lv.${pk.level}`, 'gold'); renderPCTab(); updateTopBar(); } },
+      { action:'fav', label: pk.favorite ? 'Retirer favori' : 'Ajouter favori', fn: () => { pk.favorite = !pk.favorite; saveState(); renderPCTab(); } },
+    ]);
+  });
+}
+
+function renderPokemonGrid(forceRebuild = false) {
   const grid = document.getElementById('pokemonGrid');
   if (!grid) return;
 
@@ -5925,26 +5964,18 @@ function renderPokemonGrid() {
 
   // Search filter
   const search = document.getElementById('pcSearch')?.value?.toLowerCase() || '';
-  if (search) {
-    list = list.filter(p => {
-      const name = speciesName(p.species_en).toLowerCase();
-      return name.includes(search) || p.species_en.includes(search);
-    });
-  }
+  if (search) list = list.filter(p => speciesName(p.species_en).toLowerCase().includes(search) || p.species_en.includes(search));
 
   // Filter
   const filter = document.getElementById('pcFilter')?.value || 'all';
   if (filter === 'shiny') list = list.filter(p => p.shiny);
   else if (filter === 'fav') list = list.filter(p => p.favorite);
   else if (filter === 'team') {
-    const teamIds = new Set([...state.gang.bossTeam]);
-    for (const a of state.agents) a.team.forEach(id => teamIds.add(id));
-    list = list.filter(p => teamIds.has(p.id));
+    const tIds = new Set([...state.gang.bossTeam]);
+    for (const a of state.agents) a.team.forEach(id => tIds.add(id));
+    list = list.filter(p => tIds.has(p.id));
   }
-  else if (filter.startsWith('pot')) {
-    const pot = parseInt(filter.replace('pot', ''));
-    list = list.filter(p => p.potential === pot);
-  }
+  else if (filter.startsWith('pot')) list = list.filter(p => p.potential === parseInt(filter.replace('pot', '')));
 
   // Sort
   const sort = document.getElementById('pcSort')?.value || 'recent';
@@ -5955,67 +5986,63 @@ function renderPokemonGrid() {
     case 'potential': list.sort((a, b) => (b.potential + (b.shiny ? 10 : 0)) - (a.potential + (a.shiny ? 10 : 0))); break;
     case 'level':     list.sort((a, b) => b.level - a.level); break;
     case 'species':   list.sort((a, b) => a.dex - b.dex || (b.potential - a.potential)); break;
-    case 'recent':    break; // insertion order
+    case 'recent':    break;
   }
-
-  // Always push favorites to top
-  if (filter !== 'fav') {
-    list.sort((a, b) => (b.favorite ? 1 : 0) - (a.favorite ? 1 : 0));
-  }
+  if (filter !== 'fav') list.sort((a, b) => (b.favorite ? 1 : 0) - (a.favorite ? 1 : 0));
 
   const totalPages = Math.max(1, Math.ceil(list.length / PC_PAGE_SIZE));
   if (pcPage >= totalPages) pcPage = totalPages - 1;
   const pageList = list.slice(pcPage * PC_PAGE_SIZE, (pcPage + 1) * PC_PAGE_SIZE);
 
-  // Pagination controls
   const pagination = document.getElementById('pcPagination');
-  if (pagination) {
-    pagination.innerHTML = totalPages <= 1 ? '' :
-      `<button class="pc-page-btn" id="pcPrev" ${pcPage === 0 ? 'disabled' : ''}>&lt;</button>
-       <span style="font-size:9px;color:var(--text-dim)">${pcPage + 1} / ${totalPages} (${list.length})</span>
-       <button class="pc-page-btn" id="pcNext" ${pcPage >= totalPages - 1 ? 'disabled' : ''}>&gt;</button>`;
-    pagination.querySelector('#pcPrev')?.addEventListener('click', () => { pcPage--; renderPokemonGrid(); });
-    pagination.querySelector('#pcNext')?.addEventListener('click', () => { pcPage++; renderPokemonGrid(); });
-  }
-
   const teamIds = new Set([...state.gang.bossTeam]);
   for (const a of state.agents) a.team.forEach(id => teamIds.add(id));
   const trainingIds = new Set(state.trainingRoom.pokemon);
 
-  grid.innerHTML = pageList.map(p => {
-    const inTeam = teamIds.has(p.id);
-    const inTraining = trainingIds.has(p.id);
-    return `<div class="pc-pokemon ${p.shiny ? 'shiny' : ''} ${pcSelectedId === p.id ? 'selected' : ''} ${inTeam ? 'in-team' : ''} ${inTraining ? 'in-training' : ''}" data-pk-id="${p.id}" title="${speciesName(p.species_en)} Lv.${p.level} ${'★'.repeat(p.potential)}${p.shiny ? ' ✨' : ''}${inTraining ? ' [ENTRAINEMENT]' : ''}">
-      <img src="${pokeSprite(p.species_en, p.shiny)}" alt="${speciesName(p.species_en)}">
-      ${p.favorite ? '<div class="pc-fav-badge">FAV</div>' : ''}
-      ${inTeam ? '<div class="pc-team-badge">EQ</div>' : ''}
-      ${inTraining ? '<div class="pc-training-badge">TR</div>' : ''}
-    </div>`;
-  }).join('') || '<div style="color:var(--text-dim);padding:16px;grid-column:1/-1;text-align:center">Aucun Pokémon</div>';
+  // Render key: rebuild only if filters/sort/page changed
+  const renderKey = `${search}|${filter}|${sort}|${pcPage}|${totalPages}`;
+  const needsRebuild = forceRebuild || renderKey !== _pcLastRenderKey;
 
-  grid.querySelectorAll('.pc-pokemon').forEach(el => {
-    el.addEventListener('click', () => {
-      pcSelectedId = el.dataset.pkId;
-      renderPCTab();
+  if (needsRebuild) {
+    _pcLastRenderKey = renderKey;
+
+    // Pagination
+    if (pagination) {
+      pagination.innerHTML = totalPages <= 1 ? '' :
+        `<button class="pc-page-btn" id="pcPrev" ${pcPage === 0 ? 'disabled' : ''}>&lt;</button>
+         <span style="font-size:9px;color:var(--text-dim)">${pcPage + 1} / ${totalPages} (${list.length})</span>
+         <button class="pc-page-btn" id="pcNext" ${pcPage >= totalPages - 1 ? 'disabled' : ''}>&gt;</button>`;
+      pagination.querySelector('#pcPrev')?.addEventListener('click', () => { pcPage--; renderPokemonGrid(true); });
+      pagination.querySelector('#pcNext')?.addEventListener('click', () => { pcPage++; renderPokemonGrid(true); });
+    }
+
+    // Full grid rebuild
+    grid.innerHTML = pageList.map(p => _buildPCCard(p, teamIds, trainingIds)).join('')
+      || '<div style="color:var(--text-dim);padding:16px;grid-column:1/-1;text-align:center">Aucun Pokémon</div>';
+    grid.querySelectorAll('.pc-pokemon').forEach(el => _bindPCCardListeners(el));
+
+  } else {
+    // Soft update: append new cards, update selection — no full rebuild
+    const existingIds = new Set([...grid.querySelectorAll('.pc-pokemon')].map(el => el.dataset.pkId));
+    let added = 0;
+    for (const p of pageList) {
+      if (!existingIds.has(p.id)) {
+        const wrap = document.createElement('div');
+        wrap.innerHTML = _buildPCCard(p, teamIds, trainingIds);
+        const card = wrap.firstElementChild;
+        if (card) { grid.appendChild(card); _bindPCCardListeners(card); added++; }
+      }
+    }
+    // Sync .selected class (selection may have changed without filter change)
+    grid.querySelectorAll('.pc-pokemon').forEach(el => {
+      el.classList.toggle('selected', el.dataset.pkId === pcSelectedId);
     });
-    el.addEventListener('contextmenu', (e) => {
-      e.preventDefault();
-      const pId = el.dataset.pkId;
-      const pk = state.pokemons.find(p => p.id === pId);
-      if (!pk) return;
-      const price = calculatePrice(pk);
-      const inTeam = state.gang.bossTeam.includes(pk.id) || state.agents.some(a => a.team.includes(pk.id));
-      const hasCandy = (state.inventory.rarecandy || 0) > 0;
-      showContextMenu(e.clientX, e.clientY, [
-        { action:'sell', label:`Vendre (${price}P)`, fn: () => { sellPokemon([pk.id]); renderPCTab(); updateTopBar(); } },
-        inTeam
-          ? { action:'unteam', label:'Retirer de l\'equipe', fn: () => { state.gang.bossTeam = state.gang.bossTeam.filter(id => id !== pk.id); state.agents.forEach(a => { a.team = a.team.filter(id => id !== pk.id); }); saveState(); renderPCTab(); } }
-          : { action:'team', label:'Attribuer a...', fn: () => { openAssignToPicker(pk.id); } },
-        { action:'candy', label:`Super Bonbon${hasCandy ? '' : ' (aucun)'}`, fn: () => { if (!hasCandy) return; state.inventory.rarecandy--; for (let i=0;i<5;i++) levelUpPokemon(pk, pk.level*20); saveState(); notify(`${speciesName(pk.species_en)} -> Lv.${pk.level}`, 'gold'); renderPCTab(); updateTopBar(); } },
-        { action:'fav', label: pk.favorite ? 'Retirer favori' : 'Ajouter favori', fn: () => { pk.favorite = !pk.favorite; saveState(); renderPCTab(); } },
-      ]);
-    });
-  });
+    // Update pagination count if list grew
+    if (added > 0 && pagination) {
+      const countEl = pagination.querySelector('span');
+      if (countEl) countEl.textContent = `${pcPage + 1} / ${totalPages} (${list.length})`;
+    }
+  }
 }
 
 function renderPotentialUpgradePanel(p) {
@@ -8422,15 +8449,15 @@ function boot() {
   }
   renderBattleLog();
 
-  // Init filter/sort listeners for PC (reset page on change)
+  // Init filter/sort listeners for PC (reset page on change, force full rebuild)
   document.getElementById('pcSearch')?.addEventListener('input', () => {
-    if (activeTab === 'tabPC') { pcPage = 0; renderPokemonGrid(); }
+    if (activeTab === 'tabPC') { pcPage = 0; renderPokemonGrid(true); }
   });
   document.getElementById('pcSort')?.addEventListener('change', () => {
-    if (activeTab === 'tabPC') { pcPage = 0; renderPokemonGrid(); }
+    if (activeTab === 'tabPC') { pcPage = 0; renderPokemonGrid(true); }
   });
   document.getElementById('pcFilter')?.addEventListener('change', () => {
-    if (activeTab === 'tabPC') { pcPage = 0; renderPokemonGrid(); }
+    if (activeTab === 'tabPC') { pcPage = 0; renderPokemonGrid(true); }
   });
 
   // Info buttons (ℹ on tab nav)
