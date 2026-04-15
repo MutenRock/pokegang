@@ -1587,8 +1587,18 @@
     #rarePopup.show {
       opacity: 1;
       transform: translateX(0);
+      pointer-events: auto;
+      cursor: pointer;
+    }
+    #rarePopup.show:hover { border-color: var(--gold); box-shadow: 0 0 20px rgba(255,204,90,.45); }
+    .zone-highlight { animation: zoneRareHighlight 1.5s ease-out forwards; }
+    @keyframes zoneRareHighlight {
+      0%   { box-shadow: 0 0 0 3px rgba(68,136,204,0); }
+      20%  { box-shadow: 0 0 0 4px rgba(68,136,204,.8), 0 0 24px rgba(68,136,204,.5); }
+      100% { box-shadow: 0 0 0 2px rgba(68,136,204,0); }
     }
     #rarePopup .rare-label { font-family: var(--font-pixel); font-size: 9px; color: var(--blue); }
+    #rarePopup .rare-hint  { font-family: var(--font-pixel); font-size: 7px; color: var(--text-dim); margin-top: 2px; }
     #rarePopup .rare-sprite { image-rendering: pixelated; width: 40px; height: 40px; }
 
     /* ── Keyframe Animations ─────────────────────────────────────── */
@@ -2254,7 +2264,10 @@
   </div>
   <div id="rarePopup">
     <img class="rare-sprite" id="rarePopupSprite" src="" alt="">
-    <div class="rare-label" id="rarePopupLabel">Pokémon rare aperçu !</div>
+    <div>
+      <div class="rare-label" id="rarePopupLabel">Pokémon rare aperçu !</div>
+      <div class="rare-hint" id="rarePopupHint"></div>
+    </div>
   </div>
 
   <div id="app">

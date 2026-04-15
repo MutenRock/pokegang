@@ -1756,19 +1756,64 @@ function showShinyPopup(species_en) {
 
 let _rarePopupTimer = null;
 
-function showRarePopup(species_en) {
+function showRarePopup(species_en, zoneId) {
   try {
-    const el = document.getElementById('rarePopup');
+    const el     = document.getElementById('rarePopup');
     const sprite = document.getElementById('rarePopupSprite');
     const label  = document.getElementById('rarePopupLabel');
+    const hint   = document.getElementById('rarePopupHint');
     if (!el) return;
     sprite.src = pokeSprite(species_en);
-    label.textContent = (state.lang === 'fr' ? '⚡ Rare aperçu: ' : '⚡ Rare spotted: ') + speciesName(species_en);
+    label.textContent = (state.lang === 'fr' ? '⚡ Rare aperçu : ' : '⚡ Rare spotted: ') + speciesName(species_en);
+
+    // Afficher le nom de la zone et le hint cliquable
+    if (zoneId && hint) {
+      const zone = ZONE_BY_ID[zoneId];
+      const zoneName = zone ? (state.lang === 'fr' ? zone.fr : zone.en) : zoneId;
+      hint.textContent = `→ ${zoneName}`;
+    } else if (hint) {
+      hint.textContent = '';
+    }
+
+    // Stocker le zoneId pour le clic
+    el.dataset.targetZone = zoneId || '';
+
     el.classList.add('show');
     clearTimeout(_rarePopupTimer);
-    _rarePopupTimer = setTimeout(() => el.classList.remove('show'), 2500);
+    _rarePopupTimer = setTimeout(() => el.classList.remove('show'), 3500);
   } catch {}
 }
+
+// ── Clic sur le popup rare → switch vers la zone ──────────────
+(function _bindRarePopupClick() {
+  document.addEventListener('DOMContentLoaded', () => {
+    const el = document.getElementById('rarePopup');
+    if (!el) return;
+    el.addEventListener('click', () => {
+      const zoneId = el.dataset.targetZone;
+      if (!zoneId) return;
+      clearTimeout(_rarePopupTimer);
+      el.classList.remove('show');
+      // Ouvrir l'onglet Zones et y ouvrir la zone cible
+      switchTab('tabZones');
+      // S'assurer que la zone est ouverte dans les fenêtres
+      if (!openZones.has(zoneId)) {
+        openZones.add(zoneId);
+        if (!state.openZoneOrder) state.openZoneOrder = [];
+        if (!state.openZoneOrder.includes(zoneId)) state.openZoneOrder.push(zoneId);
+      }
+      renderZonesTab();
+      // Scroll vers la fenêtre de zone après le rendu
+      setTimeout(() => {
+        const zoneWin = document.getElementById(`zw-${zoneId}`);
+        zoneWin?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        // Bref highlight visuel
+        zoneWin?.classList.add('zone-highlight');
+        setTimeout(() => zoneWin?.classList.remove('zone-highlight'), 1500);
+      }, 100);
+    });
+  });
+})();
 
 // ════════════════════════════════════════════════════════════════
 //  3c.  MODAL HELPERS (confirm + info)
@@ -5183,7 +5228,7 @@ function renderSpawnInWindow(zoneId, spawnObj) {
     el.title = sp ? (state.lang === 'fr' ? sp.fr : sp.en) : spawnObj.species_en;
     // Rare / very_rare / legendary popup notification
     if (sp && (sp.rarity === 'very_rare' || sp.rarity === 'legendary')) {
-      setTimeout(() => showRarePopup(spawnObj.species_en), 300);
+      setTimeout(() => showRarePopup(spawnObj.species_en, zoneId), 300);
     }
     el.addEventListener('click', () => {
       if (el.classList.contains('catching')) return;
