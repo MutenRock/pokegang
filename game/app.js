@@ -1236,7 +1236,7 @@ function saveState() {
       p.history = p.history.slice(-20);
     }
   }
-  delete state.marketSales; // legacy cleanup
+  if (!state.marketSales) state.marketSales = {}; // guard: toujours initialisé
 
   // Playtime accumulation
   if (state.sessionStart) {
