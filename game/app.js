@@ -1120,6 +1120,9 @@ function t(key, vars = {}) {
 //  2.  STATE MANAGEMENT
 // ════════════════════════════════════════════════════════════════
 
+// ── App version — bump on every deploy to force client reload ──
+const APP_VERSION = '2.1.0';
+
 const SAVE_KEYS = ['pokeforge.v6', 'pokeforge.v6.s2', 'pokeforge.v6.s3'];
 let activeSaveSlot = Math.min(2, parseInt(localStorage.getItem('pokeforge.activeSlot') || '0'));
 let SAVE_KEY = SAVE_KEYS[activeSaveSlot];
@@ -8021,6 +8024,13 @@ function startGameLoop() {
   // Market decay every 5 minutes
   setInterval(decayMarketSales, 300000);
 
+  // Remote version polling every 5 minutes (detects new deploys)
+  setInterval(pollRemoteVersion, 300000);
+  pollRemoteVersion(); // immediate first check
+
+  // Daily reload at 12h00 + 00h00 to flush new versions
+  startDailyReloadSchedule();
+
   // Auto-save every 10 seconds
   autoSaveInterval = setInterval(saveState, 10000);
 
@@ -8441,7 +8451,136 @@ async function supaFetchLeaderboard() {
 
 // ════════════════════════════════════════════════════════════════
 
+// ── Version check on boot ─────────────────────────────────────
+// If the stored version doesn't match APP_VERSION, a new deploy
+// has happened → store the new version then hard-reload.
+function checkVersionOnBoot() {
+  const PG_VER_KEY = 'pg.appVersion';
+  const stored = localStorage.getItem(PG_VER_KEY);
+  if (stored && stored !== APP_VERSION) {
+    localStorage.setItem(PG_VER_KEY, APP_VERSION);
+    location.reload(true);
+    return true; // signal: reload in progress
+  }
+  localStorage.setItem(PG_VER_KEY, APP_VERSION);
+  return false;
+}
+
+// ── Remote version polling (every 5 min) ─────────────────────
+// Fetches index.html with a cache-buster, reads the meta tag,
+// shows a sticky banner if a new version is available.
+let _remoteVersionBannerShown = false;
+function pollRemoteVersion() {
+  if (_remoteVersionBannerShown) return;
+  fetch(`./index.html?_v=${Date.now()}`, { cache: 'no-store' })
+    .then(r => r.text())
+    .then(html => {
+      const match = html.match(/<meta\s+name="app-version"\s+content="([^"]+)"/);
+      if (!match) return;
+      const remoteVer = match[1];
+      if (remoteVer !== APP_VERSION && !_remoteVersionBannerShown) {
+        _remoteVersionBannerShown = true;
+        showUpdateBanner(remoteVer);
+      }
+    })
+    .catch(() => {}); // silently ignore network errors
+}
+
+function showUpdateBanner(newVer) {
+  // Remove any existing banner
+  document.getElementById('updateBanner')?.remove();
+  const banner = document.createElement('div');
+  banner.id = 'updateBanner';
+  banner.style.cssText = `
+    position:fixed; top:0; left:0; right:0; z-index:99999;
+    background:#cc3333; color:#fff; text-align:center;
+    padding:10px 16px; font-size:13px; font-family:inherit;
+    display:flex; align-items:center; justify-content:center; gap:12px;
+    box-shadow:0 2px 12px rgba(0,0,0,0.5);
+  `;
+  banner.innerHTML = `
+    <span>⚡ Nouvelle version <strong>${newVer}</strong> disponible !</span>
+    <button id="updateBannerBtn" style="
+      background:#fff; color:#cc3333; border:none; border-radius:4px;
+      padding:4px 12px; font-size:12px; cursor:pointer; font-weight:bold;
+    ">Recharger</button>
+  `;
+  document.body.prepend(banner);
+  document.getElementById('updateBannerBtn')?.addEventListener('click', () => {
+    saveState();
+    location.reload(true);
+  });
+}
+
+// ── Daily scheduled reload at 12h00 and 00h00 ────────────────
+// 30s before the deadline a toast countdown starts,
+// then saveState() + hard reload to pick up the new deploy.
+let _dailyReloadLastHour = -1;   // prevents double-trigger in same minute
+let _dailyCountdownActive = false;
+
+function startDailyReloadSchedule() {
+  setInterval(_checkDailyReload, 30000); // check every 30 seconds
+}
+
+function _checkDailyReload() {
+  const now = new Date();
+  const h = now.getHours();
+  const m = now.getMinutes();
+
+  // Trigger 1 minute before 12:00 or 00:00 to show countdown
+  const isReloadHour = (h === 11 && m === 59) || (h === 23 && m === 59);
+  const reloadKey = h < 12 ? 0 : 12; // 0 or 12 identifies which window
+
+  if (isReloadHour && _dailyReloadLastHour !== reloadKey && !_dailyCountdownActive) {
+    _dailyCountdownActive = true;
+    _dailyReloadLastHour = reloadKey;
+    _runDailyCountdown(60); // 60 second countdown
+  }
+
+  // Safety: if we somehow missed the countdown, force reload at the exact hour
+  const isMissedReload = (h === 12 || h === 0) && m === 0 && _dailyReloadLastHour !== reloadKey;
+  if (isMissedReload) {
+    _dailyReloadLastHour = reloadKey;
+    saveState();
+    location.reload(true);
+  }
+}
+
+function _runDailyCountdown(seconds) {
+  // Show persistent warning toast
+  const container = document.getElementById('notifications');
+  if (!container) { _triggerDailyReload(); return; }
+
+  const el = document.createElement('div');
+  el.className = 'toast warning';
+  el.id = 'dailyReloadToast';
+  el.style.cssText = 'position:relative; min-width:220px; pointer-events:none;';
+  el.textContent = `🔄 Maintenance — rechargement dans ${seconds}s`;
+  container.appendChild(el);
+
+  let remaining = seconds;
+  const interval = setInterval(() => {
+    remaining--;
+    const toastEl = document.getElementById('dailyReloadToast');
+    if (toastEl) toastEl.textContent = `🔄 Maintenance — rechargement dans ${remaining}s`;
+    if (remaining <= 0) {
+      clearInterval(interval);
+      _triggerDailyReload();
+    }
+  }, 1000);
+}
+
+function _triggerDailyReload() {
+  saveState();
+  // Navigate to hub tab before reload so player lands on it after
+  switchTab('tabGang');
+  setTimeout(() => location.reload(true), 500);
+}
+
 function boot() {
+  // Version check — must run before anything else; may trigger reload
+  if (checkVersionOnBoot()) return;
+
   // Try to load saved state
   const saved = loadState();
   if (saved) {
