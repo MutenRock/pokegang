@@ -1955,6 +1955,11 @@ function makePokemon(speciesEN, zoneId, ballType = 'pokeball') {
   pokemon.stats = calculateStats(pokemon);
   // Initial history entry
   pokemon.history.push({ type: 'captured', ts: Date.now(), zone: zoneId, ball: ballType });
+  // Track most expensive obtained
+  const obtainedValue = calculatePrice(pokemon);
+  if (!state.stats.mostExpensiveObtained || obtainedValue > (state.stats.mostExpensiveObtained.price || 0)) {
+    state.stats.mostExpensiveObtained = { name: speciesName(pokemon.species_en), price: obtainedValue };
+  }
   return pokemon;
 }
 
@@ -2026,6 +2031,17 @@ EVOLUTIONS.forEach(([from, to, req]) => {
   if (!EVO_BY_SPECIES[from]) EVO_BY_SPECIES[from] = [];
   EVO_BY_SPECIES[from].push({ to, req });
 });
+
+// Reverse evo map: species → direct predecessor
+const EVO_PREV = {};
+EVOLUTIONS.forEach(([from, to]) => { EVO_PREV[to] = from; });
+
+// Get the base (stage 1) of any species
+function getBaseSpecies(en) {
+  let sp = en;
+  while (EVO_PREV[sp]) sp = EVO_PREV[sp];
+  return sp;
+}
 
 function checkEvolution(pokemon) {
   const evos = EVO_BY_SPECIES[pokemon.species_en];
@@ -3236,9 +3252,14 @@ function sellPokemon(pokemonIds) {
     const idx = state.pokemons.findIndex(p => p.id === id);
     if (idx === -1) continue;
     const p = state.pokemons[idx];
-    total += calculatePrice(p);
+    const soldPrice = calculatePrice(p);
+    total += soldPrice;
     state.pokemons.splice(idx, 1);
     state.stats.totalSold++;
+    // Track most expensive sale
+    if (!state.stats.mostExpensiveSold || soldPrice > (state.stats.mostExpensiveSold.price || 0)) {
+      state.stats.mostExpensiveSold = { name: speciesName(p.species_en), price: soldPrice };
+    }
   }
   state.gang.money += total;
   state.stats.totalMoneyEarned += total;
@@ -3636,6 +3657,42 @@ function applyCosmetics() {
   }
 }
 
+function openSpritePicker(currentSprite, callback) {
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:5000;background:rgba(0,0,0,.88);display:flex;align-items:center;justify-content:center;';
+  overlay.innerHTML = `
+    <div style="background:var(--bg-panel);border:2px solid var(--gold-dim);border-radius:var(--radius);padding:16px;max-width:500px;width:95%;display:flex;flex-direction:column;gap:12px">
+      <div style="font-family:var(--font-pixel);font-size:10px;color:var(--gold)">Choisir un sprite</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;max-height:280px;overflow-y:auto" id="spritePickerGrid">
+        ${BOSS_SPRITES.map(s => `
+          <div class="spr-opt" data-spr="${s}" style="display:flex;flex-direction:column;align-items:center;gap:2px;padding:4px;border:2px solid ${s === currentSprite ? 'var(--gold)' : 'var(--border)'};border-radius:4px;cursor:pointer;background:var(--bg-card)">
+            <img src="${trainerSprite(s)}" style="width:36px;height:36px;image-rendering:pixelated">
+            <span style="font-size:7px;color:var(--text-dim)">${s}</span>
+          </div>`).join('')}
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button id="spritePickerCancel" style="font-family:var(--font-pixel);font-size:9px;padding:6px 12px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-dim);cursor:pointer">Annuler</button>
+        <button id="spritePickerConfirm" style="font-family:var(--font-pixel);font-size:9px;padding:6px 12px;background:var(--bg);border:1px solid var(--gold-dim);border-radius:var(--radius-sm);color:var(--gold);cursor:pointer">Confirmer</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+
+  let selectedSpr = currentSprite || BOSS_SPRITES[0];
+  overlay.querySelectorAll('.spr-opt').forEach(el => {
+    el.addEventListener('click', () => {
+      overlay.querySelectorAll('.spr-opt').forEach(o => o.style.borderColor = 'var(--border)');
+      el.style.borderColor = 'var(--gold)';
+      selectedSpr = el.dataset.spr;
+    });
+  });
+
+  document.getElementById('spritePickerCancel').addEventListener('click', () => overlay.remove());
+  document.getElementById('spritePickerConfirm').addEventListener('click', () => {
+    overlay.remove();
+    if (selectedSpr) callback(selectedSpr);
+  });
+}
+
 function renderCosmeticsPanel(container) {
   const unlocked = new Set(state.cosmetics?.unlockedBgs || []);
   const active = state.cosmetics?.gameBg || null;
@@ -3687,6 +3744,80 @@ function renderCosmeticsPanel(container) {
           notify(`Fond "${c.fr}" debloque !`, 'gold');
           renderCosmeticsPanel(container);
         }, null, { confirmLabel: 'Acheter', cancelLabel: 'Annuler' });
+      }
+    });
+  });
+
+  // Appearance section (reputation-based)
+  const appHtml = `
+    <div style="font-family:var(--font-pixel);font-size:9px;color:var(--gold);margin-top:18px;margin-bottom:10px">APPARENCE — DÉPENSE EN RÉPUTATION</div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <div style="border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px;background:var(--bg-card)">
+        <div style="font-size:9px;margin-bottom:6px">👤 Boss: <strong>${state.gang.bossName}</strong></div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="cosm-action-btn" data-cosm-action="rename-boss" style="font-family:var(--font-pixel);font-size:8px;padding:4px 8px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-dim);cursor:pointer">✏ Renommer (50 rep)</button>
+          <button class="cosm-action-btn" data-cosm-action="sprite-boss" style="font-family:var(--font-pixel);font-size:8px;padding:4px 8px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-dim);cursor:pointer">🎨 Sprite (100 rep)</button>
+        </div>
+      </div>
+      ${state.agents.map(a => `
+      <div style="border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px;background:var(--bg-card)" data-agent-cosm="${a.id}">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+          <img src="${a.sprite}" style="width:28px;height:28px;image-rendering:pixelated" onerror="this.src='${trainerSprite('acetrainer')}'">
+          <span style="font-size:9px">Agent: <strong>${a.name}</strong></span>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="cosm-action-btn" data-cosm-action="rename-agent" data-agent-id="${a.id}" style="font-family:var(--font-pixel);font-size:8px;padding:4px 8px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-dim);cursor:pointer">✏ Renommer (50 rep)</button>
+          <button class="cosm-action-btn" data-cosm-action="sprite-agent" data-agent-id="${a.id}" style="font-family:var(--font-pixel);font-size:8px;padding:4px 8px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-dim);cursor:pointer">🎨 Sprite (100 rep)</button>
+        </div>
+      </div>`).join('')}
+    </div>`;
+
+  const appDiv = document.createElement('div');
+  appDiv.innerHTML = appHtml;
+  container.appendChild(appDiv);
+
+  // Bind appearance buttons
+  container.querySelectorAll('.cosm-action-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const action = btn.dataset.cosmAction;
+      const agentId = btn.dataset.agentId;
+
+      if (action === 'rename-boss') {
+        if (state.gang.reputation < 50) { notify('Réputation insuffisante (50 rep)', 'error'); return; }
+        const newName = prompt(`Nouveau nom du Boss (max 16 car.) :`);
+        if (!newName || !newName.trim()) return;
+        state.gang.reputation -= 50;
+        state.gang.bossName = newName.trim().slice(0, 16);
+        saveState(); updateTopBar(); renderCosmeticsPanel(container);
+        notify(`Boss renommé : ${state.gang.bossName}`, 'gold');
+      } else if (action === 'rename-agent') {
+        if (state.gang.reputation < 50) { notify('Réputation insuffisante (50 rep)', 'error'); return; }
+        const agent = state.agents.find(a => a.id === agentId);
+        if (!agent) return;
+        const newName = prompt(`Nouveau nom de ${agent.name} (max 16 car.) :`);
+        if (!newName || !newName.trim()) return;
+        state.gang.reputation -= 50;
+        agent.name = newName.trim().slice(0, 16);
+        saveState(); updateTopBar(); renderCosmeticsPanel(container);
+        notify(`Agent renommé : ${agent.name}`, 'gold');
+      } else if (action === 'sprite-boss') {
+        if (state.gang.reputation < 100) { notify('Réputation insuffisante (100 rep)', 'error'); return; }
+        openSpritePicker(state.gang.bossSprite, (newSprite) => {
+          state.gang.reputation -= 100;
+          state.gang.bossSprite = newSprite;
+          saveState(); updateTopBar(); renderZonesTab(); renderCosmeticsPanel(container);
+          notify('Sprite du Boss mis à jour !', 'gold');
+        });
+      } else if (action === 'sprite-agent') {
+        if (state.gang.reputation < 100) { notify('Réputation insuffisante (100 rep)', 'error'); return; }
+        const agent = state.agents.find(a => a.id === agentId);
+        if (!agent) return;
+        openSpritePicker(null, (newSprite) => {
+          state.gang.reputation -= 100;
+          agent.sprite = trainerSprite(newSprite);
+          saveState(); renderCosmeticsPanel(container);
+          notify(`Sprite de ${agent.name} mis à jour !`, 'gold');
+        });
       }
     });
   });
@@ -3912,9 +4043,29 @@ function showCollectionResult(win, amount, items, agentIds) {
         ${Object.entries(items).map(([id, qty]) => `${itemSprite(id)}<span style="font-size:10px;color:var(--text)">×${qty}</span>`).join('')}
        </div>` : '';
 
+  // Generate a random police opponent
+  const policeTrainers = ['officer', 'policeman', 'acetrainer', 'sabrina'];
+  const policeKey = policeTrainers[Math.floor(Math.random() * policeTrainers.length)];
+  const policeName = 'Officier Jenny';
+
+  // Battle scene HTML
+  const combatSceneHtml = `
+    <div style="display:flex;align-items:center;justify-content:center;gap:16px;padding:10px;background:rgba(0,0,0,.4);border-radius:var(--radius-sm);border:1px solid ${win ? 'var(--gold-dim)' : 'var(--red)'}">
+      <div style="display:flex;flex-direction:column;align-items:center;gap:3px">
+        ${state.gang.bossSprite ? `<img src="${trainerSprite(state.gang.bossSprite)}" style="width:40px;height:40px;image-rendering:pixelated;${win ? '' : 'opacity:0.5;filter:grayscale(1)'}">` : ''}
+        ${(agentIds || []).slice(0,2).map(id => { const ag = state.agents.find(a => a.id === id); return ag ? `<img src="${ag.sprite}" style="width:28px;height:28px;image-rendering:pixelated;${win ? '' : 'opacity:0.5;filter:grayscale(1)'}">` : ''; }).join('')}
+        <span style="font-size:8px;color:${win ? 'var(--green)' : 'var(--red)'}">${win ? 'Victoire' : 'KO'}</span>
+      </div>
+      <div style="font-family:var(--font-pixel);font-size:14px;color:${win ? 'var(--gold)' : 'var(--red)'}">VS</div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:3px">
+        <img src="${trainerSprite(policeKey)}" style="width:40px;height:40px;image-rendering:pixelated;${win ? 'opacity:0.5;filter:grayscale(1)' : ''}">
+        <span style="font-size:8px;color:var(--text-dim)">${policeName}</span>
+      </div>
+    </div>`;
+
   modal.innerHTML = `
-    <div style="background:var(--bg-panel);border:2px solid ${win ? 'var(--gold)' : 'var(--red)'};border-radius:var(--radius);padding:28px;max-width:380px;width:90%;display:flex;flex-direction:column;align-items:center;gap:16px;text-align:center">
-      <div style="font-size:40px">${win ? '💰' : '😤'}</div>
+    <div style="background:var(--bg-panel);border:2px solid ${win ? 'var(--gold)' : 'var(--red)'};border-radius:var(--radius);padding:28px;max-width:400px;width:90%;display:flex;flex-direction:column;align-items:center;gap:14px;text-align:center">
+      ${combatSceneHtml}
       <div style="font-family:var(--font-pixel);font-size:12px;color:${win ? 'var(--gold)' : 'var(--red)'}">
         ${win ? 'Récolte réussie !' : 'Défaite — 75% récupérés'}
       </div>
@@ -4207,7 +4358,7 @@ function buildZoneWindowEl(zoneId) {
         <span class="zone-level">${progressText}${zone.type === 'gym' ? ` <span style="color:var(--gold);font-size:8px">XP*${zone.xpBonus}</span>` : ''}</span>
       </div>
       <div class="zone-slots-bar" style="display:flex;align-items:center;gap:6px;padding:3px 8px;font-family:var(--font-pixel);font-size:8px;background:rgba(0,0,0,.4);border-top:1px solid var(--border)">
-        <span style="color:var(--text-dim)">Agents: ${assignedAgents.length}/${zState.slots || 1}</span>
+        <span class="slot-count" style="color:var(--text-dim)">Agents: ${assignedAgents.length}/${zState.slots || 1}</span>
         ${(zState.slots || 1) < ZONE_SLOT_COSTS.length + 1 ? (() => {
           const nextSlot = (zState.slots || 1);
           const cost = ZONE_SLOT_COSTS[nextSlot - 1];
@@ -4236,16 +4387,19 @@ function buildZoneWindowEl(zoneId) {
     renderZoneWindows();
   });
 
-  win.querySelector(`[data-zone-upgrade="${zoneId}"]`)?.addEventListener('click', () => {
+  win.querySelector(`[data-zone-upgrade="${zoneId}"]`)?.addEventListener('dblclick', (e) => {
+    e.stopPropagation();
     const zs = initZone(zoneId);
     const nextSlot = zs.slots || 1;
     const cost = ZONE_SLOT_COSTS[nextSlot - 1];
-    if (!cost || state.gang.reputation < cost) return;
-    state.gang.reputation -= cost;
-    zs.slots = nextSlot + 1;
-    saveState();
-    notify(`Zone améliorée ! Slots agents: ${zs.slots}`, 'gold');
-    renderZoneWindows();
+    if (!cost || state.gang.reputation < cost) { notify('Réputation insuffisante', 'error'); return; }
+    showConfirm(`Dépenser ${cost} réputation pour débloquer un slot agent ?`, () => {
+      state.gang.reputation -= cost;
+      zs.slots = nextSlot + 1;
+      saveState(); updateTopBar();
+      notify(`Zone améliorée ! Slots agents: ${zs.slots}`, 'gold');
+      renderZoneWindows();
+    }, null, { confirmLabel: 'Oui', cancelLabel: 'Non' });
   });
 
   return win;
@@ -4326,6 +4480,43 @@ function patchZoneWindow(zoneId, win) {
   if (zoneInfo) {
     const levelEl = zoneInfo.querySelector('.zone-level');
     if (levelEl) levelEl.innerHTML = `${progressText}${zone.type === 'gym' ? ` <span style="color:var(--gold);font-size:8px">XP*${zone.xpBonus}</span>` : ''}`;
+  }
+
+  // Refresh slots bar
+  const viewport2 = win.querySelector('.zone-viewport');
+  const slotsBar = viewport2?.querySelector('.zone-slots-bar');
+  if (slotsBar) {
+    const freshAssigned = state.agents.filter(a => a.assignedZone === zoneId);
+    const freshZState = state.zones[zoneId] || {};
+    const freshMaxSlots = freshZState.slots || 1;
+    const freshCanUpgrade = freshMaxSlots < ZONE_SLOT_COSTS.length + 1;
+    const freshCost = freshCanUpgrade ? ZONE_SLOT_COSTS[freshMaxSlots - 1] : null;
+    const freshCanAfford = freshCost && state.gang.reputation >= freshCost;
+    slotsBar.innerHTML = `
+      <span class="slot-count" style="color:var(--text-dim)">Agents: ${freshAssigned.length}/${freshMaxSlots}</span>
+      ${freshCanUpgrade
+        ? `<button class="zone-slot-upgrade" data-zone-upgrade="${zoneId}" data-cost="${freshCost}"
+            style="font-family:var(--font-pixel);font-size:7px;padding:2px 6px;background:var(--bg);
+            border:1px solid ${freshCanAfford ? 'var(--gold-dim)' : 'var(--border)'};border-radius:2px;
+            color:${freshCanAfford ? 'var(--gold)' : 'var(--text-dim)'};cursor:${freshCanAfford ? 'pointer' : 'default'}"
+            ${freshCanAfford ? '' : 'disabled'}>+slot ${freshCost}rep</button>`
+        : '<span style="color:var(--gold)">FULL</span>'}
+    `;
+    // Rebind dblclick upgrade
+    slotsBar.querySelector(`[data-zone-upgrade="${zoneId}"]`)?.addEventListener('dblclick', (e) => {
+      e.stopPropagation();
+      const zs2 = initZone(zoneId);
+      const ns = zs2.slots || 1;
+      const uc = ZONE_SLOT_COSTS[ns - 1];
+      if (!uc || state.gang.reputation < uc) { notify('Réputation insuffisante', 'error'); return; }
+      showConfirm(`Dépenser ${uc} réputation pour débloquer un slot agent ?`, () => {
+        state.gang.reputation -= uc;
+        zs2.slots = ns + 1;
+        saveState(); updateTopBar();
+        notify(`Zone améliorée ! Slots agents: ${zs2.slots}`, 'gold');
+        renderZoneWindows();
+      }, null, { confirmLabel: 'Oui', cancelLabel: 'Non' });
+    });
   }
 
   updateZoneTimers(zoneId);
@@ -4487,30 +4678,12 @@ function bindGangBase(container) {
 
 // ── Gang Export (Canvas screenshot) ──────────────────────────
 async function exportGangImage() {
-  const win = document.getElementById('gangBaseWin');
-  if (!win) return;
   try {
-    // Build a canvas from gang info
-    const W = 400, H = 480;
+    const W = 600, H = 820;
     const canvas = document.createElement('canvas');
     canvas.width = W; canvas.height = H;
     const ctx = canvas.getContext('2d');
 
-    // Background
-    const grad = ctx.createLinearGradient(0, 0, 0, H);
-    grad.addColorStop(0,   '#1a0808');
-    grad.addColorStop(0.3, '#2d1111');
-    grad.addColorStop(0.7, '#1c0c0c');
-    grad.addColorStop(1,   '#0f0505');
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, W, H);
-
-    // Border
-    ctx.strokeStyle = '#cc3333';
-    ctx.lineWidth = 3;
-    ctx.strokeRect(2, 2, W - 4, H - 4);
-
-    // Helper: load image as promise
     function loadImg(src) {
       return new Promise(resolve => {
         const img = new Image(); img.crossOrigin = 'anonymous';
@@ -4520,78 +4693,143 @@ async function exportGangImage() {
       });
     }
 
-    // Boss sprite
+    // Background
+    const grad = ctx.createLinearGradient(0, 0, 0, H);
+    grad.addColorStop(0, '#180606'); grad.addColorStop(0.4, '#200c0c');
+    grad.addColorStop(0.7, '#160808'); grad.addColorStop(1, '#0e0404');
+    ctx.fillStyle = grad; ctx.fillRect(0, 0, W, H);
+
+    // Outer border
+    ctx.strokeStyle = '#cc3333'; ctx.lineWidth = 3;
+    ctx.strokeRect(2, 2, W - 4, H - 4);
+    ctx.strokeStyle = 'rgba(204,51,51,0.3)'; ctx.lineWidth = 1;
+    ctx.strokeRect(7, 7, W - 14, H - 14);
+
+    // ── Header: Boss ──────────────────────────────────────────────
+    let yOff = 18;
     const bossImgSrc = state.gang.bossSprite ? trainerSprite(state.gang.bossSprite) : null;
     if (bossImgSrc) {
       const bossImg = await loadImg(bossImgSrc);
       if (bossImg) {
-        try { ctx.drawImage(bossImg, W/2 - 48, 24, 96, 96); }
-        catch(e) {
-          ctx.fillStyle = '#333'; ctx.fillRect(W/2 - 48, 24, 96, 96);
-          ctx.fillStyle = '#666'; ctx.font = '10px monospace'; ctx.textAlign = 'center';
-          ctx.fillText('Boss', W/2, 72);
-        }
+        try { ctx.drawImage(bossImg, W/2 - 52, yOff, 104, 104); }
+        catch(e) {}
       }
     }
+    yOff += 112;
+    ctx.fillStyle = '#cc3333'; ctx.font = 'bold 20px "Courier New",monospace';
+    ctx.textAlign = 'center'; ctx.fillText(state.gang.name, W/2, yOff); yOff += 22;
+    ctx.fillStyle = '#e0e0e0'; ctx.font = '14px "Courier New",monospace';
+    ctx.fillText(state.gang.bossName, W/2, yOff); yOff += 16;
 
-    // Gang name & boss name
-    ctx.fillStyle = '#cc3333';
-    ctx.font = 'bold 18px "Courier New", monospace';
-    ctx.textAlign = 'center';
-    ctx.fillText(state.gang.name, W/2, 140);
-    ctx.fillStyle = '#e0e0e0';
-    ctx.font = '14px "Courier New", monospace';
-    ctx.fillText(state.gang.bossName, W/2, 160);
+    // Separator
+    ctx.strokeStyle = '#cc3333'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(20, yOff); ctx.lineTo(W-20, yOff); ctx.stroke(); yOff += 10;
 
-    // Team pokémon
+    // ── Boss team ─────────────────────────────────────────────────
+    ctx.fillStyle = '#888'; ctx.font = '9px "Courier New",monospace';
+    ctx.fillText('— ÉQUIPE BOSS —', W/2, yOff); yOff += 8;
     const teamPks = state.gang.bossTeam.map(id => state.pokemons.find(p => p.id === id)).filter(Boolean);
-    let tx = W/2 - teamPks.length * 30;
-    for (const pk of teamPks) {
-      const img = await loadImg(pokeSprite(pk.species_en, pk.shiny));
-      if (img) {
-        try { ctx.drawImage(img, tx, 170, 56, 56); }
-        catch(e) { ctx.fillStyle = '#333'; ctx.fillRect(tx, 170, 56, 56); }
+    if (teamPks.length > 0) {
+      const slotW = 60, startX = W/2 - (teamPks.length * slotW)/2;
+      for (let i = 0; i < teamPks.length; i++) {
+        const pk = teamPks[i];
+        const img = await loadImg(pokeSprite(pk.species_en, pk.shiny));
+        const sx = startX + i * slotW;
+        if (img) { try { ctx.drawImage(img, sx + 2, yOff, 52, 52); } catch(e) {} }
+        ctx.fillStyle = '#aaa'; ctx.font = '7px "Courier New",monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(`Lv.${pk.level}`, sx + 28, yOff + 62);
       }
-      tx += 62;
+      yOff += 72;
+    } else { yOff += 8; }
+
+    // Separator
+    ctx.strokeStyle = '#333'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(20, yOff); ctx.lineTo(W-20, yOff); ctx.stroke(); yOff += 10;
+
+    // ── Agents ───────────────────────────────────────────────────
+    if (state.agents.length > 0) {
+      ctx.fillStyle = '#888'; ctx.font = '9px "Courier New",monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('— AGENTS —', W/2, yOff); yOff += 10;
+
+      for (const agent of state.agents) {
+        const agImg = await loadImg(agent.sprite || trainerSprite('acetrainer'));
+        const agX = 20;
+        if (agImg) { try { ctx.drawImage(agImg, agX, yOff, 40, 40); } catch(e) {} }
+        ctx.fillStyle = '#e0e0e0'; ctx.font = '9px "Courier New",monospace';
+        ctx.textAlign = 'left';
+        ctx.fillText(agent.name, agX + 46, yOff + 12);
+        ctx.fillStyle = '#888'; ctx.font = '8px "Courier New",monospace';
+        const zoneName = agent.assignedZone ? (ZONE_BY_ID[agent.assignedZone]?.fr || agent.assignedZone) : 'Sans zone';
+        ctx.fillText(zoneName, agX + 46, yOff + 26);
+
+        // Agent team
+        const agPks = agent.team.map(id => state.pokemons.find(p => p.id === id)).filter(Boolean);
+        let pkX = agX + 46 + 60;
+        for (const pk of agPks) {
+          const pkImg = await loadImg(pokeSprite(pk.species_en, pk.shiny));
+          if (pkImg) { try { ctx.drawImage(pkImg, pkX, yOff, 36, 36); } catch(e) {} }
+          ctx.fillStyle = '#888'; ctx.font = '6px "Courier New",monospace'; ctx.textAlign = 'center';
+          ctx.fillText(`${pk.level}`, pkX + 18, yOff + 44);
+          pkX += 42;
+        }
+        yOff += 52;
+      }
     }
 
-    // Stats row
-    ctx.fillStyle = '#ffcc5a';
-    ctx.font = '12px "Courier New", monospace';
-    ctx.textAlign = 'center';
-    ctx.fillText(`Niv. moyen: ${teamPks.length ? Math.round(teamPks.reduce((s, p) => s + p.level, 0) / teamPks.length) : '--'}  |  Pokémon: ${state.pokemons.length}  |  ₽ ${state.gang.money.toLocaleString()}`, W/2, 248);
+    // Separator
+    yOff += 4;
+    ctx.strokeStyle = '#cc3333'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(20, yOff); ctx.lineTo(W-20, yOff); ctx.stroke(); yOff += 12;
 
-    // Top 6 pokemon
-    const top6 = [...state.pokemons].sort((a, b) => getPokemonPower(b) - getPokemonPower(a)).slice(0, 6);
-    ctx.fillStyle = '#888';
-    ctx.font = '10px "Courier New", monospace';
+    // ── Stats panel ───────────────────────────────────────────────
+    ctx.fillStyle = '#ffcc5a'; ctx.font = '9px "Courier New",monospace';
     ctx.textAlign = 'center';
-    ctx.fillText('MEILLEURS POKÉMON', W/2, 275);
-    let px = W/2 - top6.length * 27;
-    for (const pk of top6) {
-      const img = await loadImg(pokeSprite(pk.species_en, pk.shiny));
-      if (img) {
-        try { ctx.drawImage(img, px, 285, 48, 48); }
-        catch(e) { ctx.fillStyle = '#333'; ctx.fillRect(px, 285, 48, 48); }
-      }
-      px += 54;
+    ctx.fillText('— STATISTIQUES —', W/2, yOff); yOff += 14;
+
+    const s = state.stats;
+    // Top species
+    const sortedPokedex = Object.entries(state.pokedex).sort((a, b) => (b[1].count||0) - (a[1].count||0));
+    const topSpecies = sortedPokedex[0];
+    const topSpeciesName = topSpecies ? speciesName(topSpecies[0]) : '—';
+    const topSpeciesCount = topSpecies ? (topSpecies[1].count || 1) : 0;
+
+    const statsLines = [
+      [`✨ Shiny capturés: ${s.shinyCaught || 0}`,  `⚔ Victoires: ${s.totalFightsWon || 0}`],
+      [`🎯 Captures totales: ${s.totalCaught || 0}`, `📦 Coffres: ${s.chestsOpened || 0}`],
+      [`₽ Actuels: ${state.gang.money.toLocaleString()}`, `₽ Total gagné: ${(s.totalMoneyEarned || 0).toLocaleString()}`],
+      [`⭐ Réputation: ${state.gang.reputation}`,    `🏆 Top espèce: ${topSpeciesName} ×${topSpeciesCount}`],
+    ];
+    if (s.mostExpensiveSold) {
+      statsLines.push([`💎 Vente record: ${s.mostExpensiveSold.name} ${(s.mostExpensiveSold.price||0).toLocaleString()}₽`, ``]);
+    }
+    if (s.mostExpensiveObtained) {
+      statsLines.push([`🌟 Capture record: ${s.mostExpensiveObtained.name} ${(s.mostExpensiveObtained.price||0).toLocaleString()}₽`, ``]);
+    }
+
+    ctx.font = '9px "Courier New",monospace';
+    for (const [left, right] of statsLines) {
+      ctx.fillStyle = '#ccc'; ctx.textAlign = 'left';
+      ctx.fillText(left, 20, yOff);
+      if (right) { ctx.textAlign = 'right'; ctx.fillText(right, W - 20, yOff); }
+      yOff += 16;
     }
 
     // Watermark
-    ctx.fillStyle = 'rgba(255,255,255,.25)';
-    ctx.font = '10px "Courier New", monospace';
+    ctx.fillStyle = 'rgba(255,255,255,0.2)'; ctx.font = '10px "Courier New",monospace';
     ctx.textAlign = 'center';
-    ctx.fillText('PokéForge', W/2, H - 14);
+    ctx.fillText('PokéGang — Gang Wars', W/2, H - 12);
 
     // Download
     const link = document.createElement('a');
-    link.download = `pokeforge-${state.gang.name.replace(/\s+/g, '-')}.png`;
+    link.download = `pokegang-${state.gang.name.replace(/\s+/g, '-')}.png`;
     link.href = canvas.toDataURL('image/png');
     link.click();
-    notify(state.lang === 'fr' ? '📷 Image exportée !' : '📷 Image exported!', 'success');
+    notify('📷 Image exportée !', 'success');
   } catch (err) {
     console.error('Export failed:', err);
-    notify(state.lang === 'fr' ? 'Export impossible' : 'Export failed', 'error');
+    notify('Export impossible', 'error');
   }
 }
 
@@ -4830,6 +5068,28 @@ function updateZoneTimers(zoneId) {
 
   html += '</div>';
   el.innerHTML = html;
+
+  // Also refresh the zone-level inline display in viewport
+  const zWin = document.getElementById(`zw-${zoneId}`);
+  const levelEl = zWin?.querySelector('.zone-level');
+  if (levelEl) {
+    const freshCombats = zState.combatsWon || 0;
+    const freshCaptures = zState.captures || 0;
+    const freshNextMastery = mastery < 3 ? (mastery < 2 ? 10 : 50) : null;
+    const freshProgressText = zone.type === 'gym'
+      ? `Victoires: ${freshCombats}${zState.gymDefeated ? ' [V]' : ''}`
+      : `Combats: ${freshCombats}${freshNextMastery ? `/${freshNextMastery}` : ''} | Cap: ${freshCaptures}`;
+    levelEl.innerHTML = freshProgressText + (zone.type === 'gym' ? ` <span style="color:var(--gold);font-size:8px">XP*${zone.xpBonus}</span>` : '');
+  }
+
+  // Also refresh slots bar
+  const slotsBarEl = zWin?.querySelector('.zone-slots-bar');
+  if (slotsBarEl) {
+    const assignedCount = state.agents.filter(a => a.assignedZone === zoneId).length;
+    const maxSlots = (state.zones[zoneId]?.slots) || 1;
+    const countSpan = slotsBarEl.querySelector('.slot-count');
+    if (countSpan) countSpan.textContent = `Agents: ${assignedCount}/${maxSlots}`;
+  }
 
   // Cooldown display on agents and boss in viewport
   const win = document.getElementById(`zw-${zoneId}`);
@@ -5369,7 +5629,9 @@ function executeCombat() {
         trainerName: spawnWithZone.trainer?.fr || spawnWithZone.trainerKey || '?',
         trainerKey: spawnWithZone.trainerKey || spawnWithZone.trainer?.sprite || null,
         allySpecies: playerQueue[0]?.species_en || null,
+        allyLevel: playerQueue[0]?.level || null,
         enemySpecies: enemyQueue[0]?.species_en || null,
+        enemyLevel: enemyQueue[0]?.level || null,
         win: overallWin,
         reward,
         repGain,
@@ -5783,8 +6045,8 @@ function updateBattleLogMiniSprites() {
       sprites.push(`<img src="${trainerSprite(e.trainerKey)}" title="${e.trainerName || e.trainerKey}" onerror="this.style.display='none'">`);
     }
     // Add pokemon sprites from the fight (ally and enemy)
-    if (e.allySpecies) sprites.push(`<img src="${pokeSprite(e.allySpecies)}" title="${e.allySpecies}">`);
-    if (e.enemySpecies) sprites.push(`<img src="${pokeSprite(e.enemySpecies)}" title="${e.enemySpecies}">`);
+    if (e.allySpecies) sprites.push(`<span style="display:inline-flex;flex-direction:column;align-items:center;gap:0"><img src="${pokeSprite(e.allySpecies)}" title="${e.allySpecies}">${e.allyLevel ? `<span style="font-size:6px;color:var(--text-dim);line-height:1">Lv.${e.allyLevel}</span>` : ''}</span>`);
+    if (e.enemySpecies) sprites.push(`<span style="display:inline-flex;flex-direction:column;align-items:center;gap:0"><img src="${pokeSprite(e.enemySpecies)}" title="${e.enemySpecies}">${e.enemyLevel ? `<span style="font-size:6px;color:var(--red);line-height:1">Lv.${e.enemyLevel}</span>` : ''}</span>`);
     return sprites.join('');
   }).join('<span style="color:var(--border);margin:0 2px">|</span>');
 }
@@ -7729,8 +7991,18 @@ function pensionTick() {
     const pkA = state.pokemons.find(pk => pk.id === p.slotA);
     const pkB = state.pokemons.find(pk => pk.id === p.slotB);
     if (pkA && pkB) {
-      const parent = Math.random() < 0.5 ? pkA : pkB;
-      const sp = SPECIES_BY_EN[parent.species_en];
+      // Legendaries can't transmit species; if both legendary, skip egg
+      const isLegA = SPECIES_BY_EN[pkA.species_en]?.rarity === 'legendary';
+      const isLegB = SPECIES_BY_EN[pkB.species_en]?.rarity === 'legendary';
+      if (isLegA && isLegB) {
+        p.eggAt = now + EGG_GEN_MS; // reset timer, no egg from two legends
+        saveState(); return;
+      }
+      // Non-legendary always transmits; if both non-legendary, random pick
+      const parent = isLegA ? pkB : isLegB ? pkA : (Math.random() < 0.5 ? pkA : pkB);
+      // Eggs always hatch at stage 1 of the evolution chain
+      const baseSpeciesEn = getBaseSpecies(parent.species_en);
+      const sp = SPECIES_BY_EN[baseSpeciesEn];
       if (sp && EGG_HATCH_MS[sp.rarity] !== null) {
         const hatchMs = EGG_HATCH_MS[sp.rarity] || EGG_HATCH_MS.common;
         const avgPot = Math.floor((pkA.potential + pkB.potential) / 2);
@@ -7738,18 +8010,18 @@ function pensionTick() {
         const shinyChance = (pkA.shiny && pkB.shiny) ? 0.15 : (pkA.shiny || pkB.shiny) ? 0.05 : 0.01;
         const egg = {
           id: `egg_${now}_${Math.random().toString(36).slice(2,7)}`,
-          species_en: parent.species_en,
+          species_en: baseSpeciesEn,
           hatchAt: null,
           incubating: false,
           rarity: sp.rarity,
           potential,
           shiny: Math.random() < shinyChance,
-          parentA: pkA.species_en, // affiché à la vente sans révéler le Pokémon
+          parentA: pkA.species_en,
           parentB: pkB.species_en,
         };
         state.eggs.push(egg);
-        p.eggAt = now + EGG_GEN_MS; // schedule next egg
-        notify(`Un oeuf de ${speciesName(parent.species_en)} a ete depose ! Placez-le dans un incubateur.`, 'gold');
+        p.eggAt = now + EGG_GEN_MS;
+        notify(`Un oeuf de ${speciesName(baseSpeciesEn)} a ete depose ! Placez-le dans un incubateur.`, 'gold');
         saveState();
         if (activeTab === 'tabPC') renderPCTab();
       }
@@ -8593,6 +8865,7 @@ function boot() {
     btn.addEventListener('click', () => switchTab(btn.dataset.tab));
   });
   document.getElementById('btnSaveSlots')?.addEventListener('click', openSaveSlotModal);
+  document.getElementById('btnBackToIntro')?.addEventListener('click', () => showIntro());
 
   // Battle log toggle + drag
   const battleLogPanel = document.getElementById('battleLog');
