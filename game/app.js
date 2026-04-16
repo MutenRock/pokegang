@@ -87,7 +87,7 @@ const POKEMON_GEN1 = [
   {en:'tentacruel',fr:'Tentacruel',dex:73,types:['Water','Poison'],baseAtk:70,baseDef:65,baseSpd:100,rarity:'uncommon',moves:['Surf','Dard-Venin','Acide','Siphon']},
   {en:'geodude',fr:'Racaillou',dex:74,types:['Rock','Ground'],baseAtk:80,baseDef:100,baseSpd:20,rarity:'common',moves:['Charge','Jet-Pierres','Séisme','Armure']},
   {en:'graveler',fr:'Gravalanch',dex:75,types:['Rock','Ground'],baseAtk:95,baseDef:115,baseSpd:35,rarity:'uncommon',moves:['Jet-Pierres','Séisme','Charge','Destruction']},
-  {en:'golem',fr:'Golem',dex:76,types:['Rock','Ground'],baseAtk:110,baseDef:130,baseSpd:45,rarity:'rare',moves:['Séisme','Jet-Pierres','Explosion','Plaquage']},
+  {en:'golem',fr:'Grolem',dex:76,types:['Rock','Ground'],baseAtk:110,baseDef:130,baseSpd:45,rarity:'rare',moves:['Séisme','Jet-Pierres','Explosion','Plaquage']},
   {en:'ponyta',fr:'Ponyta',dex:77,types:['Fire'],baseAtk:85,baseDef:55,baseSpd:90,rarity:'uncommon',moves:['Flammèche','Charge','Roue de Feu','Hâte']},
   {en:'rapidash',fr:'Galopa',dex:78,types:['Fire'],baseAtk:100,baseDef:70,baseSpd:105,rarity:'rare',moves:['Lance-Flamme','Mégacorne','Roue de Feu','Hâte']},
   {en:'slowpoke',fr:'Ramoloss',dex:79,types:['Water','Psychic'],baseAtk:65,baseDef:65,baseSpd:15,rarity:'common',moves:['Choc Mental','Pistolet à O','Amnésie','Bâillement']},
@@ -164,6 +164,15 @@ const POKEMON_GEN1 = [
   {en:'mewtwo',fr:'Mewtwo',dex:150,types:['Psychic'],baseAtk:110,baseDef:90,baseSpd:130,rarity:'legendary',moves:['Psyko','Laser Glace','Tonnerre','Soin']},
   {en:'mew',fr:'Mew',dex:151,types:['Psychic'],baseAtk:100,baseDef:100,baseSpd:100,rarity:'legendary',moves:['Psyko','Métronome','Surf','Lance-Flamme']},
 ];
+
+// Type names in French
+const TYPE_FR = {
+  Normal:'Normal', Fire:'Feu', Water:'Eau', Grass:'Plante',
+  Electric:'Électrik', Ice:'Glace', Fighting:'Combat', Poison:'Poison',
+  Ground:'Sol', Flying:'Vol', Psychic:'Psy', Bug:'Insecte',
+  Rock:'Roche', Ghost:'Spectre', Dragon:'Dragon'
+};
+function typeFr(t) { return TYPE_FR[t] || t; }
 
 // Quick lookup maps
 const SPECIES_BY_EN = {};
@@ -7097,7 +7106,7 @@ function renderPokemonDetail() {
     <div style="text-align:center;margin-bottom:12px">
       <img src="${pokeSprite(p.species_en, p.shiny)}" style="width:96px;height:96px;${p.shiny ? 'filter:drop-shadow(0 0 6px var(--gold))' : ''}">
       <div style="font-family:var(--font-pixel);font-size:12px;margin-top:4px">${speciesName(p.species_en)}${p.shiny ? ' ✨' : ''}</div>
-      <div style="font-size:10px;color:var(--text-dim)">#${String(p.dex).padStart(3, '0')} — ${sp?.types.join('/') || '?'}</div>
+      <div style="font-size:10px;color:var(--text-dim)">#${String(p.dex).padStart(3, '0')} — ${sp?.types.map(typeFr).join('/') || '?'}</div>
       ${p.homesick ? '<div style="display:inline-block;margin-top:4px;padding:2px 8px;background:#1a100a;border:1px solid #8b4513;border-radius:3px;font-size:9px;color:#cd853f">🏠 Mal du pays (-25%)</div>' : ''}
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:11px;margin-bottom:12px">
@@ -7400,7 +7409,7 @@ function renderDexDetail(species_en) {
     <div style="text-align:center;margin-bottom:10px">
       <img src="${pokeSprite(sp.en, entry.shiny)}" style="width:80px;height:80px;${!caught ? 'filter:grayscale(1) brightness(.5)' : ''}">
       <div style="font-family:var(--font-pixel);font-size:11px;margin-top:4px">${caught ? (state.lang === 'fr' ? sp.fr : sp.en) : '???'}</div>
-      <div style="font-size:9px;color:var(--text-dim)">#${String(sp.dex).padStart(3,'0')} — ${caught ? sp.types.join('/') : '?'}</div>
+      <div style="font-size:9px;color:var(--text-dim)">#${String(sp.dex).padStart(3,'0')} — ${caught ? sp.types.map(typeFr).join('/') : '?'}</div>
     </div>
 
     ${caught ? `
