@@ -3026,6 +3026,94 @@ function recruitAgent(agentData) {
   saveState();
 }
 
+function openAgentRecruitModal(onAfterRecruit) {
+  const cost = getAgentRecruitCost();
+  if (state.gang.money < cost) {
+    notify(state.lang === 'fr' ? 'Pas assez d\'argent !' : 'Not enough money!');
+    try { SFX.error(); } catch {}
+    return;
+  }
+
+  const candidates = [rollNewAgent(), rollNewAgent(), rollNewAgent()];
+
+  const TITLE_FR = { grunt:'Grunt', soldier:'Soldat', lieutenant:'Lieutenant', captain:'Capitaine', commander:'Commandant' };
+  function statBar(val, max = 20) {
+    const pct = Math.round(Math.min(val / max, 1) * 100);
+    return `<div style="height:4px;background:var(--bg);border-radius:2px;width:80px;overflow:hidden"><div style="height:100%;width:${pct}%;background:var(--gold)"></div></div>`;
+  }
+
+  const cardsHtml = candidates.map((ag, i) => `
+    <div class="recruit-card" data-idx="${i}" style="
+      flex:1;min-width:140px;max-width:190px;
+      background:var(--bg-card);border:1px solid var(--border);
+      border-radius:var(--radius);padding:12px 10px;
+      display:flex;flex-direction:column;align-items:center;gap:8px;
+      cursor:pointer;transition:border-color .15s,box-shadow .15s">
+      <img src="${ag.sprite}" style="width:48px;height:48px;image-rendering:pixelated">
+      <div style="font-family:var(--font-pixel);font-size:10px;color:var(--text);text-align:center">${ag.name}</div>
+      <div style="font-size:8px;color:var(--text-dim)">${ag.personality.map(p => p.fr || p).join(' · ')}</div>
+      <div style="display:flex;flex-direction:column;gap:4px;width:100%;margin-top:2px">
+        <div style="display:flex;justify-content:space-between;align-items:center;font-family:var(--font-pixel);font-size:7px;color:var(--text-dim)">
+          <span>ATK</span>${statBar(ag.stats.combat)}
+          <span style="color:var(--text)">${ag.stats.combat}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;font-family:var(--font-pixel);font-size:7px;color:var(--text-dim)">
+          <span>CAP</span>${statBar(ag.stats.capture)}
+          <span style="color:var(--text)">${ag.stats.capture}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;font-family:var(--font-pixel);font-size:7px;color:var(--text-dim)">
+          <span>LCK</span>${statBar(ag.stats.luck, 12)}
+          <span style="color:var(--text)">${ag.stats.luck}</span>
+        </div>
+      </div>
+      <button class="recruit-pick-btn" data-idx="${i}" style="
+        margin-top:4px;font-family:var(--font-pixel);font-size:8px;
+        padding:5px 14px;background:var(--bg);border:1px solid var(--gold-dim);
+        border-radius:var(--radius-sm);color:var(--gold);cursor:pointer;width:100%">
+        Recruter
+      </button>
+    </div>`).join('');
+
+  const modal = document.createElement('div');
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.75);display:flex;align-items:center;justify-content:center;z-index:9999';
+  modal.innerHTML = `
+    <div style="background:var(--bg-panel);border:2px solid var(--gold-dim);border-radius:var(--radius);padding:20px;max-width:640px;width:96%;display:flex;flex-direction:column;gap:14px">
+      <div style="font-family:var(--font-pixel);font-size:11px;color:var(--gold);text-align:center">
+        ★ RECRUTEMENT — Choisissez un candidat
+      </div>
+      <div style="font-size:8px;color:var(--text-dim);text-align:center;font-family:var(--font-pixel)">
+        Coût : ${cost.toLocaleString()}₽ — Trois candidats disponibles
+      </div>
+      <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">${cardsHtml}</div>
+      <div style="text-align:center">
+        <button id="recruitCancelBtn" style="font-family:var(--font-pixel);font-size:8px;padding:6px 16px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-dim);cursor:pointer">Annuler</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+
+  // Hover highlight
+  modal.querySelectorAll('.recruit-card').forEach(card => {
+    card.addEventListener('mouseenter', () => { card.style.borderColor = 'var(--gold-dim)'; card.style.boxShadow = '0 0 10px rgba(255,204,90,.2)'; });
+    card.addEventListener('mouseleave', () => { card.style.borderColor = 'var(--border)'; card.style.boxShadow = ''; });
+  });
+
+  // Pick
+  modal.querySelectorAll('.recruit-pick-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx = parseInt(btn.dataset.idx);
+      state.gang.money -= cost;
+      recruitAgent(candidates[idx]);
+      notify(`${state.lang === 'fr' ? 'Recruté' : 'Recruited'}: ${candidates[idx].name}!`, 'gold');
+      updateTopBar();
+      modal.remove();
+      onAfterRecruit?.();
+    });
+  });
+
+  document.getElementById('recruitCancelBtn').addEventListener('click', () => modal.remove());
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+}
+
 function assignAgentToZone(agentId, zoneId) {
   const agent = state.agents.find(a => a.id === agentId);
   if (!agent) return;
@@ -3816,20 +3904,23 @@ function loadSlot(slotIdx) {
 function applyCosmetics() {
   const bgKey = state.cosmetics?.gameBg;
   const bg = bgKey ? COSMETIC_BGS[bgKey] : null;
-  // Apply background to body so it extends edge-to-edge (not constrained by #app max-width)
+  // Apply background to both html + body for full-viewport coverage
+  const _bgTargets = [document.documentElement, document.body];
   if (bg) {
-    document.body.style.backgroundImage = `url('${bg.url}')`;
-    document.body.style.backgroundSize = 'cover';
-    document.body.style.backgroundAttachment = 'fixed';
-    document.body.style.backgroundPosition = 'center';
-    document.body.style.backgroundRepeat = 'no-repeat';
+    _bgTargets.forEach(el => {
+      el.style.backgroundImage = `url('${bg.url}')`;
+      el.style.backgroundSize = 'cover';
+      el.style.backgroundAttachment = 'fixed';
+      el.style.backgroundPosition = 'center';
+      el.style.backgroundRepeat = 'no-repeat';
+    });
     // Make game panels semi-transparent so background shows through
     document.documentElement.style.setProperty('--bg', 'rgba(10,10,10,0.72)');
     document.documentElement.style.setProperty('--bg-card', 'rgba(20,20,20,0.70)');
     document.documentElement.style.setProperty('--bg-panel', 'rgba(26,26,26,0.70)');
     document.documentElement.style.setProperty('--bg-hover', 'rgba(34,34,34,0.80)');
   } else {
-    document.body.style.backgroundImage = '';
+    _bgTargets.forEach(el => { el.style.backgroundImage = ''; });
     document.documentElement.style.setProperty('--bg', '#0a0a0a');
     document.documentElement.style.setProperty('--bg-card', '#141414');
     document.documentElement.style.setProperty('--bg-panel', '#1a1a1a');
@@ -4063,18 +4154,7 @@ function renderGangTab() {
 
     // Recruit button handler
     document.getElementById('btnRecruitAgent')?.addEventListener('click', () => {
-      const cost = getAgentRecruitCost();
-      if (state.gang.money < cost) {
-        notify(state.lang === 'fr' ? 'Pas assez d\'argent !' : 'Not enough money!');
-        try { SFX.error(); } catch {}
-        return;
-      }
-      state.gang.money -= cost;
-      const agent = rollNewAgent();
-      recruitAgent(agent);
-      notify(`${state.lang === 'fr' ? 'Recruté' : 'Recruited'}: ${agent.name}!`, 'gold');
-      updateTopBar();
-      renderGangTab();
+      openAgentRecruitModal(() => renderGangTab());
     });
 
     // Zone assignment dropdowns
@@ -4259,20 +4339,22 @@ function showCollectionResult(win, amount, items, agentIds) {
   modal.addEventListener('click', e => { if (e.target === modal) { modal.remove(); renderZonesTab(); } });
 
   const display = document.getElementById('collectAmountDisplay');
-  let current = 0;
-  const steps = 40;
-  const stepVal = amount / steps;
+  const steps = 55;
+  const K = 5; // courbure exponentielle (plus grand = démarrage plus lent / fin plus rapide)
+  const expMax = Math.exp(K) - 1;
   let step = 0;
   const interval = setInterval(() => {
     step++;
-    current = Math.min(amount, Math.round(stepVal * step * step / steps));
+    const t = step / steps;
+    const eased = (Math.exp(K * t) - 1) / expMax; // 0→0, 0.5→~8%, 1→100%
+    const current = Math.min(amount, Math.round(amount * eased));
     display.textContent = current.toLocaleString() + '₽';
-    if (step >= steps || current >= amount) {
+    if (step >= steps) {
       display.textContent = amount.toLocaleString() + '₽';
       clearInterval(interval);
       try { SFX.coin(); } catch {}
     }
-  }, 30);
+  }, 25);
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -4308,9 +4390,7 @@ function renderZoneSelector() {
       const income = zState.pendingIncome || 0;
       const incomeTier = income <= 0 ? 0 : income < 500 ? 1 : income < 2000 ? 2 : income < 5000 ? 3 : income < 15000 ? 4 : 5;
       const incomeHtml = incomeTier > 0 ? `
-        <div class="zone-income-btn income-tier${incomeTier}" data-collect-zone="${zone.id}" title="Collecter ${income.toLocaleString()}₽">
-          ₽${incomeTier >= 3 ? ' ' + formatIncome(income) : ''}
-        </div>` : '';
+        <div class="zone-income-btn income-tier${incomeTier}" data-collect-zone="${zone.id}">₽</div>` : '';
       html += `<div class="fog-tile unlocked ${isOpen ? 'fog-open' : ''} zone-type-${zone.type}${degraded ? ' fog-degraded' : ''}"
         data-zone="${zone.id}" style="${bgStyle}">
         <div class="fog-tile-overlay"></div>
@@ -7371,7 +7451,14 @@ function renderPokedexTab() {
 
   const caught = Object.values(state.pokedex).filter(e => e.caught).length;
   const total = POKEMON_GEN1.length;
-  grid.insertAdjacentHTML('beforebegin', `<div style="font-family:var(--font-pixel);font-size:9px;color:var(--text-dim);margin-bottom:8px">${caught}/${total} capturés</div>`);
+  let dexCounter = document.getElementById('dexCounter');
+  if (!dexCounter) {
+    dexCounter = document.createElement('div');
+    dexCounter.id = 'dexCounter';
+    dexCounter.style.cssText = 'font-family:var(--font-pixel);font-size:9px;color:var(--text-dim);margin-bottom:8px';
+    grid.parentNode.insertBefore(dexCounter, grid);
+  }
+  dexCounter.textContent = `${caught}/${total} capturés`;
 
   grid.querySelectorAll('.dex-entry[data-dex-en]').forEach(el => {
     el.addEventListener('click', () => {
@@ -7518,18 +7605,7 @@ function renderAgentsTab() {
   // Bind events
   // Recruit
   document.getElementById('btnRecruitAgentFull')?.addEventListener('click', () => {
-    const cost = getAgentRecruitCost();
-    if (state.gang.money < cost) {
-      notify(state.lang === 'fr' ? 'Pas assez d\'argent !' : 'Not enough money!');
-      try { SFX.error(); } catch {}
-      return;
-    }
-    state.gang.money -= cost;
-    const agent = rollNewAgent();
-    recruitAgent(agent);
-    notify(`${state.lang === 'fr' ? 'Recruté' : 'Recruited'}: ${agent.name}!`, 'gold');
-    updateTopBar();
-    renderAgentsTab();
+    openAgentRecruitModal(() => renderAgentsTab());
   });
 
   // Zone assignment
@@ -9046,9 +9122,9 @@ function startGameLoop() {
   // Market decay every 5 minutes
   setInterval(decayMarketSales, 300000);
 
-  // Remote version polling every 5 minutes (detects new deploys)
-  setInterval(pollRemoteVersion, 300000);
-  pollRemoteVersion(); // immediate first check
+  // Remote version polling every hour (detects new deploys)
+  setInterval(pollRemoteVersion, 3600000);
+  setTimeout(pollRemoteVersion, 15000); // first check 15s after boot
 
   // Daily reload at 12h00 + 00h00 to flush new versions
   startDailyReloadSchedule();
@@ -9509,8 +9585,11 @@ function pollRemoteVersion() {
 }
 
 function showUpdateBanner(newVer) {
-  // Remove any existing banner
   document.getElementById('updateBanner')?.remove();
+
+  const COUNTDOWN = 60; // secondes avant reload forcé
+  let remaining = COUNTDOWN;
+
   const banner = document.createElement('div');
   banner.id = 'updateBanner';
   banner.style.cssText = `
@@ -9521,17 +9600,24 @@ function showUpdateBanner(newVer) {
     box-shadow:0 2px 12px rgba(0,0,0,0.5);
   `;
   banner.innerHTML = `
-    <span>⚡ Nouvelle version <strong>${newVer}</strong> disponible !</span>
+    <span id="updateBannerMsg">⚡ Nouvelle version <strong>${newVer}</strong> — rechargement dans <strong id="updateCountdown">${COUNTDOWN}</strong>s</span>
     <button id="updateBannerBtn" style="
       background:#fff; color:#cc3333; border:none; border-radius:4px;
       padding:4px 12px; font-size:12px; cursor:pointer; font-weight:bold;
-    ">Recharger</button>
+    ">Recharger maintenant</button>
   `;
   document.body.prepend(banner);
-  document.getElementById('updateBannerBtn')?.addEventListener('click', () => {
-    saveState();
-    location.reload(true);
-  });
+
+  const doReload = () => { saveState(); location.reload(true); };
+
+  document.getElementById('updateBannerBtn')?.addEventListener('click', doReload);
+
+  const ticker = setInterval(() => {
+    remaining--;
+    const el = document.getElementById('updateCountdown');
+    if (el) el.textContent = remaining;
+    if (remaining <= 0) { clearInterval(ticker); doReload(); }
+  }, 1000);
 }
 
 // ── Daily scheduled reload at 12h00 and 00h00 ────────────────
