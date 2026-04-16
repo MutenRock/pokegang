@@ -4958,6 +4958,151 @@ function bindGangBase(container) {
   container.querySelector('.base-export-btn')?.addEventListener('click', exportGangImage);
 }
 
+// ── Codex — Prix & Spawns reference modal ────────────────────
+function openCodexModal() {
+  const RARITY_ORDER = ['common','uncommon','rare','very_rare','legendary'];
+  const RARITY_FR = { common:'Commun', uncommon:'Peu commun', rare:'Rare', very_rare:'Très rare', legendary:'Légendaire' };
+  const RARITY_COLOR = { common:'#aaa', uncommon:'#5be06c', rare:'#5b9be0', very_rare:'#c05be0', legendary:'#ffcc5a' };
+  const POTENTIALS = [1,2,3,4,5];
+  const POT_MULT   = POTENTIAL_MULT; // [0.5,1,2,5,15]
+
+  // ── TAB 1: Prix ───────────────────────────────────────────
+  function buildPrixTab() {
+    const headCells = POTENTIALS.map(p =>
+      `<th style="padding:6px 10px;color:#ccc">★${p}<br><span style="font-size:8px;color:#666">×${POT_MULT[p-1]}</span></th>`
+    ).join('');
+    const shinyHeadCells = POTENTIALS.map(p =>
+      `<th style="padding:6px 10px;color:#ffcc5a">★${p} ✨<br><span style="font-size:8px;color:#888">×${POT_MULT[p-1]*10}</span></th>`
+    ).join('');
+
+    const rows = RARITY_ORDER.map(r => {
+      const base = BASE_PRICE[r];
+      const cells = POTENTIALS.map(p => {
+        const v = Math.round(base * POT_MULT[p-1]);
+        return `<td style="padding:5px 10px;text-align:right;color:#e0e0e0">${v.toLocaleString()}₽</td>`;
+      }).join('');
+      const shinyCells = POTENTIALS.map(p => {
+        const v = Math.round(base * POT_MULT[p-1] * 10);
+        return `<td style="padding:5px 10px;text-align:right;color:#ffcc5a">${v.toLocaleString()}₽</td>`;
+      }).join('');
+      return `
+        <tr>
+          <td style="padding:5px 10px;font-weight:bold;color:${RARITY_COLOR[r]};white-space:nowrap">${RARITY_FR[r]}</td>
+          <td style="padding:5px 10px;text-align:right;color:#888">${base.toLocaleString()}₽</td>
+          ${cells}
+        </tr>
+        <tr style="background:rgba(255,204,90,0.04)">
+          <td style="padding:5px 10px;font-size:9px;color:#ffcc5a;white-space:nowrap">✨ Shiny</td>
+          <td style="padding:5px 10px;text-align:right;color:#ffcc5a;font-size:9px">${(base*10).toLocaleString()}₽</td>
+          ${shinyCells}
+        </tr>`;
+    }).join('');
+
+    return `
+      <div style="overflow-x:auto">
+        <table style="border-collapse:collapse;font-family:'Courier New',monospace;font-size:11px;width:100%">
+          <thead>
+            <tr style="border-bottom:1px solid #333">
+              <th style="padding:6px 10px;text-align:left;color:#888">Rareté</th>
+              <th style="padding:6px 10px;color:#888">Base</th>
+              ${headCells}
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+      <div style="margin-top:10px;font-size:9px;color:#555;font-family:'Courier New',monospace">
+        Nature : toutes les natures ont un multiplicateur moyen de ×1.0 — aucun impact sur le prix final.
+      </div>`;
+  }
+
+  // ── TAB 2: Spawns par zone ────────────────────────────────
+  function buildSpawnsTab() {
+    const TYPE_LABEL = { route:'Route', gym:'Arène', special:'Spécial' };
+    const TYPE_COLOR = { route:'#5be06c', gym:'#e05b5b', special:'#e0c05b' };
+
+    const sections = { route:[], gym:[], special:[] };
+    for (const zone of ZONES) {
+      sections[zone.type || 'route']?.push(zone);
+    }
+
+    let html = '';
+    for (const [type, zones] of Object.entries(sections)) {
+      if (!zones.length) continue;
+      html += `<div style="margin-bottom:16px">
+        <div style="font-family:var(--font-pixel);font-size:9px;color:${TYPE_COLOR[type]};margin-bottom:8px;text-transform:uppercase;letter-spacing:.08em">— ${TYPE_LABEL[type] || type} —</div>`;
+      for (const zone of zones) {
+        const poolHtml = zone.pool.map(en => {
+          const sp = SPECIES_BY_EN[en];
+          if (!sp) return '';
+          const col = RARITY_COLOR[sp.rarity] || '#aaa';
+          const abbr = { common:'C', uncommon:'PC', rare:'R', very_rare:'TR', legendary:'L' }[sp.rarity] || '?';
+          return `<span style="display:inline-flex;align-items:center;gap:3px;margin:2px 3px 2px 0;padding:2px 5px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:3px;font-size:10px">
+            ${sp.fr}<span style="font-size:8px;color:${col};margin-left:2px">[${abbr}]</span>
+          </span>`;
+        }).join('');
+
+        const rarePart = zone.rarePool ? `<div style="margin-top:4px;font-size:9px;color:#888">
+          Safari 10% : ${zone.rarePool.slice(0,5).map(e => (SPECIES_BY_EN[e.en]?.fr || e.en)).join(', ')}…
+        </div>` : '';
+
+        html += `<div style="margin-bottom:10px;padding:8px;background:rgba(255,255,255,0.03);border-left:2px solid ${TYPE_COLOR[type]};border-radius:0 4px 4px 0">
+          <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:5px">
+            <span style="font-family:var(--font-pixel);font-size:9px;color:#e0e0e0">${zone.fr}</span>
+            <span style="font-size:9px;color:#555">Rep ≥ ${zone.rep}</span>
+            ${zone.unlockItem ? `<span style="font-size:8px;color:#e0c05b">🔑 ${zone.unlockItem}</span>` : ''}
+          </div>
+          <div>${poolHtml}</div>
+          ${rarePart}
+        </div>`;
+      }
+      html += '</div>';
+    }
+    return html;
+  }
+
+  // ── Modal shell ───────────────────────────────────────────
+  const existing = document.getElementById('codexModal');
+  if (existing) { existing.remove(); return; }
+
+  const modal = document.createElement('div');
+  modal.id = 'codexModal';
+  modal.style.cssText = 'position:fixed;inset:0;z-index:9300;background:rgba(0,0,0,.88);display:flex;align-items:flex-start;justify-content:center;padding:16px;overflow-y:auto';
+
+  modal.innerHTML = `
+    <div style="background:var(--bg-panel);border:2px solid var(--border);border-radius:var(--radius);width:100%;max-width:800px;display:flex;flex-direction:column;gap:0">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border)">
+        <span style="font-family:var(--font-pixel);font-size:11px;color:var(--gold)">📖 Codex — Référence</span>
+        <button id="codexClose" style="background:transparent;border:none;color:#aaa;font-size:18px;cursor:pointer;line-height:1">×</button>
+      </div>
+      <div style="display:flex;gap:0;border-bottom:1px solid var(--border)">
+        <button class="codex-tab active" data-ct="prix" style="font-family:var(--font-pixel);font-size:9px;padding:10px 18px;background:transparent;border:none;border-bottom:2px solid var(--gold);color:var(--gold);cursor:pointer">💰 Prix</button>
+        <button class="codex-tab" data-ct="spawns" style="font-family:var(--font-pixel);font-size:9px;padding:10px 18px;background:transparent;border:none;border-bottom:2px solid transparent;color:#888;cursor:pointer">🗺 Spawns</button>
+      </div>
+      <div id="codexBody" style="padding:18px;overflow-y:auto;max-height:calc(100vh - 160px)">
+        ${buildPrixTab()}
+      </div>
+    </div>`;
+
+  document.body.appendChild(modal);
+
+  modal.querySelector('#codexClose').addEventListener('click', () => modal.remove());
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+
+  modal.querySelectorAll('.codex-tab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      modal.querySelectorAll('.codex-tab').forEach(b => {
+        b.style.borderBottom = '2px solid transparent';
+        b.style.color = '#888';
+      });
+      btn.style.borderBottom = '2px solid var(--gold)';
+      btn.style.color = 'var(--gold)';
+      const body = modal.querySelector('#codexBody');
+      body.innerHTML = btn.dataset.ct === 'prix' ? buildPrixTab() : buildSpawnsTab();
+    });
+  });
+}
+
 // ── Gang Export (Canvas screenshot) ──────────────────────────
 async function exportGangImage() {
   try {
@@ -9753,6 +9898,7 @@ function boot() {
   });
   document.getElementById('btnSaveSlots')?.addEventListener('click', openSaveSlotModal);
   document.getElementById('btnBackToIntro')?.addEventListener('click', () => showIntro());
+  document.getElementById('btnCodex')?.addEventListener('click', openCodexModal);
 
   // Battle log toggle + drag
   const battleLogPanel = document.getElementById('battleLog');
