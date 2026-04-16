@@ -97,6 +97,14 @@
     }
     #moneyDisplay span { font-size: 16px; }
 
+    #repDisplay {
+      font-family: var(--font-pixel);
+      font-size: 12px;
+      color: #ffcc5a;
+      text-align: center;
+      flex-shrink: 0;
+    }
+
     #btnSettings {
       background: none;
       border: 1px solid var(--border);
@@ -1648,30 +1656,6 @@
     #rarePopup .rare-hint  { font-family: var(--font-pixel); font-size: 7px; color: var(--text-dim); margin-top: 2px; }
     #rarePopup .rare-sprite { image-rendering: pixelated; width: 40px; height: 40px; }
 
-    /* ── Loot Popup (post-combat reward) ─────────────────────────── */
-    #lootPopup {
-      position: fixed;
-      bottom: 90px;
-      left: 50%;
-      transform: translateX(-50%) translateY(14px);
-      background: rgba(10,10,10,.93);
-      border: 2px solid var(--gold-dim);
-      border-radius: var(--radius);
-      padding: 10px 20px;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      opacity: 0;
-      z-index: 9998;
-      transition: opacity .3s ease, transform .3s ease;
-      pointer-events: none;
-      box-shadow: 0 0 18px rgba(255,204,90,.25);
-    }
-    #lootPopup.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-    #lootPopup .loot-icon { font-size: 22px; }
-    #lootPopup .loot-money { font-family: var(--font-pixel); font-size: 10px; color: var(--gold); }
-    #lootPopup .loot-rep   { font-family: var(--font-pixel); font-size: 9px;  color: var(--blue); margin-top: 3px; }
-
     /* ── Zone Unlock Popup ───────────────────────────────────────── */
     #zoneUnlockPopup {
       position: fixed;
@@ -2416,15 +2400,6 @@
     </div>
   </div>
 
-  <!-- Loot popup (post-combat) -->
-  <div id="lootPopup">
-    <div class="loot-icon">⚔</div>
-    <div>
-      <div class="loot-money" id="lootMoney"></div>
-      <div class="loot-rep"   id="lootRep"></div>
-    </div>
-  </div>
-
   <!-- Zone unlock popup -->
   <div id="zoneUnlockPopup">
     <div class="unlock-box">
@@ -2445,6 +2420,7 @@
       <button id="btnBackToIntro" title="Retour à l'accueil" style="font-family:var(--font-pixel);font-size:9px;padding:4px 8px;background:transparent;border:1px solid rgba(255,255,255,.2);border-radius:4px;color:var(--text-dim);cursor:pointer;transition:all .2s">🏠</button>
       <div id="gangNameDisplay">Team ???</div>
       <div id="moneyDisplay"><span>₽</span> 0</div>
+      <div id="repDisplay">⭐ 0</div>
       <span id="supaIndicator" title="Compte cloud"></span>
       <button id="btnSettings" aria-label="Settings">⚙</button>
     </header>

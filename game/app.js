@@ -1880,10 +1880,10 @@ function showInfoModal(tabId) {
     tabGang: {
       title: '💀 LE GANG',
       body: `
-        <strong>Réputation</strong> — Débloque zones, quêtes et achats. Augmente en gagnant des combats, diminue en perdant.<br><br>
-        <strong>Argent (₽)</strong> — Gagné lors des combats, ventes de Pokémon, coffres et récoltes de zone.<br><br>
+        <strong>Réputation</strong> — Débloque zones, quêtes et achats. Visible dans la barre en haut à droite.<br><br>
+        <strong>Argent (₽)</strong> — Les récompenses de combat s'accumulent dans les zones. Récupère-les via le bouton ₽ jaune (un combat est nécessaire).<br><br>
         <strong>Boss</strong> — Ton avatar. Assigne jusqu'à <strong>3 Pokémon</strong> à son équipe depuis le PC.<br><br>
-        <strong>Zone Boss</strong> — Quand le Boss est dans une zone, il boost les captures et combat avec les agents.<br><br>
+        <strong>Sac</strong> — Clique sur une Ball pour l'activer. Clique sur un boost pour le lancer. L'incubateur ouvre la gestion des œufs.<br><br>
         <span class="dim">Conseil : assigne tes meilleurs Pokémon au Boss pour maximiser tes chances en combat.</span>
       `
     },
@@ -1901,23 +1901,23 @@ function showInfoModal(tabId) {
     tabZones: {
       title: '🗺️ ZONES',
       body: `
-        <strong>Zone de capture</strong> (field / safari / water / cave) — Des Pokémon sauvages apparaissent. Tu cliques pour les capturer avec tes balls. Les agents assignés capturent automatiquement.<br><br>
-        <strong>Zone d'arène</strong> (gym / elite) — Uniquement des combats contre dresseurs. Pas de capture possible. Récompenses en ₽ et réputation élevées.<br><br>
-        <strong>Maîtrise ★</strong> — Augmente avec les victoires dans la zone. Améliore les spawns et débloque les dresseurs élites.<br><br>
-        <strong>Boosts actifs</strong> — Leurre (×2 spawns), Super Leurre (×3), Rarioscope (rares ×3), Aura Shiny (shiny ×5).<br><br>
-        <strong>Investissement</strong> — Dépense des ₽ dans une zone pour augmenter son niveau et ses récompenses.<br><br>
-        <span class="dim">Les zones dégradées (⚠) n'ont plus que des combats — remonte ta réputation pour les débloquer.</span>
+        <strong>Zone de capture</strong> (field / safari / water / cave) — Des Pokémon sauvages apparaissent. Agents et Boss capturent automatiquement.<br><br>
+        <strong>Zone d'arène</strong> (gym / elite) — Uniquement des combats. Récompenses en ₽ et réputation élevées.<br><br>
+        <strong>Récolte ₽</strong> — Les gains de combat s'accumulent (icône jaune ₽). Clique pour lancer une récolte avec combat défensif.<br><br>
+        <strong>Maîtrise ★</strong> — Augmente avec les victoires. Améliore les spawns et débloque des dresseurs élites.<br><br>
+        <strong>Slots d'agents</strong> — Coût en réputation, croissant avec le niveau de la zone.<br><br>
+        <span class="dim">Les zones dégradées (⚠) n'ont que des combats — remonte ta réputation pour les débloquer.</span>
       `
     },
     tabMarket: {
       title: '💰 MARCHÉ',
       body: `
-        <strong>Balls</strong> — Chaque type améliore le potentiel max des Pokémon capturés. La Master Ball donne 90% de chance de ★5.<br><br>
-        <strong>Boosts temporaires</strong> — S'activent depuis le Sac dans la fenêtre de zone. Durée 60-90s.<br><br>
-        <strong>Rare Candy</strong> — Donne +5 niveaux à un Pokémon de ton choix.<br><br>
-        <strong>Pierre d'évolution</strong> — Permet d'évoluer un Pokémon qui en a besoin.<br><br>
-        <strong>Objets de zone</strong> — Débloquent des zones secrètes (Casino, Sylphe SARL, etc.). Usage unique.<br><br>
-        <span class="dim">Les prix sont fixes. Vends des Pokémon pour financer tes achats.</span>
+        <strong>Quêtes horaires</strong> — 3 quêtes Moyennes + 2 Difficiles, réinitialisées toutes les heures. Reroll possible contre 10 rep.<br><br>
+        <strong>Histoire & Objectifs</strong> — Quêtes permanentes liées à la progression. Complète-les pour des grosses récompenses.<br><br>
+        <strong>Balls</strong> — Chaque type améliore le potentiel max capturé. Échanges : 10 PB→3 GB, 10 GB→3 UB, 1000 UB→1 MB.<br><br>
+        <strong>Multiplicateur ×1/×5/×10</strong> — Achète en lot depuis la boutique.<br><br>
+        <strong>Boosts temporaires</strong> — S'activent depuis le Sac dans la fenêtre de zone. Durée 60–90s.<br><br>
+        <span class="dim">Vends des Pokémon depuis le PC pour financer tes achats.</span>
       `
     },
     tabPC: {
@@ -2739,7 +2739,10 @@ function applyCombatResult(result, playerTeamIds, trainerData) {
   state.stats.totalFights++;
   if (result.win && result.reward >= 0) {
     state.stats.totalFightsWon++;
-    state.gang.money += result.reward;
+    if (result.reward > 0) {
+      const zs = initZone(trainerData.zoneId);
+      zs.pendingIncome = (zs.pendingIncome || 0) + result.reward;
+    }
     state.stats.totalMoneyEarned += result.reward;
     // Rep sur toutes les victoires (spécial = +10, normal = +1)
     if (result.repGain > 0) {
@@ -3782,6 +3785,8 @@ function updateTopBar() {
   const moneyEl = document.getElementById('moneyDisplay');
   if (gangEl) gangEl.textContent = state.gang.name;
   if (moneyEl) moneyEl.innerHTML = `<span>₽</span> ${state.gang.money.toLocaleString()}`;
+  const repEl = document.getElementById('repDisplay');
+  if (repEl) repEl.innerHTML = `<span>⭐</span> ${state.gang.reputation.toLocaleString()}`;
 }
 
 function renderAll() {
@@ -4902,13 +4907,10 @@ function bindGangBase(container) {
     });
   });
 
-  // Incubator widget → navigate to pension
+  // Incubator widget → PC eggs tab
   container.querySelector('[data-base-action="pension"]')?.addEventListener('click', () => {
-    switchTab('tabMarket');
-    setTimeout(() => {
-      const pensionEl = document.getElementById('pensionSection') || document.querySelector('.pension-section');
-      pensionEl?.scrollIntoView({ behavior: 'smooth' });
-    }, 100);
+    pcView = 'eggs';
+    switchTab('tabPC');
   });
 
   // Bag mini-bar: use items directly from zone
@@ -6106,8 +6108,8 @@ function executeCombat() {
       if (overallWin) {
         const z = state.zones[zoneId];
         if (z) z.combatsWon = (z.combatsWon || 0) + 1;
-        if (logEl) logEl.innerHTML += `<div style="color:var(--gold);font-weight:bold">VICTOIRE ! +${reward}P +${repGain} rep</div>`;
-        if (summary) summary.innerHTML = `<span style="color:var(--gold)">+${reward}P +${repGain} rep</span>`;
+        if (logEl) logEl.innerHTML += `<div style="color:var(--gold);font-weight:bold">VICTOIRE ! ₽ accumulés · +${repGain} rep</div>`;
+        if (summary) summary.innerHTML = `<span style="color:var(--gold)">₽ accumulés · +${repGain} rep</span>`;
       } else {
         if (logEl) logEl.innerHTML += `<div style="color:var(--red)">Defaite...</div>`;
         if (summary) summary.innerHTML = `<span style="color:var(--red)">Defaite</span>`;
@@ -6122,31 +6124,17 @@ function executeCombat() {
       if (actionsEl) actionsEl.innerHTML = `<span style="color:var(--text-dim);font-size:9px;font-family:var(--font-pixel)">Fermeture...</span>`;
       logEl?.scrollTo(0, logEl.scrollHeight);
 
-      // Auto-close after 2.5s + loot popup on victory
+      // Auto-close after 3.5s
       setTimeout(() => {
         if (inlineCombat) inlineCombat.classList.remove('active');
         removeSpawn(zoneId, spawnObj.id);
         updateTopBar();
         currentCombat = null;
         if (activeTab === 'tabGang') renderGangTab();
-        if (overallWin) showLootPopup(reward, repGain);
-      }, 2500);
+      }, 3500);
     }
   }
   animateStep();
-}
-
-let _lootPopupTimer = null;
-function showLootPopup(money, rep) {
-  const popup = document.getElementById('lootPopup');
-  if (!popup) return;
-  const moneyEl = document.getElementById('lootMoney');
-  const repEl   = document.getElementById('lootRep');
-  if (moneyEl) moneyEl.textContent = money > 0 ? `+${money.toLocaleString()} ₽` : '';
-  if (repEl)   repEl.textContent   = rep > 0   ? `+${rep} réputation`            : '';
-  popup.classList.add('show');
-  clearTimeout(_lootPopupTimer);
-  _lootPopupTimer = setTimeout(() => popup.classList.remove('show'), 3000);
 }
 
 function closeCombatPopup() {
@@ -6245,21 +6233,12 @@ function renderQuestPanel() {
   }
 
   // ── Regular missions ──────────────────────────────────────────
-  const dailyRem  = Math.max(0, 86400000  - (Date.now() - state.missions.daily.reset));
-  const weeklyRem = Math.max(0, 604800000 - (Date.now() - state.missions.weekly.reset));
-  const dH = Math.floor(dailyRem / 3600000), dM = Math.floor((dailyRem % 3600000) / 60000);
-  const wD = Math.floor(weeklyRem / 86400000), wH = Math.floor((weeklyRem % 86400000) / 3600000);
-
-  const daily   = MISSIONS.filter(m => m.type === 'daily');
-  const weekly  = MISSIONS.filter(m => m.type === 'weekly');
   const story   = MISSIONS.filter(m => m.type === 'story' && !isMissionClaimed(m));
   const done    = MISSIONS.filter(m => m.type === 'story' &&  isMissionClaimed(m));
 
   panel.innerHTML = hourlyHtml +
-    buildSection('Quotidiennes', `${dH}h${String(dM).padStart(2,'0')}`, daily) +
-    buildSection('Hebdomadaires', `${wD}j ${wH}h`, weekly) +
     buildSection('Histoire & Objectifs', '', story) +
-    (done.length ? buildSection('Terminées', '', done) : '');
+    (done.length ? buildSection('Terminées ✓', '', done) : '');
 
   // Bind buttons
   panel.querySelectorAll('.btn-claim-quest').forEach(btn => {
@@ -6406,6 +6385,7 @@ function renderShopPanel() {
       }
       updateTopBar();
       renderShopPanel();
+      if (activeTab === 'tabZones') renderZoneWindows();
     });
   });
   panel.querySelectorAll('.btn-ball-trade').forEach(btn => {
@@ -6446,11 +6426,10 @@ let pcGroupSpecies = null; // espèce sélectionnée en mode groupe
 // ── Filter PC to a specific species (from detail panel or Pokédex) ──
 function filterPCBySpecies(species_en) {
   switchTab('tabPC');
-  // Set search to match species so grid shows only this species group
   const searchEl = document.getElementById('pcSearch');
   if (searchEl) searchEl.value = speciesName(species_en);
-  pcGroupMode = true;
-  pcGroupSpecies = species_en;
+  pcGroupMode = false;
+  pcGroupSpecies = null;
   pcPage = 0;
   _pcLastRenderKey = '';
   renderPCTab();
