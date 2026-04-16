@@ -5968,6 +5968,11 @@ function executeCombat() {
   const logEl = document.getElementById(`inlineLog-${zoneId}`);
   const summary = inlineCombat.querySelector('.combat-summary');
 
+  // Resolve trainer display name (spawnObj.trainer has .fr/.en)
+  const trainerName = spawnObj.trainer
+    ? (state.lang === 'fr' ? spawnObj.trainer.fr : spawnObj.trainer.en)
+    : (spawnObj.trainerKey || 'Dresseur');
+
   // Disable buttons during animation
   if (actionsEl) actionsEl.innerHTML = `<span style="color:var(--text-dim);font-size:10px">Combat en cours...</span>`;
 
