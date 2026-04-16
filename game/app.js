@@ -4953,29 +4953,49 @@ async function exportGangImage() {
     const W = 640, H = 900;
 
     async function loadImg(src) {
-      // Fetch as blob → blob URL avoids canvas-taint from CORS cache conflicts
+      // Strategy: fetch → ArrayBuffer → base64 DataURL
+      // DataURLs are same-origin by definition: never taint the canvas,
+      // never get revoked early (unlike blob URLs which can break on Safari/Firefox).
       try {
-        const resp = await fetch(src, { cache: 'no-cache' });
+        const resp = await fetch(src, { mode: 'cors', cache: 'no-cache' });
         if (resp.ok) {
-          const blob = await resp.blob();
-          const blobUrl = URL.createObjectURL(blob);
-          const img = await new Promise((resolve, reject) => {
-            const i = new Image();
-            i.onload  = () => resolve(i);
-            i.onerror = () => reject();
-            i.src = blobUrl;
+          const buf = await resp.arrayBuffer();
+          const bytes = new Uint8Array(buf);
+          // Chunk the conversion to avoid call-stack overflow on large sprites
+          const CHUNK = 8192;
+          let binary = '';
+          for (let i = 0; i < bytes.length; i += CHUNK) {
+            binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
+          }
+          const mime = resp.headers.get('content-type')?.split(';')[0] || 'image/png';
+          const dataUrl = `data:${mime};base64,${btoa(binary)}`;
+          return new Promise(resolve => {
+            const img = new Image();
+            img.onload  = () => resolve(img);
+            img.onerror = () => resolve(null);
+            img.src = dataUrl;
           });
-          URL.revokeObjectURL(blobUrl);
-          return img;
         }
       } catch(e) {}
-      // Fallback: standard img with crossOrigin flag
-      return new Promise(resolve => {
-        const img = new Image(); img.crossOrigin = 'anonymous';
-        img.onload  = () => resolve(img);
-        img.onerror = () => resolve(null);
-        img.src = src;
-      });
+      return null; // sprite unavailable — callers should draw a placeholder
+    }
+
+    // Draw a subtle placeholder when a sprite fails to load
+    function drawPlaceholder(ctx, x, y, w, h, label = '?') {
+      ctx.save();
+      ctx.fillStyle = 'rgba(255,255,255,0.04)';
+      ctx.fillRect(x, y, w, h);
+      ctx.strokeStyle = 'rgba(255,255,255,0.10)';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
+      ctx.fillStyle = '#444';
+      ctx.font = `bold 7px "Courier New",monospace`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      // Truncate label to fit
+      const lbl = label.length > 10 ? label.slice(0, 9) + '…' : label;
+      ctx.fillText(lbl, x + w / 2, y + h / 2);
+      ctx.restore();
     }
     function px(sz)  { return `${sz}px "Courier New",monospace`; }
     function pxB(sz) { return `bold ${sz}px "Courier New",monospace`; }
@@ -5014,7 +5034,8 @@ async function exportGangImage() {
         // Boss sprite + gang info side by side
         const bossImg = state.gang.bossSprite ? await loadImg(trainerSprite(state.gang.bossSprite)) : null;
         const BSIZ = 88;
-        if (bossImg) { try { ctx.drawImage(bossImg, 18, y, BSIZ, BSIZ); } catch(e) {} }
+        if (bossImg) { ctx.drawImage(bossImg, 18, y, BSIZ, BSIZ); }
+        else { drawPlaceholder(ctx, 18, y, BSIZ, BSIZ, state.gang.bossName || 'Boss'); }
 
         const ix = 18 + BSIZ + 14;
         ctx.fillStyle = '#cc3333'; ctx.font = pxB(18); ctx.textAlign = 'left';
@@ -5066,7 +5087,8 @@ async function exportGangImage() {
             const pk = teamPks[i];
             const img = await loadImg(pokeSprite(pk.species_en, pk.shiny));
             const sx = startX + i * slotW;
-            if (img) { try { ctx.drawImage(img, sx + 2, y, 48, 48); } catch(e) {} }
+            if (img) { ctx.drawImage(img, sx + 2, y, 48, 48); }
+            else { drawPlaceholder(ctx, sx + 2, y, 48, 48, speciesName(pk.species_en)); }
             ctx.fillStyle = pk.shiny ? '#ffcc5a' : '#888'; ctx.font = px(6.5); ctx.textAlign = 'center';
             ctx.fillText(`Lv.${pk.level} ${'★'.repeat(pk.potential)}`, sx + 26, y + 56);
           }
@@ -5085,7 +5107,8 @@ async function exportGangImage() {
           ctx.fill(); ctx.stroke(); ctx.restore();
           ctx.fillStyle = '#ffcc5a'; ctx.font = pxB(7); ctx.textAlign = 'center';
           ctx.fillText('💰 MVP', mvpBoxX + mvpBoxW/2, y + 2);
-          if (mvpImg) { try { ctx.drawImage(mvpImg, mvpBoxX + (mvpBoxW-44)/2, y + 6, 44, 44); } catch(e) {} }
+          if (mvpImg) { ctx.drawImage(mvpImg, mvpBoxX + (mvpBoxW-44)/2, y + 6, 44, 44); }
+          else { drawPlaceholder(ctx, mvpBoxX + (mvpBoxW-44)/2, y + 6, 44, 44, speciesName(mvp.species_en)); }
           ctx.fillStyle = '#e0e0e0'; ctx.font = px(6.5); ctx.textAlign = 'center';
           const mvpName = speciesName(mvp.species_en);
           ctx.fillText(mvpName.length > 12 ? mvpName.slice(0,11)+'…' : mvpName, mvpBoxX + mvpBoxW/2, y + 54);
@@ -5107,7 +5130,8 @@ async function exportGangImage() {
 
         for (const agent of agentsSlice) {
           const agImg = await loadImg(agent.sprite || trainerSprite('acetrainer'));
-          if (agImg) { try { ctx.drawImage(agImg, 18, y, 40, 40); } catch(e) {} }
+          if (agImg) { ctx.drawImage(agImg, 18, y, 40, 40); }
+          else { drawPlaceholder(ctx, 18, y, 40, 40, agent.name); }
           ctx.fillStyle = '#e0e0e0'; ctx.font = pxB(9); ctx.textAlign = 'left';
           ctx.fillText(`${agent.name}  Lv.${agent.level}`, 64, y + 13);
           ctx.fillStyle = '#888'; ctx.font = px(7.5);
@@ -5120,7 +5144,8 @@ async function exportGangImage() {
           let pkX = 64 + 140;
           for (const pk of agPks.slice(0, 6)) {
             const pkImg = await loadImg(pokeSprite(pk.species_en, pk.shiny));
-            if (pkImg) { try { ctx.drawImage(pkImg, pkX, y + 2, 34, 34); } catch(e) {} }
+            if (pkImg) { ctx.drawImage(pkImg, pkX, y + 2, 34, 34); }
+            else { drawPlaceholder(ctx, pkX, y + 2, 34, 34, speciesName(pk.species_en)); }
             ctx.fillStyle = pk.shiny ? '#ffcc5a' : '#666'; ctx.font = px(6); ctx.textAlign = 'center';
             ctx.fillText(`${pk.level}`, pkX + 17, y + 42);
             pkX += 38;
