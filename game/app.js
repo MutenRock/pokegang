@@ -5104,288 +5104,183 @@ function openCodexModal() {
 }
 
 // ── Gang Export (Canvas screenshot) ──────────────────────────
-async function exportGangImage() {
-  try {
-    const W = 640, H = 900;
+function exportGangImage() {
+  const g = state.gang;
+  const s = state.stats;
 
-    async function loadImg(src) {
-      // Strategy: fetch → ArrayBuffer → base64 DataURL
-      // DataURLs are same-origin by definition: never taint the canvas,
-      // never get revoked early (unlike blob URLs which can break on Safari/Firefox).
-      try {
-        const resp = await fetch(src, { mode: 'cors', cache: 'no-cache' });
-        if (resp.ok) {
-          const buf = await resp.arrayBuffer();
-          const bytes = new Uint8Array(buf);
-          // Chunk the conversion to avoid call-stack overflow on large sprites
-          const CHUNK = 8192;
-          let binary = '';
-          for (let i = 0; i < bytes.length; i += CHUNK) {
-            binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
-          }
-          const mime = resp.headers.get('content-type')?.split(';')[0] || 'image/png';
-          const dataUrl = `data:${mime};base64,${btoa(binary)}`;
-          return new Promise(resolve => {
-            const img = new Image();
-            img.onload  = () => resolve(img);
-            img.onerror = () => resolve(null);
-            img.src = dataUrl;
-          });
-        }
-      } catch(e) {}
-      return null; // sprite unavailable — callers should draw a placeholder
+  // ── Data ──────────────────────────────────────────────────
+  const teamPks = g.bossTeam.map(id => state.pokemons.find(p => p.id === id)).filter(Boolean);
+  const mvp = state.pokemons.length > 0
+    ? state.pokemons.reduce((best, p) => calculatePrice(p) > calculatePrice(best) ? p : best)
+    : null;
+  const dexCaught = Object.values(state.pokedex).filter(e => e.caught).length;
+  const dexTotal  = POKEMON_GEN1.length;
+  const topSp = Object.entries(state.pokedex).sort((a,b) => (b[1].count||0) - (a[1].count||0))[0];
+
+  // ── Background ────────────────────────────────────────────
+  const bgKey = state.cosmetics?.gameBg;
+  const bgUrl = bgKey ? COSMETIC_BGS[bgKey]?.url : null;
+  const bgStyle = bgUrl
+    ? `background-image:url('${bgUrl}');background-size:cover;background-position:center`
+    : 'background:linear-gradient(180deg,#180606 0%,#200d0d 45%,#160808 80%,#0e0404 100%)';
+
+  // ── Helpers ───────────────────────────────────────────────
+  const sp = (src, size, alt = '') =>
+    `<img src="${src}" width="${size}" height="${size}" alt="${alt}"
+      style="image-rendering:pixelated;object-fit:contain;display:block"
+      onerror="this.style.visibility='hidden'">`;
+
+  // ── Boss team ─────────────────────────────────────────────
+  const bossTeamHtml = teamPks.map(pk => `
+    <div style="display:flex;flex-direction:column;align-items:center;gap:2px">
+      ${sp(pokeSprite(pk.species_en, pk.shiny), 64, speciesName(pk.species_en))}
+      <span style="font-size:9px;color:${pk.shiny ? '#ffcc5a' : '#888'}">${'★'.repeat(pk.potential)} Lv.${pk.level}</span>
+      <span style="font-size:8px;color:#aaa">${speciesName(pk.species_en)}</span>
+    </div>`).join('');
+
+  // ── MVP ───────────────────────────────────────────────────
+  const mvpHtml = mvp ? `
+    <div style="border:2px solid #ffcc5a;border-radius:6px;padding:8px 10px;background:rgba(255,204,90,0.08);text-align:center;flex-shrink:0">
+      <div style="font-size:9px;color:#ffcc5a;margin-bottom:4px;font-family:'Press Start 2P',monospace">💰 MVP</div>
+      ${sp(pokeSprite(mvp.species_en, mvp.shiny), 60, speciesName(mvp.species_en))}
+      <div style="font-size:9px;color:#e0e0e0;margin-top:4px">${speciesName(mvp.species_en)}${mvp.shiny ? ' ★' : ''}</div>
+      <div style="font-size:10px;color:#ffcc5a;font-weight:bold">${calculatePrice(mvp).toLocaleString()}₽</div>
+    </div>` : '';
+
+  // ── Agents ────────────────────────────────────────────────
+  const agentsHtml = state.agents.map(ag => {
+    const agPks = ag.team.map(id => state.pokemons.find(p => p.id === id)).filter(Boolean);
+    const zoneName = ag.assignedZone ? (ZONE_BY_ID[ag.assignedZone]?.fr || ag.assignedZone) : 'Sans zone';
+    const teamHtml = agPks.slice(0, 6).map(pk => `
+      <div style="display:flex;flex-direction:column;align-items:center;gap:1px">
+        ${sp(pokeSprite(pk.species_en, pk.shiny), 36, speciesName(pk.species_en))}
+        <span style="font-size:7px;color:${pk.shiny ? '#ffcc5a' : '#666'}">${pk.level}</span>
+      </div>`).join('');
+    return `
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 16px;border-bottom:1px solid rgba(255,255,255,0.06)">
+        ${sp(ag.sprite || trainerSprite('acetrainer'), 48, ag.name)}
+        <div style="display:flex;flex-direction:column;gap:3px;min-width:130px">
+          <span style="font-size:11px;color:#e0e0e0;font-weight:bold">${ag.name} <span style="color:#888">Lv.${ag.level}</span></span>
+          <span style="font-size:9px;color:#888">${zoneName}</span>
+          <span style="font-size:8px;color:#555">ATK:${ag.stats?.combat||0} &nbsp;CAP:${ag.stats?.capture||0} &nbsp;LCK:${ag.stats?.luck||0}</span>
+        </div>
+        <div style="display:flex;gap:4px;flex-wrap:wrap;flex:1">${teamHtml}</div>
+      </div>`;
+  }).join('');
+
+  // ── Stats ─────────────────────────────────────────────────
+  const row = (l, lv, r, rv) => `
+    <div style="display:flex;justify-content:space-between;padding:3px 0;font-size:10px">
+      <span style="color:#ccc">${l} : <strong style="color:#e0e0e0">${lv}</strong></span>
+      ${r ? `<span style="color:#ccc">${r} : <strong style="color:#e0e0e0">${rv}</strong></span>` : ''}
+    </div>`;
+
+  const richest = mvp; // same calc
+  const statsHtml = [
+    row('✨ Shiny', s.shinyCaught||0, '⚔ Victoires', s.totalFightsWon||0),
+    row('🎯 Captures', s.totalCaught||0, '📦 Coffres', s.chestsOpened||0),
+    row('₽ Actuels', `${g.money.toLocaleString()}₽`, '₽ Gagné', `${(s.totalMoneyEarned||0).toLocaleString()}₽`),
+    row('⭐ Réputation', g.reputation, topSp ? '🏆 Top' : '', topSp ? `${speciesName(topSp[0])} ×${topSp[1].count||1}` : ''),
+    richest ? `<div style="padding:3px 0;font-size:10px;color:#ccc">💰 Pokémon le + cher : <strong style="color:#ffcc5a">${speciesName(richest.species_en)}${richest.shiny ? ' ★' : ''} — ${calculatePrice(richest).toLocaleString()}₽</strong></div>` : '',
+    s.mostExpensiveSold ? `<div style="padding:3px 0;font-size:10px;color:#ccc">💎 Vente record : <strong>${s.mostExpensiveSold.name} — ${(s.mostExpensiveSold.price||0).toLocaleString()}₽</strong></div>` : '',
+    s.mostExpensiveObtained ? `<div style="padding:3px 0;font-size:10px;color:#ccc">🌟 Capture record : <strong>${s.mostExpensiveObtained.name} — ${(s.mostExpensiveObtained.price||0).toLocaleString()}₽</strong></div>` : '',
+  ].join('');
+
+  // ── HTML document ─────────────────────────────────────────
+  const html = `<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>PokéGang — ${g.name}</title>
+  <link rel="icon" href="https://lab.sterenna.fr/PG/pokegang_logo/pokegang_logo_little.png">
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Courier New',monospace;background:#0a0404;color:#e0e0e0;min-height:100vh}
+    .toolbar{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(14,4,4,.97);border-bottom:2px solid #cc3333;display:flex;align-items:center;justify-content:space-between;padding:10px 20px;gap:10px}
+    .toolbar-title{font-family:'Press Start 2P',monospace;font-size:9px;color:#cc3333;white-space:nowrap}
+    .toolbar-hint{font-size:9px;color:#555}
+    .toolbar-btns{display:flex;gap:8px;flex-shrink:0}
+    .btn{font-family:'Press Start 2P',monospace;font-size:8px;padding:8px 14px;border-radius:4px;cursor:pointer;border:1px solid;transition:all .2s;background:transparent}
+    .btn-print{border-color:#aaa;color:#aaa}.btn-print:hover{background:rgba(255,255,255,.1)}
+    .card{max-width:700px;margin:64px auto 40px;border:2px solid #cc3333;border-radius:4px;overflow:hidden;box-shadow:0 0 40px rgba(204,51,51,.2)}
+    .card-bg{${bgStyle};position:relative}
+    .card-bg::after{content:'';position:absolute;inset:0;background:rgba(0,0,0,.72);pointer-events:none}
+    .card-content{position:relative;z-index:1}
+    .sec-header{text-align:center;font-family:'Press Start 2P',monospace;font-size:8px;color:#666;padding:8px 0;letter-spacing:.1em}
+    hr{border:none;border-top:1px solid rgba(204,51,51,.35);margin:0 16px}
+    @media print{
+      .toolbar{display:none!important}
+      body{background:#0a0404!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+      .card{margin:0 auto;max-width:100%;border:none;box-shadow:none}
+      @page{margin:8mm;background:#0a0404}
     }
+  </style>
+</head>
+<body>
+  <div class="toolbar">
+    <span class="toolbar-title">📋 ${g.name}</span>
+    <span class="toolbar-hint">Ctrl+P pour PDF &nbsp;·&nbsp; clic droit → Enregistrer pour PNG</span>
+    <div class="toolbar-btns">
+      <button class="btn btn-print" onclick="window.print()">🖨 Imprimer / PDF</button>
+    </div>
+  </div>
 
-    // Draw a subtle placeholder when a sprite fails to load
-    function drawPlaceholder(ctx, x, y, w, h, label = '?') {
-      ctx.save();
-      ctx.fillStyle = 'rgba(255,255,255,0.04)';
-      ctx.fillRect(x, y, w, h);
-      ctx.strokeStyle = 'rgba(255,255,255,0.10)';
-      ctx.lineWidth = 1;
-      ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
-      ctx.fillStyle = '#444';
-      ctx.font = `bold 7px "Courier New",monospace`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      // Truncate label to fit
-      const lbl = label.length > 10 ? label.slice(0, 9) + '…' : label;
-      ctx.fillText(lbl, x + w / 2, y + h / 2);
-      ctx.restore();
-    }
-    function px(sz)  { return `${sz}px "Courier New",monospace`; }
-    function pxB(sz) { return `bold ${sz}px "Courier New",monospace`; }
+  <div class="card">
+    <div class="card-bg"><div class="card-content">
 
-    function drawDefaultBg(ctx) {
-      const grad = ctx.createLinearGradient(0, 0, 0, H);
-      grad.addColorStop(0, '#180606'); grad.addColorStop(0.45, '#200d0d');
-      grad.addColorStop(0.8, '#160808'); grad.addColorStop(1, '#0e0404');
-      ctx.fillStyle = grad; ctx.fillRect(0, 0, W, H);
-    }
+      <!-- ── Header ── -->
+      <div style="display:flex;align-items:flex-start;gap:14px;padding:16px 16px 12px">
+        ${g.bossSprite ? sp(trainerSprite(g.bossSprite), 88, g.bossName) : '<div style="width:88px;height:88px"></div>'}
+        <div style="display:flex;flex-direction:column;gap:5px;flex:1">
+          <div style="font-family:'Press Start 2P',monospace;font-size:18px;color:#cc3333;line-height:1.3">${g.name}</div>
+          <div style="font-size:10px;color:#aaa">Boss : ${g.bossName}</div>
+          <div style="display:flex;gap:20px;flex-wrap:wrap">
+            <span style="font-size:9px;color:#ffcc5a">⭐ Réputation : ${g.reputation.toLocaleString()}</span>
+            <span style="font-size:9px;color:#e0e0e0">₽ ${g.money.toLocaleString()}</span>
+          </div>
+          <div style="font-size:8px;color:#aaa">Pokémon : ${state.pokemons.length} &nbsp;&nbsp; Shiny : ${s.shinyCaught||0}</div>
+          <div style="font-size:8px;color:#aaa">Victoires : ${s.totalFightsWon||0} &nbsp;&nbsp; Captures : ${s.totalCaught||0}</div>
+          <div style="font-size:8px;color:${dexCaught >= dexTotal ? '#ffcc5a' : '#444'}">📖 Pokédex : ${dexCaught}/${dexTotal}${dexCaught >= dexTotal ? ' ✓ COMPLET !' : ''}</div>
+        </div>
+      </div>
 
-    async function drawPage(canvas, agentsSlice, pageIdx, totalPages) {
-      const ctx = canvas.getContext('2d');
+      <!-- ── Équipe Boss ── -->
+      <hr><div class="sec-header">— ÉQUIPE BOSS —</div>
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;padding:8px 16px 14px;flex-wrap:wrap">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;flex:1">${bossTeamHtml}</div>
+        ${mvpHtml}
+      </div>
 
-      // ── Background (player wallpaper or default) ───────────────
-      const bgKey = state.cosmetics?.gameBg;
-      const bgDef = bgKey ? COSMETIC_BGS[bgKey] : null;
-      if (bgDef) {
-        const bgImg = await loadImg(bgDef.url);
-        if (bgImg) {
-          ctx.drawImage(bgImg, 0, 0, W, H);
-          ctx.fillStyle = 'rgba(0,0,0,0.68)'; ctx.fillRect(0, 0, W, H);
-        } else { drawDefaultBg(ctx); }
-      } else { drawDefaultBg(ctx); }
+      ${state.agents.length > 0 ? `
+      <!-- ── Agents ── -->
+      <hr><div class="sec-header">— AGENTS —</div>
+      <div>${agentsHtml}</div>
+      ` : ''}
 
-      // ── Borders ────────────────────────────────────────────────
-      ctx.strokeStyle = '#cc3333'; ctx.lineWidth = 3; ctx.strokeRect(2, 2, W-4, H-4);
-      ctx.strokeStyle = 'rgba(204,51,51,0.28)'; ctx.lineWidth = 1; ctx.strokeRect(8, 8, W-16, H-16);
+      <!-- ── Stats ── -->
+      <hr><div class="sec-header">— STATISTIQUES —</div>
+      <div style="padding:10px 20px 14px">${statsHtml}</div>
 
-      let y = 18;
+      <!-- ── Footer ── -->
+      <div style="display:flex;align-items:center;justify-content:center;padding:10px 0 14px">
+        <img src="https://lab.sterenna.fr/PG/pokegang_logo/pokegang_logo_medium.png"
+          style="height:28px;width:auto;opacity:.5" alt="PokéGang"
+          onerror="this.style.display='none'">
+      </div>
 
-      // ══════════════════════════════════════════════════════════
-      //  PAGE 0: Boss header + team + MVP box
-      // ══════════════════════════════════════════════════════════
-      if (pageIdx === 0) {
-        // Boss sprite + gang info side by side
-        const bossImg = state.gang.bossSprite ? await loadImg(trainerSprite(state.gang.bossSprite)) : null;
-        const BSIZ = 88;
-        if (bossImg) { ctx.drawImage(bossImg, 18, y, BSIZ, BSIZ); }
-        else { drawPlaceholder(ctx, 18, y, BSIZ, BSIZ, state.gang.bossName || 'Boss'); }
+    </div></div>
+  </div>
+</body>
+</html>`;
 
-        const ix = 18 + BSIZ + 14;
-        ctx.fillStyle = '#cc3333'; ctx.font = pxB(18); ctx.textAlign = 'left';
-        // Truncate gang name if long
-        const gName = state.gang.name.length > 22 ? state.gang.name.slice(0, 21) + '…' : state.gang.name;
-        ctx.fillText(gName, ix, y + 16);
-        ctx.fillStyle = '#aaa'; ctx.font = px(10);
-        ctx.fillText(`Boss : ${state.gang.bossName}`, ix, y + 32);
-        ctx.fillStyle = '#ffcc5a'; ctx.font = px(9);
-        ctx.fillText(`⭐ Réputation : ${state.gang.reputation}`, ix, y + 48);
-        ctx.fillStyle = '#e0e0e0'; ctx.font = px(9);
-        ctx.fillText(`₽ ${state.gang.money.toLocaleString()}`, ix + 180, y + 48);
-        ctx.fillStyle = '#aaa'; ctx.font = px(8);
-        const s = state.stats;
-        ctx.fillText(`Pokémon : ${state.pokemons.length}   Shiny : ${s.shinyCaught||0}`, ix, y + 62);
-        ctx.fillText(`Victoires : ${s.totalFightsWon||0}   Captures : ${s.totalCaught||0}`, ix, y + 76);
-
-        // Pokédex progress (grisé unless complete)
-        const dexCaught = Object.values(state.pokedex).filter(e => e.caught).length;
-        const dexTotal = POKEMON_GEN1.length;
-        const dexDone = dexCaught >= dexTotal;
-        ctx.fillStyle = dexDone ? '#ffcc5a' : '#555';
-        ctx.font = px(8);
-        ctx.fillText(`📖 Pokédex : ${dexCaught}/${dexTotal}${dexDone ? ' ✓ COMPLET !' : ''}`, ix, y + 90);
-
-        y = Math.max(y + BSIZ, y + 96) + 10;
-
-        // Separator
-        ctx.strokeStyle = '#cc3333'; ctx.lineWidth = 1;
-        ctx.beginPath(); ctx.moveTo(18, y); ctx.lineTo(W-18, y); ctx.stroke(); y += 12;
-
-        // ── Boss team ──────────────────────────────────────────
-        ctx.fillStyle = '#888'; ctx.font = px(8); ctx.textAlign = 'center';
-        ctx.fillText('— ÉQUIPE BOSS —', W/2, y); y += 10;
-
-        const teamPks = state.gang.bossTeam.map(id => state.pokemons.find(p => p.id === id)).filter(Boolean);
-
-        // MVP: highest value pokemon across entire collection
-        const mvp = state.pokemons.length > 0
-          ? state.pokemons.reduce((best, p) => calculatePrice(p) > calculatePrice(best) ? p : best)
-          : null;
-        const mvpBoxW = 96, mvpBoxX = W - mvpBoxW - 16;
-
-        if (teamPks.length > 0) {
-          const slotW = 54;
-          const teamW = teamPks.length * slotW;
-          const startX = mvp ? Math.min(18, (mvpBoxX - teamW) / 2) : (W - teamW) / 2;
-          for (let i = 0; i < teamPks.length; i++) {
-            const pk = teamPks[i];
-            const img = await loadImg(pokeSprite(pk.species_en, pk.shiny));
-            const sx = startX + i * slotW;
-            if (img) { ctx.drawImage(img, sx + 2, y, 48, 48); }
-            else { drawPlaceholder(ctx, sx + 2, y, 48, 48, speciesName(pk.species_en)); }
-            ctx.fillStyle = pk.shiny ? '#ffcc5a' : '#888'; ctx.font = px(6.5); ctx.textAlign = 'center';
-            ctx.fillText(`Lv.${pk.level} ${'★'.repeat(pk.potential)}`, sx + 26, y + 56);
-          }
-        }
-
-        // MVP box (special highlight)
-        if (mvp) {
-          const mvpImg = await loadImg(pokeSprite(mvp.species_en, mvp.shiny));
-          ctx.save();
-          ctx.strokeStyle = '#ffcc5a'; ctx.lineWidth = 2;
-          ctx.fillStyle = 'rgba(255,204,90,0.10)';
-          const r = 5;
-          ctx.beginPath();
-          if (ctx.roundRect) ctx.roundRect(mvpBoxX, y - 6, mvpBoxW, 72, r);
-          else ctx.rect(mvpBoxX, y - 6, mvpBoxW, 72);
-          ctx.fill(); ctx.stroke(); ctx.restore();
-          ctx.fillStyle = '#ffcc5a'; ctx.font = pxB(7); ctx.textAlign = 'center';
-          ctx.fillText('💰 MVP', mvpBoxX + mvpBoxW/2, y + 2);
-          if (mvpImg) { ctx.drawImage(mvpImg, mvpBoxX + (mvpBoxW-44)/2, y + 6, 44, 44); }
-          else { drawPlaceholder(ctx, mvpBoxX + (mvpBoxW-44)/2, y + 6, 44, 44, speciesName(mvp.species_en)); }
-          ctx.fillStyle = '#e0e0e0'; ctx.font = px(6.5); ctx.textAlign = 'center';
-          const mvpName = speciesName(mvp.species_en);
-          ctx.fillText(mvpName.length > 12 ? mvpName.slice(0,11)+'…' : mvpName, mvpBoxX + mvpBoxW/2, y + 54);
-          ctx.fillStyle = '#ffcc5a'; ctx.font = px(6);
-          ctx.fillText(`${calculatePrice(mvp).toLocaleString()}₽`, mvpBoxX + mvpBoxW/2, y + 64);
-        }
-
-        y += 72;
-      }
-
-      // ══════════════════════════════════════════════════════════
-      //  AGENTS section
-      // ══════════════════════════════════════════════════════════
-      if (agentsSlice.length > 0) {
-        ctx.strokeStyle = '#333'; ctx.lineWidth = 1;
-        ctx.beginPath(); ctx.moveTo(18, y); ctx.lineTo(W-18, y); ctx.stroke(); y += 10;
-        ctx.fillStyle = '#888'; ctx.font = px(8); ctx.textAlign = 'center';
-        ctx.fillText(pageIdx === 0 ? '— AGENTS —' : '— AGENTS (suite) —', W/2, y); y += 12;
-
-        for (const agent of agentsSlice) {
-          const agImg = await loadImg(agent.sprite || trainerSprite('acetrainer'));
-          if (agImg) { ctx.drawImage(agImg, 18, y, 40, 40); }
-          else { drawPlaceholder(ctx, 18, y, 40, 40, agent.name); }
-          ctx.fillStyle = '#e0e0e0'; ctx.font = pxB(9); ctx.textAlign = 'left';
-          ctx.fillText(`${agent.name}  Lv.${agent.level}`, 64, y + 13);
-          ctx.fillStyle = '#888'; ctx.font = px(7.5);
-          const zn = agent.assignedZone ? (ZONE_BY_ID[agent.assignedZone]?.fr || agent.assignedZone) : 'Sans zone';
-          ctx.fillText(zn, 64, y + 26);
-          ctx.fillStyle = '#555'; ctx.font = px(6.5);
-          ctx.fillText(`ATK:${agent.stats?.combat||0}  CAP:${agent.stats?.capture||0}  LCK:${agent.stats?.luck||0}`, 64, y + 38);
-          // Team
-          const agPks = agent.team.map(id => state.pokemons.find(p => p.id === id)).filter(Boolean);
-          let pkX = 64 + 140;
-          for (const pk of agPks.slice(0, 6)) {
-            const pkImg = await loadImg(pokeSprite(pk.species_en, pk.shiny));
-            if (pkImg) { ctx.drawImage(pkImg, pkX, y + 2, 34, 34); }
-            else { drawPlaceholder(ctx, pkX, y + 2, 34, 34, speciesName(pk.species_en)); }
-            ctx.fillStyle = pk.shiny ? '#ffcc5a' : '#666'; ctx.font = px(6); ctx.textAlign = 'center';
-            ctx.fillText(`${pk.level}`, pkX + 17, y + 42);
-            pkX += 38;
-          }
-          y += 52;
-        }
-      }
-
-      // ══════════════════════════════════════════════════════════
-      //  STATS (last page only)
-      // ══════════════════════════════════════════════════════════
-      if (pageIdx === totalPages - 1) {
-        y += 6;
-        ctx.strokeStyle = '#cc3333'; ctx.lineWidth = 1;
-        ctx.beginPath(); ctx.moveTo(18, y); ctx.lineTo(W-18, y); ctx.stroke(); y += 12;
-        ctx.fillStyle = '#ffcc5a'; ctx.font = pxB(8); ctx.textAlign = 'center';
-        ctx.fillText('— STATISTIQUES —', W/2, y); y += 14;
-
-        const s = state.stats;
-        const topSp = Object.entries(state.pokedex).sort((a,b)=>(b[1].count||0)-(a[1].count||0))[0];
-        const richest = state.pokemons.length > 0
-          ? state.pokemons.reduce((best, p) => calculatePrice(p) > calculatePrice(best) ? p : best)
-          : null;
-        const lines = [
-          [`✨ Shiny : ${s.shinyCaught||0}`,            `⚔ Victoires : ${s.totalFightsWon||0}`],
-          [`🎯 Captures totales : ${s.totalCaught||0}`, `📦 Coffres : ${s.chestsOpened||0}`],
-          [`₽ Actuels : ${state.gang.money.toLocaleString()}`, `₽ Gagné : ${(s.totalMoneyEarned||0).toLocaleString()}`],
-          [`⭐ Réputation : ${state.gang.reputation}`,  topSp ? `🏆 Top : ${speciesName(topSp[0])} ×${topSp[1].count||1}` : ''],
-        ];
-        if (richest) lines.push([`💰 Pokémon le + cher : ${speciesName(richest.species_en)}${richest.shiny ? ' ★' : ''} — ${calculatePrice(richest).toLocaleString()}₽`, '']);
-        if (s.mostExpensiveSold)     lines.push([`💎 Vente record : ${s.mostExpensiveSold.name} — ${(s.mostExpensiveSold.price||0).toLocaleString()}₽`, '']);
-        if (s.mostExpensiveObtained) lines.push([`🌟 Capture record : ${s.mostExpensiveObtained.name} — ${(s.mostExpensiveObtained.price||0).toLocaleString()}₽`, '']);
-
-        ctx.font = px(8.5);
-        for (const [l, r] of lines) {
-          ctx.fillStyle = '#ccc'; ctx.textAlign = 'left';  ctx.fillText(l, 20, y);
-          if (r) { ctx.textAlign = 'right'; ctx.fillText(r, W-20, y); }
-          y += 15;
-        }
-      }
-
-      // ── Footer: logo + page ──────────────────────────────────────
-      const footerLogoUrl = 'https://lab.sterenna.fr/PG/pokegang_logo/pokegang_logo_medium.png';
-      const footerLogo = await loadImg(footerLogoUrl);
-      const LOGO_H = 28;
-      const LOGO_W = footerLogo ? Math.round(footerLogo.width / footerLogo.height * LOGO_H) : 0;
-      if (footerLogo && LOGO_W > 0) {
-        ctx.globalAlpha = 0.55;
-        ctx.drawImage(footerLogo, W / 2 - LOGO_W / 2, H - LOGO_H - 6, LOGO_W, LOGO_H);
-        ctx.globalAlpha = 1;
-      } else {
-        ctx.fillStyle = 'rgba(255,255,255,0.18)'; ctx.font = px(9); ctx.textAlign = 'center';
-        ctx.fillText('PokéGang — Gang Wars', W/2, H - 10);
-      }
-      if (totalPages > 1) {
-        ctx.fillStyle = 'rgba(255,255,255,0.25)'; ctx.font = px(7); ctx.textAlign = 'right';
-        ctx.fillText(`${pageIdx+1} / ${totalPages}`, W - 14, H - 10);
-      }
-    }
-
-    // ── Pagination ────────────────────────────────────────────────
-    // Rough estimate: header ~200px, each agent ~52px, stats ~100px
-    const AGENTS_PER_FIRST = Math.max(1, Math.floor((H - 300) / 52));
-    const AGENTS_PER_NEXT  = Math.max(1, Math.floor((H - 80)  / 52));
-    const allAgents = [...state.agents];
-    const firstBatch = allAgents.splice(0, AGENTS_PER_FIRST);
-    const pages = [firstBatch];
-    while (allAgents.length > 0) pages.push(allAgents.splice(0, AGENTS_PER_NEXT));
-
-    for (let i = 0; i < pages.length; i++) {
-      const canvas = document.createElement('canvas');
-      canvas.width = W; canvas.height = H;
-      await drawPage(canvas, pages[i], i, pages.length);
-      const link = document.createElement('a');
-      link.download = `pokegang-${state.gang.name.replace(/\s+/g,'-')}${pages.length > 1 ? `-p${i+1}` : ''}.png`;
-      link.href = canvas.toDataURL('image/png');
-      link.click();
-      if (i < pages.length - 1) await new Promise(r => setTimeout(r, 250));
-    }
-    notify(`📷 Exporté !${pages.length > 1 ? ` (${pages.length} pages)` : ''}`, 'success');
-  } catch (err) {
-    console.error('Export failed:', err);
-    notify('Export impossible', 'error');
-  }
+  const win = window.open('', '_blank');
+  if (!win) { notify('Autorise les popups pour l\'export', 'error'); return; }
+  win.document.open();
+  win.document.write(html);
+  win.document.close();
+  notify('📋 Fiche ouverte dans un nouvel onglet', 'success');
 }
 
 // ── Team Picker Modal ────────────────────────────────────────
