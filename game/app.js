@@ -5198,10 +5198,23 @@ async function exportGangImage() {
         }
       }
 
-      // Watermark
-      ctx.fillStyle = 'rgba(255,255,255,0.18)'; ctx.font = px(9); ctx.textAlign = 'center';
-      const pageTag = totalPages > 1 ? ` — ${pageIdx+1}/${totalPages}` : '';
-      ctx.fillText(`PokéGang — Gang Wars${pageTag}`, W/2, H - 10);
+      // ── Footer: logo + page ──────────────────────────────────────
+      const footerLogoUrl = 'https://lab.sterenna.fr/PG/pokegang_logo/pokegang_logo_medium.png';
+      const footerLogo = await loadImg(footerLogoUrl);
+      const LOGO_H = 28;
+      const LOGO_W = footerLogo ? Math.round(footerLogo.width / footerLogo.height * LOGO_H) : 0;
+      if (footerLogo && LOGO_W > 0) {
+        ctx.globalAlpha = 0.55;
+        ctx.drawImage(footerLogo, W / 2 - LOGO_W / 2, H - LOGO_H - 6, LOGO_W, LOGO_H);
+        ctx.globalAlpha = 1;
+      } else {
+        ctx.fillStyle = 'rgba(255,255,255,0.18)'; ctx.font = px(9); ctx.textAlign = 'center';
+        ctx.fillText('PokéGang — Gang Wars', W/2, H - 10);
+      }
+      if (totalPages > 1) {
+        ctx.fillStyle = 'rgba(255,255,255,0.25)'; ctx.font = px(7); ctx.textAlign = 'right';
+        ctx.fillText(`${pageIdx+1} / ${totalPages}`, W - 14, H - 10);
+      }
     }
 
     // ── Pagination ────────────────────────────────────────────────
