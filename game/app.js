@@ -942,6 +942,8 @@ const SPECIAL_TRAINER_KEYS = new Set([
   'blue','red','oak','giovanni',                                  // personnages d'histoire
 ]);
 
+const MAX_COMBAT_REWARD = 5000;
+
 // ── Items & Balls ─────────────────────────────────────────────
 const BALLS = {
   pokeball:   { fr:'Poké Ball',  en:'Poké Ball',  cost:200,  potential:[40,30,20,8,2]  },
@@ -2206,7 +2208,16 @@ function levelUpPokemon(pokemon, xpGain) {
 
 // Coûts en réputation pour débloquer des slots d'agents par zone
 // slot 2 → 50 rep, slot 3 → 150, slot 4 → 400, slot 5 → 1000, slot 6 → 2000
-const ZONE_SLOT_COSTS = [50, 150, 400, 1000, 2000];
+const ZONE_SLOT_COSTS = [50, 150, 400, 1000, 2000]; // base costs (reputation)
+
+function getZoneSlotCost(zoneId, slotIndex) {
+  const base = ZONE_SLOT_COSTS[slotIndex] ?? 9999;
+  const zone = ZONE_BY_ID[zoneId];
+  // tier based on zone unlock reputation: higher zone = more expensive slots
+  const rep = zone?.rep || 0;
+  const tier = rep < 50 ? 1 : rep < 150 ? 1.5 : rep < 300 ? 2 : rep < 600 ? 3 : rep < 1000 ? 4 : 5;
+  return Math.round(base * tier);
+}
 
 function initZone(zoneId) {
   if (!state.zones[zoneId]) {
@@ -2719,7 +2730,7 @@ function resolveCombat(playerTeamIds, trainerData) {
   const pRoll = playerPower * (0.8 + Math.random() * 0.4);
   const eRoll = enemyPower * (0.8 + Math.random() * 0.4);
   const win = pRoll >= eRoll;
-  const reward = win ? randInt(trainerData.trainer.reward[0], trainerData.trainer.reward[1]) : 0;
+  const reward = win ? Math.min(MAX_COMBAT_REWARD, randInt(trainerData.trainer.reward[0], trainerData.trainer.reward[1])) : 0;
   const repGain = getCombatRepGain(trainerData.trainerKey || trainerData.trainer?.sprite, win);
   return { win, playerPower, enemyPower, reward, repGain };
 }
@@ -3245,7 +3256,7 @@ function passiveAgentTick() {
       const eRoll = enemyPower * (0.8 + Math.random() * 0.4);
       const win = pRoll >= eRoll;
       if (win) {
-        const reward = randInt(entry.trainer.reward[0], entry.trainer.reward[1]);
+        const reward = Math.min(MAX_COMBAT_REWARD, randInt(entry.trainer.reward[0], entry.trainer.reward[1]));
         const repGain = getCombatRepGain(entry.trainerKey || entry.trainer?.sprite, true);
         // Accumulate in zone instead of direct payment
         const zs = initZone(zoneId);
@@ -4621,7 +4632,7 @@ function buildZoneWindowEl(zoneId) {
         <span class="slot-count" style="color:var(--text-dim)">Agents: ${assignedAgents.length}/${zState.slots || 1}</span>
         ${(zState.slots || 1) < ZONE_SLOT_COSTS.length + 1 ? (() => {
           const nextSlot = (zState.slots || 1);
-          const cost = ZONE_SLOT_COSTS[nextSlot - 1];
+          const cost = getZoneSlotCost(zoneId, nextSlot - 1);
           const canAfford = state.gang.reputation >= cost;
           return `<button class="zone-slot-upgrade" data-zone-upgrade="${zoneId}" data-cost="${cost}"
             style="font-family:var(--font-pixel);font-size:7px;padding:2px 6px;background:var(--bg);
@@ -4651,7 +4662,7 @@ function buildZoneWindowEl(zoneId) {
     e.stopPropagation();
     const zs = initZone(zoneId);
     const nextSlot = zs.slots || 1;
-    const cost = ZONE_SLOT_COSTS[nextSlot - 1];
+    const cost = getZoneSlotCost(zoneId, nextSlot - 1);
     if (!cost || state.gang.reputation < cost) { notify('Réputation insuffisante', 'error'); return; }
     showConfirm(`Dépenser ${cost} réputation pour débloquer un slot agent ?`, () => {
       state.gang.reputation -= cost;
@@ -4750,7 +4761,7 @@ function patchZoneWindow(zoneId, win) {
     const freshZState = state.zones[zoneId] || {};
     const freshMaxSlots = freshZState.slots || 1;
     const freshCanUpgrade = freshMaxSlots < ZONE_SLOT_COSTS.length + 1;
-    const freshCost = freshCanUpgrade ? ZONE_SLOT_COSTS[freshMaxSlots - 1] : null;
+    const freshCost = freshCanUpgrade ? getZoneSlotCost(zoneId, freshMaxSlots - 1) : null;
     const freshCanAfford = freshCost && state.gang.reputation >= freshCost;
     slotsBar.innerHTML = `
       <span class="slot-count" style="color:var(--text-dim)">Agents: ${freshAssigned.length}/${freshMaxSlots}</span>
@@ -4767,7 +4778,7 @@ function patchZoneWindow(zoneId, win) {
       e.stopPropagation();
       const zs2 = initZone(zoneId);
       const ns = zs2.slots || 1;
-      const uc = ZONE_SLOT_COSTS[ns - 1];
+      const uc = getZoneSlotCost(zoneId, ns - 1);
       if (!uc || state.gang.reputation < uc) { notify('Réputation insuffisante', 'error'); return; }
       showConfirm(`Dépenser ${uc} réputation pour débloquer un slot agent ?`, () => {
         state.gang.reputation -= uc;
@@ -5984,56 +5995,65 @@ function executeCombat() {
   const spawnWithZone = { ...spawnObj, zoneId };
   const teamIds = playerTeam.map(p => p.id);
 
+  let prevEnemyIdx = -1;
   let step = 0;
   function animateStep() {
     if (step < matchups.length) {
       const m = matchups[step];
       const pSlots = inlineCombat.querySelectorAll('.combat-ally-slot');
       const eSlot = document.getElementById(`combatEnemyPoke-${zoneId}-${m.enemyIdx}`);
-      const eHp = document.getElementById(`combatEnemyHp-${zoneId}-${m.enemyIdx}`);
+      const eHp   = document.getElementById(`combatEnemyHp-${zoneId}-${m.enemyIdx}`);
 
-      // Highlight active combatants
-      pSlots.forEach((s, i) => s.style.opacity = i === m.playerIdx ? '1' : '0.4');
-      if (eSlot) eSlot.style.outline = '2px solid var(--red)';
-
-      // Update fighters strip spotlight
-      const fAlly  = document.getElementById(`combatFighterAlly-${zoneId}`);
-      const fEnemy = document.getElementById(`combatFighterEnemy-${zoneId}`);
+      // Fighters strip
+      const fAlly      = document.getElementById(`combatFighterAlly-${zoneId}`);
+      const fEnemy     = document.getElementById(`combatFighterEnemy-${zoneId}`);
       const fAllyName  = document.getElementById(`combatFighterAllyName-${zoneId}`);
       const fEnemyName = document.getElementById(`combatFighterEnemyName-${zoneId}`);
-      const curAlly  = playerQueue[m.playerIdx];
-      const curEnemy = enemyQueue[m.enemyIdx];
+      const curAlly    = playerQueue[m.playerIdx];
+      const curEnemy   = enemyQueue[m.enemyIdx];
+
       if (fAlly  && curAlly)  { fAlly.src  = pokeSpriteBack(curAlly.species_en, curAlly.shiny);  fAlly.classList.add('fighter-active'); }
       if (fEnemy && curEnemy) { fEnemy.src  = pokeSprite(curEnemy.species_en);                    fEnemy.classList.add('fighter-active'); }
       if (fAllyName  && curAlly)  fAllyName.textContent  = `${speciesName(curAlly.species_en)} Lv.${curAlly.level}`;
       if (fEnemyName && curEnemy) fEnemyName.textContent = `${speciesName(curEnemy.species_en)} Lv.${curEnemy.level}`;
 
-      const logLine = m.playerWins
-        ? `<div style="color:var(--green)">✓ ${m.pName} bat ${m.eName}</div>`
-        : `<div style="color:var(--red)">✗ ${m.pName} est KO</div>`;
-      if (logEl) logEl.innerHTML += logLine;
+      // Highlight active combatants
+      pSlots.forEach((s, i) => s.style.opacity = i === m.playerIdx ? '1' : '0.4');
+      if (eSlot) eSlot.style.outline = '2px solid var(--red)';
+
+      // "Trainer sends X!" when enemy changes
+      if (m.enemyIdx !== prevEnemyIdx) {
+        prevEnemyIdx = m.enemyIdx;
+        if (logEl) logEl.innerHTML += `<div style="color:var(--text-dim);font-style:italic">→ ${trainerName} envoie <b style="color:var(--text)">${speciesName(curEnemy.species_en)}</b> !</div>`;
+      }
+
+      // Attack line with move name
+      const moveName = (curAlly?.moves?.length ? curAlly.moves[Math.floor(Math.random() * curAlly.moves.length)] : null) || 'Attaque';
+      if (logEl) logEl.innerHTML += `<div style="color:var(--text-dim);font-size:9px">${speciesName(curAlly.species_en)} utilise <b>${moveName}</b>...</div>`;
       logEl?.scrollTo(0, logEl.scrollHeight);
 
-      // Animate HP drain on loser
       setTimeout(() => {
         if (m.playerWins && eHp) {
           eHp.style.width = '0%';
           eHp.classList.add('critical');
           eSlot?.querySelector('img')?.classList.add('shake');
-        } else if (!m.playerWins) {
+          if (logEl) logEl.innerHTML += `<div style="color:var(--green)">✓ <b>${speciesName(curEnemy.species_en)}</b> est mis K.O. !</div>`;
+        } else {
           const pSlot = pSlots[m.playerIdx];
           if (pSlot) {
-            pSlot.querySelector('.hp-fill')?.style && (pSlot.querySelector('.hp-fill').style.width = '0%');
+            pSlot.querySelector('.hp-fill') && (pSlot.querySelector('.hp-fill').style.width = '0%');
             pSlot.querySelector('.hp-fill')?.classList.add('critical');
             pSlot.classList.add('shake');
           }
+          if (logEl) logEl.innerHTML += `<div style="color:var(--red)">✗ <b>${speciesName(curAlly.species_en)}</b> est K.O. !</div>`;
         }
+        logEl?.scrollTo(0, logEl.scrollHeight);
         step++;
-        setTimeout(animateStep, 400);
-      }, 300);
+        setTimeout(animateStep, 600);
+      }, 500);
     } else {
       // Animation done — apply result
-      const reward = overallWin ? randInt(spawnWithZone.trainer.reward[0], spawnWithZone.trainer.reward[1]) : 0;
+      const reward = overallWin ? Math.min(MAX_COMBAT_REWARD, randInt(spawnWithZone.trainer.reward[0], spawnWithZone.trainer.reward[1])) : 0;
       const repGain = getCombatRepGain(spawnWithZone.trainerKey || spawnWithZone.trainer?.sprite, overallWin);
       applyCombatResult({ win: overallWin, reward, repGain }, teamIds, spawnWithZone);
       // Log to battle log panel
