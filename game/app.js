@@ -1212,6 +1212,7 @@ const DEFAULT_STATE = {
     bossSprite: '',
     bossZone: null, // the zone the boss is currently in
     bossTeam: [], // array of up to 3 pokemon IDs for boss combat
+    showcase: [null, null, null],
     reputation: 0,
     money: 5000,
     initialized: false,
@@ -1378,6 +1379,7 @@ function migrate(saved) {
   merged.activeEvents = saved.activeEvents || {};
   // Migration: bossTeam
   if (!merged.gang.bossTeam) merged.gang.bossTeam = [];
+  if (!merged.gang.showcase) merged.gang.showcase = [null, null, null];
   // Migration: marketSales + favorites
   if (!merged.marketSales) merged.marketSales = {};
   if (!merged.favorites) merged.favorites = [];
@@ -1659,6 +1661,10 @@ function safePokeImg(species_en, { shiny = false, back = false, style = '', cls 
 function speciesName(en) {
   if (!SPECIES_BY_EN[en]) return en;
   return state.lang === 'fr' ? SPECIES_BY_EN[en].fr : en.charAt(0).toUpperCase() + en.slice(1);
+}
+
+function pokemonDisplayName(p) {
+  return p.nick || speciesName(p.species_en);
 }
 
 // ── Boost helpers ─────────────────────────────────────────────
@@ -3910,6 +3916,12 @@ function getSlotPreview(slotIdx) {
   if (!raw) return null;
   try {
     const s = JSON.parse(raw);
+    const teamIds = s.gang?.bossTeam || [];
+    const teamSprites = teamIds.slice(0, 3).map(id => {
+      const pk = (s.pokemons || []).find(p => p.id === id);
+      return pk ? pk.species_en : null;
+    }).filter(Boolean);
+    const agentSprites = (s.agents || []).slice(0, 3).map(a => a.sprite);
     return {
       name: s.gang?.name || '???',
       money: s.gang?.money || 0,
@@ -3917,6 +3929,11 @@ function getSlotPreview(slotIdx) {
       rep: s.gang?.reputation || 0,
       ts: s._savedAt || 0,
       playtime: s.playtime || 0,
+      bossName: s.gang?.bossName || 'Boss',
+      bossSprite: s.gang?.bossSprite || '',
+      teamSprites,
+      agentCount: (s.agents || []).length,
+      agentSprites,
     };
   } catch { return null; }
 }
@@ -4205,92 +4222,340 @@ function renderCosmeticsPanel(container) {
 // ════════════════════════════════════════════════════════════════
 
 function renderGangTab() {
-  // Boss profile
-  const prof = document.getElementById('bossProfile');
-  if (prof) {
-    const spriteDiv = prof.querySelector('.boss-sprite');
-    if (spriteDiv && state.gang.bossSprite) {
-      spriteDiv.innerHTML = `<img src="${trainerSprite(state.gang.bossSprite)}" style="width:100%;height:100%;object-fit:contain">`;
+  const tab = document.getElementById('tabGang');
+  if (!tab) return;
+
+  const g = state.gang;
+  const s = state.stats;
+  const teamPks = (g.bossTeam || []).map(id => state.pokemons.find(p => p.id === id)).filter(Boolean);
+  const dexCaught = Object.values(state.pokedex).filter(e => e.caught).length;
+  const mvp = state.pokemons.length > 0
+    ? state.pokemons.reduce((best, p) => calculatePrice(p) > calculatePrice(best) ? p : best)
+    : null;
+
+  // ── Vitrine (showcase) ──
+  const showcaseSlots = (g.showcase || [null, null, null]).slice(0, 3);
+  const showcaseHtml = showcaseSlots.map((pkId, i) => {
+    const pk = pkId ? state.pokemons.find(p => p.id === pkId) : null;
+    if (pk) {
+      const evos = EVO_BY_SPECIES[pk.species_en];
+      const evoHint = evos && evos.length > 0 ? `<button class="gang-evo-hint" data-pk-id="${pk.id}" title="Voir évolution">❓</button>` : '';
+      return `<div class="gang-showcase-slot filled" data-showcase-idx="${i}">
+        <img src="${pokeSprite(pk.species_en, pk.shiny)}" style="width:56px;height:56px;image-rendering:pixelated;${pk.shiny ? 'filter:drop-shadow(0 0 4px var(--gold))' : ''}">
+        <div style="font-size:8px;margin-top:2px;color:var(--text)">${pokemonDisplayName(pk)}${pk.shiny ? ' ✨' : ''}</div>
+        <div style="font-size:7px;color:var(--text-dim)">Lv.${pk.level} ${'★'.repeat(pk.potential)}</div>
+        <div style="display:flex;gap:4px;margin-top:4px;align-items:center">
+          ${evoHint}
+          <button class="gang-showcase-remove" data-idx="${i}" style="font-size:7px;padding:1px 5px;background:var(--bg);border:1px solid var(--red);border-radius:2px;color:var(--red);cursor:pointer">✕</button>
+        </div>
+      </div>`;
     }
-    const nameEl = prof.querySelector('.boss-name');
-    if (nameEl) nameEl.textContent = state.gang.bossName;
-    const gangEl = prof.querySelector('.boss-gang');
-    if (gangEl) gangEl.textContent = state.gang.name;
-    const repFill = prof.querySelector('.rep-fill');
-    if (repFill) {
-      const pct = Math.min(100, state.gang.reputation);
-      repFill.style.width = pct + '%';
-    }
-  }
-  // Agent list
-  const agentListEl = document.getElementById('agentList');
-  if (agentListEl) {
-    const RECRUIT_COST = getAgentRecruitCost(); // escalating cost
-    let html = '';
-    // Recruit button
-    html += `<div class="stat-card" style="text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;cursor:pointer;border:2px dashed var(--border-light)" id="btnRecruitAgent">
-      <div style="font-size:28px">➕</div>
-      <div style="font-family:var(--font-pixel);font-size:9px;color:var(--text)">${state.lang === 'fr' ? 'Recruter' : 'Recruit'}</div>
-      <div style="font-size:10px;color:var(--gold)">₽ ${RECRUIT_COST.toLocaleString()}</div>
+    return `<div class="gang-showcase-slot empty" data-showcase-idx="${i}">
+      <div style="font-size:18px;opacity:.3">🏆</div>
+      <div style="font-size:7px;color:var(--text-dim);margin-top:4px">Slot vitrine</div>
+      <button class="gang-showcase-add" data-idx="${i}" style="margin-top:6px;font-size:7px;padding:2px 6px;background:var(--bg);border:1px solid var(--border-light);border-radius:2px;color:var(--text-dim);cursor:pointer">+ Ajouter</button>
     </div>`;
-    // Existing agents
-    const unlockedZones = ZONES.filter(z => isZoneUnlocked(z.id));
-    html += state.agents.map(a => {
-      const zoneName = a.assignedZone ? (ZONE_BY_ID[a.assignedZone]?.[state.lang === 'fr' ? 'fr' : 'en'] || a.assignedZone) : '—';
-      const zoneOptions = unlockedZones.map(z =>
-        `<option value="${z.id}" ${a.assignedZone === z.id ? 'selected' : ''}>${state.lang === 'fr' ? z.fr : z.en}</option>`
-      ).join('');
-      return `
-        <div class="stat-card" style="text-align:left;display:flex;gap:10px;align-items:center" data-agent-id="${a.id}">
-          <img src="${a.sprite}" style="width:48px;height:48px;image-rendering:pixelated" alt="${a.name}">
-          <div style="flex:1;min-width:0">
-            <div style="font-family:var(--font-pixel);font-size:10px;color:var(--text)">${a.name}</div>
-            <div style="font-size:10px;color:var(--gold);text-transform:uppercase">${a.title} — Lv.${a.level}</div>
-            <div style="font-size:10px;color:var(--text-dim)">ATK ${a.stats.combat} CAP ${a.stats.capture} LCK ${a.stats.luck}</div>
-            <div style="font-size:9px;margin-top:4px">
-              <select class="agent-zone-select" data-agent-id="${a.id}" style="background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;font-size:9px;padding:2px 4px;width:100%">
-                <option value="">— ${state.lang === 'fr' ? 'Aucune zone' : 'No zone'} —</option>
-                ${zoneOptions}
-              </select>
-            </div>
-          </div>
-        </div>`;
-    }).join('');
-    agentListEl.innerHTML = html;
+  }).join('');
 
-    // Recruit button handler
-    document.getElementById('btnRecruitAgent')?.addEventListener('click', () => {
-      openAgentRecruitModal(() => renderGangTab());
-    });
+  // ── Boss team ──
+  const teamHtml = [0, 1, 2].map(i => {
+    const pk = teamPks[i];
+    if (pk) return `<div class="gang-team-slot filled" data-boss-slot="${i}" title="${pokemonDisplayName(pk)} Lv.${pk.level}">
+      <img src="${pokeSprite(pk.species_en, pk.shiny)}" style="width:52px;height:52px;image-rendering:pixelated">
+      <div style="font-size:7px;margin-top:2px;color:${pk.shiny ? 'var(--gold)' : 'var(--text)'}">${pokemonDisplayName(pk)}</div>
+      <div style="font-size:7px;color:var(--text-dim)">Lv.${pk.level}</div>
+    </div>`;
+    return `<div class="gang-team-slot empty" data-boss-slot="${i}"><span style="font-size:7px;color:var(--text-dim)">Slot ${i+1}</span></div>`;
+  }).join('');
 
-    // Zone assignment dropdowns
-    agentListEl.querySelectorAll('.agent-zone-select').forEach(sel => {
-      sel.addEventListener('change', (e) => {
-        const agentId = e.target.dataset.agentId;
-        const zoneId = e.target.value || null;
-        assignAgentToZone(agentId, zoneId);
-        if (activeTab === 'tabZones') renderZoneWindows();
-      });
-    });
-  }
-  // Gang stats
-  const statsEl = document.getElementById('gangStats');
-  if (statsEl) {
-    const s = state.stats;
-    statsEl.innerHTML = [
-      [s.totalCaught, t('total_caught')],
-      [s.totalSold, t('total_sold')],
-      [s.totalFightsWon + '/' + s.totalFights, t('total_fights')],
-      [s.totalMoneyEarned.toLocaleString(), t('total_money')],
-      [s.shinyCaught, t('shiny_caught')],
-      [state.gang.reputation, t('reputation')],
-    ].map(([val, label]) => `
-      <div class="stat-card">
-        <div class="stat-value">${val}</div>
-        <div class="stat-label">${label}</div>
+  // ── Agents ──
+  const RECRUIT_COST = getAgentRecruitCost();
+  const unlockedZones = ZONES.filter(z => isZoneUnlocked(z.id));
+  let agentsHtml = `<div class="gang-agent-card" id="btnRecruitAgent" style="cursor:pointer;border:2px dashed var(--border-light);text-align:center;flex-direction:column;gap:4px">
+    <div style="font-size:22px">➕</div>
+    <div style="font-family:var(--font-pixel);font-size:8px;color:var(--text)">Recruter</div>
+    <div style="font-size:9px;color:var(--gold)">${RECRUIT_COST.toLocaleString()}₽</div>
+  </div>`;
+  agentsHtml += state.agents.map(a => {
+    const zoneName = a.assignedZone ? (ZONE_BY_ID[a.assignedZone]?.fr || a.assignedZone) : '—';
+    const zoneOptions = unlockedZones.map(z => `<option value="${z.id}" ${a.assignedZone === z.id ? 'selected' : ''}>${z.fr}</option>`).join('');
+    return `<div class="gang-agent-card" data-agent-id="${a.id}">
+      <img src="${a.sprite}" style="width:44px;height:44px;image-rendering:pixelated" onerror="this.src='${trainerSprite('acetrainer')}'">
+      <div style="flex:1;min-width:0">
+        <div style="font-family:var(--font-pixel);font-size:9px;color:var(--text)">${a.name}</div>
+        <div style="font-size:9px;color:var(--gold)">${a.title} — Lv.${a.level}</div>
+        <div style="font-size:8px;color:var(--text-dim)">ATK ${a.stats.combat} CAP ${a.stats.capture} LCK ${a.stats.luck}</div>
+        <select class="agent-zone-select" data-agent-id="${a.id}" style="width:100%;margin-top:3px;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:3px;font-size:8px;padding:2px 4px">
+          <option value="">— Aucune zone —</option>${zoneOptions}
+        </select>
       </div>
-    `).join('');
+    </div>`;
+  }).join('');
+
+  // ── Stats ──
+  const statsHtml = [
+    [s.totalCaught, 'Captures'],
+    [s.totalSold, 'Vendus'],
+    [`${s.totalFightsWon}/${s.totalFights}`, 'Combats'],
+    [`${s.totalMoneyEarned.toLocaleString()}₽`, 'Gains'],
+    [s.shinyCaught, 'Shinies'],
+    [g.reputation, 'Réputation'],
+  ].map(([val, label]) => `<div class="gang-stat-card"><div class="stat-value">${val}</div><div class="stat-label">${label}</div></div>`).join('');
+
+  const repPct = Math.min(100, g.reputation);
+
+  tab.innerHTML = `
+  <div class="gang-card-layout">
+    <!-- ── Header ── -->
+    <div class="gang-card-header">
+      <div class="gang-boss-sprite">
+        ${g.bossSprite ? `<img src="${trainerSprite(g.bossSprite)}" style="width:80px;height:80px;image-rendering:pixelated">` : '<div style="width:80px;height:80px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm)"></div>'}
+      </div>
+      <div style="flex:1;min-width:0">
+        <div style="font-family:var(--font-pixel);font-size:16px;color:var(--red);line-height:1.3">${g.name}</div>
+        <div style="font-size:11px;color:var(--text-dim);margin-top:2px">Boss : <span style="color:var(--text)">${g.bossName}</span></div>
+        <div style="display:flex;gap:16px;margin-top:6px;flex-wrap:wrap">
+          <span style="font-size:10px;color:var(--gold)">⭐ ${g.reputation.toLocaleString()}</span>
+          <span style="font-size:10px;color:var(--text)">₽ ${g.money.toLocaleString()}</span>
+          <span style="font-size:10px;color:var(--text-dim)">📖 ${dexCaught}/${POKEMON_GEN1.length}</span>
+        </div>
+        <div style="margin-top:8px;background:var(--border);border-radius:2px;height:4px;max-width:220px">
+          <div style="background:var(--gold-dim);height:4px;border-radius:2px;width:${repPct}%;transition:width .5s"></div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
+        <button id="btnExportGang" style="font-family:var(--font-pixel);font-size:7px;padding:6px 10px;background:var(--bg);border:1px solid var(--border-light);border-radius:var(--radius-sm);color:var(--text-dim);cursor:pointer">📋 Exporter</button>
+        <button id="btnEditBoss" style="font-family:var(--font-pixel);font-size:7px;padding:6px 10px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-dim);cursor:pointer">✏ Modifier</button>
+      </div>
+    </div>
+
+    <!-- ── Vitrine ── -->
+    <div class="gang-section-label">— VITRINE —</div>
+    <div class="gang-showcase-row">${showcaseHtml}</div>
+
+    <!-- ── Équipe Boss ── -->
+    <div class="gang-section-label">— ÉQUIPE BOSS —</div>
+    <div class="gang-team-row">${teamHtml}</div>
+
+    <!-- ── Agents ── -->
+    <div class="gang-section-label">— AGENTS —</div>
+    <div class="gang-agents-grid" id="gangAgentGrid">${agentsHtml}</div>
+
+    <!-- ── Stats ── -->
+    <div class="gang-section-label">— STATISTIQUES —</div>
+    <div class="gang-stats-row">${statsHtml}</div>
+  </div>`;
+
+  // ── Handlers ──
+  tab.querySelector('#btnRecruitAgent')?.addEventListener('click', () => openAgentRecruitModal(() => renderGangTab()));
+
+  tab.querySelector('#btnExportGang')?.addEventListener('click', () => openExportModal());
+
+  tab.querySelector('#btnEditBoss')?.addEventListener('click', () => openBossEditModal(() => renderGangTab()));
+
+  tab.querySelectorAll('.agent-zone-select').forEach(sel => {
+    sel.addEventListener('change', e => {
+      const agentId = e.target.dataset.agentId;
+      assignAgentToZone(agentId, e.target.value || null);
+      if (activeTab === 'tabZones') renderZoneWindows();
+    });
+  });
+
+  // Showcase add
+  tab.querySelectorAll('.gang-showcase-add').forEach(btn => {
+    btn.addEventListener('click', () => openShowcasePicker(parseInt(btn.dataset.idx)));
+  });
+  tab.querySelectorAll('.gang-showcase-slot.filled').forEach(el => {
+    el.addEventListener('click', e => {
+      if (e.target.classList.contains('gang-showcase-remove') || e.target.classList.contains('gang-evo-hint')) return;
+      openShowcasePicker(parseInt(el.dataset.showcaseIdx));
+    });
+  });
+  tab.querySelectorAll('.gang-showcase-remove').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const idx = parseInt(btn.dataset.idx);
+      if (!state.gang.showcase) state.gang.showcase = [null, null, null];
+      state.gang.showcase[idx] = null;
+      saveState();
+      renderGangTab();
+    });
+  });
+
+  // Evo hint
+  tab.querySelectorAll('.gang-evo-hint').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const pk = state.pokemons.find(p => p.id === btn.dataset.pkId);
+      if (pk) showEvoPreviewModal(pk);
+    });
+  });
+
+  // Boss team slots — click to open team picker
+  tab.querySelectorAll('.gang-team-slot').forEach(el => {
+    el.addEventListener('click', () => {
+      const i = parseInt(el.dataset.bossSlot);
+      if (el.classList.contains('filled')) {
+        state.gang.bossTeam.splice(i, 1);
+        saveState();
+        renderGangTab();
+      } else {
+        openTeamPickerModal(i, () => renderGangTab());
+      }
+    });
+  });
+}
+
+function openExportModal() {
+  const modal = document.createElement('div');
+  modal.style.cssText = 'position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center';
+  modal.innerHTML = `
+    <div style="background:var(--bg-panel);border:2px solid var(--red);border-radius:var(--radius);padding:24px;max-width:340px;width:90%;display:flex;flex-direction:column;gap:14px">
+      <div style="font-family:var(--font-pixel);font-size:10px;color:var(--gold)">EXPORTER LA FICHE</div>
+      <div style="display:flex;gap:10px">
+        <button id="exportPortrait" style="flex:1;font-family:var(--font-pixel);font-size:8px;padding:12px;background:var(--bg);border:2px solid var(--border-light);border-radius:var(--radius-sm);color:var(--text);cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px">
+          <span style="font-size:20px">🖼</span> Portrait
+        </button>
+        <button id="exportLandscape" style="flex:1;font-family:var(--font-pixel);font-size:8px;padding:12px;background:var(--bg);border:2px solid var(--border-light);border-radius:var(--radius-sm);color:var(--text);cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px">
+          <span style="font-size:20px">🖼</span><span style="transform:rotate(90deg);display:inline-block">↕</span> Paysage
+        </button>
+      </div>
+      <button id="exportCancel" style="font-family:var(--font-pixel);font-size:8px;padding:8px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-dim);cursor:pointer">Annuler</button>
+    </div>`;
+  document.body.appendChild(modal);
+  modal.querySelector('#exportPortrait').addEventListener('click', () => { modal.remove(); exportGangImage('portrait'); });
+  modal.querySelector('#exportLandscape').addEventListener('click', () => { modal.remove(); exportGangImage('landscape'); });
+  modal.querySelector('#exportCancel').addEventListener('click', () => modal.remove());
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+}
+
+function openShowcasePicker(slotIdx) {
+  const usedIds = new Set((state.gang.showcase || []).filter(Boolean));
+  const teamIds = new Set(state.gang.bossTeam);
+  const candidates = state.pokemons.filter(p => !teamIds.has(p.id));
+
+  const modal = document.createElement('div');
+  modal.style.cssText = 'position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center';
+  const listHtml = candidates.map(p => `
+    <div class="showcase-pick-item" data-pk-id="${p.id}" style="display:flex;align-items:center;gap:8px;padding:6px;border-bottom:1px solid var(--border);cursor:pointer">
+      <img src="${pokeSprite(p.species_en, p.shiny)}" style="width:36px;height:36px;image-rendering:pixelated">
+      <div style="flex:1">
+        <div style="font-size:10px">${pokemonDisplayName(p)}${p.shiny ? ' ✨' : ''} ${'★'.repeat(p.potential)}</div>
+        <div style="font-size:9px;color:var(--text-dim)">Lv.${p.level}</div>
+      </div>
+    </div>`).join('') || `<div style="padding:16px;text-align:center;color:var(--text-dim);font-size:10px">Aucun Pokémon disponible</div>`;
+
+  modal.innerHTML = `
+    <div style="background:var(--bg-panel);border:2px solid var(--gold-dim);border-radius:var(--radius);padding:20px;max-width:360px;width:90%;display:flex;flex-direction:column;gap:12px;max-height:80vh">
+      <div style="font-family:var(--font-pixel);font-size:9px;color:var(--gold)">VITRINE — SLOT ${slotIdx + 1}</div>
+      <div style="overflow-y:auto;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);max-height:360px">${listHtml}</div>
+      <button id="showcasePickCancel" style="font-family:var(--font-pixel);font-size:8px;padding:8px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-dim);cursor:pointer">Annuler</button>
+    </div>`;
+  document.body.appendChild(modal);
+
+  modal.querySelectorAll('.showcase-pick-item').forEach(el => {
+    el.addEventListener('click', () => {
+      if (!state.gang.showcase) state.gang.showcase = [null, null, null];
+      state.gang.showcase[slotIdx] = el.dataset.pkId;
+      saveState();
+      modal.remove();
+      renderGangTab();
+    });
+  });
+  modal.querySelector('#showcasePickCancel').addEventListener('click', () => modal.remove());
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+}
+
+function showEvoPreviewModal(p) {
+  const evos = EVO_BY_SPECIES[p.species_en] || [];
+  if (!evos.length) return;
+
+  // Stat la plus haute → détermine quelle evo suggérer si plusieurs
+  const stats = p.stats || calculateStats(p);
+  const statKeys = Object.keys(stats);
+  let bestEvo = evos[0];
+  if (evos.length > 1) {
+    // Choisir selon la stat dominante (ATK → dernier, DEF → avant-dernier, SPD → premier)
+    const maxStatKey = statKeys.reduce((a, b) => (stats[a] || 0) >= (stats[b] || 0) ? a : b, statKeys[0]);
+    // Heuristique simple : si SPD dominant → première evo, si DEF → dernière, sinon première
+    bestEvo = evos[0];
   }
+
+  const sp = SPECIES_BY_EN[bestEvo.to];
+  const reqText = bestEvo.req === 'item' ? 'Pierre d\'évolution' : `Niveau ${bestEvo.req}`;
+  const modal = document.createElement('div');
+  modal.style.cssText = 'position:fixed;inset:0;z-index:9100;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center';
+  modal.innerHTML = `
+    <div style="background:var(--bg-panel);border:2px solid var(--gold-dim);border-radius:var(--radius);padding:20px;max-width:300px;width:90%;display:flex;flex-direction:column;align-items:center;gap:12px">
+      <div style="font-family:var(--font-pixel);font-size:9px;color:var(--gold)">ÉVOLUTION</div>
+      <div style="display:flex;align-items:center;gap:16px">
+        <div style="text-align:center">
+          <img src="${pokeSprite(p.species_en, p.shiny)}" style="width:64px;height:64px;image-rendering:pixelated">
+          <div style="font-size:9px;margin-top:4px">${pokemonDisplayName(p)}</div>
+          <div style="font-size:8px;color:var(--text-dim)">Lv.${p.level}</div>
+        </div>
+        <div style="font-size:18px;color:var(--gold)">→</div>
+        <div style="text-align:center">
+          <img src="${pokeSprite(bestEvo.to)}" style="width:64px;height:64px;image-rendering:pixelated;filter:brightness(.6)">
+          <div style="font-size:9px;margin-top:4px;color:var(--gold)">${speciesName(bestEvo.to)}</div>
+          <div style="font-size:8px;color:var(--text-dim)">${reqText}</div>
+        </div>
+      </div>
+      ${evos.length > 1 ? `<div style="font-size:8px;color:var(--text-dim);text-align:center">Autres formes : ${evos.slice(1).map(e => speciesName(e.to)).join(', ')}</div>` : ''}
+      <button style="font-family:var(--font-pixel);font-size:8px;padding:8px 16px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-dim);cursor:pointer" id="evoModalClose">Fermer</button>
+    </div>`;
+  document.body.appendChild(modal);
+  modal.querySelector('#evoModalClose').addEventListener('click', () => modal.remove());
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+}
+
+function openTeamPickerModal(slotIdx, onDone) {
+  openTeamPicker('boss', null, onDone);
+}
+
+function openBossEditModal(onDone) {
+  const modal = document.createElement('div');
+  modal.style.cssText = 'position:fixed;inset:0;z-index:9100;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center';
+  modal.innerHTML = `
+    <div style="background:var(--bg-panel);border:2px solid var(--gold-dim);border-radius:var(--radius);padding:20px;max-width:340px;width:90%;display:flex;flex-direction:column;gap:12px">
+      <div style="font-family:var(--font-pixel);font-size:9px;color:var(--gold)">MODIFIER LE BOSS</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <label style="font-size:9px;color:var(--text-dim)">Nom du Boss</label>
+        <input id="bossEditName" type="text" maxlength="16" value="${state.gang.bossName}"
+          style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);padding:8px 10px;font-size:12px;outline:none;width:100%;box-sizing:border-box">
+        <label style="font-size:9px;color:var(--text-dim)">Nom du Gang</label>
+        <input id="bossEditGangName" type="text" maxlength="24" value="${state.gang.name}"
+          style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);padding:8px 10px;font-size:12px;outline:none;width:100%;box-sizing:border-box">
+      </div>
+      <button id="bossEditSprite" style="font-family:var(--font-pixel);font-size:8px;padding:8px;background:var(--bg);border:1px solid var(--border-light);border-radius:var(--radius-sm);color:var(--text-dim);cursor:pointer">🎨 Changer le sprite</button>
+      <div style="display:flex;gap:8px">
+        <button id="bossEditCancel" style="flex:1;font-family:var(--font-pixel);font-size:8px;padding:8px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-dim);cursor:pointer">Annuler</button>
+        <button id="bossEditConfirm" style="flex:1;font-family:var(--font-pixel);font-size:8px;padding:8px;background:var(--bg);border:1px solid var(--gold-dim);border-radius:var(--radius-sm);color:var(--gold);cursor:pointer">Confirmer</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  modal.querySelector('#bossEditConfirm').addEventListener('click', () => {
+    const newBossName = modal.querySelector('#bossEditName').value.trim();
+    const newGangName = modal.querySelector('#bossEditGangName').value.trim();
+    if (newBossName) state.gang.bossName = newBossName.slice(0, 16);
+    if (newGangName) state.gang.name = newGangName.slice(0, 24);
+    saveState();
+    updateTopBar();
+    notify('Gang mis à jour', 'success');
+    modal.remove();
+    if (onDone) onDone();
+  });
+  modal.querySelector('#bossEditSprite').addEventListener('click', () => {
+    openSpritePicker(state.gang.bossSprite, (newSprite) => {
+      state.gang.bossSprite = newSprite;
+      saveState();
+      updateTopBar();
+      modal.remove();
+      if (onDone) onDone();
+    });
+  });
+  modal.querySelector('#bossEditCancel').addEventListener('click', () => modal.remove());
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -5185,7 +5450,7 @@ function openCodexModal() {
 }
 
 // ── Gang Export (Canvas screenshot) ──────────────────────────
-function exportGangImage() {
+function exportGangImage(mode = 'portrait') {
   const g = state.gang;
   const s = state.stats;
 
@@ -5286,6 +5551,7 @@ function exportGangImage() {
     .btn{font-family:'Press Start 2P',monospace;font-size:8px;padding:8px 14px;border-radius:4px;cursor:pointer;border:1px solid;transition:all .2s;background:transparent}
     .btn-print{border-color:#aaa;color:#aaa}.btn-print:hover{background:rgba(255,255,255,.1)}
     .card{max-width:700px;margin:64px auto 40px;border:2px solid #cc3333;border-radius:4px;overflow:hidden;box-shadow:0 0 40px rgba(204,51,51,.2)}
+    ${mode === 'landscape' ? `.card{max-width:900px;} .card-content{display:grid;grid-template-columns:1fr 1fr;} hr{display:none}` : ''}
     .card-bg{${bgStyle};position:relative}
     .card-bg::after{content:'';position:absolute;inset:0;background:rgba(0,0,0,.72);pointer-events:none}
     .card-content{position:relative;z-index:1}
@@ -7344,6 +7610,9 @@ function renderPokemonDetail() {
       <button style="flex:1;font-size:10px;padding:6px;background:var(--red-dark);border:1px solid var(--red);border-radius:var(--radius-sm);color:var(--text);cursor:pointer" id="btnSellOne">${t('sell')} (${price}₽)</button>
       <button style="flex:1;font-size:10px;padding:6px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-dim);cursor:pointer" id="btnRelease">${t('release')}</button>
     </div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
+      <button id="btnRename" style="flex:1;font-size:10px;padding:6px;background:var(--bg);border:1px solid var(--border-light);border-radius:var(--radius-sm);color:var(--text-dim);cursor:pointer">✏ Renommer</button>
+    </div>
     <div style="margin-top:8px">
       <button id="btnFilterSpecies" style="width:100%;font-size:9px;padding:5px;background:var(--bg);border:1px solid var(--blue);border-radius:var(--radius-sm);color:var(--blue);cursor:pointer;font-family:var(--font-pixel)">
         🔍 Voir tous les ${speciesName(p.species_en)} (×${state.pokemons.filter(x => x.species_en === p.species_en).length})
@@ -7435,6 +7704,10 @@ function renderPokemonDetail() {
     filterPCBySpecies(p.species_en);
   });
 
+  document.getElementById('btnRename')?.addEventListener('click', () => {
+    openRenameModal(p.id);
+  });
+
   // Potential upgrade button
   document.getElementById('btnPotUpgrade')?.addEventListener('click', () => {
     if (p.potential >= 5) return;
@@ -7471,6 +7744,54 @@ function renderPokemonDetail() {
       evolvePokemon(p, btn.dataset.evoTarget);
       _pcLastRenderKey = ''; renderPCTab();
     });
+  });
+}
+
+function openRenameModal(pokemonId) {
+  const p = state.pokemons.find(pk => pk.id === pokemonId);
+  if (!p) return;
+  const modal = document.createElement('div');
+  modal.style.cssText = 'position:fixed;inset:0;z-index:9100;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center';
+  modal.innerHTML = `
+    <div style="background:var(--bg-panel);border:2px solid var(--gold-dim);border-radius:var(--radius);padding:20px;max-width:320px;width:90%;display:flex;flex-direction:column;gap:12px">
+      <div style="font-family:var(--font-pixel);font-size:9px;color:var(--gold)">RENOMMER</div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <img src="${pokeSprite(p.species_en, p.shiny)}" style="width:48px;height:48px;image-rendering:pixelated">
+        <div>
+          <div style="font-size:11px">${speciesName(p.species_en)}</div>
+          <div style="font-size:9px;color:var(--text-dim)">Nom actuel : ${p.nick || speciesName(p.species_en)}</div>
+        </div>
+      </div>
+      <input id="renameInput" type="text" maxlength="16" placeholder="${p.nick || speciesName(p.species_en)}" value="${p.nick || ''}"
+        style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);padding:8px 10px;font-size:12px;outline:none;width:100%;box-sizing:border-box">
+      <div style="display:flex;gap:8px">
+        <button id="renameClear" style="flex:1;font-family:var(--font-pixel);font-size:8px;padding:8px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-dim);cursor:pointer">Effacer surnom</button>
+        <button id="renameConfirm" style="flex:1;font-family:var(--font-pixel);font-size:8px;padding:8px;background:var(--bg);border:1px solid var(--gold-dim);border-radius:var(--radius-sm);color:var(--gold);cursor:pointer">Confirmer</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  modal.querySelector('#renameInput').focus();
+  modal.querySelector('#renameConfirm').addEventListener('click', () => {
+    const val = modal.querySelector('#renameInput').value.trim();
+    p.nick = val || null;
+    saveState();
+    notify(val ? `${speciesName(p.species_en)} renommé "${val}"` : 'Surnom effacé', 'success');
+    modal.remove();
+    _pcLastRenderKey = '';
+    renderPokemonGrid(true);
+  });
+  modal.querySelector('#renameClear').addEventListener('click', () => {
+    p.nick = null;
+    saveState();
+    notify('Surnom effacé', 'success');
+    modal.remove();
+    _pcLastRenderKey = '';
+    renderPokemonGrid(true);
+  });
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+  modal.querySelector('#renameInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') modal.querySelector('#renameConfirm').click();
+    if (e.key === 'Escape') modal.remove();
   });
 }
 
@@ -8262,32 +8583,79 @@ function showIntro() {
       const preview = getSlotPreview(i);
       if (preview) {
         const d = new Date(preview.ts);
-        const dateStr = d.toLocaleDateString('fr-FR', { day:'2-digit', month:'2-digit' });
-        return `<div class="intro-slot has-data" data-slot="${i}" title="Charger cette sauvegarde">
-          <div class="intro-slot-label">SLOT ${i + 1}</div>
-          <div class="intro-slot-name">${preview.name}</div>
-          <div class="intro-slot-info">${preview.pokemon} Pkm — ${preview.money}₽<br>${dateStr}${preview.playtime ? ' · ' + formatPlaytime(preview.playtime) : ''}</div>
+        const dateStr = preview.ts ? d.toLocaleDateString('fr-FR', { day:'2-digit', month:'2-digit', year:'2-digit' }) : '—';
+        const teamSpritesHtml = (preview.teamSprites || []).map(sp =>
+          `<img src="${pokeSprite(sp)}" style="width:28px;height:28px;image-rendering:pixelated" onerror="this.style.display='none'">`
+        ).join('');
+        const agentSpritesHtml = (preview.agentSprites || []).map(url =>
+          `<img src="${url}" style="width:24px;height:24px;image-rendering:pixelated" onerror="this.style.display='none'">`
+        ).join('');
+        return `<div class="intro-slot-card has-data" data-slot="${i}">
+          <div class="isc-left">
+            <div class="isc-slot-label">SLOT ${i+1}</div>
+            ${preview.bossSprite ? `<img src="${trainerSprite(preview.bossSprite)}" style="width:52px;height:52px;image-rendering:pixelated" onerror="this.style.display='none'">` : '<div style="width:52px;height:52px;background:var(--bg);border-radius:4px;opacity:.3"></div>'}
+          </div>
+          <div class="isc-info">
+            <div class="isc-gang-name">${preview.name}</div>
+            <div class="isc-boss-name">Boss : ${preview.bossName || '—'}</div>
+            <div class="isc-meta">${preview.pokemon} Pkm · ₽${(preview.money||0).toLocaleString()} · ⭐${preview.rep}</div>
+            <div class="isc-date">${dateStr}${preview.playtime ? ' · ' + formatPlaytime(preview.playtime) : ''}</div>
+            <div class="isc-team" style="display:flex;gap:3px;margin-top:4px;flex-wrap:wrap">${teamSpritesHtml}</div>
+            ${agentSpritesHtml ? `<div class="isc-agents" style="display:flex;gap:3px;margin-top:2px;opacity:.6">${agentSpritesHtml}</div>` : ''}
+          </div>
+          <div class="isc-actions">
+            <button class="isc-btn isc-play" data-slot="${i}" title="Jouer">▶</button>
+            <button class="isc-btn isc-del" data-slot="${i}" title="Supprimer">🗑</button>
+          </div>
         </div>`;
       } else {
         const isSelected = selectedSlotIdx === i;
-        return `<div class="intro-slot${isSelected ? ' selected-new' : ''}" data-slot="${i}" data-empty="1" title="Slot vide — utiliser pour nouvelle partie">
-          <div class="intro-slot-label">SLOT ${i + 1}</div>
-          <div class="intro-slot-empty">Vide</div>
+        return `<div class="intro-slot-card empty${isSelected ? ' selected-new' : ''}" data-slot="${i}" data-empty="1">
+          <div class="isc-left">
+            <div class="isc-slot-label">SLOT ${i+1}</div>
+            <div style="font-size:22px;opacity:.2">💾</div>
+          </div>
+          <div class="isc-info">
+            <div style="font-size:10px;color:#555">Vide — cliquer pour nouvelle partie</div>
+          </div>
+          <div class="isc-actions">
+            <button class="isc-btn isc-new" data-slot="${i}" title="Sélectionner">✓</button>
+          </div>
         </div>`;
       }
     }).join('');
 
-    slotsContainer.querySelectorAll('.intro-slot').forEach(el => {
-      el.addEventListener('click', () => {
-        const idx = parseInt(el.dataset.slot);
-        if (!el.dataset.empty) {
-          // Load existing save
-          stopShowcase();
-          loadSlot(idx);
-          overlay.classList.remove('active');
-          renderAll();
-        } else {
-          // Select as target slot for new game
+    // Handlers
+    slotsContainer.querySelectorAll('.isc-play').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        const idx = parseInt(btn.dataset.slot);
+        stopShowcase();
+        loadSlot(idx);
+        overlay.classList.remove('active');
+        renderAll();
+      });
+    });
+    slotsContainer.querySelectorAll('.isc-del').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        const idx = parseInt(btn.dataset.slot);
+        showConfirm(`Supprimer la sauvegarde Slot ${idx+1} ?<br><span style="color:var(--text-dim);font-size:11px">Cette action est irréversible.</span>`, () => {
+          localStorage.removeItem(SAVE_KEYS[idx]);
+          if (idx === activeSaveSlot) {
+            activeSaveSlot = 0;
+            SAVE_KEY = SAVE_KEYS[0];
+            localStorage.setItem('pokeforge.activeSlot', '0');
+          }
+          renderSlots();
+        }, null, { danger: true, confirmLabel: 'Supprimer', cancelLabel: 'Annuler' });
+      });
+    });
+    slotsContainer.querySelectorAll('.isc-new, .intro-slot-card.empty').forEach(btn => {
+      btn.addEventListener('click', e => {
+        const el = btn.closest ? btn.closest('[data-slot]') : btn;
+        const idx = parseInt((el || btn).dataset.slot);
+        if (idx !== undefined && !isNaN(idx)) {
           selectedSlotIdx = idx;
           renderSlots();
         }

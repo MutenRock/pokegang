@@ -2383,6 +2383,46 @@
       33% { transform: translateX(-1px); }
       66% { transform: translateX(1px); }
     }
+
+    /* ── Gang Card Layout ── */
+    .gang-card-layout { padding: 12px; display: flex; flex-direction: column; gap: 0; }
+    .gang-card-header { display: flex; align-items: flex-start; gap: 14px; padding: 14px; background: var(--bg-panel); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 12px; }
+    .gang-section-label { font-family: var(--font-pixel); font-size: 8px; color: var(--gold); letter-spacing: 1px; padding: 8px 4px 4px; border-bottom: 1px solid var(--border); margin-bottom: 8px; }
+    .gang-showcase-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
+    .gang-showcase-slot { background: var(--bg-panel); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 6px; display: flex; flex-direction: column; align-items: center; text-align: center; min-height: 110px; justify-content: center; transition: border-color .2s; }
+    .gang-showcase-slot.empty { border-style: dashed; cursor: pointer; }
+    .gang-showcase-slot.filled { border-color: var(--border-light); cursor: pointer; }
+    .gang-showcase-slot:hover { border-color: var(--gold-dim); }
+    .gang-team-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
+    .gang-team-slot { background: var(--bg-panel); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 4px; display: flex; flex-direction: column; align-items: center; text-align: center; min-height: 80px; justify-content: center; cursor: pointer; transition: border-color .2s; }
+    .gang-team-slot.filled { border-color: var(--border-light); }
+    .gang-team-slot:hover { border-color: var(--red); }
+    .gang-agents-grid { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+    .gang-agent-card { display: flex; align-items: center; gap: 10px; background: var(--bg-panel); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 10px; }
+    .gang-stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 12px; }
+    .gang-stat-card { background: var(--bg-panel); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 6px; text-align: center; }
+
+    /* ── Hub save slot cards ── */
+    .intro-slot-card { display: flex; align-items: center; gap: 10px; background: var(--bg); border: 2px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; margin-bottom: 8px; transition: border-color .2s, background .2s; }
+    .intro-slot-card.has-data { border-color: var(--red); }
+    .intro-slot-card.has-data:hover { border-color: var(--gold); background: #1a1010; }
+    .intro-slot-card.empty { border-style: dashed; cursor: pointer; opacity: .7; }
+    .intro-slot-card.selected-new { border-color: var(--gold); background: #1a160a; opacity: 1; }
+    .isc-left { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 56px; flex-shrink: 0; }
+    .isc-slot-label { font-family: var(--font-pixel); font-size: 6px; color: var(--text-dim); }
+    .isc-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+    .isc-gang-name { font-family: var(--font-pixel); font-size: 9px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .isc-boss-name { font-size: 9px; color: var(--text-dim); }
+    .isc-meta { font-size: 9px; color: var(--gold); }
+    .isc-date { font-size: 8px; color: #555; }
+    .isc-actions { display: flex; flex-direction: column; gap: 4px; flex-shrink: 0; }
+    .isc-btn { font-size: 11px; width: 28px; height: 28px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--text-dim); transition: border-color .15s, color .15s; }
+    .isc-btn:hover { border-color: var(--gold); color: var(--text); }
+    .isc-btn.isc-play { border-color: var(--green, #4c8); color: var(--green, #4c8); }
+    .isc-btn.isc-del:hover { border-color: var(--red); color: var(--red); }
+
+    /* Intro slots — passer en flex colonne */
+    .intro-slots { flex-direction: column !important; margin-bottom: 12px !important; }
   </style>
 </head>
 <body>
@@ -2446,22 +2486,7 @@
     <main id="tabContent">
 
       <!-- ── Gang ── -->
-      <section id="tabGang" class="tab-pane active">
-
-        <div id="bossProfile">
-          <div class="boss-sprite"></div>
-          <div class="boss-info">
-            <div class="boss-name">Boss</div>
-            <div class="boss-gang">Team ???</div>
-            <div class="reputation-bar"><div class="rep-fill" style="width:0%"></div></div>
-          </div>
-        </div>
-
-        <div id="agentList"></div>
-
-        <div id="gangStats"></div>
-
-      </section>
+      <section id="tabGang" class="tab-pane active"></section>
 
       <!-- ── Agents ── -->
       <section id="tabAgents" class="tab-pane">
