@@ -1560,6 +1560,7 @@ const DEFAULT_STATE = {
   discoveryProgress: {
     marketUnlocked: false,
     pokedexUnlocked: false,
+    missionsUnlocked: false,
   },
 };
 
@@ -1628,7 +1629,8 @@ function migrate(saved) {
   merged.inventory = { ...structuredClone(DEFAULT_STATE.inventory), ...saved.inventory };
   merged.stats = { ...structuredClone(DEFAULT_STATE.stats), ...saved.stats };
   merged.settings = { ...structuredClone(DEFAULT_STATE.settings), ...saved.settings };
-  if (!merged.discoveryProgress) merged.discoveryProgress = { marketUnlocked: false, pokedexUnlocked: false };
+  if (!merged.discoveryProgress) merged.discoveryProgress = { marketUnlocked: false, pokedexUnlocked: false, missionsUnlocked: false };
+  if (merged.discoveryProgress.missionsUnlocked === undefined) merged.discoveryProgress.missionsUnlocked = false;
   // Nouveau joueur → découverte ON ; joueur existant sans ce champ → OFF (déjà habitué)
   if (merged.settings.discoveryMode === undefined) merged.settings.discoveryMode = false;
   if (merged.settings.autoBuyBall === undefined) merged.settings.autoBuyBall = null;
@@ -3035,6 +3037,7 @@ function updateDiscovery() {
   }
 
   const dexCaught = Object.values(state.pokedex).filter(e => e.caught).length;
+  const totalFightsWon = state.stats?.totalFightsWon || 0;
 
   // Marché : débloqué quand 0 balls pour la première fois
   if (!state.discoveryProgress.marketUnlocked) {
@@ -3053,6 +3056,13 @@ function updateDiscovery() {
     notify('📖 Le Pokédex est maintenant accessible !', 'gold');
   }
 
+  // Missions : débloqué quand 10+ combats gagnés
+  if (!state.discoveryProgress.missionsUnlocked && totalFightsWon >= 10) {
+    state.discoveryProgress.missionsUnlocked = true;
+    saveState();
+    notify('📋 Les Missions sont maintenant accessibles !', 'gold');
+  }
+
   // Appliquer la visibilité
   const marketBtn = document.querySelector('[data-tab="tabMarket"]');
   if (marketBtn) marketBtn.style.display = state.discoveryProgress.marketUnlocked ? '' : 'none';
@@ -3060,9 +3070,8 @@ function updateDiscovery() {
   const dexBtn = document.querySelector('[data-tab="tabPokedex"]');
   if (dexBtn) dexBtn.style.display = state.discoveryProgress.pokedexUnlocked ? '' : 'none';
 
-  // Missions toujours caché pour l'instant
   const missionsBtn = document.querySelector('[data-tab="tabMissions"]');
-  if (missionsBtn) missionsBtn.style.display = 'none';
+  if (missionsBtn) missionsBtn.style.display = state.discoveryProgress.missionsUnlocked ? '' : 'none';
 }
 
 function openTitleModal() {
@@ -3726,9 +3735,12 @@ function applyCombatResult(result, playerTeamIds, trainerData) {
     const combatZone = ZONE_BY_ID[trainerData.zoneId];
     if (combatZone?.gymLeader && trainerData.trainerKey === combatZone.gymLeader) {
       const zs = initZone(trainerData.zoneId);
-      if (!zs.gymDefeated) {
-        zs.gymDefeated = true;
-        notify(`Arene vaincue ! La prochaine arene est debloquee.`, 'gold');
+      const wasDefeated = zs.gymDefeated;
+      zs.gymDefeated = true;
+      if (!wasDefeated) {
+        notify(`🏆 ${combatZone.fr} — Champion vaincu ! La voie est libre.`, 'gold');
+        // Déclenche la vérification de nouvelles zones débloquées par la séquence
+        setTimeout(() => checkForNewlyUnlockedZones(state.gang.reputation - 0.001), 600);
       }
       if (trainerData.isGymRaid) {
         zs.gymRaidLastFight = Date.now();
@@ -3762,6 +3774,14 @@ function checkForNewlyUnlockedZones(prevRep) {
   const newZones = ZONES.filter(z => {
     if (!z.rep || z.rep === 0) return false;
     if (z.unlockItem && !state.purchases?.[z.unlockItem]) return false;
+    // Cities require previous city to be defeated
+    if (z.type === 'city') {
+      const idx = GYM_ORDER.indexOf(z.id);
+      if (idx > 0) {
+        const prevId = GYM_ORDER[idx - 1];
+        if (!state.zones[prevId]?.gymDefeated) return false;
+      }
+    }
     return prevRep < z.rep && state.gang.reputation >= z.rep;
   });
   newZones.forEach((zone, i) => {
