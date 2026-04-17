@@ -1411,6 +1411,8 @@ const DEFAULT_STATE = {
     sfxEnabled: true,
     musicEnabled: false,
     autoCombat: true,
+    discoveryMode: true,
+    autoBuyBall: null,  // null | 'pokeball' | 'greatball' | 'ultraball'
   },
   log: [],
   marketSales: {}, // { [species_en]: { count, lastSale } } — supply/demand
@@ -1442,6 +1444,10 @@ const DEFAULT_STATE = {
   sessionStart: 0,  // timestamp début session
   openZoneOrder: [],
   claimedCodes: {},
+  discoveryProgress: {
+    marketUnlocked: false,
+    pokedexUnlocked: false,
+  },
 };
 
 let state = structuredClone(DEFAULT_STATE);
@@ -1509,6 +1515,9 @@ function migrate(saved) {
   merged.inventory = { ...structuredClone(DEFAULT_STATE.inventory), ...saved.inventory };
   merged.stats = { ...structuredClone(DEFAULT_STATE.stats), ...saved.stats };
   merged.settings = { ...structuredClone(DEFAULT_STATE.settings), ...saved.settings };
+  if (!merged.discoveryProgress) merged.discoveryProgress = { marketUnlocked: false, pokedexUnlocked: false };
+  if (merged.settings.discoveryMode === undefined) merged.settings.discoveryMode = true;
+  if (merged.settings.autoBuyBall === undefined) merged.settings.autoBuyBall = null;
   merged.activeBoosts = { ...structuredClone(DEFAULT_STATE.activeBoosts), ...(saved.activeBoosts || {}) };
   merged.activeEvents = saved.activeEvents || {};
   // Migration: bossTeam
@@ -2600,6 +2609,47 @@ function checkTitleUnlocks() {
     newOnes.forEach(t => notify(`🏆 Titre débloqué : "${t.label}" !`, 'gold'));
     saveState();
   }
+}
+
+function updateDiscovery() {
+  if (!state.settings.discoveryMode) {
+    // Tout visible
+    ['tabMarket','tabPokedex','tabMissions'].forEach(id => {
+      const btn = document.querySelector(`[data-tab="${id}"]`);
+      if (btn) btn.style.display = '';
+    });
+    return;
+  }
+
+  const dexCaught = Object.values(state.pokedex).filter(e => e.caught).length;
+
+  // Marché : débloqué quand 0 balls pour la première fois
+  if (!state.discoveryProgress.marketUnlocked) {
+    const totalBalls = getTotalBalls();
+    if (totalBalls === 0) {
+      state.discoveryProgress.marketUnlocked = true;
+      saveState();
+      notify('🏪 Le Marché est maintenant accessible ! Achète des Balls pour continuer.', 'gold');
+    }
+  }
+
+  // Pokédex : débloqué quand 5+ espèces capturées
+  if (!state.discoveryProgress.pokedexUnlocked && dexCaught >= 5) {
+    state.discoveryProgress.pokedexUnlocked = true;
+    saveState();
+    notify('📖 Le Pokédex est maintenant accessible !', 'gold');
+  }
+
+  // Appliquer la visibilité
+  const marketBtn = document.querySelector('[data-tab="tabMarket"]');
+  if (marketBtn) marketBtn.style.display = state.discoveryProgress.marketUnlocked ? '' : 'none';
+
+  const dexBtn = document.querySelector('[data-tab="tabPokedex"]');
+  if (dexBtn) dexBtn.style.display = state.discoveryProgress.pokedexUnlocked ? '' : 'none';
+
+  // Missions toujours caché pour l'instant
+  const missionsBtn = document.querySelector('[data-tab="tabMissions"]');
+  if (missionsBtn) missionsBtn.style.display = 'none';
 }
 
 function openTitleModal() {
@@ -4434,6 +4484,19 @@ function updateTopBar() {
   // ── Ball assist silencieux (early-game) ───────────────────
   checkBallAssist();
   checkTitleUnlocks();
+  updateDiscovery();
+  // Auto-buy ball
+  if (state.settings.autoBuyBall) {
+    const ballId = state.settings.autoBuyBall;
+    if ((state.inventory[ballId] || 0) === 0) {
+      const ballDef = BALLS[ballId];
+      if (ballDef && state.gang.money >= ballDef.cost) {
+        state.inventory[ballId] = (state.inventory[ballId] || 0) + 1;
+        state.gang.money -= ballDef.cost;
+        notify(`🔄 Achat auto : 1× ${ballDef.fr}`, 'success');
+      }
+    }
+  }
 
   // ── Session delta bar ──────────────────────────────────────
   _saveSessionActivity();
@@ -5163,6 +5226,18 @@ function openCollectionModal(zoneId) {
 }
 
 function showCollectionEncounter(zoneId, agentIds, income, items) {
+  // En mode découverte, bloquer si < 10 pokédex et pas de boss team
+  if (state.settings.discoveryMode) {
+    const dexCaught = Object.values(state.pokedex).filter(e => e.caught).length;
+    const hasBossTeam = (state.gang.bossTeam || []).length > 0;
+    if (dexCaught < 10 || !hasBossTeam) {
+      const missing = [];
+      if (dexCaught < 10) missing.push(`${10 - dexCaught} espèce(s) de plus dans le Pokédex`);
+      if (!hasBossTeam) missing.push('au moins 1 Pokémon dans l\'équipe Boss (onglet Gang)');
+      notify(`⚔ Combat non disponible — il te faut : ${missing.join(' et ')}`, 'error');
+      return;
+    }
+  }
   const zone = ZONE_BY_ID[zoneId];
   const zoneName = zone ? (state.lang === 'fr' ? zone.fr : zone.en) : zoneId;
   const zoneAgents = agentIds.map(id => state.agents.find(a => a.id === id)).filter(Boolean);
@@ -5912,6 +5987,9 @@ function renderGangBaseWindow() {
     const isActive  = def.isBall && state.activeBall === def.id;
     const isBoosted = def.usable && isBoostActive(def.id);
     const remStr    = isBoosted ? `<span style="position:absolute;bottom:1px;left:50%;transform:translateX(-50%);font-size:6px;color:var(--green);white-space:nowrap">${Math.ceil(boostRemaining(def.id))}s</span>` : '';
+    const isAutoBall = def.isBall && state.settings.autoBuyBall === def.id;
+    const autoBtnHtml = def.isBall ? `<button class="ball-auto-btn ${isAutoBall ? 'active' : ''}" data-auto-ball="${def.id}" title="Achat automatique quand à 0"
+      style="font-size:7px;padding:1px 4px;background:${isAutoBall ? 'var(--red-dark)' : 'var(--bg)'};border:1px solid ${isAutoBall ? 'var(--red)' : 'var(--border)'};border-radius:2px;color:${isAutoBall ? 'var(--gold)' : 'var(--text-dim)'};cursor:pointer">🔄</button>` : '';
     return `<div class="base-bag-item" data-bag-item="${def.id}" title="${def.id} ×${qty}"
       style="position:relative;display:flex;flex-direction:column;align-items:center;gap:1px;padding:3px 4px;border-radius:4px;cursor:pointer;min-width:32px;
         background:${isActive ? 'rgba(204,51,51,.3)' : isBoosted ? 'rgba(255,204,0,.18)' : 'rgba(0,0,0,.55)'};
@@ -5919,6 +5997,7 @@ function renderGangBaseWindow() {
       ${itemSprite(def.id)}
       <span style="font-size:7px;color:var(--gold);font-family:var(--font-pixel)">×${qty}</span>
       ${remStr}
+      ${autoBtnHtml}
     </div>`;
   }).filter(Boolean).join('');
 
@@ -5992,6 +6071,17 @@ function bindGangBase(container) {
         }
         renderZoneWindows();
       }
+    });
+  });
+
+  // Auto-buy ball toggle
+  container.querySelectorAll('[data-auto-ball]').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const ballId = btn.dataset.autoBall;
+      state.settings.autoBuyBall = (state.settings.autoBuyBall === ballId) ? null : ballId;
+      saveState();
+      renderGangBasePanel();
     });
   });
 
@@ -9211,6 +9301,8 @@ function showIntro() {
       if (apiKey) apiKey.value = state.settings.llmApiKey;
       const autoCombat = document.getElementById('settingAutoCombat');
       if (autoCombat) autoCombat.checked = state.settings.autoCombat !== false;
+      const discoveryMode = document.getElementById('settingDiscoveryMode');
+      if (discoveryMode) discoveryMode.checked = state.settings.discoveryMode !== false;
       const sfx = document.getElementById('settingSFX');
       if (sfx) sfx.checked = state.settings.sfxEnabled !== false;
       modal.classList.add('active');
@@ -9524,6 +9616,8 @@ function initSettings() {
       if (apiKey) apiKey.value = state.settings.llmApiKey;
       const autoCombat = document.getElementById('settingAutoCombat');
       if (autoCombat) autoCombat.checked = state.settings.autoCombat !== false;
+      const discoveryMode = document.getElementById('settingDiscoveryMode');
+      if (discoveryMode) discoveryMode.checked = state.settings.discoveryMode !== false;
       const sfx = document.getElementById('settingSFX');
       if (sfx) sfx.checked = state.settings.sfxEnabled !== false;
       modal.classList.add('active');
@@ -9540,6 +9634,8 @@ function initSettings() {
     if (apiKey) state.settings.llmApiKey = apiKey.value;
     const autoCombat = document.getElementById('settingAutoCombat');
     if (autoCombat) state.settings.autoCombat = autoCombat.checked;
+    const discoveryMode = document.getElementById('settingDiscoveryMode');
+    if (discoveryMode) state.settings.discoveryMode = discoveryMode.checked;
     const sfx = document.getElementById('settingSFX');
     if (sfx) state.settings.sfxEnabled = sfx.checked;
     saveState();
