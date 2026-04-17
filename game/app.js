@@ -1477,6 +1477,7 @@ const DEFAULT_STATE = {
   playtime: 0,      // secondes de jeu total
   sessionStart: 0,  // timestamp début session
   openZoneOrder: [],
+  favoriteZones: [], // zones ouvertes automatiquement au chargement
   claimedCodes: {},
   discoveryProgress: {
     marketUnlocked: false,
@@ -1595,6 +1596,7 @@ function migrate(saved) {
   if (merged.purchases.mysteryEggCount === undefined) merged.purchases.mysteryEggCount = 0;
   if (merged.purchases.cosmeticsPanel === undefined) merged.purchases.cosmeticsPanel = false;
   if (merged.purchases.autoIncubator === undefined) merged.purchases.autoIncubator = false;
+  if (!merged.favoriteZones) merged.favoriteZones = [];
   if (!merged.lastBillCall) merged.lastBillCall = 0;
   if (!merged.pension) merged.pension = { slotA: null, slotB: null, eggAt: null };
   if (!merged.eggs) merged.eggs = [];
@@ -5827,6 +5829,7 @@ function renderZoneSelector() {
       const incomeTier = income <= 0 ? 0 : income < 500 ? 1 : income < 2000 ? 2 : income < 5000 ? 3 : income < 15000 ? 4 : 5;
       const incomeHtml = incomeTier > 0 ? `<div class="zone-income-btn income-tier${incomeTier}" data-collect-zone="${zone.id}">₽</div>` : '';
       const isGym = zone.type === 'gym' || zone.type === 'gym-boss';
+      const isFav = (state.favoriteZones || []).includes(zone.id);
       let displayName = name;
       if (isGym) {
         displayName = zState.gymDefeated
@@ -5842,6 +5845,7 @@ function renderZoneSelector() {
           <div class="fog-tile-status">${isOpen ? '[OUVERT]' : (degraded ? '[COMBAT]' : '[ENTRER]')}</div>
         </div>
         ${incomeHtml}
+        <button class="zone-fav-btn" data-fav-zone="${zone.id}" title="${isFav ? 'Retirer des favoris' : 'Ouvrir automatiquement au démarrage'}">${isFav ? '★' : '☆'}</button>
       </div>`;
     } else {
       const repDiff = zone.rep > state.gang.reputation ? zone.rep - state.gang.reputation : 0;
@@ -5885,6 +5889,28 @@ function renderZoneSelector() {
     btn.addEventListener('click', e => {
       e.stopPropagation();
       openCollectionModal(btn.dataset.collectZone);
+    });
+  });
+
+  el.querySelectorAll('[data-fav-zone]').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const zid = btn.dataset.favZone;
+      if (!state.favoriteZones) state.favoriteZones = [];
+      const idx = state.favoriteZones.indexOf(zid);
+      if (idx === -1) {
+        state.favoriteZones.push(zid);
+        btn.textContent = '★';
+        btn.title = 'Retirer des favoris';
+        notify(`${ZONE_BY_ID[zid]?.fr || zid} ajoutée aux favoris — s'ouvrira au démarrage`, 'success');
+      } else {
+        state.favoriteZones.splice(idx, 1);
+        btn.textContent = '☆';
+        btn.title = 'Ouvrir automatiquement au démarrage';
+        notify(`${ZONE_BY_ID[zid]?.fr || zid} retirée des favoris`, 'success');
+      }
+      SFX.play('click');
+      saveState();
     });
   });
 }
@@ -11796,6 +11822,22 @@ function boot() {
 
   // Init session tracking (must be after state is loaded)
   initSession();
+
+  // Auto-ouvre les zones favorites au chargement
+  for (const zId of (state.favoriteZones || [])) {
+    if (isZoneUnlocked(zId) && !openZones.has(zId)) {
+      openZones.add(zId);
+      initZone(zId);
+      zoneSpawns[zId] = [];
+      const zone = ZONE_BY_ID[zId];
+      if (zone) {
+        const interval = Math.round(1000 / zone.spawnRate);
+        zoneSpawnTimers[zId] = setInterval(() => tickZoneSpawn(zId), interval);
+      }
+      if (!state.openZoneOrder) state.openZoneOrder = [];
+      if (!state.openZoneOrder.includes(zId)) state.openZoneOrder.push(zId);
+    }
+  }
 
   // Initial render — force l'onglet actif correct au chargement
   switchTab(activeTab);
