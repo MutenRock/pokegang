@@ -8589,6 +8589,7 @@ function renderTrainingTab() {
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
           <div style="font-family:var(--font-pixel);font-size:10px;color:var(--gold)">SALLE D\'ENTRAINEMENT</div>
           <div style="font-size:9px;color:var(--text-dim)">Niv.${roomLevel} — XP x${mult}%</div>
+          ${tr.pokemon.length > 0 ? `<button id="btnTrClearAll" style="margin-left:auto;font-family:var(--font-pixel);font-size:8px;padding:4px 8px;background:var(--bg);border:1px solid var(--red);border-radius:var(--radius-sm);color:var(--red);cursor:pointer">Tout retirer</button>` : ''}
         </div>
         <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px">
           <div style="flex:1;font-size:9px;color:var(--text-dim)">
@@ -8617,6 +8618,14 @@ function renderTrainingTab() {
         <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);max-height:400px;overflow-y:auto">${candidatesHtml}</div>
       </div>
     </div>`;
+
+  // Clear all training slots
+  document.getElementById('btnTrClearAll')?.addEventListener('click', () => {
+    state.trainingRoom.pokemon = [];
+    saveState();
+    notify('Salle d\'entrainement vidée.', 'success');
+    renderTrainingTab();
+  });
 
   // Upgrade button
   document.getElementById('btnTrainingUpgrade')?.addEventListener('click', () => {
@@ -9224,7 +9233,10 @@ function renderPensionView(container) {
   container.innerHTML = `
     <div style="display:grid;grid-template-columns:1fr 220px;gap:16px;padding:12px">
       <div>
-        <div style="font-family:var(--font-pixel);font-size:10px;color:var(--gold);margin-bottom:12px">PENSION POKEMON</div>
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+          <div style="font-family:var(--font-pixel);font-size:10px;color:var(--gold)">PENSION POKEMON</div>
+          ${(p.slotA || p.slotB) ? `<button id="btnPensionClearAll" style="margin-left:auto;font-family:var(--font-pixel);font-size:8px;padding:4px 8px;background:var(--bg);border:1px solid var(--red);border-radius:var(--radius-sm);color:var(--red);cursor:pointer">Tout retirer</button>` : ''}
+        </div>
         <div style="font-size:10px;color:var(--text-dim);margin-bottom:12px">Deposez deux Pokemon — un oeuf sera pond tous les ${EGG_GEN_MS/60000}min.</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
           ${slotHtml(pkA, 'slotA')}
@@ -9246,6 +9258,16 @@ function renderPensionView(container) {
         <div id="pensionPicker" style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);max-height:460px;overflow-y:auto">${pickerHtml}</div>
       </div>
     </div>`;
+
+  // Clear all pension slots
+  container.querySelector('#btnPensionClearAll')?.addEventListener('click', () => {
+    state.pension.slotA = null;
+    state.pension.slotB = null;
+    state.pension.eggAt = null;
+    saveState();
+    notify('Pension vidée.', 'success');
+    renderPensionView(container);
+  });
 
   // Recherche pension
   container.querySelector('#pensionSearchInput')?.addEventListener('input', () => {
