@@ -2643,7 +2643,8 @@ function rollChestLoot(zoneId, passive = false) {
 
   switch (loot.type) {
     case 'balls': {
-      const qty = randInt(loot.qty[0], loot.qty[1]);
+      let qty = randInt(loot.qty[0], loot.qty[1]);
+      if (isBallAssistActive()) qty *= 2; // early-game assist silencieux
       if (passive) {
         const zs = initZone(zoneId);
         zs.pendingItems = zs.pendingItems || {};
@@ -4041,6 +4042,26 @@ function renderHint(tabId) {
 // Track which tabs have been seen (first-visit hints)
 const _visitedTabs = new Set(JSON.parse(sessionStorage.getItem('pg_visited_tabs') || '[]'));
 
+// ── "Ball assist" early-game helper (silencieux, jamais affiché au joueur) ──
+let _ballAssistUntil = 0; // timestamp de fin de l'assist en cours
+
+function getTotalBalls() {
+  const inv = state.inventory;
+  return (inv.pokeball || 0) + (inv.greatball || 0) + (inv.ultraball || 0)
+       + (inv.duskball || 0) + (inv.masterball || 0);
+}
+
+function checkBallAssist() {
+  if (Date.now() < _ballAssistUntil) return; // déjà actif
+  if (getTotalBalls() < 10) {
+    _ballAssistUntil = Date.now() + 2 * 60 * 1000; // 2 minutes
+  }
+}
+
+function isBallAssistActive() {
+  return Date.now() < _ballAssistUntil;
+}
+
 function switchTab(tabId) {
   if (tabId !== 'tabPC') _pcLastRenderKey = ''; // force full rebuild on next PC visit
   activeTab = tabId;
@@ -4068,6 +4089,9 @@ function updateTopBar() {
   if (moneyEl) moneyEl.innerHTML = `<span>₽</span> ${state.gang.money.toLocaleString()}`;
   const repEl = document.getElementById('repDisplay');
   if (repEl) repEl.innerHTML = `<span>⭐</span> ${state.gang.reputation.toLocaleString()}`;
+
+  // ── Ball assist silencieux (early-game) ───────────────────
+  checkBallAssist();
 
   // ── Session delta bar ──────────────────────────────────────
   _saveSessionActivity();
