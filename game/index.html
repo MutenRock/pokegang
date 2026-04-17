@@ -253,7 +253,7 @@
 
     /* ── Zones Tab ────────────────────────────────────────────────── */
     #zoneSelector {
-      margin-bottom: 12px;
+      /* inside #zoneBottom flex row — no extra margin needed */
     }
 
     .zone-btn {
@@ -282,7 +282,7 @@
       display: flex;
       flex-wrap: wrap;
       gap: 12px;
-      justify-content: center;
+      align-items: flex-start;
     }
 
     .zone-window {
@@ -2518,8 +2518,11 @@
 
       <!-- ── Zones ── -->
       <section id="tabZones" class="tab-pane">
-        <div id="zoneSelector"></div>
-        <div id="zoneWindows" style="display:flex;gap:12px;align-items:flex-start"></div>
+        <div id="zoneWindows" style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:12px;"></div>
+        <div id="zoneBottom" style="display:flex;gap:12px;align-items:flex-start;">
+          <div id="gangBaseContainer" style="flex-shrink:0;width:280px;"></div>
+          <div id="zoneSelector" style="flex:1;min-width:0;"></div>
+        </div>
       </section>
 
       <!-- ── Bag + Market (merged) ── -->

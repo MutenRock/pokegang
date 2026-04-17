@@ -5043,6 +5043,7 @@ function spawnCoinRain(win, amount) {
 // ════════════════════════════════════════════════════════════════
 
 function renderZonesTab() {
+  renderGangBasePanel();
   renderZoneSelector();
   renderZoneWindows();
 }
@@ -5163,28 +5164,9 @@ function closeZoneWindow(zoneId) {
 // Track headbar expanded state per zone
 const headbarExpanded = {};
 
-function renderZoneWindows() {
-  const container = document.getElementById('zoneWindows');
-  if (!container) return;
-
-  // Ensure layout: gangBaseContainer (left, fixed) + zonesGrid (right, scrollable)
-  let gangContainer = container.querySelector('#gangBaseContainer');
-  let zonesGrid = container.querySelector('#zonesGrid');
-  if (!gangContainer) {
-    const baseDiv = document.createElement('div');
-    baseDiv.id = 'gangBaseContainer';
-    baseDiv.style.cssText = 'flex-shrink:0;width:360px;';
-    const gridDiv = document.createElement('div');
-    gridDiv.id = 'zonesGrid';
-    gridDiv.style.cssText = 'flex:1;display:flex;flex-wrap:wrap;gap:12px;align-content:flex-start;';
-    container.innerHTML = '';
-    container.appendChild(baseDiv);
-    container.appendChild(gridDiv);
-    gangContainer = baseDiv;
-    zonesGrid = gridDiv;
-  }
-
-  // ── Gang Base: always rebuild (no spawns inside) ──────────────
+function renderGangBasePanel() {
+  const gangContainer = document.getElementById('gangBaseContainer');
+  if (!gangContainer) return;
   const gangHtml = renderGangBaseWindow();
   const existingBase = gangContainer.querySelector('#gangBaseWin');
   if (existingBase) {
@@ -5195,23 +5177,28 @@ function renderZoneWindows() {
     gangContainer.innerHTML = gangHtml;
   }
   bindGangBase(gangContainer);
+}
+
+function renderZoneWindows() {
+  const container = document.getElementById('zoneWindows');
+  if (!container) return;
 
   // "No zones" placeholder
-  let placeholder = zonesGrid.querySelector('.zone-placeholder');
+  let placeholder = container.querySelector('.zone-placeholder');
   if (openZones.size === 0) {
     if (!placeholder) {
       placeholder = document.createElement('div');
       placeholder.className = 'zone-placeholder';
-      placeholder.style.cssText = 'color:var(--text-dim);padding:40px;text-align:center';
-      placeholder.textContent = 'Sélectionnez une zone pour commencer';
-      zonesGrid.appendChild(placeholder);
+      placeholder.style.cssText = 'color:var(--text-dim);padding:20px 0;text-align:center;width:100%';
+      placeholder.textContent = 'Sélectionnez une zone dans la grille pour commencer';
+      container.appendChild(placeholder);
     }
     return;
   }
   placeholder?.remove();
 
   // ── Remove zone windows that are no longer open ───────────────
-  zonesGrid.querySelectorAll('.zone-window').forEach(el => {
+  container.querySelectorAll('.zone-window').forEach(el => {
     if (!openZones.has(el.id.replace('zw-', ''))) el.remove();
   });
 
@@ -5255,7 +5242,7 @@ function renderZoneWindows() {
           renderZoneWindows();
         }
       });
-      zonesGrid.appendChild(win);
+      container.appendChild(win);
       updateZoneTimers(zoneId);
       (zoneSpawns[zoneId] || []).forEach(s => renderSpawnInWindow(zoneId, s));
     }
