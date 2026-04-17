@@ -1504,6 +1504,7 @@ const DEFAULT_STATE = {
     llmModel: 'llama3',
     llmApiKey: '',
     sfxEnabled: true,
+    musicVol: 50,
     uiScale: 100,
     musicEnabled: false,
     autoCombat: true,
@@ -1664,6 +1665,7 @@ function migrate(saved) {
   if (merged.purchases.chromaCharm === undefined) merged.purchases.chromaCharm = false;
   if (!merged.favoriteZones) merged.favoriteZones = [];
   if (merged.settings.uiScale === undefined) merged.settings.uiScale = 100;
+  if (merged.settings.musicVol === undefined) merged.settings.musicVol = 50;
   if (!merged.lastBillCall) merged.lastBillCall = 0;
   if (!merged.pension) merged.pension = { slotA: null, slotB: null, eggAt: null };
   if (!merged.eggs) merged.eggs = [];
@@ -2267,21 +2269,23 @@ const SFX = (() => {
  *   vol:  volume de base 0–1
  */
 const MUSIC_TRACKS = {
-  // ── Base / Zones basiques ──────────────────────────────────────
-  base:        { file: 'music/base.mp3',        loop: true,  vol: 0.5,  fr: 'Base du Gang'    },
-  forest:      { file: 'music/forest.mp3',       loop: true,  vol: 0.5,  fr: 'Forêt'           },
-  city:        { file: 'music/city.mp3',         loop: true,  vol: 0.5,  fr: 'Ville'           },
-  cave:        { file: 'music/cave.mp3',         loop: true,  vol: 0.45, fr: 'Caverne'         },
-  sea:         { file: 'music/sea.mp3',          loop: true,  vol: 0.5,  fr: 'Mer'             },
-  safari:      { file: 'music/safari.mp3',       loop: true,  vol: 0.5,  fr: 'Parc Safari'     },
-  // ── Arènes & combat ───────────────────────────────────────────
-  gym:         { file: 'music/gym.mp3',          loop: true,  vol: 0.55, fr: 'Arène'           },
-  rocket:      { file: 'music/rocket.mp3',       loop: true,  vol: 0.55, fr: 'Team Rocket'     },
-  silph:       { file: 'music/silph.mp3',        loop: true,  vol: 0.5,  fr: 'Sylphe SARL'     },
-  elite4:      { file: 'music/elite4.mp3',       loop: true,  vol: 0.6,  fr: 'Élite 4'         },
+  // ── Base / Routes ─────────────────────────────────────────────
+  base:        { file: 'music/BGM/First Town.mp3',    loop: true,  vol: 0.45, fr: 'Base du Gang'    },
+  forest:      { file: 'music/BGM/Route 1.mp3',       loop: true,  vol: 0.5,  fr: 'Route'            },
+  cave:        { file: 'music/BGM/Cave.mp3',           loop: true,  vol: 0.45, fr: 'Caverne'          },
+  city:        { file: 'music/BGM/Lab.mp3',            loop: true,  vol: 0.5,  fr: 'Ville'            },
+  sea:         { file: 'music/sea.mp3',                loop: true,  vol: 0.5,  fr: 'Mer'              }, // à ajouter
+  safari:      { file: 'music/safari.mp3',             loop: true,  vol: 0.5,  fr: 'Parc Safari'      }, // à ajouter
+  lavender:    { file: 'music/BGM/Cave.mp3',           loop: true,  vol: 0.35, fr: 'Lavanville'       }, // ambiance sombre
+  // ── Combat / Arènes ───────────────────────────────────────────
+  gym:         { file: 'music/BGM/VSTrainer.mp3',      loop: true,  vol: 0.55, fr: 'Arène'            },
+  rocket:      { file: 'music/BGM/VSRival.mp3',        loop: true,  vol: 0.55, fr: 'Team Rocket'      },
+  silph:       { file: 'music/BGM/Lab.mp3',            loop: true,  vol: 0.5,  fr: 'Sylphe SARL'      },
+  elite4:      { file: 'music/BGM/VSLegend.mp3',       loop: true,  vol: 0.6,  fr: 'Élite 4'          },
   // ── Ambiances spéciales ────────────────────────────────────────
-  casino:      { file: 'music/casino.mp3',       loop: true,  vol: 0.5,  fr: 'Casino'          },
-  lavender:    { file: 'music/lavender.mp3',     loop: true,  vol: 0.4,  fr: 'Lavanville'      },
+  casino:      { file: 'music/casino.mp3',             loop: true,  vol: 0.5,  fr: 'Casino'           }, // à ajouter
+  halloffame:  { file: 'music/BGM/Hall of Fame.mp3',   loop: false, vol: 0.6,  fr: 'Tableau d\'Honneur' },
+  title:       { file: 'music/BGM/Title.mp3',          loop: true,  vol: 0.5,  fr: 'Titre'            },
 };
 
 /**
@@ -2405,6 +2409,66 @@ const MusicPlayer = (() => {
     get current() { return _current; },
   };
 })();
+
+/**
+ * JinglePlayer — joue des courts extraits audio (ME) en one-shot.
+ * Ne bloque pas la musique de fond — les deux coexistent.
+ */
+const JINGLES = {
+  trainer_encounter: 'music/ME/VSTrainer_Intro.mp3',
+  wild_encounter:    'music/ME/VSWildPoke_Intro.mp3',
+  legend_encounter:  'music/ME/VSLegend_Intro.mp3',
+  rival_encounter:   'music/ME/VSRival_Intro.mp3',
+  youngster:         'music/ME/Encounter_Youngster.mp3',
+  mystery_gift:      'music/BGM/MysteryGift.mp3',
+  low_hp:            'music/ME/lowhp.mp3',
+  slots_win:         'music/ME/SlotsWin.mp3',
+  slots_big:         'music/ME/SlotsBigWin.mp3',
+};
+
+const JinglePlayer = (() => {
+  let _current = null;
+  function _enabled() { return state?.settings?.musicEnabled === true; }
+
+  return {
+    play(key) {
+      if (!_enabled()) return;
+      const src = JINGLES[key];
+      if (!src) return;
+      if (_current) { _current.pause(); _current = null; }
+      const a = new Audio(src);
+      a.volume = 0.7;
+      a.play().catch(() => {});
+      _current = a;
+      a.addEventListener('ended', () => { _current = null; });
+    },
+    stop() { if (_current) { _current.pause(); _current = null; } },
+  };
+})();
+
+/**
+ * SE (Sound Effects) — sons d'attaque et événements gameplay.
+ * Utilise Audio HTML plutôt que Web Audio pour les fichiers complexes.
+ */
+const SE_SOUNDS = {
+  capture:    'music/SE/BW2BattleBalls.mp3',
+  buy:        'music/SE/Charm.mp3',
+  level_up:   'music/SE/BW2Summary.mp3',
+  slash:      'music/SE/Slash.mp3',
+  metronome:  'music/SE/Metronome.mp3',
+  explosion:  'music/SE/Explosion.mp3',
+  protect:    'music/SE/Protect.mp3',
+  flash:      'music/SE/Flash.mp3',
+};
+
+function playSE(key, vol = 0.6) {
+  if (state?.settings?.sfxEnabled === false) return;
+  const src = SE_SOUNDS[key];
+  if (!src) return;
+  const a = new Audio(src);
+  a.volume = vol;
+  a.play().catch(() => {});
+}
 
 // ════════════════════════════════════════════════════════════════
 //  3c.  DOPAMINE POPUP HELPERS
@@ -2840,6 +2904,7 @@ function levelUpPokemon(pokemon, xpGain) {
     const isBossTeam = state.gang.bossTeam.includes(pokemon.id);
     const isInTraining = state.trainingRoom?.pokemon?.includes(pokemon.id);
     if (isBossTeam || isInTraining) {
+      playSE('level_up', 0.5);
       showPokemonLevelPopup(pokemon, pokemon.level);
       SFX.play('levelUp')
     }
@@ -4561,6 +4626,7 @@ function buyItem(itemDef) {
   const _itemName = state.lang === 'fr' ? (itemDef.fr || BALLS[itemDef.id]?.fr || itemDef.id) : (itemDef.en || BALLS[itemDef.id]?.en || itemDef.id);
   notify(`${itemDef.qty}× ${_itemName} → sac`, 'success');
   SFX.play('buy');
+  playSE('buy', 0.5);
   saveState();
   return true;
 }
@@ -7425,6 +7491,7 @@ function animateCapture(zoneId, spawnObj, spawnEl) {
       if (caught) {
         if (isCritical) notify(`★ Capture critique ! +1 potentiel`, 'gold');
         if (caught.shiny) spawnEl.classList.add('shiny-flash');
+        playSE('capture', caught.shiny ? 0.9 : 0.6);
         showCaptureBurst(viewport, targetX, targetY, caught.potential, caught.shiny);
         removeSpawn(zoneId, spawnObj.id);
         updateTopBar();
@@ -7531,6 +7598,15 @@ function openCombatPopup(zoneId, spawnObj) {
   }
 
   currentCombat = { zoneId, spawnObj, playerTeam: available };
+
+  // Jingle d'intro de combat
+  (() => {
+    const tk = spawnObj?.trainerKey;
+    if (tk === 'giovanni' || tk === 'blue' || tk === 'red') JinglePlayer.play('rival_encounter');
+    else if (tk === 'agatha' || tk === 'lorelei' || tk === 'bruno' || tk === 'lance') JinglePlayer.play('legend_encounter');
+    else if (tk === 'youngster') JinglePlayer.play('youngster');
+    else JinglePlayer.play('trainer_encounter');
+  })();
 
   const inlineCombat = document.getElementById('battleArena');
   if (!inlineCombat) return;
@@ -10286,6 +10362,12 @@ function initSettings() {
       if (discoveryMode) discoveryMode.checked = state.settings.discoveryMode !== false;
       const sfx = document.getElementById('settingSFX');
       if (sfx) sfx.checked = state.settings.sfxEnabled !== false;
+      const musicEl = document.getElementById('settingMusic');
+      if (musicEl) musicEl.checked = state.settings.musicEnabled === true;
+      const musicVolEl = document.getElementById('settingMusicVol');
+      if (musicVolEl) musicVolEl.value = state.settings.musicVol ?? 50;
+      const musicVolVal = document.getElementById('settingMusicVolVal');
+      if (musicVolVal) musicVolVal.textContent = `${state.settings.musicVol ?? 50}%`;
       const uiScaleEl2 = document.getElementById('settingUIScale');
       if (uiScaleEl2) uiScaleEl2.value = state.settings.uiScale ?? 100;
       const uiScaleVal2 = document.getElementById('settingUIScaleVal');
@@ -10307,6 +10389,16 @@ function initSettings() {
     if (discoveryMode) state.settings.discoveryMode = discoveryMode.checked;
     const sfx = document.getElementById('settingSFX');
     if (sfx) state.settings.sfxEnabled = sfx.checked;
+    const musicEl = document.getElementById('settingMusic');
+    if (musicEl) {
+      state.settings.musicEnabled = musicEl.checked;
+      if (!musicEl.checked) MusicPlayer.stop(); else MusicPlayer.updateFromContext();
+    }
+    const musicVolEl = document.getElementById('settingMusicVol');
+    if (musicVolEl) {
+      state.settings.musicVol = parseInt(musicVolEl.value) || 50;
+      MusicPlayer.setVolume(state.settings.musicVol / 100);
+    }
     const uiScaleEl = document.getElementById('settingUIScale');
     if (uiScaleEl) {
       state.settings.uiScale = parseInt(uiScaleEl.value) || 100;
@@ -12008,6 +12100,8 @@ function boot() {
   // Apply saved UI scale
   const savedScale = state.settings?.uiScale ?? 100;
   document.documentElement.style.setProperty('--ui-scale', (savedScale / 100).toFixed(2));
+  // Apply saved music volume
+  MusicPlayer.setVolume((state.settings?.musicVol ?? 50) / 100);
 
   // Initial render — force l'onglet actif correct au chargement
   switchTab(activeTab);
