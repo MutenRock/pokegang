@@ -1516,7 +1516,8 @@ function migrate(saved) {
   merged.stats = { ...structuredClone(DEFAULT_STATE.stats), ...saved.stats };
   merged.settings = { ...structuredClone(DEFAULT_STATE.settings), ...saved.settings };
   if (!merged.discoveryProgress) merged.discoveryProgress = { marketUnlocked: false, pokedexUnlocked: false };
-  if (merged.settings.discoveryMode === undefined) merged.settings.discoveryMode = true;
+  // Nouveau joueur → découverte ON ; joueur existant sans ce champ → OFF (déjà habitué)
+  if (merged.settings.discoveryMode === undefined) merged.settings.discoveryMode = false;
   if (merged.settings.autoBuyBall === undefined) merged.settings.autoBuyBall = null;
   merged.activeBoosts = { ...structuredClone(DEFAULT_STATE.activeBoosts), ...(saved.activeBoosts || {}) };
   merged.activeEvents = saved.activeEvents || {};
@@ -5487,8 +5488,11 @@ function renderZoneSelector() {
   const el = document.getElementById('zoneSelector');
   if (!el) return;
 
-  let html = '<div class="fog-map">';
-  for (const zone of ZONES) {
+  // Séparation : gauche = terrain/spécial, droite = gym/combat
+  const zonesLeft  = ZONES.filter(z => z.type !== 'gym' && z.type !== 'gym-boss');
+  const zonesRight = ZONES.filter(z => z.type === 'gym' || z.type === 'gym-boss');
+
+  function buildTile(zone) {
     const unlocked = isZoneUnlocked(zone.id);
     const isOpen = openZones.has(zone.id);
     const name = state.lang === 'fr' ? zone.fr : zone.en;
@@ -5500,25 +5504,21 @@ function renderZoneSelector() {
     const combats = zState.combatsWon || 0;
     const gymTag = zone.type === 'gym' ? ' [GYM]' : zone.type === 'special' ? ' [SP]' : '';
     const mastery = getZoneMastery(zone.id) || 0;
-
     const degraded = isZoneDegraded(zone.id);
+
     if (unlocked) {
       const degradedTag = degraded ? ' ⚠' : '';
       const income = zState.pendingIncome || 0;
       const incomeTier = income <= 0 ? 0 : income < 500 ? 1 : income < 2000 ? 2 : income < 5000 ? 3 : income < 15000 ? 4 : 5;
-      const incomeHtml = incomeTier > 0 ? `
-        <div class="zone-income-btn income-tier${incomeTier}" data-collect-zone="${zone.id}">₽</div>` : '';
-      // GYM/gym-boss: color name based on defeat state
+      const incomeHtml = incomeTier > 0 ? `<div class="zone-income-btn income-tier${incomeTier}" data-collect-zone="${zone.id}">₽</div>` : '';
       const isGym = zone.type === 'gym' || zone.type === 'gym-boss';
       let displayName = name;
       if (isGym) {
-        if (zState.gymDefeated) {
-          displayName = `<span style="color:var(--red)">${name}</span>`;
-        } else {
-          displayName = `<span style="color:var(--text-dim)">${name}</span>`;
-        }
+        displayName = zState.gymDefeated
+          ? `<span style="color:var(--red)">${name}</span>`
+          : `<span style="color:var(--text-dim)">${name}</span>`;
       }
-      html += `<div class="fog-tile unlocked ${isOpen ? 'fog-open' : ''} zone-type-${zone.type}${degraded ? ' fog-degraded' : ''}"
+      return `<div class="fog-tile unlocked ${isOpen ? 'fog-open' : ''} zone-type-${zone.type}${degraded ? ' fog-degraded' : ''}"
         data-zone="${zone.id}" style="${bgStyle}">
         <div class="fog-tile-overlay"></div>
         <div class="fog-tile-content">
@@ -5535,7 +5535,7 @@ function renderZoneSelector() {
       const lockHint = needsItem
         ? (state.lang === 'fr' ? (itemDef?.fr || zone.unlockItem) : (itemDef?.en || zone.unlockItem))
         : `Rep +${repDiff}`;
-      html += `<div class="fog-tile locked">
+      return `<div class="fog-tile locked">
         <div class="fog-tile-overlay fog"></div>
         <div class="fog-tile-content">
           <div class="fog-tile-name">???</div>
@@ -5544,7 +5544,18 @@ function renderZoneSelector() {
       </div>`;
     }
   }
-  html += '</div>';
+
+  const html = `
+    <div class="fog-split-layout">
+      <div class="fog-col">
+        <div class="fog-col-label">— ZONES —</div>
+        <div class="fog-map">${zonesLeft.map(buildTile).join('')}</div>
+      </div>
+      <div class="fog-col fog-col-combat">
+        <div class="fog-col-label">— ARÈNES —</div>
+        <div class="fog-map">${zonesRight.map(buildTile).join('')}</div>
+      </div>
+    </div>`;
   el.innerHTML = html;
 
   el.querySelectorAll('.fog-tile.unlocked').forEach(tile => {
@@ -11283,7 +11294,8 @@ function boot() {
   // Init session tracking (must be after state is loaded)
   initSession();
 
-  // Initial render
+  // Initial render — force l'onglet actif correct au chargement
+  switchTab(activeTab);
   renderAll();
 
   // Check boss sprite validity (broken save migration)
