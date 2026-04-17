@@ -563,6 +563,7 @@ const ZONE_BGS = {
   ss_anne:         { url:`${SD_BG}beach.png`,     fb:'#082038,#041428' },
   pokemon_mansion: { url:`${SD_BG}city.png`,      fb:'#200408,#140204' },
   mt_silver:       { url:`${SD_BG}mountain.png`,  fb:'#0a0a20,#040414' },
+  lavender_town:   { url:`${SD_BG}city.png`,      fb:'#160030,#0a0020' },
 };
 
 // Cosmetic backgrounds purchasable for the game screen
@@ -708,6 +709,17 @@ const ZONES = [
   { id:'mt_silver',     fr:'Mt. Argenté',        en:'Mt. Silver',        rep:1200,spawnRate:0.03, type:'route',
     pool:['dragonite','gyarados','snorlax','lapras','pikachu','chansey'],
     trainers:['acetrainer','blackbelt'], eliteTrainer:'red', investCost:0 },
+
+  // ══ LAVANVILLE ══
+  { id:'lavender_town', fr:'Lavanville',          en:'Lavender Town',     rep:480, spawnRate:0.05, type:'special',
+    pool:['gastly','haunter','gengar','cubone','marowak','jigglypuff','clefairy','zubat'],
+    rarePool:[
+      {en:'gengar',w:2}, {en:'haunter',w:3}, {en:'marowak',w:2},
+      {en:'ditto',w:2},  {en:'jigglypuff',w:4}, {en:'clefairy',w:4},
+      {en:'cubone',w:3}, {en:'gastly',w:5},
+    ],
+    trainers:['channeler','psychic'], eliteTrainer:'agatha', investCost:12000,
+    ghostZone: true },
 ];
 
 // ── Special Events ────────────────────────────────────────────
@@ -869,6 +881,56 @@ const SPECIAL_EVENTS = [
     reward: { money:[5000,12000], rep:18, eggGift:['porygon','dratini'] },
     desc_fr:'Un tournoi secret au Casino ! Battez Archer pour la mise en jeu !',
     desc_en:'A secret tournament at the Casino! Defeat Archer for the prize!' },
+
+  // ══ LAVANVILLE — Événements spécifiques ══
+  { id:'lavanville_curse',    fr:'Malédiction de Lavanville !', en:'Lavender Curse!',         icon:'👻',
+    trainerKey:null, chance:0.06, minRep:300,
+    zoneIds:['lavender_town','pokemon_tower'],
+    reward:{ shinyBoost:75000, rareBoost:45000 },
+    desc_fr:'Une malédiction ancienne plane sur Lavanville ! Les spectres envahissent la zone pendant 75s.',
+    desc_en:'An ancient curse looms over Lavender Town! Ghosts swarm the area for 75s.' },
+
+  { id:'agatha_haunted',      fr:'Agatha et ses Fantômes !',   en:'Agatha & Her Ghosts!',    icon:'🧙',
+    trainerKey:'agatha', chance:0.03, minRep:600,
+    zoneIds:['lavender_town','pokemon_tower'],
+    reward:{ money:[6000,14000], rep:28, xpBonus:70 },
+    desc_fr:'Agatha du Conseil des 4 surgit ! Elle contrôle les esprits de Lavanville.',
+    desc_en:'Elite Four Agatha appears! She commands the spirits of Lavender Town.' },
+
+  { id:'possessed_channeler', fr:'Mystimana Possédée !',       en:'Possessed Channeler!',    icon:'😱',
+    trainerKey:'channeler', chance:0.07, minRep:400,
+    zoneIds:['lavender_town','pokemon_tower'],
+    reward:{ money:[1500,4000], rep:12, shinyBoost:30000 },
+    desc_fr:'Une Mystimana est possédée par un esprit ! Battez-la avant qu\'elle ne perde la raison.',
+    desc_en:'A Channeler is possessed by a spirit! Defeat her before she loses her mind.' },
+
+  { id:'ghost_hymn',          fr:'Hymne des Spectres !',       en:'Ghost Hymn!',              icon:'🎵',
+    trainerKey:null, chance:0.05, minRep:250,
+    zoneIds:['lavender_town','pokemon_tower'],
+    reward:{ xpBonus:60, shinyBoost:40000 },
+    desc_fr:'Une mélodie lugubre résonne dans Lavanville... Les Pokémon Spectre écoutent en silence.',
+    desc_en:'A haunting melody resonates through Lavender Town... Ghost Pokémon listen in silence.' },
+
+  { id:'nameless_ghost',      fr:'Le Spectre Sans Nom…',       en:'The Nameless Ghost…',     icon:'☠️',
+    trainerKey:null, chance:0.015, minRep:700,
+    zoneIds:['lavender_town'],
+    reward:{ rareBoost:120000, shinyBoost:60000, eggGift:['gengar','haunter'] },
+    desc_fr:'Un spectre ancien et sans nom erre dans Lavanville… Tout le monde fuit. Des œufs apparaissent.',
+    desc_en:'An ancient nameless ghost wanders Lavender Town… Everyone flees. Eggs appear.' },
+
+  { id:'grave_robbers',       fr:'Pilleurs de Tombes !',       en:'Grave Robbers!',           icon:'💀',
+    trainerKey:'rocketgrunt', chance:0.06, minRep:350,
+    zoneIds:['lavender_town'],
+    reward:{ money:[2000,5000], rep:15, chestBoost:45000 },
+    desc_fr:'La Team Rocket profane les tombes de Lavanville ! Arrêtez-les !',
+    desc_en:'Team Rocket desecrates Lavender Town\'s graves! Stop them!' },
+
+  { id:'marowak_ghost',       fr:'Spectre d\'Osselait Mère !', en:'Mother Marowak\'s Ghost!', icon:'🕯️',
+    trainerKey:null, chance:0.04, minRep:500,
+    zoneIds:['lavender_town','pokemon_tower'],
+    reward:{ rareBoost:90000, eggGift:['cubone'] },
+    desc_fr:'Le spectre de la mère Ossatueur pleure son petit Osselait... Un œuf de Cubone apparaît.',
+    desc_en:'The ghost of mother Marowak weeps for her Cubone… A Cubone egg appears.' },
 ];
 
 // ── Treasure Chest Loot Table ──────────────────────────────────
@@ -933,6 +995,7 @@ const ZONE_MUSIC_MAP = {
   pallet_garden:   'forest',
   route22:         'forest',
   ss_anne:         'sea',
+  lavender_town:   'lavender',
 };
 // Applique le mapping aux objets de zone
 Object.entries(ZONE_MUSIC_MAP).forEach(([id, track]) => {
@@ -3198,7 +3261,8 @@ function spawnInZone(zoneId) {
   if (canEvent && r < chestChance + 0.08) {
     const eligible = SPECIAL_EVENTS.filter(ev =>
       state.gang.reputation >= ev.minRep &&
-      !state.activeEvents[zoneId] // no stacking
+      !state.activeEvents[zoneId] && // no stacking
+      (!ev.zoneIds || ev.zoneIds.includes(zoneId)) // zone-specific filter
     );
     if (eligible.length > 0) {
       const event = pick(eligible);
