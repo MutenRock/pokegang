@@ -907,6 +907,38 @@ const ZONE_BY_ID = {};
 ZONES.forEach(z => ZONE_BY_ID[z.id] = z);
 ZONE_BY_ID[GANG_BASE.id] = GANG_BASE;
 
+// ── Musiques par zone (référence les clés de MUSIC_TRACKS) ────
+// Ajoutez un fichier .mp3 dans game/music/ puis référencez-le ici.
+const ZONE_MUSIC_MAP = {
+  route1:          'forest',
+  viridian_forest: 'forest',
+  mt_moon:         'cave',
+  diglett_cave:    'cave',
+  rock_tunnel:     'cave',
+  pokemon_tower:   'lavender',
+  power_plant:     'city',
+  seafoam_islands: 'sea',
+  victory_road:    'cave',
+  unknown_cave:    'cave',
+  pewter_gym:      'gym',
+  cerulean_gym:    'gym',
+  celadon_gym:     'gym',
+  fuchsia_gym:     'gym',
+  saffron_gym:     'gym',
+  cinnabar_gym:    'gym',
+  indigo_plateau:  'elite4',
+  safari_zone:     'safari',
+  celadon_casino:  'casino',
+  silph_co:        'silph',
+  pallet_garden:   'forest',
+  route22:         'forest',
+  ss_anne:         'sea',
+};
+// Applique le mapping aux objets de zone
+Object.entries(ZONE_MUSIC_MAP).forEach(([id, track]) => {
+  if (ZONE_BY_ID[id]) ZONE_BY_ID[id].music = track;
+});
+
 // ── Missions System ──────────────────────────────────────────
 const MISSIONS = [
   // --- Daily missions ---
@@ -1432,6 +1464,7 @@ const DEFAULT_STATE = {
   },
   purchases: {
     translator: false,
+    cosmeticsPanel: false, // 50 000₽ — débloque l'onglet Cosmétiques
   },
   pension: {
     slotA: null,    // pokemon ID
@@ -1559,6 +1592,7 @@ function migrate(saved) {
   if (!merged.lab.trackedSpecies) merged.lab.trackedSpecies = [];
   if (!merged.purchases) merged.purchases = { translator: false, mysteryEggCount: 0 };
   if (merged.purchases.mysteryEggCount === undefined) merged.purchases.mysteryEggCount = 0;
+  if (merged.purchases.cosmeticsPanel === undefined) merged.purchases.cosmeticsPanel = false;
   if (!merged.lastBillCall) merged.lastBillCall = 0;
   if (!merged.pension) merged.pension = { slotA: null, slotB: null, eggAt: null };
   if (!merged.eggs) merged.eggs = [];
@@ -2076,11 +2110,233 @@ const SFX = (() => {
       playTone(988, 0.06, 'sine', 0.1);
       setTimeout(() => playTone(1318, 0.1, 'sine', 0.1), 80);
     },
+    click() {
+      // UI button click — tick léger
+      playTone(1200, 0.04, 'square', 0.05);
+    },
+    tabSwitch() {
+      // Changement d'onglet — glissement court
+      playTone(660, 0.06, 'sine', 0.07);
+      setTimeout(() => playTone(880, 0.05, 'sine', 0.05), 50);
+    },
+    buy() {
+      // Achat confirmé — cha-ching
+      playTone(523, 0.06, 'sine', 0.1);
+      setTimeout(() => playTone(659, 0.06, 'sine', 0.1), 70);
+      setTimeout(() => playTone(1047, 0.12, 'sine', 0.12), 130);
+    },
+    unlock() {
+      // Déverrouillage / découverte — fanfare ascendante
+      playTone(440, 0.08, 'square', 0.1);
+      setTimeout(() => playTone(554, 0.08, 'square', 0.1), 100);
+      setTimeout(() => playTone(659, 0.08, 'square', 0.1), 200);
+      setTimeout(() => playTone(880, 0.16, 'sine',   0.12), 310);
+      setTimeout(() => playTone(1108, 0.2, 'sine',   0.1),  450);
+    },
+    menuOpen() {
+      // Ouverture modale / menu
+      playTone(880, 0.08, 'sine', 0.07);
+      setTimeout(() => playTone(1100, 0.1, 'sine', 0.06), 80);
+    },
+    menuClose() {
+      // Fermeture modale
+      playTone(660, 0.07, 'sine', 0.06);
+      setTimeout(() => playTone(440, 0.09, 'sine', 0.05), 70);
+    },
+    chest() {
+      // Coffre ouvert — effet magique
+      playTone(660, 0.08, 'square', 0.08);
+      setTimeout(() => playTone(880, 0.08, 'square', 0.09), 80);
+      setTimeout(() => playTone(1100, 0.08, 'square', 0.1), 160);
+      setTimeout(() => {
+        for (let i = 0; i < 4; i++) {
+          setTimeout(() => playTone(1200 + i * 180, 0.07, 'sine', 0.07), i * 55);
+        }
+      }, 260);
+    },
+    notify() {
+      // Notification — ping doux
+      playTone(880, 0.07, 'sine', 0.08);
+      setTimeout(() => playTone(1108, 0.1, 'sine', 0.07), 90);
+    },
+    sell() {
+      // Vente Pokémon
+      playTone(660, 0.05, 'sine', 0.08);
+      setTimeout(() => playTone(440, 0.08, 'sawtooth', 0.06), 70);
+    },
+    evolve() {
+      // Évolution — fanfare complète
+      const notes = [523, 659, 784, 1047, 1319];
+      notes.forEach((f, i) => setTimeout(() => playTone(f, 0.15, 'square', 0.12), i * 120));
+      setTimeout(() => {
+        for (let i = 0; i < 6; i++) setTimeout(() => playTone(1200 + i * 150, 0.1, 'sine', 0.1), i * 60);
+      }, notes.length * 120 + 100);
+    },
+    _enabled() { return state?.settings?.sfxEnabled !== false; },
+    play(name, ...args) {
+      if (!this._enabled()) return;
+      try { this[name]?.(...args); } catch {}
+    },
   };
 })();
 
 // ════════════════════════════════════════════════════════════════
-//  3b.  DOPAMINE POPUP HELPERS
+//  3b.  MUSIC PLAYER (zone-aware, crossfade progressif)
+// ════════════════════════════════════════════════════════════════
+
+/**
+ * MUSIC_TRACKS — catalogue de toutes les pistes audio.
+ * Ajoutez des pistes ici + placez les fichiers dans game/music/.
+ * Chaque zone référence une clé via sa propriété `music`.
+ *
+ * Structure :
+ *   key:  identifiant unique (référencé dans ZONES[].music)
+ *   file: chemin relatif depuis game/
+ *   loop: true pour boucle continue
+ *   vol:  volume de base 0–1
+ */
+const MUSIC_TRACKS = {
+  // ── Base / Zones basiques ──────────────────────────────────────
+  base:        { file: 'music/base.mp3',        loop: true,  vol: 0.5,  fr: 'Base du Gang'    },
+  forest:      { file: 'music/forest.mp3',       loop: true,  vol: 0.5,  fr: 'Forêt'           },
+  city:        { file: 'music/city.mp3',         loop: true,  vol: 0.5,  fr: 'Ville'           },
+  cave:        { file: 'music/cave.mp3',         loop: true,  vol: 0.45, fr: 'Caverne'         },
+  sea:         { file: 'music/sea.mp3',          loop: true,  vol: 0.5,  fr: 'Mer'             },
+  safari:      { file: 'music/safari.mp3',       loop: true,  vol: 0.5,  fr: 'Parc Safari'     },
+  // ── Arènes & combat ───────────────────────────────────────────
+  gym:         { file: 'music/gym.mp3',          loop: true,  vol: 0.55, fr: 'Arène'           },
+  rocket:      { file: 'music/rocket.mp3',       loop: true,  vol: 0.55, fr: 'Team Rocket'     },
+  silph:       { file: 'music/silph.mp3',        loop: true,  vol: 0.5,  fr: 'Sylphe SARL'     },
+  elite4:      { file: 'music/elite4.mp3',       loop: true,  vol: 0.6,  fr: 'Élite 4'         },
+  // ── Ambiances spéciales ────────────────────────────────────────
+  casino:      { file: 'music/casino.mp3',       loop: true,  vol: 0.5,  fr: 'Casino'          },
+  lavender:    { file: 'music/lavender.mp3',     loop: true,  vol: 0.4,  fr: 'Lavanville'      },
+};
+
+/**
+ * MusicPlayer — gère la lecture de fond avec crossfade.
+ * Utilise deux éléments <audio> pour un fondu croisé doux.
+ */
+const MusicPlayer = (() => {
+  let _trackA = null;   // HTMLAudioElement actif
+  let _trackB = null;   // HTMLAudioElement en fondu entrant
+  let _current = null;  // clé du morceau en cours
+  let _fadeTimer = null;
+
+  const FADE_DURATION = 2000; // ms
+
+  function _createAudio(src, vol, loop) {
+    const a = new Audio(src);
+    a.loop = loop;
+    a.volume = 0;
+    a.preload = 'auto';
+    a.dataset.targetVol = vol;
+    return a;
+  }
+
+  function _isEnabled() {
+    return state?.settings?.musicEnabled === true;
+  }
+
+  function _setVol(el, v) {
+    if (el) el.volume = Math.max(0, Math.min(1, v));
+  }
+
+  function _fade(el, fromVol, toVol, durationMs, onDone) {
+    const steps = 30;
+    const dt = durationMs / steps;
+    const delta = (toVol - fromVol) / steps;
+    let step = 0;
+    const id = setInterval(() => {
+      step++;
+      _setVol(el, fromVol + delta * step);
+      if (step >= steps) {
+        clearInterval(id);
+        _setVol(el, toVol);
+        if (onDone) onDone();
+      }
+    }, dt);
+    return id;
+  }
+
+  return {
+    /**
+     * Joue la piste `trackId` avec crossfade si une piste est déjà active.
+     * Ne fait rien si la piste est déjà en cours ou si la musique est désactivée.
+     */
+    play(trackId) {
+      if (!_isEnabled()) return;
+      if (!trackId || !MUSIC_TRACKS[trackId]) return;
+      if (_current === trackId) return; // déjà en cours
+
+      const def = MUSIC_TRACKS[trackId];
+      const newAudio = _createAudio(def.file, def.vol, def.loop);
+      const targetVol = def.vol;
+
+      _current = trackId;
+
+      if (_trackA && !_trackA.paused) {
+        // Crossfade : fade out A, fade in B
+        const oldA = _trackA;
+        _trackB = newAudio;
+        _trackB.play().catch(() => {});
+        _fade(_trackB, 0, targetVol, FADE_DURATION);
+        _fade(oldA, oldA.volume, 0, FADE_DURATION, () => {
+          oldA.pause();
+          oldA.src = '';
+          _trackA = _trackB;
+          _trackB = null;
+        });
+      } else {
+        // Pas de piste active — démarre directement avec fade in
+        if (_trackA) { _trackA.pause(); _trackA.src = ''; }
+        _trackA = newAudio;
+        _trackA.play().catch(() => {});
+        _fade(_trackA, 0, targetVol, FADE_DURATION);
+      }
+    },
+
+    /** Arrête la musique avec fade out. */
+    stop() {
+      if (_trackA) {
+        const old = _trackA;
+        _trackA = null;
+        _current = null;
+        _fade(old, old.volume, 0, FADE_DURATION / 2, () => {
+          old.pause(); old.src = '';
+        });
+      }
+    },
+
+    /** Appelé lors du changement de zone ouverte ou d'onglet actif. */
+    updateFromContext() {
+      if (!_isEnabled()) { this.stop(); return; }
+
+      // Priorité : première zone ouverte qui a une musique définie
+      for (const zId of (state.openZoneOrder || [])) {
+        const zone = ZONE_BY_ID[zId];
+        if (zone?.music) { this.play(zone.music); return; }
+      }
+      // Fallback : musique de l'onglet actif
+      if (activeTab === 'tabGang' || activeTab === 'tabZones') {
+        this.play('base');
+      } else {
+        // Pas de zones ouvertes et onglet neutre → silence progressif
+        this.stop();
+      }
+    },
+
+    /** Volume global 0–1 */
+    setVolume(v) {
+      if (_trackA) _setVol(_trackA, Math.max(0, Math.min(1, v)) * (parseFloat(_trackA.dataset.targetVol) || 0.5));
+    },
+
+    get current() { return _current; },
+  };
+})();
+
+// ════════════════════════════════════════════════════════════════
+//  3c.  DOPAMINE POPUP HELPERS
 // ════════════════════════════════════════════════════════════════
 
 let _shinyPopupTimer = null;
@@ -2471,7 +2727,7 @@ function evolvePokemon(pokemon, targetEN) {
   }
   showPokemonLevelPopup(pokemon, pokemon.level);
   notify(`${oldName} ${state.lang === 'fr' ? 'évolue en' : 'evolved into'} ${speciesName(sp.en)} !`, 'gold');
-  try { SFX.capture(5, true); } catch {} // Evolution fanfare
+  SFX.play('evolve'); // Evolution fanfare
   saveState();
   return true;
 }
@@ -2513,7 +2769,7 @@ function levelUpPokemon(pokemon, xpGain) {
     const isInTraining = state.trainingRoom?.pokemon?.includes(pokemon.id);
     if (isBossTeam || isInTraining) {
       showPokemonLevelPopup(pokemon, pokemon.level);
-      try { SFX.levelUp(); } catch {}
+      SFX.play('levelUp')
     }
   }
   return leveled;
@@ -3177,7 +3433,7 @@ function investInZone(zoneId) {
   const cost = zone.investCost || 0;
   if (state.gang.money < cost) {
     notify(state.lang === 'fr' ? 'Pas assez d\'argent !' : 'Not enough money!');
-    try { SFX.error(); } catch {}
+    SFX.play('error')
     return false;
   }
   // Need minimum team power in zone
@@ -3192,7 +3448,7 @@ function investInZone(zoneId) {
     notify(state.lang === 'fr'
       ? `Puissance insuffisante ! (${zonePower}/${minPower}) Assignez des agents avec des Pokémon.`
       : `Not enough power! (${zonePower}/${minPower}) Assign agents with Pokémon.`);
-    try { SFX.error(); } catch {}
+    SFX.play('error')
     return false;
   }
   state.gang.money -= cost;
@@ -3214,7 +3470,7 @@ function tryCapture(zoneId, speciesEN, bonusPotential = 0) {
   const ball = state.activeBall;
   if ((state.inventory[ball] || 0) <= 0) {
     notify(t('no_balls', { ball: BALLS[ball]?.fr || ball }));
-    try { SFX.error(); } catch {}
+    SFX.play('error')
     return null;
   }
   state.inventory[ball]--;
@@ -3245,7 +3501,7 @@ function tryCapture(zoneId, speciesEN, bonusPotential = 0) {
   }
   addLog(t('catch_success', { name }) + ` [${stars}]`);
   // SFX
-  try { SFX.capture(pokemon.potential, pokemon.shiny); } catch {}
+  SFX.play('capture', pokemon.potential, pokemon.shiny);
   saveState();
   return pokemon;
 }
@@ -3474,7 +3730,7 @@ function claimHourlyQuest(idx) {
   if (q.reward.money) { state.gang.money += q.reward.money; state.stats.totalMoneyEarned += q.reward.money; }
   if (q.reward.rep)   { const prev = state.gang.reputation; state.gang.reputation += q.reward.rep; checkForNewlyUnlockedZones(prev); }
   notify(`✓ Quête : ${q.fr} — +${q.reward.money?.toLocaleString() || 0}₽${q.reward.rep ? ' +'+q.reward.rep+' rep' : ''}`, 'gold');
-  try { SFX.coin(); } catch {}
+  SFX.play('coin')
   saveState();
 }
 
@@ -3593,7 +3849,7 @@ function openAgentRecruitModal(onAfterRecruit) {
   const cost = getAgentRecruitCost();
   if (state.gang.money < cost) {
     notify(state.lang === 'fr' ? 'Pas assez d\'argent !' : 'Not enough money!');
-    try { SFX.error(); } catch {}
+    SFX.play('error')
     return;
   }
 
@@ -3953,7 +4209,7 @@ function agentCaptureVisibleSpawn(agent, zoneId, spawnObj) {
   ball.style.top = startY + 'px';
   viewport.appendChild(ball);
 
-  try { SFX.ballThrow(); } catch {}
+  SFX.play('ballThrow')
   requestAnimationFrame(() => {
     ball.style.transition = 'left .35s ease-out, top .35s ease-in';
     ball.style.left = targetX + 'px';
@@ -4016,7 +4272,7 @@ function agentOpenChest(agent, zoneId, spawnObj) {
   const loot = rollChestLoot(zoneId);
   notify(`${agent.name}: ${loot.msg}`, loot.type);
   grantAgentXP(agent, 1);
-  try { SFX.capture(3, false); } catch {}
+  SFX.play('chest');
   removeSpawn(zoneId, spawnObj.id);
   updateTopBar();
   updateZoneTimers(zoneId);
@@ -4164,7 +4420,7 @@ function sellPokemon(pokemonIds, _shinyConfirmed = false) {
   state.stats.totalMoneyEarned += total;
   notify(t('sold', { n: pokemonIds.length, price: total }), 'gold');
   addLog(t('sold', { n: pokemonIds.length, price: total }));
-  try { SFX.coin(); } catch {}
+  SFX.play('sell');
   saveState();
   return total;
 }
@@ -4175,7 +4431,7 @@ function buyItem(itemDef) {
   const actualCost = itemDef.id === 'mysteryegg' ? getMysteryEggCost() : itemDef.cost;
   if (state.gang.money < actualCost) {
     notify(t('not_enough'));
-    try { SFX.error(); } catch {}
+    SFX.play('error')
     return false;
   }
   state.gang.money -= actualCost;
@@ -4229,6 +4485,7 @@ function buyItem(itemDef) {
   state.inventory[itemDef.id] = (state.inventory[itemDef.id] || 0) + itemDef.qty;
   const _itemName = state.lang === 'fr' ? (itemDef.fr || BALLS[itemDef.id]?.fr || itemDef.id) : (itemDef.en || BALLS[itemDef.id]?.en || itemDef.id);
   notify(`${itemDef.qty}× ${_itemName} → sac`, 'success');
+  SFX.play('buy');
   saveState();
   return true;
 }
@@ -4456,6 +4713,7 @@ function isBallAssistActive() {
 
 function switchTab(tabId) {
   if (tabId !== 'tabPC') _pcLastRenderKey = ''; // force full rebuild on next PC visit
+  SFX.play('tabSwitch');
   activeTab = tabId;
   document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.tab === tabId);
@@ -4465,6 +4723,7 @@ function switchTab(tabId) {
   });
   renderHint(tabId);
   renderActiveTab();
+  MusicPlayer.updateFromContext();
   updateTopBar(); // refresh objective / session on tab change
   // First-visit contextual hint
   if (!_visitedTabs.has(tabId)) {
@@ -4542,8 +4801,9 @@ function renderActiveTab() {
     case 'tabPC':       renderPCTab(); break;
     case 'tabPokedex':  renderPokedexTab(); break;
     case 'tabAgents':   renderAgentsTab(); break;
-    case 'tabBag':      switchTab('tabMarket'); break;
-    case 'tabMissions': renderMissionsTab(); break;
+    case 'tabBag':        switchTab('tabMarket'); break;
+    case 'tabCosmetics':  renderCosmeticsTab(); break;
+    case 'tabMissions':   renderMissionsTab(); break;
     case 'tabTraining': pcView = 'training'; switchTab('tabPC'); break;
     case 'tabLab':      pcView = 'lab'; switchTab('tabPC'); break;
     case 'tabCompte':   renderCompteTab(); break;
@@ -4787,13 +5047,13 @@ function renderCosmeticsPanel(container) {
 
   // Appearance section (reputation-based)
   const appHtml = `
-    <div style="font-family:var(--font-pixel);font-size:9px;color:var(--gold);margin-top:18px;margin-bottom:10px">APPARENCE — DÉPENSE EN RÉPUTATION</div>
+    <div style="font-family:var(--font-pixel);font-size:9px;color:var(--gold);margin-top:18px;margin-bottom:10px">APPARENCE</div>
     <div style="display:flex;flex-direction:column;gap:8px">
       <div style="border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px;background:var(--bg-card)">
         <div style="font-size:9px;margin-bottom:6px">👤 Boss: <strong>${state.gang.bossName}</strong></div>
         <div style="display:flex;gap:6px;flex-wrap:wrap">
-          <button class="cosm-action-btn" data-cosm-action="rename-boss" style="font-family:var(--font-pixel);font-size:8px;padding:4px 8px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-dim);cursor:pointer">✏ Renommer (50 rep)</button>
-          <button class="cosm-action-btn" data-cosm-action="sprite-boss" style="font-family:var(--font-pixel);font-size:8px;padding:4px 8px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-dim);cursor:pointer">🎨 Sprite (100 rep)</button>
+          <button class="cosm-action-btn" data-cosm-action="rename-boss" style="font-family:var(--font-pixel);font-size:8px;padding:4px 8px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-dim);cursor:pointer">✏ Renommer (2 000₽)</button>
+          <button class="cosm-action-btn" data-cosm-action="sprite-boss" style="font-family:var(--font-pixel);font-size:8px;padding:4px 8px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-dim);cursor:pointer">🎨 Sprite (5 000₽)</button>
         </div>
       </div>
       ${state.agents.map(a => `
@@ -4803,8 +5063,8 @@ function renderCosmeticsPanel(container) {
           <span style="font-size:9px">Agent: <strong>${a.name}</strong></span>
         </div>
         <div style="display:flex;gap:6px;flex-wrap:wrap">
-          <button class="cosm-action-btn" data-cosm-action="rename-agent" data-agent-id="${a.id}" style="font-family:var(--font-pixel);font-size:8px;padding:4px 8px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-dim);cursor:pointer">✏ Renommer (50 rep)</button>
-          <button class="cosm-action-btn" data-cosm-action="sprite-agent" data-agent-id="${a.id}" style="font-family:var(--font-pixel);font-size:8px;padding:4px 8px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-dim);cursor:pointer">🎨 Sprite (100 rep)</button>
+          <button class="cosm-action-btn" data-cosm-action="rename-agent" data-agent-id="${a.id}" style="font-family:var(--font-pixel);font-size:8px;padding:4px 8px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-dim);cursor:pointer">✏ Renommer (2 000₽)</button>
+          <button class="cosm-action-btn" data-cosm-action="sprite-agent" data-agent-id="${a.id}" style="font-family:var(--font-pixel);font-size:8px;padding:4px 8px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-dim);cursor:pointer">🎨 Sprite (5 000₽)</button>
         </div>
       </div>`).join('')}
     </div>`;
@@ -5406,7 +5666,7 @@ function showCollectionResult(win, amount, items, agentIds) {
     if (step >= steps) {
       display.textContent = amount.toLocaleString() + '₽';
       clearInterval(interval);
-      try { SFX.coin(); } catch {}
+      SFX.play('coin')
       // Animation de pièces après décompte
       setTimeout(() => spawnCoinRain(win, amount), 200);
     }
@@ -5457,7 +5717,7 @@ function spawnCoinRain(win, amount) {
         { left: targetX + 'px', top: targetY + 'px', opacity: 0.8, transform: 'scale(0.6)' },
       ], { duration, easing: 'ease-in', fill: 'forwards' }).onfinish = () => {
         coin.remove();
-        try { SFX.coin && SFX.coin(); } catch {}
+        SFX.play('coin')
       };
     }, i * 60);
   }
@@ -5588,6 +5848,7 @@ function openZoneWindow(zoneId) {
     const interval = Math.round(1000 / zone.spawnRate);
     zoneSpawnTimers[zoneId] = setInterval(() => tickZoneSpawn(zoneId), interval);
   }
+  MusicPlayer.updateFromContext();
   renderZonesTab();
 }
 
@@ -5604,6 +5865,7 @@ function closeZoneWindow(zoneId) {
     }
     delete zoneSpawns[zoneId];
   }
+  MusicPlayer.updateFromContext();
   renderZonesTab();
 }
 
@@ -6813,7 +7075,7 @@ function renderSpawnInWindow(zoneId, spawnObj) {
       setTimeout(() => {
         const loot = rollChestLoot(zoneId);
         notify(loot.msg, loot.type);
-        try { SFX.capture(3, false); } catch {} // Loot jingle
+        SFX.play('chest'); // Loot jingle
         removeSpawn(zoneId, spawnObj.id);
         updateTopBar();
         updateZoneTimers(zoneId);
@@ -6916,7 +7178,7 @@ function animateCapture(zoneId, spawnObj, spawnEl) {
   viewport.appendChild(ball);
 
   // Animate ball flight with CSS transition + SFX
-  try { SFX.ballThrow(); } catch {}
+  SFX.play('ballThrow')
   requestAnimationFrame(() => {
     ball.style.transition = 'left .35s ease-out, top .35s ease-in';
     ball.style.left = targetX + 'px';
@@ -7367,14 +7629,73 @@ function closeCombatPopup() {
 }
 
 // ════════════════════════════════════════════════════════════════
+// 15b. UI — COSMETICS TAB (panel dédié, débloquable 50 000₽)
+// ════════════════════════════════════════════════════════════════
+
+const COSMETICS_UNLOCK_COST = 50000;
+
+function renderCosmeticsTab() {
+  const tab = document.getElementById('tabCosmetics');
+  if (!tab) return;
+
+  const unlocked = state.purchases?.cosmeticsPanel;
+
+  if (!unlocked) {
+    // ── Panneau verrouillé — visible avec bouton d'achat ─────────
+    tab.innerHTML = `
+      <div class="cosm-tab-locked">
+        <div class="cosm-tab-locked-inner">
+          <div class="cosm-lock-icon">🎨</div>
+          <div class="cosm-lock-title">ATELIER COSMÉTIQUES</div>
+          <div class="cosm-lock-desc">Personnalise le fond d'écran, renomme ton Boss et tes Agents, change leurs sprites.</div>
+          <div class="cosm-lock-preview">
+            ${Object.entries(COSMETIC_BGS).slice(0,4).map(([,c]) =>
+              `<div class="cosm-lock-preview-tile" style="background-image:url('${c.url}');background-size:cover;background-position:center"></div>`
+            ).join('')}
+          </div>
+          <button id="btnUnlockCosmetics" class="cosm-unlock-btn">
+            🔓 Débloquer — ${COSMETICS_UNLOCK_COST.toLocaleString()}₽
+          </button>
+          <div class="cosm-lock-balance" id="cosmLockBalance">
+            Solde : ${(state.gang.money || 0).toLocaleString()}₽
+          </div>
+        </div>
+      </div>`;
+
+    tab.querySelector('#btnUnlockCosmetics')?.addEventListener('click', () => {
+      if (state.gang.money < COSMETICS_UNLOCK_COST) {
+        notify('Fonds insuffisants.', 'error');
+        SFX.play('error')
+        return;
+      }
+      showConfirm(`Débloquer l'Atelier Cosmétiques pour ${COSMETICS_UNLOCK_COST.toLocaleString()}₽ ?`, () => {
+        state.gang.money -= COSMETICS_UNLOCK_COST;
+        state.purchases.cosmeticsPanel = true;
+        saveState();
+        updateTopBar();
+        SFX.play('unlock');
+        notify('🎨 Atelier Cosmétiques débloqué !', 'gold');
+        renderCosmeticsTab();
+      });
+    });
+    return;
+  }
+
+  // ── Panneau débloqué ─────────────────────────────────────────
+  const container = document.createElement('div');
+  container.className = 'cosm-tab-content';
+  tab.innerHTML = '';
+  tab.appendChild(container);
+  renderCosmeticsPanel(container);
+}
+
+// ════════════════════════════════════════════════════════════════
 // 16.  UI — MARKET TAB
 // ════════════════════════════════════════════════════════════════
 
 function renderMarketTab() {
   renderQuestPanel();
   renderShopPanel();
-  const cosPanel = document.querySelector('#cosmeticsPanel .cosmetics-list');
-  if (cosPanel) renderCosmeticsPanel(cosPanel);
 }
 
 // ── Quest Panel (replaces sell panel) ────────────────────────────
@@ -8562,10 +8883,62 @@ function renderPokemonDetail() {
   panel.querySelectorAll('.btn-evolve-item').forEach(btn => {
     btn.addEventListener('click', () => {
       if ((state.inventory.evostone || 0) <= 0) return;
+      if (p.species_en === 'eevee') {
+        openEeveeEvoPopup(p);
+      } else {
+        state.inventory.evostone--;
+        evolvePokemon(p, btn.dataset.evoTarget);
+        _pcLastRenderKey = ''; renderPCTab();
+      }
+    });
+  });
+}
+
+// ── Eevee evolution popup ─────────────────────────────────────
+function openEeveeEvoPopup(p) {
+  const EEVEE_CHOICES = [
+    { en: 'vaporeon', fr: 'Aquali',  type: 'Eau',      color: '#6ab4e8' },
+    { en: 'jolteon',  fr: 'Voltali', type: 'Électrik', color: '#f0d050' },
+    { en: 'flareon',  fr: 'Pyroli',  type: 'Feu',       color: '#f08030' },
+  ];
+  // Mélange aléatoire — le joueur ne sait pas quelle position correspond à quoi avant de regarder
+  const shuffled = [...EEVEE_CHOICES].sort(() => Math.random() - 0.5);
+
+  const modal = document.createElement('div');
+  modal.className = 'eevee-evo-modal';
+  modal.innerHTML = `
+    <div class="eevee-evo-box">
+      <div class="eevee-evo-header">
+        <img src="${pokeSprite('eevee')}" style="width:40px;height:40px;image-rendering:pixelated">
+        <div>
+          <div style="font-family:var(--font-pixel);font-size:9px;color:var(--gold)">ÉVOLUTION D'ÉVOLI</div>
+          <div style="font-size:9px;color:var(--text-dim)">Utilise la Pierre Évolution</div>
+        </div>
+      </div>
+      <div class="eevee-evo-choices">
+        ${shuffled.map(c => `
+          <div class="eevee-choice-card" data-target="${c.en}" style="--evo-color:${c.color}">
+            <img src="${pokeSprite(c.en)}" class="eevee-choice-sprite">
+            <div class="eevee-choice-name">${c.fr}</div>
+            <div class="eevee-choice-type">${c.type}</div>
+          </div>`).join('')}
+      </div>
+      <div style="font-size:8px;color:var(--text-dim);text-align:center;margin-top:8px">Cliquez pour choisir • Échap pour annuler</div>
+    </div>`;
+  document.body.appendChild(modal);
+
+  modal.querySelectorAll('.eevee-choice-card').forEach(card => {
+    card.addEventListener('click', () => {
+      const target = card.dataset.target;
       state.inventory.evostone--;
-      evolvePokemon(p, btn.dataset.evoTarget);
+      evolvePokemon(p, target);
+      modal.remove();
       _pcLastRenderKey = ''; renderPCTab();
     });
+  });
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+  document.addEventListener('keydown', function esc(e) {
+    if (e.key === 'Escape') { modal.remove(); document.removeEventListener('keydown', esc); }
   });
 }
 
