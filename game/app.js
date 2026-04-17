@@ -1465,6 +1465,7 @@ const DEFAULT_STATE = {
   purchases: {
     translator: false,
     cosmeticsPanel: false, // 50 000₽ — débloque l'onglet Cosmétiques
+    autoIncubator: false,  // 50 000₽ — Infirmière Joëlle corrompue (auto-incubation)
   },
   pension: {
     slotA: null,    // pokemon ID
@@ -1593,6 +1594,7 @@ function migrate(saved) {
   if (!merged.purchases) merged.purchases = { translator: false, mysteryEggCount: 0 };
   if (merged.purchases.mysteryEggCount === undefined) merged.purchases.mysteryEggCount = 0;
   if (merged.purchases.cosmeticsPanel === undefined) merged.purchases.cosmeticsPanel = false;
+  if (merged.purchases.autoIncubator === undefined) merged.purchases.autoIncubator = false;
   if (!merged.lastBillCall) merged.lastBillCall = 0;
   if (!merged.pension) merged.pension = { slotA: null, slotB: null, eggAt: null };
   if (!merged.eggs) merged.eggs = [];
@@ -3411,7 +3413,8 @@ function activateEvent(zoneId, event) {
       const potential = Math.random() < 0.2 ? 3 : 2;
       const shiny = Math.random() < 0.01;
       state.eggs.push({ id: uid(), species_en, hatchAt: null, incubating: false, potential, shiny, gifted: true });
-      notify(`${event.icon} Oeuf de ${speciesName(species_en)} découvert ! Placez-le dans un incubateur.`, 'gold');
+      tryAutoIncubate();
+      notify(`${event.icon} Oeuf de ${speciesName(species_en)} découvert !${state.purchases?.autoIncubator ? ' (auto-incubé)' : ' Placez-le dans un incubateur.'}`, 'gold');
     }
   }
 
@@ -4476,7 +4479,8 @@ function buyItem(itemDef) {
     const shiny = Math.random() < 0.02;
     state.eggs.push({ id: uid(), species_en, hatchAt: null, incubating: false, potential, shiny, mystery: true });
     state.purchases.mysteryEggCount = (state.purchases.mysteryEggCount || 0) + 1;
-    notify(`Oeuf Mystère obtenu ! Placez-le dans un incubateur.`, 'gold');
+    tryAutoIncubate();
+    notify(`Oeuf Mystère obtenu !${state.purchases?.autoIncubator ? ' (auto-incubé)' : ' Placez-le dans un incubateur.'}`, 'gold');
     saveState();
     return true;
   }
@@ -5117,6 +5121,57 @@ function renderCosmeticsPanel(container) {
         });
       }
     });
+  });
+
+  // ── Section TITRES ─────────────────────────────────────────────
+  const titresDiv = document.createElement('div');
+  titresDiv.style.cssText = 'margin-top:20px';
+  const t1id = state.gang.titleA; const t2id = state.gang.titleB;
+  const lia  = state.gang.titleLiaison || '';
+  const t1label = t1id ? (TITLES.find(t => t.id === t1id)?.label || t1id) : '—';
+  const t2label = t2id ? (TITLES.find(t => t.id === t2id)?.label || t2id) : '—';
+  const titleStr = [t1label, lia, t2label].filter(Boolean).join(' ');
+  titresDiv.innerHTML = `
+    <div style="font-family:var(--font-pixel);font-size:9px;color:var(--gold);margin-bottom:10px">TITRES</div>
+    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px;display:flex;flex-direction:column;gap:8px">
+      <div style="font-size:9px;color:var(--text-dim)">Titre actif :</div>
+      <div style="font-family:var(--font-pixel);font-size:10px;color:var(--gold);min-height:1em">${titleStr || '(aucun)'}</div>
+      <div style="font-size:8px;color:var(--text-dim)">${(state.unlockedTitles||[]).length} titres débloqués</div>
+      <button id="btnOpenTitlesFromCosm" style="font-family:var(--font-pixel);font-size:8px;padding:6px 12px;background:var(--bg);border:1px solid var(--gold-dim);border-radius:var(--radius-sm);color:var(--gold);cursor:pointer;align-self:flex-start">🏷 Gérer les titres</button>
+    </div>`;
+  container.appendChild(titresDiv);
+  titresDiv.querySelector('#btnOpenTitlesFromCosm')?.addEventListener('click', () => {
+    openTitleModal();
+  });
+
+  // ── Infirmière Joëlle corrompue ────────────────────────────────
+  const nurseDiv = document.createElement('div');
+  nurseDiv.style.cssText = 'margin-top:20px';
+  const nurseOwned = state.purchases?.autoIncubator;
+  nurseDiv.innerHTML = `
+    <div style="font-family:var(--font-pixel);font-size:9px;color:var(--gold);margin-bottom:10px">SERVICES SPÉCIAUX</div>
+    <div style="background:var(--bg-card);border:1px solid ${nurseOwned ? 'var(--green)' : 'var(--border)'};border-radius:var(--radius-sm);padding:10px;display:flex;gap:12px;align-items:flex-start">
+      <div style="font-size:28px;flex-shrink:0">💉</div>
+      <div style="flex:1">
+        <div style="font-family:var(--font-pixel);font-size:9px;color:${nurseOwned ? 'var(--green)' : 'var(--text)'};margin-bottom:4px">Infirmière Joëlle corrompue</div>
+        <div style="font-size:8px;color:var(--text-dim);margin-bottom:8px">Met automatiquement les oeufs en incubation dès qu'un incubateur est libre. Service permanent.</div>
+        ${nurseOwned
+          ? `<div style="font-family:var(--font-pixel);font-size:8px;color:var(--green)">✓ SERVICE ACTIF</div>`
+          : `<button id="btnBuyNurse" style="font-family:var(--font-pixel);font-size:8px;padding:6px 12px;background:var(--bg);border:1px solid var(--gold-dim);border-radius:var(--radius-sm);color:var(--gold);cursor:pointer">Embaucher — 50 000₽</button>`}
+      </div>
+    </div>`;
+  container.appendChild(nurseDiv);
+  nurseDiv.querySelector('#btnBuyNurse')?.addEventListener('click', () => {
+    if (state.gang.money < 50000) { notify('Fonds insuffisants.', 'error'); SFX.play('error'); return; }
+    showConfirm('Embaucher l\'Infirmière Joëlle corrompue pour 50 000₽ ? (permanent)', () => {
+      state.gang.money -= 50000;
+      state.purchases.autoIncubator = true;
+      saveState(); updateTopBar();
+      SFX.play('unlock');
+      notify('💉 Joëlle est en poste ! Les oeufs seront auto-incubés.', 'gold');
+      tryAutoIncubate();
+      renderCosmeticsPanel(container);
+    }, null, { confirmLabel: 'Embaucher', cancelLabel: 'Annuler' });
   });
 }
 
@@ -6000,6 +6055,7 @@ function buildZoneWindowEl(zoneId) {
     <div class="zone-headbar${degraded ? ' zone-headbar-degraded' : ''}" data-zone-hb="${zoneId}">
       <span class="headbar-name">${name}${gymDefeated ? ' [V]' : ''}${degraded ? ' ⚠' : ''}</span>
       <span class="headbar-stats">${'*'.repeat(mastery)} ${boosts.map(b => `<span class="boost-tag">${b}</span>`).join('')}</span>
+      <button class="headbar-collect-btn" data-headbar-collect="${zoneId}" style="display:${(zState.pendingIncome||0) > 0 ? 'flex' : 'none'};font-family:var(--font-pixel);font-size:7px;padding:1px 6px;background:rgba(200,160,40,.25);border:1px solid var(--gold-dim);border-radius:2px;color:var(--gold);cursor:pointer;align-items:center;gap:2px">₽ ${(zState.pendingIncome||0) > 0 ? (zState.pendingIncome).toLocaleString() : ''}</button>
       <span class="headbar-toggle">${isExpanded ? '▲' : '▼'}</span>
       <button class="headbar-close" data-close-zone="${zoneId}" title="Fermer">✕</button>
     </div>
@@ -6042,6 +6098,11 @@ function buildZoneWindowEl(zoneId) {
   win.querySelector(`[data-close-zone="${zoneId}"]`)?.addEventListener('click', (e) => {
     e.stopPropagation();
     closeZoneWindow(zoneId);
+  });
+
+  win.querySelector(`[data-headbar-collect="${zoneId}"]`)?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    openCollectionModal(zoneId);
   });
 
   win.querySelector(`[data-zone-hb="${zoneId}"]`)?.addEventListener('click', () => {
@@ -6106,6 +6167,13 @@ function patchZoneWindow(zoneId, win) {
     if (nameEl) nameEl.innerHTML = `${name}${gymDefeated ? ' [V]' : ''}${degraded ? ' ⚠' : ''}`;
     const statsEl = headbar.querySelector('.headbar-stats');
     if (statsEl) statsEl.innerHTML = `${'*'.repeat(mastery)} ${boosts.map(b => `<span class="boost-tag">${b}</span>`).join('')}`;
+    // ₽ collect button
+    const collectBtn = headbar.querySelector(`[data-headbar-collect="${zoneId}"]`);
+    const income = zState.pendingIncome || 0;
+    if (collectBtn) {
+      collectBtn.style.display = income > 0 ? 'flex' : 'none';
+      if (income > 0) collectBtn.textContent = `₽ ${income.toLocaleString()}`;
+    }
   }
   win.classList.remove('zone-mastery-1','zone-mastery-2','zone-mastery-3');
   const mc = mastery >= 3 ? 'zone-mastery-3' : mastery === 2 ? 'zone-mastery-2' : mastery === 1 ? 'zone-mastery-1' : '';
@@ -7696,6 +7764,48 @@ function renderCosmeticsTab() {
 function renderMarketTab() {
   renderQuestPanel();
   renderShopPanel();
+  renderBarterPanel();
+}
+
+// ── Troc d'objets ─────────────────────────────────────────────
+const BARTER_RECIPES = [
+  // [donnerItemId, donnerQty, recevoirItemId, recevoirQty, label]
+  ['pokeball',  10, 'greatball',  1,  '10 Poké Balls → 1 Super Ball'],
+  ['greatball',  5, 'ultraball',  1,  '5 Super Balls → 1 Hyper Ball'],
+  ['ultraball',  3, 'masterball', 1,  '3 Hyper Balls → 1 Master Ball'],
+  ['lure',       5, 'superlure',  1,  '5 Leurres → 1 Super Leurre'],
+  ['superlure',  3, 'evostone',   1,  '3 Super Leurres → 1 Pierre Évol.'],
+  ['rarecandy',  3, 'evostone',   1,  '3 Super Bonbons → 1 Pierre Évol.'],
+  ['incense',    3, 'aura',       1,  '3 Encens → 1 Aura Shiny'],
+  ['potion',    10, 'rarecandy',  1,  '10 Potions → 1 Super Bonbon'],
+];
+
+function renderBarterPanel() {
+  const panel = document.querySelector('#barterPanel .barter-list');
+  if (!panel) return;
+  panel.innerHTML = BARTER_RECIPES.map((r, i) => {
+    const [giveId, giveQty, getId, getQty, label] = r;
+    const owned = state.inventory?.[giveId] || 0;
+    const canAfford = owned >= giveQty;
+    return `<div style="display:flex;align-items:center;gap:10px;padding:8px 4px;border-bottom:1px solid var(--border);opacity:${canAfford ? 1 : 0.5}">
+      ${itemSprite(giveId)}
+      <div style="flex:1;font-size:9px;color:var(--text)">${label}</div>
+      <div style="font-size:8px;color:${canAfford ? 'var(--gold-dim)' : 'var(--text-dim)'}">×${owned}</div>
+      <button data-barter="${i}" style="font-family:var(--font-pixel);font-size:7px;padding:3px 8px;background:${canAfford ? 'var(--bg-hover)' : 'var(--bg)'};border:1px solid ${canAfford ? 'var(--gold-dim)' : 'var(--border)'};border-radius:var(--radius-sm);color:${canAfford ? 'var(--gold)' : 'var(--text-dim)'};cursor:${canAfford ? 'pointer' : 'default'}" ${canAfford ? '' : 'disabled'}>Troquer</button>
+    </div>`;
+  }).join('');
+
+  panel.querySelectorAll('[data-barter]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const [giveId, giveQty, getId, getQty] = BARTER_RECIPES[parseInt(btn.dataset.barter)];
+      if ((state.inventory?.[giveId] || 0) < giveQty) { SFX.play('error'); return; }
+      state.inventory[giveId] -= giveQty;
+      state.inventory[getId] = (state.inventory[getId] || 0) + getQty;
+      saveState(); updateTopBar(); SFX.play('buy');
+      notify(`Troc effectué !`, 'success');
+      renderBarterPanel();
+    });
+  });
 }
 
 // ── Quest Panel (replaces sell panel) ────────────────────────────
@@ -8213,6 +8323,25 @@ function renderPCTab() {
 
   renderPokemonGrid();
   renderPokemonDetail();
+}
+
+// Auto-incubation — Infirmière Joëlle corrompue
+function tryAutoIncubate() {
+  if (!state.purchases?.autoIncubator) return;
+  const incubatorCount = state.inventory?.incubator || 0;
+  if (incubatorCount === 0) return;
+  const eggs = state.eggs || [];
+  let changed = false;
+  for (const egg of eggs) {
+    if (egg.incubating) continue;
+    const incubatingNow = eggs.filter(e => e.incubating).length;
+    if (incubatingNow >= incubatorCount) break;
+    egg.incubating = true;
+    egg.incubatedAt = Date.now();
+    egg.hatchAt = Date.now() + (egg.hatchMs || 2700000);
+    changed = true;
+  }
+  if (changed) { saveState(); notify('💉 Joëlle a mis un oeuf en incubation !', 'success'); }
 }
 
 function renderEggsView(container) {
@@ -10657,8 +10786,9 @@ function pensionTick() {
           parentB: pkB.species_en,
         };
         state.eggs.push(egg);
+        tryAutoIncubate();
         p.eggAt = now + EGG_GEN_MS;
-        notify(`Un oeuf de ${speciesName(baseSpeciesEn)} a ete depose ! Placez-le dans un incubateur.`, 'gold');
+        notify(`Un oeuf de ${speciesName(baseSpeciesEn)} a ete depose !${state.purchases?.autoIncubator ? ' (auto-incubé)' : ' Placez-le dans un incubateur.'}`, 'gold');
         saveState();
         if (activeTab === 'tabPC') renderPCTab();
       }
