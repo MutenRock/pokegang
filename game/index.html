@@ -2572,6 +2572,17 @@
       66% { transform: translateX(1px); }
     }
 
+    /* ── Zone Favorite Button ────────────────────────────────────────── */
+    .zone-fav-btn {
+      position: absolute; top: 4px; right: 28px;
+      font-size: 10px; line-height: 1;
+      background: none; border: none; cursor: pointer;
+      color: var(--gold); opacity: 0.6; z-index: 10;
+      padding: 2px; transition: opacity .15s, transform .1s;
+    }
+    .zone-fav-btn:hover { opacity: 1; transform: scale(1.25); }
+    .zone-fav-btn.active { opacity: 1; }
+
     /* ── Gang Card Layout ── */
     .gang-card-layout { padding: 12px; display: flex; flex-direction: column; gap: 0; }
     .gang-card-header { display: flex; align-items: flex-start; gap: 14px; padding: 14px; background: var(--bg-panel); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 12px; }
