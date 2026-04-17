@@ -95,7 +95,28 @@
       "Bash(git commit -m 'fix: sprite phoebe \\(gen3\\) et drake \\(gen3\\) 404 sur Showdown:*)",
       "Bash(git commit -m 'fix: corriger tous les sprites trainers 404 \\(check exhaustif 96 sprites\\):*)",
       "Bash(git pull:*)",
-      "Bash(python3)"
+      "Bash(python3)",
+      "Bash(gh repo:*)",
+      "Bash(cat .github/workflows/*.yml)",
+      "Bash(node --check \"C:/Users/pierr/Documents/GitHub/pokeforge/game/app.js\")",
+      "Bash(node -e \"try { require\\('fs'\\).readFileSync\\('C:/Users/pierr/Documents/GitHub/pokeforge/game/app.js', 'utf8'\\); console.log\\('file readable'\\); } catch\\(e\\) { console.error\\(e.message\\); }\")",
+      "Bash(node --input-type=module)",
+      "Bash(node -e \"try { require\\('fs'\\).readFileSync\\('game/app.js','utf8'\\); console.log\\('OK'\\); } catch\\(e\\) { console.error\\(e.message\\); }\")",
+      "Bash(git -C \"C:/Users/pierr/Documents/GitHub/pokeforge\" diff --stat)",
+      "Bash(git -C \"C:/Users/pierr/Documents/GitHub/pokeforge\" log --oneline -3)",
+      "Bash(git -C \"C:/Users/pierr/Documents/GitHub/pokeforge\" add game/app.js game/index.html)",
+      "Bash(git -C C:/Users/pierr/Documents/GitHub/pokeforge commit -m ':*)",
+      "Bash(git -C \"C:/Users/pierr/Documents/GitHub/pokeforge\" checkout -b feat/combat-sequential-slots-rewards)",
+      "Bash(git -C \"C:/Users/pierr/Documents/GitHub/pokeforge\" push -u origin feat/combat-sequential-slots-rewards)",
+      "Bash(gh -R C:/Users/pierr/Documents/GitHub/pokeforge pr create --title 'feat: sequential combat log, zone slot tier cost, reward cap 5k' --body ':*)",
+      "WebFetch(domain:lab.sterenna.fr)",
+      "Read(//c/Users/pierr/**)",
+      "Bash(grep -v \"//\")",
+      "Bash(node --check /c/Users/pierr/Documents/GitHub/pokeforge/game/app.js)",
+      "Bash(git commit -m ' *)",
+      "Bash(git fetch *)",
+      "Bash(git cherry-pick *)",
+      "Bash(git branch *)"
     ]
   }
 }
