@@ -1053,7 +1053,7 @@ const HOURLY_QUEST_POOL = [
   { id:'hq_shiny',    diff:'hard',   fr:'Capturer un Shiny',     icon:'✨', stat:'shinyCaught',      target:1,   reward:{ money:9000, rep:30 } },
   { id:'hq_chest5',   diff:'hard',   fr:'Ouvrir 5 coffres',      icon:'📦', stat:'chestsOpened',     target:5,   reward:{ money:3000, rep:12 } },
 ];
-const HOURLY_QUEST_REROLL_COST = 10; // réputation par reroll
+const HOURLY_QUEST_REROLL_COST = 500; // ₽
 
 // ── Trainers ──────────────────────────────────────────────────
 const TRAINER_TYPES = {
@@ -1146,6 +1146,13 @@ const SHOP_ITEMS = [
   { id:'silph_keycard', qty:1, cost:50000, icon:'🔑', fr:'Badge Sylphe',     en:'Silph Keycard',   desc_fr:'Accès à Sylphe SARL',                   desc_en:'Access to Silph Co.' },
   { id:'boat_ticket',   qty:1, cost:15000, icon:'⚓', fr:'Ticket Bateau',    en:'Boat Ticket',     desc_fr:'Monte à bord du Bateau St. Anne',        desc_en:'Board the S.S. Anne' },
   { id:'egg_scanner', qty:1, cost:1000000, icon:'🔬', fr:'Scanneur d\'Oeuf', en:'Egg Scanner', desc_fr:'80% chance de révéler l\'espèce d\'un oeuf', desc_en:'80% chance to reveal an egg\'s species' },
+  { id:'title_richissime', fr:'Titre "Richissime"', en:'Title "Richissime"', price:5000000, category:'cosmetic',
+    desc:'Débloquer le titre légendaire "Richissime". Ostentation maximale.',
+    onBuy: () => {
+      state.unlockedTitles = [...new Set([...(state.unlockedTitles||[]), 'richissime'])];
+      notify('💰 Titre "Richissime" débloqué !', 'gold');
+    }
+  },
 ];
 
 // ── Mystery Egg ───────────────────────────────────────────────
@@ -1340,6 +1347,9 @@ const DEFAULT_STATE = {
     reputation: 0,
     money: 5000,
     initialized: false,
+    titleA: 'recrue',
+    titleB: null,
+    titleLiaison: '',
   },
   inventory: {
     pokeball: 20,
@@ -1504,6 +1514,11 @@ function migrate(saved) {
   // Migration: bossTeam
   if (!merged.gang.bossTeam) merged.gang.bossTeam = [];
   if (!merged.gang.showcase) merged.gang.showcase = [null, null, null];
+  // Migration: titles
+  if (!merged.unlockedTitles) merged.unlockedTitles = ['recrue', 'fondateur'];
+  if (!merged.gang.titleA) merged.gang.titleA = 'recrue';
+  if (merged.gang.titleB === undefined) merged.gang.titleB = null;
+  if (merged.gang.titleLiaison === undefined) merged.gang.titleLiaison = '';
   // Migration: marketSales + favorites
   if (!merged.marketSales) merged.marketSales = {};
   if (!merged.favorites) merged.favorites = [];
@@ -2498,9 +2513,199 @@ function levelUpPokemon(pokemon, xpGain) {
 //  5.  ZONE MODULE
 // ════════════════════════════════════════════════════════════════
 
-// Coûts en réputation pour débloquer des slots d'agents par zone
-// slot 2 → 50 rep, slot 3 → 150, slot 4 → 400, slot 5 → 1000, slot 6 → 2000
-const ZONE_SLOT_COSTS = [50, 150, 400, 1000, 2000]; // base costs (reputation)
+// Coûts en ₽ pour débloquer des slots d'agents par zone
+// slot 2 → 2000₽, slot 3 → 6000₽, etc.
+const ZONE_SLOT_COSTS = [2000, 6000, 15000, 50000, 150000]; // base costs (₽)
+
+// ── Titres ──────────────────────────────────────────────────
+const TITLES = [
+  // Réputation (débloqués auto selon seuil)
+  { id:'recrue',      label:'Recrue',            category:'rep', repReq:0 },
+  { id:'apprenti',    label:'Apprenti',           category:'rep', repReq:50 },
+  { id:'chasseur',    label:'Chasseur',           category:'rep', repReq:100 },
+  { id:'agent',       label:'Agent',              category:'rep', repReq:250 },
+  { id:'capo',        label:'Capo',               category:'rep', repReq:500 },
+  { id:'lieutenant',  label:'Lieutenant',         category:'rep', repReq:900 },
+  { id:'boss_adj',    label:'Boss-Adjoint',       category:'rep', repReq:1500 },
+  { id:'boss',        label:'Boss',               category:'rep', repReq:2500 },
+  { id:'baron',       label:'Baron',              category:'rep', repReq:4000 },
+  { id:'parrain',     label:'Parrain',            category:'rep', repReq:6000 },
+  { id:'legende',     label:'Légende',            category:'rep', repReq:8500 },
+  { id:'intouchable', label:"L'Intouchable",      category:'rep', repReq:10000 },
+  // Type capture (débloqués quand assez de Pokémon d'un type)
+  { id:'pyromane',    label:'Pyromane',           category:'type_capture', typeReq:'Fire',     countReq:10 },
+  { id:'surfeur',     label:'Surfeur',            category:'type_capture', typeReq:'Water',    countReq:10 },
+  { id:'botaniste',   label:'Botaniste',          category:'type_capture', typeReq:'Grass',    countReq:10 },
+  { id:'electricien', label:'Électricien',        category:'type_capture', typeReq:'Electric', countReq:8 },
+  { id:'psy',         label:'Psychique',          category:'type_capture', typeReq:'Psychic',  countReq:6 },
+  { id:'spectre',     label:'Chasseur de Spectres',category:'type_capture', typeReq:'Ghost',   countReq:4 },
+  { id:'dragon_lord', label:'Dompteur de Dragons',category:'type_capture', typeReq:'Dragon',   countReq:3 },
+  { id:'venimeux',    label:'Venimeux',           category:'type_capture', typeReq:'Poison',   countReq:10 },
+  { id:'combattant',  label:'Combattant',         category:'type_capture', typeReq:'Fighting', countReq:8 },
+  // Stats
+  { id:'collectionneur',label:'Collectionneur',  category:'stat', statReq:'totalCaught',    countReq:100 },
+  { id:'grand_vendeur', label:'Grand Vendeur',   category:'stat', statReq:'totalSold',       countReq:50 },
+  { id:'guerrier',      label:'Guerrier',        category:'stat', statReq:'totalFightsWon',  countReq:100 },
+  { id:'chasseur_shiny',label:'Chasseur Shiny',  category:'stat', statReq:'shinyCaught',     countReq:5 },
+  // Achetable en boutique
+  { id:'richissime',  label:'Richissime',         category:'shop', shopPrice:5000000 },
+  // Spéciaux (débloqués par quête/event)
+  { id:'glitcheur',   label:'Glitcheur',          category:'special' }, // possession de MissingNo
+  { id:'fondateur',   label:'Fondateur',          category:'special' }, // débloqué au début
+];
+
+const LIAISONS = ['', 'de', "de l'", 'du', 'des', 'à', 'et', '&', 'alias', 'dit'];
+
+function getTitleLabel(titleId) {
+  return TITLES.find(t => t.id === titleId)?.label || '';
+}
+
+function getBossFullTitle() {
+  const t1 = getTitleLabel(state.gang.titleA);
+  const t2 = getTitleLabel(state.gang.titleB);
+  const lia = state.gang.titleLiaison || '';
+  if (!t1 && !t2) return 'Recrue';
+  if (t1 && !t2) return t1;
+  if (!t1 && t2) return t2;
+  return `${t1}${lia ? ' ' + lia : ''} ${t2}`;
+}
+
+function checkTitleUnlocks() {
+  const unlocked = new Set(state.unlockedTitles || []);
+  const newOnes = [];
+  for (const t of TITLES) {
+    if (unlocked.has(t.id)) continue;
+    let unlock = false;
+    if (t.category === 'rep') {
+      unlock = state.gang.reputation >= t.repReq;
+    } else if (t.category === 'type_capture') {
+      const count = state.pokemons.filter(p => {
+        const sp = POKEMON_GEN1.find(s => s.en === p.species_en);
+        return sp?.types?.includes(t.typeReq);
+      }).length;
+      unlock = count >= t.countReq;
+    } else if (t.category === 'stat') {
+      unlock = (state.stats[t.statReq] || 0) >= t.countReq;
+    } else if (t.category === 'special' && t.id === 'fondateur') {
+      unlock = true; // toujours débloqué
+    } else if (t.category === 'special' && t.id === 'glitcheur') {
+      unlock = state.pokemons.some(p => p.species_en === 'missingno');
+    }
+    if (unlock) { unlocked.add(t.id); newOnes.push(t); }
+  }
+  if (newOnes.length > 0) {
+    state.unlockedTitles = [...unlocked];
+    // Set default titleA to best rep title
+    if (!state.gang.titleA) state.gang.titleA = state.unlockedTitles[0] || 'recrue';
+    newOnes.forEach(t => notify(`🏆 Titre débloqué : "${t.label}" !`, 'gold'));
+    saveState();
+  }
+}
+
+function openTitleModal() {
+  const unlocked = new Set(state.unlockedTitles || []);
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:9700;background:rgba(0,0,0,.88);display:flex;align-items:center;justify-content:center;padding:16px';
+
+  const categories = { rep:'Réputation', type_capture:'Type', stat:'Exploit', shop:'Boutique', special:'Spécial' };
+
+  const renderModal = () => {
+    const t1 = state.gang.titleA;
+    const t2 = state.gang.titleB;
+    const lia = state.gang.titleLiaison || '';
+
+    const liaOptions = LIAISONS.map(l => `<option value="${l}" ${l === lia ? 'selected' : ''}>${l || '(aucun)'}</option>`).join('');
+
+    let titlesHtml = '';
+    for (const [cat, catLabel] of Object.entries(categories)) {
+      const group = TITLES.filter(t => t.category === cat);
+      if (group.length === 0) continue;
+      titlesHtml += `<div style="margin-bottom:12px">
+        <div style="font-family:var(--font-pixel);font-size:8px;color:var(--text-dim);margin-bottom:6px;text-transform:uppercase;letter-spacing:1px">${catLabel}</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px">`;
+      for (const t of group) {
+        const isUnlocked = unlocked.has(t.id);
+        const isT1 = t1 === t.id;
+        const isT2 = t2 === t.id;
+        let hint = '';
+        if (!isUnlocked) {
+          if (t.category === 'rep') hint = `⭐ ${t.repReq} rep`;
+          else if (t.category === 'type_capture') hint = `${t.countReq}× type ${t.typeReq}`;
+          else if (t.category === 'stat') hint = `${t.countReq}× ${t.statReq}`;
+          else if (t.category === 'shop') hint = `${(t.shopPrice||0).toLocaleString()}₽`;
+          else hint = '???';
+        }
+        const style = isUnlocked
+          ? `background:${isT1 ? 'rgba(255,204,90,.15)' : isT2 ? 'rgba(204,51,51,.15)' : 'var(--bg-card)'};border:1px solid ${isT1 ? 'var(--gold)' : isT2 ? 'var(--red)' : 'var(--border)'};color:var(--text);cursor:pointer`
+          : 'background:var(--bg);border:1px solid var(--border);color:var(--text-dim);opacity:.5;cursor:not-allowed';
+        titlesHtml += `<div class="title-chip ${isUnlocked ? 'title-unlocked' : 'title-locked'}" data-title-id="${t.id}"
+          style="font-family:var(--font-pixel);font-size:8px;padding:4px 8px;border-radius:var(--radius-sm);${style}"
+          title="${isUnlocked ? (isT1 ? 'Titre principal' : isT2 ? 'Titre secondaire' : 'Cliquer pour sélectionner') : hint}">
+          ${t.label}${isT1 ? ' 1' : isT2 ? ' 2' : ''}
+        </div>`;
+      }
+      titlesHtml += '</div></div>';
+    }
+
+    overlay.innerHTML = `
+      <div style="background:var(--bg-panel);border:2px solid var(--gold);border-radius:var(--radius);padding:20px;max-width:560px;width:100%;max-height:80vh;display:flex;flex-direction:column;gap:12px;overflow:hidden">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div style="font-family:var(--font-pixel);font-size:11px;color:var(--gold)">🏆 Titres</div>
+          <button id="btnCloseTitleModal" style="background:none;border:none;color:var(--text-dim);font-size:18px;cursor:pointer">✕</button>
+        </div>
+        <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px;text-align:center">
+          <div style="font-family:var(--font-pixel);font-size:10px;color:var(--gold-dim);margin-bottom:6px">${getBossFullTitle()}</div>
+          <div style="display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap">
+            <span style="font-size:9px;color:var(--text-dim)">Titre 1 :</span>
+            <span style="font-family:var(--font-pixel);font-size:9px;color:var(--gold)">${getTitleLabel(t1) || '—'}</span>
+            <select id="titleLiaison" style="background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:3px;font-size:9px;padding:2px 4px">${liaOptions}</select>
+            <span style="font-size:9px;color:var(--text-dim)">Titre 2 :</span>
+            <span style="font-family:var(--font-pixel);font-size:9px;color:var(--red)">${getTitleLabel(t2) || '—'}</span>
+            ${t1 || t2 ? `<button id="btnClearTitles" style="font-size:8px;padding:2px 6px;background:var(--bg);border:1px solid var(--border);border-radius:3px;color:var(--text-dim);cursor:pointer">Effacer</button>` : ''}
+          </div>
+          <div style="font-size:8px;color:var(--text-dim);margin-top:6px">Clic gauche → Titre 1 &nbsp;|&nbsp; Clic droit → Titre 2</div>
+        </div>
+        <div style="overflow-y:auto;flex:1">${titlesHtml}</div>
+      </div>`;
+
+    overlay.querySelector('#btnCloseTitleModal')?.addEventListener('click', () => overlay.remove());
+    overlay.querySelector('#titleLiaison')?.addEventListener('change', e => {
+      state.gang.titleLiaison = e.target.value;
+      saveState();
+      renderModal();
+      if (activeTab === 'tabGang') renderGangTab();
+    });
+    overlay.querySelector('#btnClearTitles')?.addEventListener('click', () => {
+      state.gang.titleA = 'recrue';
+      state.gang.titleB = null;
+      saveState(); renderModal();
+      if (activeTab === 'tabGang') renderGangTab();
+    });
+
+    overlay.querySelectorAll('.title-unlocked').forEach(chip => {
+      chip.addEventListener('click', () => {
+        const id = chip.dataset.titleId;
+        if (state.gang.titleA === id) { state.gang.titleA = null; }
+        else if (state.gang.titleB === id) { /* do nothing on re-click */ }
+        else { state.gang.titleA = id; }
+        saveState(); renderModal();
+        if (activeTab === 'tabGang') renderGangTab();
+      });
+      chip.addEventListener('contextmenu', e => {
+        e.preventDefault();
+        const id = chip.dataset.titleId;
+        if (state.gang.titleB === id) { state.gang.titleB = null; }
+        else { state.gang.titleB = id; }
+        saveState(); renderModal();
+        if (activeTab === 'tabGang') renderGangTab();
+      });
+    });
+  };
+
+  document.body.appendChild(overlay);
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+  renderModal();
+}
 
 function getZoneSlotCost(zoneId, slotIndex) {
   const base = ZONE_SLOT_COSTS[slotIndex] ?? 9999;
@@ -3223,15 +3428,15 @@ function claimHourlyQuest(idx) {
 }
 
 function rerollHourlyQuest(idx) {
-  if (state.gang.reputation < HOURLY_QUEST_REROLL_COST) { notify('Réputation insuffisante (10 req)'); return; }
+  if (state.gang.money < HOURLY_QUEST_REROLL_COST) { notify(`Pokédollars insuffisants (${HOURLY_QUEST_REROLL_COST}₽ req)`); return; }
   const h = state.missions.hourly;
   if (!h || isHourlyClaimed(idx)) return;
   const current = getHourlyQuest(idx);
   if (!current) return;
-  state.gang.reputation -= HOURLY_QUEST_REROLL_COST;
+  state.gang.money -= HOURLY_QUEST_REROLL_COST;
   // Pick a different quest of same difficulty
   const pool = HOURLY_QUEST_POOL.filter(q => q.diff === current.diff && q.id !== current.id && !h.slots.includes(q.id));
-  if (pool.length === 0) { notify('Aucune quête disponible pour le reroll'); state.gang.reputation += HOURLY_QUEST_REROLL_COST; return; }
+  if (pool.length === 0) { notify('Aucune quête disponible pour le reroll'); state.gang.money += HOURLY_QUEST_REROLL_COST; return; }
   const newQ = pool[Math.floor(Math.random() * pool.length)];
   h.slots[idx] = newQ.id;
   if (h.baseline[newQ.stat] === undefined) h.baseline[newQ.stat] = getMissionStat(newQ.stat);
@@ -4228,6 +4433,7 @@ function updateTopBar() {
 
   // ── Ball assist silencieux (early-game) ───────────────────
   checkBallAssist();
+  checkTitleUnlocks();
 
   // ── Session delta bar ──────────────────────────────────────
   _saveSessionActivity();
@@ -4550,37 +4756,37 @@ function renderCosmeticsPanel(container) {
       const agentId = btn.dataset.agentId;
 
       if (action === 'rename-boss') {
-        if (state.gang.reputation < 50) { notify('Réputation insuffisante (50 rep)', 'error'); return; }
+        if (state.gang.money < 2000) { notify('Pokédollars insuffisants (2000₽)', 'error'); return; }
         const newName = prompt(`Nouveau nom du Boss (max 16 car.) :`);
         if (!newName || !newName.trim()) return;
-        state.gang.reputation -= 50;
+        state.gang.money -= 2000;
         state.gang.bossName = newName.trim().slice(0, 16);
         saveState(); updateTopBar(); renderCosmeticsPanel(container);
         notify(`Boss renommé : ${state.gang.bossName}`, 'gold');
       } else if (action === 'rename-agent') {
-        if (state.gang.reputation < 50) { notify('Réputation insuffisante (50 rep)', 'error'); return; }
+        if (state.gang.money < 2000) { notify('Pokédollars insuffisants (2000₽)', 'error'); return; }
         const agent = state.agents.find(a => a.id === agentId);
         if (!agent) return;
         const newName = prompt(`Nouveau nom de ${agent.name} (max 16 car.) :`);
         if (!newName || !newName.trim()) return;
-        state.gang.reputation -= 50;
+        state.gang.money -= 2000;
         agent.name = newName.trim().slice(0, 16);
         saveState(); updateTopBar(); renderCosmeticsPanel(container);
         notify(`Agent renommé : ${agent.name}`, 'gold');
       } else if (action === 'sprite-boss') {
-        if (state.gang.reputation < 100) { notify('Réputation insuffisante (100 rep)', 'error'); return; }
+        if (state.gang.money < 5000) { notify('Pokédollars insuffisants (5000₽)', 'error'); return; }
         openSpritePicker(state.gang.bossSprite, (newSprite) => {
-          state.gang.reputation -= 100;
+          state.gang.money -= 5000;
           state.gang.bossSprite = newSprite;
           saveState(); updateTopBar(); renderZonesTab(); renderCosmeticsPanel(container);
           notify('Sprite du Boss mis à jour !', 'gold');
         });
       } else if (action === 'sprite-agent') {
-        if (state.gang.reputation < 100) { notify('Réputation insuffisante (100 rep)', 'error'); return; }
+        if (state.gang.money < 5000) { notify('Pokédollars insuffisants (5000₽)', 'error'); return; }
         const agent = state.agents.find(a => a.id === agentId);
         if (!agent) return;
         openSpritePicker(null, (newSprite) => {
-          state.gang.reputation -= 100;
+          state.gang.money -= 5000;
           agent.sprite = trainerSprite(newSprite);
           saveState(); renderCosmeticsPanel(container);
           notify(`Sprite de ${agent.name} mis à jour !`, 'gold');
@@ -4687,6 +4893,8 @@ function renderGangTab() {
       <div style="flex:1;min-width:0">
         <div style="font-family:var(--font-pixel);font-size:16px;color:var(--red);line-height:1.3">${g.name}</div>
         <div style="font-size:11px;color:var(--text-dim);margin-top:2px">Boss : <span style="color:var(--text)">${g.bossName}</span></div>
+<div style="font-family:var(--font-pixel);font-size:8px;color:var(--gold-dim);margin-top:2px;letter-spacing:.5px">${getBossFullTitle()}</div>
+<button id="btnOpenTitles" style="margin-top:4px;font-family:var(--font-pixel);font-size:7px;padding:3px 8px;background:var(--bg);border:1px solid var(--border-light);border-radius:var(--radius-sm);color:var(--text-dim);cursor:pointer">🏆 Titres</button>
         <div style="display:flex;gap:16px;margin-top:6px;flex-wrap:wrap">
           <span style="font-size:10px;color:var(--gold)">⭐ ${g.reputation.toLocaleString()}</span>
           <span style="font-size:10px;color:var(--text)">₽ ${g.money.toLocaleString()}</span>
@@ -4723,6 +4931,8 @@ function renderGangTab() {
   </div>`;
 
   // ── Handlers ──
+  tab.querySelector('#btnOpenTitles')?.addEventListener('click', openTitleModal);
+
   tab.querySelector('#btnRecruitAgent')?.addEventListener('click', () => openAgentRecruitModal(() => renderGangTab()));
 
   tab.querySelector('#btnExportGang')?.addEventListener('click', () => openExportModal());
@@ -5470,12 +5680,12 @@ function buildZoneWindowEl(zoneId) {
         ${(zState.slots || 1) < ZONE_SLOT_COSTS.length + 1 ? (() => {
           const nextSlot = (zState.slots || 1);
           const cost = getZoneSlotCost(zoneId, nextSlot - 1);
-          const canAfford = state.gang.reputation >= cost;
+          const canAfford = state.gang.money >= cost;
           return `<button class="zone-slot-upgrade" data-zone-upgrade="${zoneId}" data-cost="${cost}"
             style="font-family:var(--font-pixel);font-size:7px;padding:2px 6px;background:var(--bg);
             border:1px solid ${canAfford ? 'var(--gold-dim)' : 'var(--border)'};border-radius:2px;
             color:${canAfford ? 'var(--gold)' : 'var(--text-dim)'};cursor:${canAfford ? 'pointer' : 'default'}"
-            ${canAfford ? '' : 'disabled'}>+slot ${cost}rep</button>`;
+            ${canAfford ? '' : 'disabled'}>+slot ${cost.toLocaleString()}₽</button>`;
         })() : `<span style="color:var(--gold)">FULL</span>`}
       </div>
     </div>
@@ -5505,9 +5715,9 @@ function buildZoneWindowEl(zoneId) {
     const zs = initZone(zoneId);
     const nextSlot = zs.slots || 1;
     const cost = getZoneSlotCost(zoneId, nextSlot - 1);
-    if (!cost || state.gang.reputation < cost) { notify('Réputation insuffisante', 'error'); return; }
-    showConfirm(`Dépenser ${cost} réputation pour débloquer un slot agent ?`, () => {
-      state.gang.reputation -= cost;
+    if (!cost || state.gang.money < cost) { notify('Pokédollars insuffisants', 'error'); return; }
+    showConfirm(`Dépenser ${cost.toLocaleString()}₽ pour débloquer un slot agent ?`, () => {
+      state.gang.money -= cost;
       zs.slots = nextSlot + 1;
       saveState(); updateTopBar();
       notify(`Zone améliorée ! Slots agents: ${zs.slots}`, 'gold');
@@ -5607,7 +5817,7 @@ function patchZoneWindow(zoneId, win) {
     const freshMaxSlots = freshZState.slots || 1;
     const freshCanUpgrade = freshMaxSlots < ZONE_SLOT_COSTS.length + 1;
     const freshCost = freshCanUpgrade ? getZoneSlotCost(zoneId, freshMaxSlots - 1) : null;
-    const freshCanAfford = freshCost && state.gang.reputation >= freshCost;
+    const freshCanAfford = freshCost && state.gang.money >= freshCost;
     slotsBar.innerHTML = `
       <span class="slot-count" style="color:var(--text-dim)">Agents: ${freshAssigned.length}/${freshMaxSlots}</span>
       ${freshCanUpgrade
@@ -5615,7 +5825,7 @@ function patchZoneWindow(zoneId, win) {
             style="font-family:var(--font-pixel);font-size:7px;padding:2px 6px;background:var(--bg);
             border:1px solid ${freshCanAfford ? 'var(--gold-dim)' : 'var(--border)'};border-radius:2px;
             color:${freshCanAfford ? 'var(--gold)' : 'var(--text-dim)'};cursor:${freshCanAfford ? 'pointer' : 'default'}"
-            ${freshCanAfford ? '' : 'disabled'}>+slot ${freshCost}rep</button>`
+            ${freshCanAfford ? '' : 'disabled'}>+slot ${freshCost.toLocaleString()}₽</button>`
         : '<span style="color:var(--gold)">FULL</span>'}
     `;
     // Rebind dblclick upgrade
@@ -5624,9 +5834,9 @@ function patchZoneWindow(zoneId, win) {
       const zs2 = initZone(zoneId);
       const ns = zs2.slots || 1;
       const uc = getZoneSlotCost(zoneId, ns - 1);
-      if (!uc || state.gang.reputation < uc) { notify('Réputation insuffisante', 'error'); return; }
-      showConfirm(`Dépenser ${uc} réputation pour débloquer un slot agent ?`, () => {
-        state.gang.reputation -= uc;
+      if (!uc || state.gang.money < uc) { notify('Pokédollars insuffisants', 'error'); return; }
+      showConfirm(`Dépenser ${uc.toLocaleString()}₽ pour débloquer un slot agent ?`, () => {
+        state.gang.money -= uc;
         zs2.slots = ns + 1;
         saveState(); updateTopBar();
         notify(`Zone améliorée ! Slots agents: ${zs2.slots}`, 'gold');
@@ -7132,7 +7342,7 @@ function renderQuestPanel() {
         ${complete && !claimed
           ? `<button class="btn-claim-quest btn-claim-hourly" data-slot="${i}">Réclamer</button>`
           : claimed ? '<span style="font-size:12px;color:var(--green)">✓</span>' : ''}
-        ${!claimed ? `<button class="btn-reroll-hourly" data-slot="${i}" title="Reroll (-${HOURLY_QUEST_REROLL_COST} rep)" style="font-size:7px;padding:3px 6px;background:var(--bg);border:1px solid var(--border);border-radius:3px;color:var(--text-dim);cursor:pointer">↻ ${HOURLY_QUEST_REROLL_COST}rep</button>` : ''}
+        ${!claimed ? `<button class="btn-reroll-hourly" data-slot="${i}" title="Reroll (-${HOURLY_QUEST_REROLL_COST}₽)" style="font-size:7px;padding:3px 6px;background:var(--bg);border:1px solid var(--border);border-radius:3px;color:var(--text-dim);cursor:pointer">↻ ${HOURLY_QUEST_REROLL_COST}₽</button>` : ''}
       </div>
     </div>`;
   }
