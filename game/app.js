@@ -163,6 +163,8 @@ const POKEMON_GEN1 = [
   {en:'dragonite',fr:'Dracolosse',dex:149,types:['Dragon','Flying'],baseAtk:134,baseDef:95,baseSpd:80,rarity:'very_rare',moves:['Draco-Rage','Surf','Tonnerre','Déflagration']},
   {en:'mewtwo',fr:'Mewtwo',dex:150,types:['Psychic'],baseAtk:110,baseDef:90,baseSpd:130,rarity:'legendary',moves:['Psyko','Laser Glace','Tonnerre','Soin']},
   {en:'mew',fr:'Mew',dex:151,types:['Psychic'],baseAtk:100,baseDef:100,baseSpd:100,rarity:'legendary',moves:['Psyko','Métronome','Surf','Lance-Flamme']},
+  // Secret — not visible in Pokédex, obtainable via secret code
+  {en:'missingno',fr:'MissingNo',dex:0,types:['Normal'],baseAtk:0,baseDef:255,baseSpd:0,rarity:'legendary',moves:['Métronome','Rugissement','Charge','Hurlement'],hidden:true},
 ];
 
 // Type names in French
@@ -178,6 +180,43 @@ function typeFr(t) { return TYPE_FR[t] || t; }
 const SPECIES_BY_EN = {};
 const SPECIES_BY_DEX = {};
 POKEMON_GEN1.forEach(s => { SPECIES_BY_EN[s.en] = s; SPECIES_BY_DEX[s.dex] = s; });
+
+// ── Secret codes (entered in PC search bar) ───────────────────
+const SECRET_CODES = {
+  'MERCIDAVOIRJOUEMONJEU': {
+    key: 'code_missingno', oneTime: true,
+    exec: () => {
+      const existing = state.pokemons.find(p => p.species_en === 'missingno');
+      if (existing) { notify('Tu possèdes déjà MissingNo !', 'error'); return false; }
+      const p = makePokemon('missingno', 'secret', 'pokeball');
+      p.potential = 5; p.level = randInt(128, 255); p.shiny = Math.random() < 0.1;
+      state.pokemons.push(p);
+      if (!state.pokedex['missingno']) state.pokedex['missingno'] = {};
+      state.pokedex['missingno'].caught = true; state.pokedex['missingno'].count = 1;
+      saveState();
+      notify('👾 MissingNo a rejoint ton PC ! Le tissu du jeu tremble…', 'gold');
+      _pcLastRenderKey = ''; renderPokemonGrid(true);
+      return true;
+    }
+  },
+};
+
+function checkSecretCode(input) {
+  const code = input.trim().toUpperCase();
+  const def = SECRET_CODES[code];
+  if (!def) return false;
+  if (def.oneTime && state.claimedCodes?.[def.key]) {
+    notify('Ce code a déjà été utilisé.', 'error');
+    return true; // consume the input
+  }
+  const success = def.exec();
+  if (success && def.oneTime) {
+    state.claimedCodes = state.claimedCodes || {};
+    state.claimedCodes[def.key] = true;
+    saveState();
+  }
+  return true;
+}
 
 // Short Pokédex descriptions (FR)
 const POKEDEX_DESC = {
@@ -332,6 +371,7 @@ const POKEDEX_DESC = {
   dragonite:'Vole à 2100 km/h et tourne autour du globe en 16h. Guide les naufragés.',
   mewtwo:'Créé par manipulation génétique. Le Pokémon le plus puissant jamais créé.',
   mew:'Contient le code génétique de tous les Pokémon. Seuls quelques chanceux l\'ont vu.',
+  missingno:'Entité glitch de la Région de Kanto. Son existence est une anomalie dans le tissu du jeu.',
 };
 
 function getDexDesc(species_en) {
@@ -982,6 +1022,7 @@ const SHOP_ITEMS = [
   { id:'casino_ticket', qty:1, cost:20000, icon:'🎰', fr:'Ticket Casino',    en:'Casino Ticket',   desc_fr:'Accès au Casino de Céladopole',         desc_en:'Access to Celadon Casino' },
   { id:'silph_keycard', qty:1, cost:50000, icon:'🔑', fr:'Badge Sylphe',     en:'Silph Keycard',   desc_fr:'Accès à Sylphe SARL',                   desc_en:'Access to Silph Co.' },
   { id:'boat_ticket',   qty:1, cost:15000, icon:'⚓', fr:'Ticket Bateau',    en:'Boat Ticket',     desc_fr:'Monte à bord du Bateau St. Anne',        desc_en:'Board the S.S. Anne' },
+  { id:'egg_scanner', qty:1, cost:1000000, icon:'🔬', fr:'Scanneur d\'Oeuf', en:'Egg Scanner', desc_fr:'80% chance de révéler l\'espèce d\'un oeuf', desc_en:'80% chance to reveal an egg\'s species' },
 ];
 
 // ── Mystery Egg ───────────────────────────────────────────────
@@ -1190,6 +1231,7 @@ const DEFAULT_STATE = {
     rarecandy: 0,
     masterball: 0,
     incubator: 0,
+    egg_scanner: 0,
   },
   activeBall: 'pokeball',
   activeBoosts: {
@@ -1264,6 +1306,7 @@ const DEFAULT_STATE = {
   playtime: 0,      // secondes de jeu total
   sessionStart: 0,  // timestamp début session
   openZoneOrder: [],
+  claimedCodes: {},
 };
 
 let state = structuredClone(DEFAULT_STATE);
@@ -3517,7 +3560,7 @@ function decayMarketSales() {
   }
 }
 
-function sellPokemon(pokemonIds) {
+function sellPokemon(pokemonIds, _shinyConfirmed = false) {
   // Filter out homesick pokemon — they cannot be sold
   const homesickBlocked = pokemonIds.filter(id => {
     const p = state.pokemons.find(pk => pk.id === id);
@@ -3527,6 +3570,44 @@ function sellPokemon(pokemonIds) {
     notify('Ce Pokémon souffre du mal du pays et ne peut pas être vendu.', 'error');
     pokemonIds = pokemonIds.filter(id => !homesickBlocked.includes(id));
     if (pokemonIds.length === 0) return;
+  }
+  // Block pension pokémon
+  const pensionSet = new Set([state.pension?.slotA, state.pension?.slotB].filter(Boolean));
+  const pensionBlocked = pokemonIds.filter(id => pensionSet.has(id));
+  if (pensionBlocked.length > 0) {
+    notify('Les Pokémon en pension ne peuvent pas être vendus.', 'error');
+    pokemonIds = pokemonIds.filter(id => !pensionSet.has(id));
+    if (pokemonIds.length === 0) return;
+  }
+  // Block training pokémon
+  const trainingSet = new Set(state.trainingRoom?.pokemon || []);
+  const trainingBlocked = pokemonIds.filter(id => trainingSet.has(id));
+  if (trainingBlocked.length > 0) {
+    notify('Les Pokémon en formation ne peuvent pas être vendus.', 'error');
+    pokemonIds = pokemonIds.filter(id => !trainingSet.has(id));
+    if (pokemonIds.length === 0) return;
+  }
+  // Shiny confirmation
+  if (!_shinyConfirmed) {
+    const shinyIds = pokemonIds.filter(id => state.pokemons.find(p => p.id === id)?.shiny);
+    if (shinyIds.length > 0) {
+      const names = shinyIds.map(id => speciesName(state.pokemons.find(p => p.id === id)?.species_en)).join(', ');
+      const modal = document.createElement('div');
+      modal.style.cssText = 'position:fixed;inset:0;z-index:9500;background:rgba(0,0,0,.88);display:flex;align-items:center;justify-content:center';
+      modal.innerHTML = `<div style="background:var(--bg-panel);border:2px solid var(--gold);border-radius:var(--radius);padding:20px;max-width:360px;width:92%;display:flex;flex-direction:column;gap:14px">
+        <div style="font-family:var(--font-pixel);font-size:10px;color:var(--gold)">⚠ Vente de Chromatique</div>
+        <div style="font-size:11px;color:var(--text)">Tu t'apprêtes à vendre <b style="color:#ffcc5a">${shinyIds.length} Pokémon Shiny</b> :<br><span style="font-size:9px;color:#aaa">${names}</span></div>
+        <div style="font-size:9px;color:var(--text-dim)">Cette action est irréversible.</div>
+        <div style="display:flex;gap:8px;justify-content:flex-end">
+          <button id="shinyCancel" style="font-family:var(--font-pixel);font-size:9px;padding:8px 14px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-dim);cursor:pointer">Annuler</button>
+          <button id="shinyConfirm" style="font-family:var(--font-pixel);font-size:9px;padding:8px 14px;background:var(--bg);border:1px solid var(--gold);border-radius:var(--radius-sm);color:var(--gold);cursor:pointer">Vendre quand même</button>
+        </div>
+      </div>`;
+      document.body.appendChild(modal);
+      modal.querySelector('#shinyCancel').addEventListener('click', () => modal.remove());
+      modal.querySelector('#shinyConfirm').addEventListener('click', () => { modal.remove(); sellPokemon(pokemonIds, true); });
+      return;
+    }
   }
 
   let total = 0;
@@ -6754,10 +6835,19 @@ function renderEggsView(container) {
         if (egg.parentA && egg.parentB) {
           const pA = state.pokemons.find(p => p.id === egg.parentA) || { species_en: egg.parentASpecies };
           const pB = state.pokemons.find(p => p.id === egg.parentB) || { species_en: egg.parentBSpecies };
-          parentHtml = `<div style="display:flex;align-items:center;gap:4px;margin-top:4px">
-            ${pA?.species_en ? `<img src="${pokeSprite(pA.species_en)}" style="width:20px;height:20px">` : ''}
-            <span style="font-size:9px;color:var(--text-dim)">♥</span>
-            ${pB?.species_en ? `<img src="${pokeSprite(pB.species_en)}" style="width:20px;height:20px">` : ''}
+          const pAName = pA?.species_en ? speciesName(pA.species_en) : '?';
+          const pBName = pB?.species_en ? speciesName(pB.species_en) : '?';
+          const pALvl = pA?.level ? ` Lv.${pA.level}` : '';
+          const pBLvl = pB?.level ? ` Lv.${pB.level}` : '';
+          const pAPot = pA?.potential ? ' ' + '★'.repeat(pA.potential) : '';
+          const pBPot = pB?.potential ? ' ' + '★'.repeat(pB.potential) : '';
+          parentHtml = `<div style="display:flex;flex-direction:column;gap:3px;margin-top:4px;align-items:center">
+            <div style="display:flex;align-items:center;gap:4px">
+              ${pA?.species_en ? `<img src="${pokeSprite(pA.species_en)}" style="width:22px;height:22px" title="${pAName}${pALvl}${pAPot}">` : ''}
+              <span style="font-size:9px;color:var(--red)">♥</span>
+              ${pB?.species_en ? `<img src="${pokeSprite(pB.species_en)}" style="width:22px;height:22px" title="${pBName}${pBLvl}${pBPot}">` : ''}
+            </div>
+            <div style="font-size:7px;color:var(--text-dim);text-align:center">${pAName}${pAPot} × ${pBName}${pBPot}</div>
           </div>`;
         } else if (egg.source) {
           parentHtml = `<div style="font-size:8px;color:var(--text-dim);margin-top:4px">${egg.source}</div>`;
@@ -6785,6 +6875,14 @@ function renderEggsView(container) {
             ${!isIncubating && incubatorCount > 0 && freeIncubators === 0 ? `<span style="font-family:var(--font-pixel);font-size:7px;color:var(--text-dim)">Incubateurs pleins</span>` : ''}
             ${!isIncubating && incubatorCount === 0 ? `<span style="font-family:var(--font-pixel);font-size:7px;color:var(--text-dim)">Aucun incubateur</span>` : ''}
             <button class="egg-sell-btn" data-egg-id="${egg.id}" style="font-family:var(--font-pixel);font-size:7px;padding:4px 8px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-dim);cursor:pointer">Vendre</button>
+            ${!egg.scanned && (state.inventory?.egg_scanner || 0) > 0
+              ? `<button class="egg-scan-btn" data-egg-id="${egg.id}" style="font-family:var(--font-pixel);font-size:7px;padding:4px 8px;background:var(--bg);border:1px solid #c05be0;border-radius:var(--radius-sm);color:#c05be0;cursor:pointer">🔬 Scanner</button>`
+              : ''}
+            ${egg.scanned && egg.revealedSpecies
+              ? `<div style="font-size:8px;color:#c05be0;text-align:center;font-family:var(--font-pixel)">🔬 ${speciesName(egg.revealedSpecies)}</div>`
+              : egg.scanned && !egg.revealedSpecies
+              ? `<div style="font-size:8px;color:#666;text-align:center">🔬 Inconnu…</div>`
+              : ''}
           </div>
         </div>`;
       }).join('')}
@@ -6829,18 +6927,39 @@ function renderEggsView(container) {
       );
     });
   });
+  container.querySelectorAll('.egg-scan-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const egg = state.eggs.find(e => e.id === btn.dataset.eggId);
+      if (!egg || egg.scanned) return;
+      if ((state.inventory.egg_scanner || 0) < 1) { notify('Aucun Scanneur d\'Oeuf disponible.', 'error'); return; }
+      state.inventory.egg_scanner--;
+      egg.scanned = true;
+      if (Math.random() < 0.8) {
+        egg.revealedSpecies = egg.species_en;
+        notify(`🔬 Scan réussi ! L'oeuf contient un ${speciesName(egg.species_en)} !`, 'gold');
+      } else {
+        egg.revealedSpecies = null;
+        notify('🔬 Le scan est resté flou… Espèce inconnue.', 'info');
+      }
+      saveState();
+      const eggsEl = document.getElementById('eggsInPC');
+      if (eggsEl) renderEggsView(eggsEl);
+    });
+  });
 }
 
 // ── PC grid helpers ──────────────────────────────────────────────────────────
 
-function _buildPCCard(p, teamIds, trainingIds) {
+function _buildPCCard(p, teamIds, trainingIds, pensionIds) {
   const inTeam = teamIds.has(p.id);
   const inTraining = trainingIds.has(p.id);
-  return `<div class="pc-pokemon ${p.shiny ? 'shiny' : ''} ${pcSelectedId === p.id ? 'selected' : ''} ${pcSelectedIds.has(p.id) ? 'multi-selected' : ''} ${inTeam ? 'in-team' : ''} ${inTraining ? 'in-training' : ''}" data-pk-id="${p.id}" title="${speciesName(p.species_en)} Lv.${p.level} ${'★'.repeat(p.potential)}${p.shiny ? ' ✨' : ''}${inTraining ? ' [ENTRAINEMENT]' : ''}">
+  const inPension = pensionIds ? pensionIds.has(p.id) : false;
+  return `<div class="pc-pokemon ${p.shiny ? 'shiny' : ''} ${pcSelectedId === p.id ? 'selected' : ''} ${pcSelectedIds.has(p.id) ? 'multi-selected' : ''} ${inTeam ? 'in-team' : ''} ${inTraining ? 'in-training' : ''}" data-pk-id="${p.id}" title="${speciesName(p.species_en)} Lv.${p.level} ${'★'.repeat(p.potential)}${p.shiny ? ' ✨' : ''}${inTraining ? ' [ENTRAINEMENT]' : ''}${inPension ? ' [PENSION]' : ''}">
     <img src="${pokeSprite(p.species_en, p.shiny)}" alt="${speciesName(p.species_en)}">
     ${p.favorite ? '<div class="pc-fav-badge">FAV</div>' : ''}
     ${inTeam ? '<div class="pc-team-badge">EQ</div>' : ''}
     ${inTraining ? '<div class="pc-training-badge">TR</div>' : ''}
+    ${inPension ? '<div class="pc-pension-badge">PS</div>' : ''}
   </div>`;
 }
 
@@ -6912,6 +7031,11 @@ function renderPokemonGrid(forceRebuild = false) {
     list = list.filter(p => tIds.has(p.id));
   }
   else if (filter.startsWith('pot')) list = list.filter(p => p.potential === parseInt(filter.replace('pot', '')));
+  else if (filter === 'pension') {
+    const psIds = new Set([state.pension?.slotA, state.pension?.slotB].filter(Boolean));
+    list = list.filter(p => psIds.has(p.id));
+  }
+  else if (filter === 'training') list = list.filter(p => state.trainingRoom?.pokemon?.includes(p.id));
 
   // Sort
   const sort = document.getElementById('pcSort')?.value || 'recent';
@@ -6922,6 +7046,7 @@ function renderPokemonGrid(forceRebuild = false) {
     case 'potential': list.sort((a, b) => (b.potential + (b.shiny ? 10 : 0)) - (a.potential + (a.shiny ? 10 : 0))); break;
     case 'level':     list.sort((a, b) => b.level - a.level); break;
     case 'species':   list.sort((a, b) => a.dex - b.dex || (b.potential - a.potential)); break;
+    case 'price':     list.sort((a, b) => calculatePrice(b) - calculatePrice(a)); break;
     case 'recent':    break;
   }
   if (filter !== 'fav') list.sort((a, b) => (b.favorite ? 1 : 0) - (a.favorite ? 1 : 0));
@@ -6935,6 +7060,7 @@ function renderPokemonGrid(forceRebuild = false) {
   const teamIds = new Set([...state.gang.bossTeam]);
   for (const a of state.agents) a.team.forEach(id => teamIds.add(id));
   const trainingIds = new Set(state.trainingRoom.pokemon);
+  const pensionIds = new Set([state.pension?.slotA, state.pension?.slotB].filter(Boolean));
 
   // Render key: rebuild on any change (list length catches sells/releases, species catches evolutions)
   const speciesHash = list.slice(pcPage * pageSize, (pcPage + 1) * pageSize).map(p => p.species_en + p.level).join(',').length;
@@ -6994,7 +7120,7 @@ function renderPokemonGrid(forceRebuild = false) {
 
     } else {
       // ── Mode normal : une carte par Pokémon ───────────────────
-      grid.innerHTML = pageList.map(p => _buildPCCard(p, teamIds, trainingIds)).join('')
+      grid.innerHTML = pageList.map(p => _buildPCCard(p, teamIds, trainingIds, pensionIds)).join('')
         || '<div style="color:var(--text-dim);padding:16px;grid-column:1/-1;text-align:center">Aucun Pokémon</div>';
       grid.querySelectorAll('.pc-pokemon').forEach(el => _bindPCCardListeners(el));
     }
@@ -7007,7 +7133,7 @@ function renderPokemonGrid(forceRebuild = false) {
       for (const p of pageList) {
         if (!existingIds.has(p.id)) {
           const wrap = document.createElement('div');
-          wrap.innerHTML = _buildPCCard(p, teamIds, trainingIds);
+          wrap.innerHTML = _buildPCCard(p, teamIds, trainingIds, pensionIds);
           const card = wrap.firstElementChild;
           if (card) { grid.appendChild(card); _bindPCCardListeners(card); added++; }
         }
@@ -8651,6 +8777,7 @@ function renderLabTabInEl(tab) {
 
   const teamIds = new Set([...state.gang.bossTeam]);
   for (const a of state.agents) a.team.forEach(id => teamIds.add(id));
+  const pensionSet = new Set([state.pension?.slotA, state.pension?.slotB].filter(Boolean));
 
   // Tous les Pokémon améliorables
   const allUpgradeable = state.pokemons
@@ -8663,7 +8790,8 @@ function renderLabTabInEl(tab) {
     const donors = state.pokemons.filter(d =>
       d.species_en === p.species_en && d.id !== p.id &&
       !d.shiny && d.potential <= p.potential &&
-      !teamIds.has(d.id) && !state.trainingRoom.pokemon?.includes(d.id)
+      !teamIds.has(d.id) && !state.trainingRoom.pokemon?.includes(d.id) &&
+      !pensionSet.has(d.id)
     );
     return donors.length >= cost;
   });
@@ -8682,7 +8810,8 @@ function renderLabTabInEl(tab) {
     const donors = state.pokemons.filter(d =>
       d.species_en === selected.species_en && d.id !== selected.id &&
       !d.shiny && d.potential <= selected.potential &&
-      !teamIds.has(d.id) && !state.trainingRoom.pokemon?.includes(d.id)
+      !teamIds.has(d.id) && !state.trainingRoom.pokemon?.includes(d.id) &&
+      !pensionSet.has(d.id)
     );
     const canUpgrade = donors.length >= cost && selected.potential < 5;
     mutationHtml = `
@@ -8822,10 +8951,12 @@ function renderLabTabInEl(tab) {
   tab.querySelector('#btnLabUpgrade')?.addEventListener('click', () => {
     if (!selected) return;
     const cost = POT_UPGRADE_COSTS[selected.potential - 1];
+    const pensionSet = new Set([state.pension?.slotA, state.pension?.slotB].filter(Boolean));
     const donors = state.pokemons.filter(d =>
       d.species_en === selected.species_en && d.id !== selected.id &&
       !d.shiny && d.potential <= selected.potential &&
-      !teamIds.has(d.id) && !state.trainingRoom.pokemon?.includes(d.id)
+      !teamIds.has(d.id) && !state.trainingRoom.pokemon?.includes(d.id) &&
+      !pensionSet.has(d.id)
     );
     if (donors.length < cost) return;
     const toSacrifice = donors.slice(0, cost).map(p => p.id);
@@ -9844,6 +9975,11 @@ function boot() {
 
   // Init filter/sort listeners for PC (reset page on change, force full rebuild)
   document.getElementById('pcSearch')?.addEventListener('input', () => {
+    const val = document.getElementById('pcSearch')?.value || '';
+    if (checkSecretCode(val)) {
+      document.getElementById('pcSearch').value = '';
+      return;
+    }
     if (activeTab === 'tabPC') { pcPage = 0; renderPokemonGrid(true); }
   });
   document.getElementById('pcSort')?.addEventListener('change', () => {
