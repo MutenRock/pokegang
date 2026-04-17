@@ -47,6 +47,8 @@
     ::-webkit-scrollbar-thumb:hover { background: var(--border-light); }
 
     /* ── Layout Shell ───────────────────────────────────────────── */
+    html { zoom: 150%; }
+
     #app {
       max-width: 1400px;
       margin: 0 auto;
@@ -255,6 +257,50 @@
     #zoneSelector {
       /* inside #zoneBottom flex row — no extra margin needed */
     }
+
+    /* ── Split bar ────────────────────────────────────────────── */
+    .zones-split-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 10px 0;
+      border-top: 1px solid var(--border);
+      padding-top: 8px;
+    }
+    .zones-split-label {
+      font-family: var(--font-pixel);
+      font-size: 8px;
+      color: var(--text-dim);
+      letter-spacing: 2px;
+      flex: 1;
+    }
+    .zones-close-all-btn {
+      font-family: var(--font-pixel);
+      font-size: 7px;
+      padding: 4px 10px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text-dim);
+      cursor: pointer;
+      transition: border-color .15s, color .15s;
+    }
+    .zones-close-all-btn:hover { border-color: var(--red); color: var(--red); }
+
+    /* ── Headbar close button ─────────────────────────────────── */
+    .headbar-close {
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      font-size: 12px;
+      cursor: pointer;
+      padding: 0 2px;
+      line-height: 1;
+      margin-left: 6px;
+      opacity: .6;
+      transition: opacity .15s, color .15s;
+    }
+    .headbar-close:hover { opacity: 1; color: var(--red); }
 
     .zone-btn {
       font-family: var(--font-pixel);
@@ -2518,7 +2564,11 @@
 
       <!-- ── Zones ── -->
       <section id="tabZones" class="tab-pane">
-        <div id="zoneWindows" style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:12px;"></div>
+        <div id="zoneWindows" style="display:flex;flex-wrap:wrap;gap:12px;"></div>
+        <div class="zones-split-bar">
+          <span class="zones-split-label">BASE</span>
+          <button id="btnCloseAllZones" class="zones-close-all-btn">✕ Fermer tout</button>
+        </div>
         <div id="zoneBottom" style="display:flex;gap:12px;align-items:flex-start;">
           <div id="gangBaseContainer" style="flex-shrink:0;width:280px;"></div>
           <div id="zoneSelector" style="flex:1;min-width:0;"></div>

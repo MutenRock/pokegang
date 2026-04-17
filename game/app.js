@@ -5185,6 +5185,17 @@ function renderZonesTab() {
   renderGangBasePanel();
   renderZoneSelector();
   renderZoneWindows();
+
+  // ── "Fermer tout" button ─────────────────────────────────
+  const btnCloseAll = document.getElementById('btnCloseAllZones');
+  if (btnCloseAll) {
+    btnCloseAll._bound = btnCloseAll._bound || (() => {
+      [...openZones].forEach(zid => closeZoneWindow(zid));
+    });
+    btnCloseAll.removeEventListener('click', btnCloseAll._bound);
+    btnCloseAll.addEventListener('click', btnCloseAll._bound);
+    btnCloseAll.style.display = openZones.size > 0 ? '' : 'none';
+  }
 }
 
 function renderZoneSelector() {
@@ -5432,6 +5443,7 @@ function buildZoneWindowEl(zoneId) {
       <span class="headbar-name">${name}${gymDefeated ? ' [V]' : ''}${degraded ? ' ⚠' : ''}</span>
       <span class="headbar-stats">${'*'.repeat(mastery)} ${boosts.map(b => `<span class="boost-tag">${b}</span>`).join('')}</span>
       <span class="headbar-toggle">${isExpanded ? '▲' : '▼'}</span>
+      <button class="headbar-close" data-close-zone="${zoneId}" title="Fermer">✕</button>
     </div>
     <div class="zone-headbar-content ${isExpanded ? 'expanded' : ''}" id="zt-${zoneId}"></div>
     <div class="zone-viewport" style="${bgStyle}">
@@ -5468,6 +5480,11 @@ function buildZoneWindowEl(zoneId) {
       </div>
     </div>
   `;
+
+  win.querySelector(`[data-close-zone="${zoneId}"]`)?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    closeZoneWindow(zoneId);
+  });
 
   win.querySelector(`[data-zone-hb="${zoneId}"]`)?.addEventListener('click', () => {
     headbarExpanded[zoneId] = !headbarExpanded[zoneId];
