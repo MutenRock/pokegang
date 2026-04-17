@@ -2423,6 +2423,10 @@
 
     /* Intro slots — passer en flex colonne */
     .intro-slots { flex-direction: column !important; margin-bottom: 12px !important; }
+
+    /* ── First-visit hint toast ── */
+    @keyframes fvhIn  { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes fvhOut { from { opacity:1; transform:translateY(0); } to { opacity:0; transform:translateY(12px); } }
   </style>
 </head>
 <body>
@@ -2466,6 +2470,10 @@
       <span id="supaIndicator" title="Compte cloud"></span>
       <button id="btnSettings" aria-label="Settings">⚙</button>
     </header>
+
+    <!-- ── Session delta + Objective ── -->
+    <div id="sessionBar" style="display:none;align-items:center;gap:8px;padding:3px 16px;background:rgba(0,0,0,.5);border-bottom:1px solid var(--border);font-size:10px;min-height:22px;font-family:var(--font-pixel)"></div>
+    <div id="objectiveBar" style="display:none;align-items:center;gap:4px;padding:4px 16px;background:rgba(255,204,90,.04);border-bottom:1px solid rgba(255,204,90,.15);font-size:10px;min-height:26px"></div>
 
     <!-- ═══ Tab Navigation ═══ -->
     <nav id="tabNav">

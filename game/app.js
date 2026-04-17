@@ -1667,6 +1667,106 @@ function pokemonDisplayName(p) {
   return p.nick || speciesName(p.species_en);
 }
 
+// ════════════════════════════════════════════════════════════════
+// SESSION TRACKING  (30-min idle = nouvelle session)
+// ════════════════════════════════════════════════════════════════
+const SESSION_KEY     = 'pg_session_baseline';
+const SESSION_IDLE_MS = 30 * 60 * 1000;
+let _sessionBaseline  = null;
+
+function initSession() {
+  const now = Date.now();
+  const raw = localStorage.getItem(SESSION_KEY);
+  if (raw) {
+    try {
+      const saved = JSON.parse(raw);
+      if (now - saved.ts < SESSION_IDLE_MS) {
+        _sessionBaseline = saved;
+        return; // session en cours — on la continue
+      }
+    } catch {}
+  }
+  // Nouvelle session
+  _sessionBaseline = {
+    ts:     now,
+    money:  state.gang.money,
+    rep:    state.gang.reputation,
+    pokemon: state.pokemons.length,
+    shinies: state.stats.shinyCaught || 0,
+    fights:  state.stats.totalFightsWon || 0,
+  };
+  localStorage.setItem(SESSION_KEY, JSON.stringify(_sessionBaseline));
+}
+
+function _saveSessionActivity() {
+  if (_sessionBaseline) {
+    _sessionBaseline.ts = Date.now();
+    localStorage.setItem(SESSION_KEY, JSON.stringify(_sessionBaseline));
+  }
+}
+
+function getSessionDelta() {
+  if (!_sessionBaseline) return null;
+  const dMoney   = state.gang.money         - _sessionBaseline.money;
+  const dRep     = state.gang.reputation    - _sessionBaseline.rep;
+  const dPokemon = state.pokemons.length    - _sessionBaseline.pokemon;
+  const dShiny   = (state.stats.shinyCaught || 0) - _sessionBaseline.shinies;
+  const dFights  = (state.stats.totalFightsWon || 0) - _sessionBaseline.fights;
+  // N'affiche que les deltas non-nuls
+  const parts = [];
+  const fmt = (v, icon, unit = '') => {
+    if (v === 0) return null;
+    const sign = v > 0 ? '+' : '';
+    const color = v > 0 ? 'var(--green-dim,#4a8)' : 'var(--red)';
+    return `<span style="color:${color}">${sign}${typeof v === 'number' && Math.abs(v) >= 1000 ? v.toLocaleString() : v}${unit} ${icon}</span>`;
+  };
+  if (dMoney  !== 0) parts.push(fmt(dMoney,  '₽'));
+  if (dPokemon!== 0) parts.push(fmt(dPokemon,'🎯'));
+  if (dRep    !== 0) parts.push(fmt(dRep,    '⭐'));
+  if (dShiny  !== 0) parts.push(fmt(dShiny,  '✨'));
+  if (dFights !== 0) parts.push(fmt(dFights, '⚔'));
+  return parts.filter(Boolean).join(' · ');
+}
+
+// ════════════════════════════════════════════════════════════════
+// NEXT OBJECTIVE
+// ════════════════════════════════════════════════════════════════
+function getNextObjective() {
+  const pc     = state.pokemons.length;
+  const team   = state.gang.bossTeam.length;
+  const agents = state.agents.length;
+  const money  = state.gang.money;
+  const rep    = state.gang.reputation;
+  const zones  = openZones ? openZones.size : 0;
+  const dex    = Object.values(state.pokedex).filter(e => e.caught).length;
+
+  if (!state.gang.initialized)
+    return { text: '👋 Crée ton Gang pour commencer', tab: null };
+  if (pc === 0)
+    return { text: '⚡ Capture ton premier Pokémon', detail: '→ Zones', tab: 'tabZones' };
+  if (team === 0)
+    return { text: '⚔ Place un Pokémon dans ton équipe Boss', detail: '→ PC', tab: 'tabPC' };
+  if (team < 3)
+    return { text: `⚔ Complète ton équipe Boss`, detail: `${team}/3`, tab: 'tabPC' };
+  if (agents === 0) {
+    const cost = typeof getAgentRecruitCost === 'function' ? getAgentRecruitCost() : 10000;
+    const progress = money >= cost ? 'Prêt !' : `₽${money.toLocaleString()}/${cost.toLocaleString()}`;
+    return { text: '👤 Recrute ton premier agent', detail: progress, tab: 'tabPC' };
+  }
+  // Zone suivante verrouillée
+  const nextLocked = ZONES ? ZONES.find(z => !isZoneUnlocked(z.id)) : null;
+  if (nextLocked) {
+    const req = nextLocked.repRequired || 0;
+    if (req > 0)
+      return { text: `🗺 Débloquer ${nextLocked.fr}`, detail: `Rép. ${rep}/${req}`, tab: 'tabZones' };
+  }
+  if (agents < 3)
+    return { text: `👥 Avoir ${agents+1} agents`, detail: `${agents}/3`, tab: 'tabAgents' };
+  if (dex < 151)
+    return { text: `📖 Pokédex ${dex}/151`, detail: `${151 - dex} espèces manquantes`, tab: 'tabPokedex' };
+  return { text: '🏆 Pokédex complet — Tu domines Kanto !', detail: null, tab: null };
+}
+
 // ── Boost helpers ─────────────────────────────────────────────
 function isBoostActive(boostId) {
   return (state.activeBoosts[boostId] || 0) > Date.now();
@@ -3804,51 +3904,98 @@ function hintLink(label, tabId) {
 }
 
 function getTabHint(tabId) {
-  const pc = state.pokemons.length;
-  const agents = state.agents.length;
-  const money = state.gang.money;
+  const pc       = state.pokemons.length;
+  const agents   = state.agents.length;
+  const money    = state.gang.money;
   const bossTeam = state.gang.bossTeam.length;
-  const hasZone = openZones.size > 0;
+  const hasZone  = openZones.size > 0;
 
   switch (tabId) {
     case 'tabGang':
-      if (!state.gang.initialized) return 'Cree ta gang pour commencer.';
-      if (bossTeam === 0 && pc === 0) return `Capture des Pokemon dans ${hintLink('Zones', 'tabZones')} pour former ton equipe.`;
-      if (bossTeam === 0) return `Assigne des Pokemon a ton equipe Boss depuis le ${hintLink('PC', 'tabPC')}.`;
-      if (!hasZone) return `Ouvre une zone dans ${hintLink('Zones', 'tabZones')} pour explorer.`;
-      return `Ton boss combat avec son equipe. Va dans ${hintLink('Zones', 'tabZones')} et entre dans une zone.`;
+      if (!state.gang.initialized) return 'Crée ton gang pour commencer.';
+      if (bossTeam === 0 && pc === 0) return `Capture des Pokémon dans ${hintLink('Zones', 'tabZones')} puis assigne-en à ton équipe Boss.`;
+      if (bossTeam === 0) return `Assigne des Pokémon à ton équipe Boss depuis le ${hintLink('PC', 'tabPC')} — clique sur un Pokémon → Équipe.`;
+      if (!hasZone) return `Ouvre une zone dans ${hintLink('Zones', 'tabZones')} pour explorer et combattre.`;
+      return `Vitrine : montre tes meilleurs Pokémon. L\'équipe Boss combat quand tu entres en zone.`;
     case 'tabAgents':
-      if (pc === 0) return `Capture des Pokemon en ${hintLink('Zones', 'tabZones')} — ils seront tes agents.`;
-      if (agents === 0) return `Recrute des agents depuis le ${hintLink('PC', 'tabPC')} et assigne-les a des zones.`;
-      if (!hasZone) return `Ouvre des zones dans ${hintLink('Zones', 'tabZones')} pour envoyer tes agents explorer.`;
-      return 'Les agents explorent les zones automatiquement et rapportent butin et XP.';
+      if (pc === 0) return `Capture des Pokémon en ${hintLink('Zones', 'tabZones')} — tu pourras en recruter comme agents.`;
+      if (agents === 0) return `Recrute un agent depuis le ${hintLink('PC', 'tabPC')} : clique sur un Pokémon → Recruter Agent. Les agents explorent les zones et ramènent de l'argent automatiquement.`;
+      if (!hasZone) return `Assigne tes agents à une zone depuis ${hintLink('Zones', 'tabZones')} ou directement ici via le menu déroulant.`;
+      return `Les agents assignés à une zone génèrent des ₽ toutes les 5 min. Collecte depuis l'onglet ${hintLink('Zones', 'tabZones')}.`;
     case 'tabZones':
-      if (pc === 0 && bossTeam === 0) return `Tu as besoin de Pokemon — commence par ouvrir Route 1.`;
-      if (!hasZone) return 'Clique sur une zone pour l\'ouvrir. Double-clique sur le terrain pour y envoyer ton boss.';
-      return `Capture des Pokemon, bats des dresseurs. 10 victoires debloquent les combats elites.`;
+      if (!hasZone) return `Clique sur <b>Route 1</b> puis sur <b>Ouvrir</b> pour explorer ta première zone.`;
+      if (bossTeam === 0) return `Entre dans une zone avec ton boss — assigne d'abord un Pokémon à ton équipe depuis le ${hintLink('PC', 'tabPC')}.`;
+      return `Capture des Pokémon, bats des dresseurs. 10 victoires → combats élites. Clique 💰 pour collecter les revenus.`;
     case 'tabBag':
       return null;
     case 'tabMarket':
-      if (money < 500) return `Explore des zones et vends des doublons pour gagner des P.`;
-      if (Object.values(state.inventory).every(v => !v)) return 'Achete des Pokeballs dans la boutique pour pouvoir capturer.';
-      return `Vends tes doublons, achete des objets, debloque des cosmetiques. Ton sac est aussi ici.`;
+      if (money < 500) return `Tu n'as presque plus d'argent. Bats des dresseurs ou vends des Pokémon en double depuis le ${hintLink('PC', 'tabPC')}.`;
+      if (!state.inventory.pokeball) return `Achète des Pokéballs (100₽) dans la boutique pour pouvoir capturer des Pokémon.`;
+      return `Boutique : Pokéballs, objets de boost, incubateurs. Quêtes : missions journalières pour des récompenses.`;
     case 'tabPC':
-      if (pc === 0) return `Ton PC est vide. Capture des Pokemon en ${hintLink('Zones', 'tabZones')} pour les voir ici.`;
-      if (bossTeam === 0) return 'Clique sur un Pokemon pour l\'assigner a l\'equipe Boss ou a un agent.';
-      return 'Gere ta collection. Filtre, trie, assigne tes Pokemon aux equipes.';
+      if (pc === 0) return `Ton PC est vide. Capture des Pokémon en ${hintLink('Zones', 'tabZones')} pour les voir ici.`;
+      if (bossTeam === 0) return `Clique sur un Pokémon → menu → <b>Équipe Boss</b> pour l'ajouter à ton équipe de combat.`;
+      return `Filtre (Eq/Tr/PS), trie par prix/niveau/potentiel, vends les doublons. Cherche "MERCIDAVOIRJOUEMONJEU" 👾`;
     case 'tabTraining':
-      if (pc === 0) return `Capture des Pokemon en ${hintLink('Zones', 'tabZones')} pour les mettre a l\'entrainement.`;
-      return 'Place jusqu\'a 6 Pokemon — deux s\'affrontent chaque minute. Gagnant: +8 XP, perdant: +2 XP, autres: +1 XP.';
+      if (pc === 0) return `Capture des Pokémon en ${hintLink('Zones', 'tabZones')} pour les entraîner.`;
+      return `Place 2 à 6 Pokémon — ils s'affrontent automatiquement toutes les 60s. Gagnant : XP ×1.25, tous gagnent de l'XP.`;
     case 'tabLab':
-      if (pc < 3) return `Capture plusieurs exemplaires du meme Pokemon pour les fusionner au Labo.`;
-      return 'Sacrifie des doublons pour augmenter le Potentiel d\'un Pokemon (max 5 etoiles).';
+      if (pc < 3) return `Capture plusieurs exemplaires du même Pokémon pour les fusionner au Labo et augmenter le Potentiel.`;
+      return `Potentiel (⭐) = multiplicateur de prix et de stats. Sacrifie des doublons pour monter jusqu'à 5⭐ (max).`;
     case 'tabMissions':
-      return 'Accomplis des missions pour gagner des recompenses et debloquer du contenu.';
+      return `Missions journalières et hebdomadaires = source de ₽ et d'objets rares. Reviens chaque jour.`;
     case 'tabPokedex':
-      return `Chaque Pokemon capture est enregistre ici. Vise le Pokedex complet.`;
+      return `${Object.values(state.pokedex).filter(e=>e.caught).length}/${POKEMON_GEN1.length} espèces capturées. Certaines sont très rares — explore toutes les zones.`;
     default:
       return null;
   }
+}
+
+// ── First-visit contextual hint (non-bloquant, disparaît en 6s ou au clic) ──
+const _FIRST_VISIT_HINTS = {
+  tabGang:     { icon: '👑', title: 'Ton Gang', body: 'C\'est ta base. Gère ton équipe Boss, place des Pokémon en vitrine et exporte ta fiche.' },
+  tabAgents:   { icon: '👥', title: 'Les Agents', body: 'Assigne-leur une zone → ils récoltent de l\'argent automatiquement, même quand tu ne joues pas.' },
+  tabZones:    { icon: '🗺', title: 'Zones', body: 'Explore des zones avec ton Boss pour capturer des Pokémon et battre des dresseurs. Plus tu progresses, plus tu débloques de zones.' },
+  tabMarket:   { icon: '🛒', title: 'Marché', body: 'Achète des Pokéballs pour capturer, des incubateurs pour faire éclore des œufs, et plus encore.' },
+  tabPC:       { icon: '💾', title: 'Le PC', body: 'Tous tes Pokémon sont ici. Assigne-les à ton équipe, à un agent, à la pension ou à la salle d\'entraînement.' },
+  tabTraining: { icon: '🏋', title: 'Salle d\'entraînement', body: 'Tes Pokémon s\'entraînent automatiquement. Parfait pour monter en niveau des Pokémon que tu n\'utilises pas.' },
+  tabLab:      { icon: '🔬', title: 'Laboratoire', body: 'Le Potentiel (⭐) multiplie la valeur et les stats d\'un Pokémon. Fusionne des doublons pour monter jusqu\'à 5⭐.' },
+  tabMissions: { icon: '📋', title: 'Missions', body: 'Objectifs quotidiens et hebdomadaires. Complète-les pour des ₽ et des objets rares.' },
+  tabPokedex:  { icon: '📖', title: 'Pokédex', body: 'Chaque espèce capturée est enregistrée ici. Vise 151/151 pour tout débloquer.' },
+};
+
+function showFirstVisitHint(tabId) {
+  const def = _FIRST_VISIT_HINTS[tabId];
+  if (!def) return;
+  // Remove any existing hint
+  document.getElementById('firstVisitHint')?.remove();
+
+  const el = document.createElement('div');
+  el.id = 'firstVisitHint';
+  el.style.cssText = `
+    position:fixed;bottom:24px;right:24px;z-index:4000;
+    background:var(--bg-panel);border:2px solid var(--gold-dim);border-radius:var(--radius);
+    padding:12px 14px;max-width:260px;box-shadow:0 4px 20px rgba(0,0,0,.6);
+    animation:fvhIn .3s ease;cursor:pointer;
+  `;
+  el.innerHTML = `
+    <div style="display:flex;align-items:flex-start;gap:10px">
+      <span style="font-size:20px;flex-shrink:0">${def.icon}</span>
+      <div>
+        <div style="font-family:var(--font-pixel);font-size:8px;color:var(--gold);margin-bottom:4px">${def.title}</div>
+        <div style="font-size:10px;color:var(--text-dim);line-height:1.5">${def.body}</div>
+      </div>
+      <button style="background:none;border:none;color:var(--text-dim);font-size:14px;cursor:pointer;padding:0;flex-shrink:0;line-height:1" onclick="document.getElementById('firstVisitHint')?.remove()">✕</button>
+    </div>`;
+
+  document.body.appendChild(el);
+
+  // Auto-dismiss after 7s
+  const timer = setTimeout(() => {
+    el.style.animation = 'fvhOut .3s ease forwards';
+    setTimeout(() => el.remove(), 300);
+  }, 7000);
+  el.addEventListener('click', () => { clearTimeout(timer); el.remove(); });
 }
 
 function renderHint(tabId) {
@@ -3863,6 +4010,9 @@ function renderHint(tabId) {
   }
 }
 
+// Track which tabs have been seen (first-visit hints)
+const _visitedTabs = new Set(JSON.parse(sessionStorage.getItem('pg_visited_tabs') || '[]'));
+
 function switchTab(tabId) {
   if (tabId !== 'tabPC') _pcLastRenderKey = ''; // force full rebuild on next PC visit
   activeTab = tabId;
@@ -3874,6 +4024,13 @@ function switchTab(tabId) {
   });
   renderHint(tabId);
   renderActiveTab();
+  updateTopBar(); // refresh objective / session on tab change
+  // First-visit contextual hint
+  if (!_visitedTabs.has(tabId)) {
+    _visitedTabs.add(tabId);
+    sessionStorage.setItem('pg_visited_tabs', JSON.stringify([..._visitedTabs]));
+    showFirstVisitHint(tabId);
+  }
 }
 
 function updateTopBar() {
@@ -3883,6 +4040,34 @@ function updateTopBar() {
   if (moneyEl) moneyEl.innerHTML = `<span>₽</span> ${state.gang.money.toLocaleString()}`;
   const repEl = document.getElementById('repDisplay');
   if (repEl) repEl.innerHTML = `<span>⭐</span> ${state.gang.reputation.toLocaleString()}`;
+
+  // ── Session delta bar ──────────────────────────────────────
+  _saveSessionActivity();
+  const sessionBar = document.getElementById('sessionBar');
+  if (sessionBar) {
+    const delta = getSessionDelta();
+    if (delta) {
+      sessionBar.innerHTML = `<span style="color:var(--text-dim);font-family:var(--font-pixel);font-size:7px;letter-spacing:.05em">SESSION</span> ${delta}`;
+      sessionBar.style.display = 'flex';
+    } else {
+      sessionBar.style.display = 'none';
+    }
+  }
+
+  // ── Objective bar ──────────────────────────────────────────
+  const objBar = document.getElementById('objectiveBar');
+  if (objBar) {
+    const obj = getNextObjective();
+    if (obj) {
+      const tabBtn = obj.tab
+        ? `<button onclick="switchTab('${obj.tab}')" style="font-family:var(--font-pixel);font-size:7px;color:var(--red);background:none;border:none;border-bottom:1px solid var(--red);cursor:pointer;padding:0;margin-left:6px">${obj.detail || obj.tab}</button>`
+        : (obj.detail ? `<span style="color:var(--text-dim);font-size:9px;margin-left:6px">${obj.detail}</span>` : '');
+      objBar.innerHTML = `<span style="font-family:var(--font-pixel);font-size:7px;color:var(--gold-dim,#999);margin-right:6px">▶</span><span style="font-size:9px;color:var(--text)">${obj.text}</span>${tabBtn}`;
+      objBar.style.display = 'flex';
+    } else {
+      objBar.style.display = 'none';
+    }
+  }
 }
 
 function renderAll() {
@@ -10436,6 +10621,9 @@ function boot() {
 
   // Apply cosmetics (bg theme)
   applyCosmetics();
+
+  // Init session tracking (must be after state is loaded)
+  initSession();
 
   // Initial render
   renderAll();
