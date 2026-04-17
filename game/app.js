@@ -4356,7 +4356,7 @@ function getTabHint(tabId) {
     case 'tabPC':
       if (pc === 0) return `Ton PC est vide. Capture des Pokémon en ${hintLink('Zones', 'tabZones')} pour les voir ici.`;
       if (bossTeam === 0) return `Clique sur un Pokémon → menu → <b>Équipe Boss</b> pour l'ajouter à ton équipe de combat.`;
-      return `Filtre (Eq/Tr/PS), trie par prix/niveau/potentiel, vends les doublons. Cherche "MERCIDAVOIRJOUEMONJEU" 👾`;
+      return `Filtre (Eq/Tr/PS), trie par prix/niveau/potentiel, vends les doublons.`;
     case 'tabTraining':
       if (pc === 0) return `Capture des Pokémon en ${hintLink('Zones', 'tabZones')} pour les entraîner.`;
       return `Place 2 à 6 Pokémon — ils s'affrontent automatiquement toutes les 60s. Gagnant : XP ×1.25, tous gagnent de l'XP.`;
