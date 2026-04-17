@@ -4062,7 +4062,7 @@ function notify(msg, type = '') {
 // 12.  UI — TABS & LAYOUT
 // ════════════════════════════════════════════════════════════════
 
-let activeTab = 'tabGang';
+let activeTab = 'tabZones';
 
 function hintLink(label, tabId) {
   return `<button onclick="switchTab('${tabId}')" style="font-family:var(--font-pixel);font-size:9px;color:var(--red);background:none;border:none;border-bottom:1px solid var(--red);cursor:pointer;padding:0">${label}</button>`;
@@ -4274,7 +4274,7 @@ function renderActiveTab() {
     case 'tabAgents':   renderAgentsTab(); break;
     case 'tabBag':      switchTab('tabMarket'); break;
     case 'tabMissions': renderMissionsTab(); break;
-    case 'tabTraining': renderTrainingTab(); break;
+    case 'tabTraining': pcView = 'training'; switchTab('tabPC'); break;
     case 'tabLab':      pcView = 'lab'; switchTab('tabPC'); break;
     case 'tabCompte':   renderCompteTab(); break;
   }
@@ -7465,6 +7465,7 @@ function renderPCTab() {
       switcher.className = 'pc-view-switcher';
       switcher.innerHTML = `
         <button class="pc-view-btn" id="pcBtnGrid" data-pcview="grid">[PC]</button>
+        <button class="pc-view-btn" id="pcBtnTraining" data-pcview="training">[FORMATION]</button>
         <button class="pc-view-btn" id="pcBtnLab" data-pcview="lab">[LABO]</button>
         <button class="pc-view-btn" id="pcBtnPension" data-pcview="pension">[PENSION]</button>
         <button class="pc-view-btn" id="pcBtnEggs" data-pcview="eggs">[OEUFS${state.eggs.length ? ` (${state.eggs.length})` : ''}]</button>`;
@@ -7483,8 +7484,20 @@ function renderPCTab() {
     const eggsBtn = switcher.querySelector('#pcBtnEggs');
     if (eggsBtn) eggsBtn.textContent = `[OEUFS${state.eggs.length ? ` (${state.eggs.length})` : ''}]`;
 
-    const subViews = ['labInPC', 'pensionInPC', 'eggsInPC'];
-    if (pcView === 'lab') {
+    const subViews = ['trainingInPC', 'labInPC', 'pensionInPC', 'eggsInPC'];
+    if (pcView === 'training') {
+      pcLayout.style.display = 'none';
+      subViews.forEach(id => { const el = document.getElementById(id); if (el) el.style.display = id === 'trainingInPC' ? '' : 'none'; });
+      let trainingInPC = document.getElementById('trainingInPC');
+      if (!trainingInPC) {
+        trainingInPC = document.createElement('div');
+        trainingInPC.id = 'trainingInPC';
+        pcLayout.parentNode.appendChild(trainingInPC);
+      }
+      trainingInPC.style.display = '';
+      renderTrainingTab();
+      return;
+    } else if (pcView === 'lab') {
       pcLayout.style.display = 'none';
       subViews.forEach(id => { const el = document.getElementById(id); if (el) el.style.display = id === 'labInPC' ? '' : 'none'; });
       let labInPC = document.getElementById('labInPC');
@@ -9381,7 +9394,9 @@ let _trSearch = '';           // persisté entre re-renders
 let _trSelected = new Set(); // IDs cochés pour ajout groupé
 
 function renderTrainingTab() {
-  const tab = document.getElementById('tabTraining');
+  const tab = (activeTab === 'tabPC' && pcView === 'training')
+    ? document.getElementById('trainingInPC')
+    : document.getElementById('tabTraining');
   if (!tab) return;
 
   const tr = state.trainingRoom;
@@ -9654,7 +9669,7 @@ function trainingRoomTick() {
   if (room.log.length > 50) room.log = room.log.slice(-50);
 
   saveState();
-  if (activeTab === 'tabTraining') renderTrainingTab();
+  if (activeTab === 'tabTraining' || (activeTab === 'tabPC' && pcView === 'training')) renderTrainingTab();
 }
 
 // ════════════════════════════════════════════════════════════════
