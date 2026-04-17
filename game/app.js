@@ -9624,8 +9624,7 @@ function initSettings() {
     }
   });
 
-  document.getElementById('btnCloseSettings')?.addEventListener('click', () => {
-    // Save settings
+  function saveSettingsAndClose() {
     const langSel = document.getElementById('settingLang');
     if (langSel) state.lang = langSel.value;
     const llmSel = document.getElementById('settingLLM');
@@ -9641,9 +9640,16 @@ function initSettings() {
     saveState();
     detectLLM();
     document.getElementById('settingsModal')?.classList.remove('active');
-    // Update i18n
     renderAll();
+  }
+
+  // × ferme sans sauvegarder
+  document.getElementById('btnCloseSettings')?.addEventListener('click', () => {
+    document.getElementById('settingsModal')?.classList.remove('active');
   });
+
+  // ✓ Valider — sauvegarde et ferme
+  document.getElementById('btnSaveSettings')?.addEventListener('click', saveSettingsAndClose);
 
   document.getElementById('btnExportSave')?.addEventListener('click', exportSave);
 

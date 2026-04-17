@@ -1491,20 +1491,23 @@
 
     #settingsModal .settings-box {
       background: var(--bg-panel);
-      border: 2px solid var(--border);
-      border-radius: var(--radius);
-      padding: 24px;
-      width: 90%;
-      max-width: 500px;
-      max-height: 80vh;
-      overflow-y: auto;
+      border: none;
+      border-radius: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
     }
 
     #settingsModal .settings-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 20px;
+      padding: 16px 24px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-panel);
+      flex-shrink: 0;
     }
 
     #settingsModal .settings-header h2 {
@@ -1520,8 +1523,37 @@
       font-size: 22px;
       line-height: 1;
       transition: color .2s;
+      cursor: pointer;
     }
-    #settingsModal .btn-close:hover { color: var(--text); }
+    #settingsModal .btn-close:hover { color: var(--red); }
+
+    #settingsModal .settings-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px 24px;
+    }
+
+    #settingsModal .settings-footer {
+      flex-shrink: 0;
+      padding: 14px 24px;
+      border-top: 1px solid var(--border);
+      background: var(--bg-panel);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    #settingsModal .btn-save-settings {
+      font-family: var(--font-pixel);
+      font-size: 10px;
+      padding: 10px 28px;
+      background: var(--red);
+      border: none;
+      border-radius: var(--radius-sm);
+      color: #fff;
+      cursor: pointer;
+      transition: background .15s;
+    }
+    #settingsModal .btn-save-settings:hover { background: var(--red-dark); }
 
     .settings-section {
       margin-bottom: 20px;
@@ -2731,8 +2763,10 @@
     <div class="settings-box">
       <div class="settings-header">
         <h2>⚙ Paramètres</h2>
-        <button class="btn-close" id="btnCloseSettings">&times;</button>
+        <button class="btn-close" id="btnCloseSettings" title="Fermer sans sauvegarder">&times;</button>
       </div>
+
+      <div class="settings-content">
 
       <div class="settings-section">
         <h4>Langue</h4>
@@ -2821,8 +2855,13 @@
         </div>
       </div>
 
-      <div style="text-align:center;padding:8px 0 4px;font-family:var(--font-pixel);font-size:7px;color:var(--text-dim);letter-spacing:1px;opacity:.6;border-top:1px solid var(--border);margin-top:4px">
-        PokéGang <span id="settingsVersion"></span>
+      </div><!-- end .settings-content -->
+
+      <div class="settings-footer">
+        <div style="font-family:var(--font-pixel);font-size:7px;color:var(--text-dim);opacity:.6;letter-spacing:1px">
+          PokéGang <span id="settingsVersion"></span>
+        </div>
+        <button class="btn-save-settings" id="btnSaveSettings">✓ Valider</button>
       </div>
     </div>
   </div>
