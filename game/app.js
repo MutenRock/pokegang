@@ -6483,6 +6483,7 @@ function patchZoneWindow(zoneId, win) {
 
 // ── Gang Base Window (always first in zone windows) ─────────
 function renderGangBaseWindow() {
+  // ── Boss team slots
   const bossTeamHtml = [0, 1, 2].map(i => {
     const pkId = state.gang.bossTeam[i];
     const pk = pkId ? state.pokemons.find(p => p.id === pkId) : null;
@@ -6494,20 +6495,7 @@ function renderGangBaseWindow() {
     return `<div class="base-team-slot" data-boss-slot="${i}" title="${state.lang === 'fr' ? 'Assigner un Pokémon' : 'Assign a Pokémon'}">+</div>`;
   }).join('');
 
-  // ── Incubator widget
-  const incCount = state.inventory?.incubator || 0;
-  const eggs = state.eggs || [];
-  const incubatingEggs = eggs.filter(e => e.incubating);
-  const readyEggs = incubatingEggs.filter(e => e.hatchAt && e.hatchAt <= Date.now());
-  const incWidgetHtml = incCount > 0 || incubatingEggs.length > 0 ? `
-    <div class="qg-incubator-widget" data-base-action="pension">
-      <span>🥚</span>
-      <span class="qg-inc-label">${incubatingEggs.length}/${incCount} ${state.lang === 'fr' ? 'en incub.' : 'incub.'}</span>
-      ${eggs.filter(e => !e.incubating).length > 0 ? `<span style="color:var(--text-dim)">+${eggs.filter(e => !e.incubating).length} en attente</span>` : ''}
-      ${readyEggs.length > 0 ? `<span class="qg-inc-ready">!</span>` : ''}
-    </div>` : '';
-
-  // ── Glass layer: scattered pokemon + agents behind the frosted pane
+  // ── Glass background: top Pokémon + agents floutés
   const _BG_POSITIONS = [
     {left:'6%',bottom:'28%'},{left:'18%',bottom:'58%'},{left:'32%',bottom:'18%'},
     {left:'48%',bottom:'50%'},{left:'62%',bottom:'68%'},{left:'76%',bottom:'26%'},
@@ -6525,60 +6513,152 @@ function renderGangBaseWindow() {
     const pos = _agentPositions[i];
     return `<img src="${a.sprite}" style="position:absolute;left:${pos.left};bottom:${pos.bottom};width:30px;height:30px;image-rendering:pixelated;opacity:.28;filter:brightness(.45)" onerror="this.src='${trainerSprite('acetrainer')}'" alt="">`;
   }).join('');
-  const glassLayerHtml = `
-    <div style="position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:0">
-      ${_bgPokeHtml}${_bgAgentHtml}
-      <div style="position:absolute;inset:0;background:rgba(12,4,4,.52);backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px)"></div>
-    </div>`;
 
-  // ── Bag mini-bar: items owned > 0, usable directly
-  const _BAG_DEFS = [
-    {id:'pokeball',  isBall:true}, {id:'greatball', isBall:true}, {id:'ultraball', isBall:true},
-    {id:'duskball',  isBall:true}, {id:'masterball', isBall:true},
-    {id:'lure',      usable:true}, {id:'superlure', usable:true},
-    {id:'incense',   usable:true}, {id:'rarescope', usable:true}, {id:'aura',   usable:true},
-    {id:'rarecandy', usable:true}, {id:'evostone'}, {id:'incubator'},
-  ];
-  const bagBarHtml = _BAG_DEFS.map(def => {
-    const qty = state.inventory[def.id] || 0;
-    if (!qty) return '';
-    const isActive  = def.isBall && state.activeBall === def.id;
-    const isBoosted = def.usable && isBoostActive(def.id);
-    const remStr    = isBoosted ? `<span style="position:absolute;bottom:1px;left:50%;transform:translateX(-50%);font-size:6px;color:var(--green);white-space:nowrap">${Math.ceil(boostRemaining(def.id))}s</span>` : '';
-    const isAutoBall = def.isBall && state.settings.autoBuyBall === def.id;
-    const autoBtnHtml = def.isBall ? `<button class="ball-auto-btn ${isAutoBall ? 'active' : ''}" data-auto-ball="${def.id}" title="Achat automatique quand à 0"
-      style="font-size:7px;padding:1px 4px;background:${isAutoBall ? 'var(--red-dark)' : 'var(--bg)'};border:1px solid ${isAutoBall ? 'var(--red)' : 'var(--border)'};border-radius:2px;color:${isAutoBall ? 'var(--gold)' : 'var(--text-dim)'};cursor:pointer">🔄</button>` : '';
-    return `<div class="base-bag-item" data-bag-item="${def.id}" title="${def.id} ×${qty}"
-      style="position:relative;display:flex;flex-direction:column;align-items:center;gap:1px;padding:3px 4px;border-radius:4px;cursor:pointer;min-width:32px;
-        background:${isActive ? 'rgba(204,51,51,.3)' : isBoosted ? 'rgba(255,204,0,.18)' : 'rgba(0,0,0,.55)'};
-        border:1px solid ${isActive ? 'var(--red)' : isBoosted ? 'var(--gold-dim)' : 'rgba(255,255,255,.12)'}">
-      ${itemSprite(def.id)}
-      <span style="font-size:7px;color:var(--gold);font-family:var(--font-pixel)">×${qty}</span>
-      ${remStr}
-      ${autoBtnHtml}
+  // ── Item tiles: sprite ombre si qty=0, normal + badge si qty>0
+  const BALL_IDS  = ['pokeball','greatball','ultraball','duskball','masterball'];
+  const BOOST_IDS = ['lure','superlure','incense','rarescope','aura'];
+  const CRAFT_IDS = ['rarecandy','evostone'];
+  const KEY_IDS   = ['incubator','map_pallet','casino_ticket','silph_keycard','boat_ticket'];
+
+  function makeItemTile(id) {
+    const qty      = state.inventory?.[id] || 0;
+    const isBall   = BALL_IDS.includes(id);
+    const isBoost  = BOOST_IDS.includes(id);
+    const isActive = isBall && state.activeBall === id;
+    const isBoosted= isBoost && isBoostActive(id);
+    const owned    = qty > 0;
+    const remStr   = isBoosted ? `<span class="base-item-rem">${Math.ceil(boostRemaining(id))}s</span>` : '';
+    const isAuto   = isBall && state.settings.autoBuyBall === id;
+    const autoBtn  = isBall
+      ? `<button class="ball-auto-btn${isAuto ? ' active' : ''}" data-auto-ball="${id}" title="Achat auto"
+           style="font-size:6px;padding:0 3px;background:${isAuto ? 'rgba(204,51,51,.5)' : 'transparent'};border:1px solid ${isAuto ? 'var(--red)' : 'rgba(255,255,255,.15)'};border-radius:2px;color:${isAuto ? 'var(--gold)' : 'var(--text-dim)'};cursor:pointer;line-height:1.6">🔄</button>`
+      : '';
+    const qtyBadge = owned
+      ? `<span class="base-item-qty">${qty > 99 ? '99+' : '×'+qty}</span>`
+      : `<span class="base-item-qty" style="color:var(--text-dim);opacity:.4">0</span>`;
+    return `<div class="base-item-tile${isActive ? ' active' : ''}${isBoosted ? ' boosted' : ''}" data-bag-item="${id}" title="${id} ×${qty}">
+      <div class="base-item-sprite${owned ? '' : ' locked'}">${itemSprite(id)}</div>
+      ${qtyBadge}${remStr}${autoBtn}
     </div>`;
-  }).filter(Boolean).join('');
+  }
+
+  // Objets clés (1 seul exemplaire, ombre → ✓)
+  function makeKeyTile(id) {
+    const qty   = state.inventory?.[id] || 0;
+    const owned = qty > 0;
+    const badge = owned
+      ? `<span class="base-item-qty" style="color:var(--green)">✓</span>`
+      : `<span class="base-item-qty" style="color:var(--text-dim);opacity:.35">✗</span>`;
+    return `<div class="base-item-tile${owned ? '' : ' locked-key'}" data-bag-item="${id}" title="${id}${owned ? ' — Obtenu' : ' — Non obtenu'}">
+      <div class="base-item-sprite${owned ? '' : ' locked'}">${itemSprite(id)}</div>
+      ${badge}
+    </div>`;
+  }
+
+  const ballsHtml  = BALL_IDS.map(makeItemTile).join('');
+  const boostsHtml = BOOST_IDS.map(makeItemTile).join('');
+  const craftHtml  = CRAFT_IDS.map(makeItemTile).join('');
+  const keysHtml   = KEY_IDS.map(makeKeyTile).join('');
+
+  // ── Incubator slots visuels
+  const incCount       = state.inventory?.incubator || 0;
+  const eggs           = state.eggs || [];
+  const incubatingEggs = eggs.filter(e => e.incubating);
+  const waitingEggs    = eggs.filter(e => !e.incubating);
+  const now            = Date.now();
+
+  let incSlotsHtml = '';
+  if (incCount > 0) {
+    for (let i = 0; i < incCount; i++) {
+      const egg = incubatingEggs[i];
+      if (egg) {
+        const isReady   = egg.hatchAt && egg.hatchAt <= now;
+        const progress  = (egg.hatchAt && egg.incubatedAt)
+          ? Math.min(100, Math.round((now - egg.incubatedAt) / (egg.hatchAt - egg.incubatedAt) * 100))
+          : 0;
+        const timeLeftMin = egg.hatchAt ? Math.max(0, Math.ceil((egg.hatchAt - now) / 60000)) : null;
+        incSlotsHtml += `
+          <div class="base-inc-slot ${isReady ? 'ready' : 'active'}" data-egg-id="${egg.id}"
+            title="${egg.species_en}${isReady ? ' — PRÊT!' : timeLeftMin !== null ? ' — '+timeLeftMin+'min' : ''}">
+            <img src="${pokeSprite(egg.species_en)}" class="base-inc-egg" alt=""
+              style="${isReady ? '' : 'filter:brightness(0.18) saturate(0)'}">
+            <div class="base-inc-bar">
+              <div class="base-inc-fill" style="width:${isReady ? 100 : progress}%;background:${isReady ? 'var(--green)' : 'var(--gold)'}"></div>
+            </div>
+            ${isReady
+              ? `<span class="base-inc-ready">!</span>`
+              : timeLeftMin !== null ? `<span class="base-inc-time">${timeLeftMin}m</span>` : ''}
+          </div>`;
+      } else {
+        incSlotsHtml += `<div class="base-inc-slot empty"><span style="font-size:18px;opacity:.25">🥚</span></div>`;
+      }
+    }
+  }
 
   return `<div class="gang-base-window" id="gangBaseWin">
-    ${glassLayerHtml}
-    <div style="position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:8px;width:100%">
-      ${state.gang.bossSprite
-        ? `<img class="base-boss-sprite" src="${trainerSprite(state.gang.bossSprite)}" alt="Boss" onerror="this.src='${FALLBACK_TRAINER_SVG}';this.onerror=null">`
-        : '<div style="width:64px;height:64px;background:var(--bg);border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;font-size:24px">💀</div>'}
-      <div style="font-family:var(--font-pixel);font-size:10px;color:var(--text)">${state.gang.bossName}</div>
-      <div style="font-size:9px;color:var(--red)">${state.gang.name}</div>
-      <div class="base-team-slots">${bossTeamHtml}</div>
-      ${incWidgetHtml}
-      ${bagBarHtml ? `<div class="base-bag-bar">${bagBarHtml}</div>` : ''}
-      <button class="base-export-btn" title="${state.lang === 'fr' ? 'Exporter mon gang (image)' : 'Export my gang (image)'}"
-        style="margin-top:4px;font-family:var(--font-pixel);font-size:7px;padding:3px 8px;background:rgba(0,0,0,.6);border:1px solid rgba(255,255,255,.2);border-radius:var(--radius-sm);color:var(--text-dim);cursor:pointer;transition:color .2s,border-color .2s">
-        ${state.lang === 'fr' ? '📷 Exporter' : '📷 Export'}
-      </button>
+
+    <!-- ── Header ── -->
+    <div class="base-window-header">
+      <div style="display:flex;align-items:center;gap:6px">
+        <span style="font-size:12px">🏠</span>
+        <span style="font-family:var(--font-pixel);font-size:8px;color:var(--red);letter-spacing:1px">${state.gang.name}</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-family:var(--font-pixel);font-size:8px;color:var(--gold)">₽${state.gang.money.toLocaleString()}</span>
+        <button class="base-export-btn" title="${state.lang === 'fr' ? 'Exporter mon gang' : 'Export my gang'}"
+          style="font-size:11px;background:none;border:none;cursor:pointer;color:var(--text-dim);padding:0;line-height:1;transition:color .2s"
+          onmouseover="this.style.color='var(--text)'" onmouseout="this.style.color='var(--text-dim)'">📷</button>
+      </div>
     </div>
+
+    <!-- ── Viewport environnement ── -->
+    <div class="base-env-viewport">
+      <div style="position:absolute;inset:0;overflow:hidden;pointer-events:none">
+        ${_bgPokeHtml}${_bgAgentHtml}
+        <div style="position:absolute;inset:0;background:rgba(12,4,4,.55);backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px)"></div>
+      </div>
+      <div style="position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px 8px 10px">
+        ${state.gang.bossSprite
+          ? `<img class="base-boss-sprite" src="${trainerSprite(state.gang.bossSprite)}" alt="Boss" onerror="this.src='${FALLBACK_TRAINER_SVG}';this.onerror=null">`
+          : '<div style="width:72px;height:72px;background:rgba(0,0,0,.5);border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;font-size:28px">💀</div>'}
+        <div style="font-family:var(--font-pixel);font-size:9px;color:var(--text)">${state.gang.bossName}</div>
+        <div class="base-team-slots">${bossTeamHtml}</div>
+      </div>
+    </div>
+
+    <!-- ── Balls ── -->
+    <div class="base-inv-section">
+      <div class="base-inv-label">🎯 BALLS</div>
+      <div class="base-inv-row">${ballsHtml}</div>
+    </div>
+
+    <!-- ── Boosts ── -->
+    <div class="base-inv-section">
+      <div class="base-inv-label">⚡ BOOSTS</div>
+      <div class="base-inv-row">${boostsHtml}</div>
+    </div>
+
+    <!-- ── Objets ── -->
+    <div class="base-inv-section">
+      <div class="base-inv-label">🔧 OBJETS</div>
+      <div class="base-inv-row">${craftHtml}${keysHtml}</div>
+    </div>
+
+    <!-- ── Incubateurs ── -->
+    <div class="base-inv-section"${incCount > 0 ? ' data-base-action="pension" style="cursor:pointer"' : ''}>
+      <div class="base-inv-label">🥚 INCUBATEURS${waitingEggs.length > 0 ? ` <span style="color:var(--text-dim);font-weight:normal">+${waitingEggs.length} en attente</span>` : ''}</div>
+      ${incCount > 0
+        ? `<div class="base-inc-slots">${incSlotsHtml}</div>`
+        : `<div style="font-size:8px;color:var(--text-dim);padding:2px 0 3px;opacity:.5">${state.lang === 'fr' ? 'Aucun incubateur — achetez-en au Marché' : 'No incubators — buy some at the Market'}</div>`}
+    </div>
+
   </div>`;
 }
 
 function bindGangBase(container) {
+  const BALL_IDS  = ['pokeball','greatball','ultraball','duskball','masterball'];
+  const BOOST_IDS = ['lure','superlure','incense','rarescope','aura'];
+
   // Boss team slot clicks
   container.querySelectorAll('[data-boss-slot]').forEach(slot => {
     slot.addEventListener('click', () => {
@@ -6594,40 +6674,31 @@ function bindGangBase(container) {
     });
   });
 
-  // Incubator widget → PC eggs tab
+  // Incubator section → PC eggs tab
   container.querySelector('[data-base-action="pension"]')?.addEventListener('click', () => {
     pcView = 'eggs';
     switchTab('tabPC');
   });
 
-  // Bag mini-bar: use items directly from zone
-  container.querySelectorAll('.base-bag-item').forEach(el => {
+  // Item tiles
+  container.querySelectorAll('.base-item-tile[data-bag-item]').forEach(el => {
     el.addEventListener('click', () => {
-      const id = el.dataset.bagItem;
-      const def = {
-        pokeball: {isBall:true}, greatball: {isBall:true}, ultraball: {isBall:true},
-        duskball: {isBall:true}, masterball: {isBall:true},
-        lure: {usable:true}, superlure: {usable:true},
-        incense: {usable:true}, rarescope: {usable:true}, aura: {usable:true},
-        rarecandy: {usable:true},
-      }[id] || {};
+      const id  = el.dataset.bagItem;
+      const qty = state.inventory?.[id] || 0;
 
-      if (def.isBall) {
+      if (BALL_IDS.includes(id)) {
         state.activeBall = id;
         saveState();
         renderZoneWindows();
         return;
       }
-      if (id === 'rarecandy') {
-        openRareCandyPicker();
-        return;
-      }
-      if (def.usable) {
-        if (activateBoost(id)) {
-          const rem = Math.ceil(boostRemaining(id));
-          notify(`Boost activé — ${rem}s`, 'success');
+      if (id === 'rarecandy') { openRareCandyPicker(); return; }
+      if (BOOST_IDS.includes(id)) {
+        if (qty > 0 && activateBoost(id)) {
+          notify(`Boost activé — ${Math.ceil(boostRemaining(id))}s`, 'success');
         }
         renderZoneWindows();
+        return;
       }
     });
   });
