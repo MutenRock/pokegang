@@ -764,6 +764,29 @@
     .pc-view-btn.active { background: var(--bg-hover); color: var(--gold); border-color: var(--gold-dim); }
 
     /* ── Fog-of-War Zone Map ─────────────────────────────────────── */
+    .fog-split-layout {
+      display: flex;
+      gap: 16px;
+      align-items: flex-start;
+    }
+    .fog-col {
+      flex: 1;
+      min-width: 0;
+    }
+    .fog-col-combat {
+      flex: 0 0 auto;
+      min-width: 200px;
+    }
+    .fog-col-label {
+      font-family: var(--font-pixel);
+      font-size: 8px;
+      color: var(--text-dim);
+      letter-spacing: 2px;
+      margin-bottom: 6px;
+      padding-bottom: 4px;
+      border-bottom: 1px solid var(--border);
+      text-align: center;
+    }
     .fog-map {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
