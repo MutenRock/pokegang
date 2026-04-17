@@ -2535,14 +2535,13 @@
 
     <!-- ═══ Tab Navigation ═══ -->
     <nav id="tabNav">
-      <button class="tab-btn active" data-tab="tabGang">Gang <span class="tab-info-btn" data-info-tab="tabGang">ℹ</span></button>
-      <button class="tab-btn" data-tab="tabAgents">Agents <span class="tab-info-btn" data-info-tab="tabAgents">ℹ</span></button>
-      <button class="tab-btn" data-tab="tabZones">Zones <span class="tab-info-btn" data-info-tab="tabZones">ℹ</span></button>
-      <button class="tab-btn" data-tab="tabMarket">Marche <span class="tab-info-btn" data-info-tab="tabMarket">ℹ</span></button>
+      <button class="tab-btn active" data-tab="tabZones">Zones <span class="tab-info-btn" data-info-tab="tabZones">ℹ</span></button>
       <button class="tab-btn" data-tab="tabPC">PC <span class="tab-info-btn" data-info-tab="tabPC">ℹ</span></button>
-      <button class="tab-btn" data-tab="tabTraining">Formation</button>
-      <button class="tab-btn" data-tab="tabMissions">Missions</button>
-      <button class="tab-btn" data-tab="tabPokedex">Pokedex <span class="tab-info-btn" data-info-tab="tabPokedex">ℹ</span></button>
+      <button class="tab-btn" data-tab="tabAgents">Agents <span class="tab-info-btn" data-info-tab="tabAgents">ℹ</span></button>
+      <button class="tab-btn" data-tab="tabMarket">Marché <span class="tab-info-btn" data-info-tab="tabMarket">ℹ</span></button>
+      <button class="tab-btn" data-tab="tabGang">Gang <span class="tab-info-btn" data-info-tab="tabGang">ℹ</span></button>
+      <button class="tab-btn" data-tab="tabPokedex">Pokédex <span class="tab-info-btn" data-info-tab="tabPokedex">ℹ</span></button>
+      <button class="tab-btn" data-tab="tabMissions" id="tabBtnMissions" style="display:none">Missions</button>
       <button class="tab-btn" data-tab="tabCompte" id="tabBtnCompte" style="margin-left:auto">☁ Compte</button>
       <button class="tab-btn" id="btnSaveSlots" style="border-color:var(--gold-dim);color:var(--gold-dim)">Saves</button>
     </nav>
@@ -2552,7 +2551,7 @@
     <main id="tabContent">
 
       <!-- ── Gang ── -->
-      <section id="tabGang" class="tab-pane active"></section>
+      <section id="tabGang" class="tab-pane"></section>
 
       <!-- ── Agents ── -->
       <section id="tabAgents" class="tab-pane">
@@ -2563,7 +2562,7 @@
       </section>
 
       <!-- ── Zones ── -->
-      <section id="tabZones" class="tab-pane">
+      <section id="tabZones" class="tab-pane active">
         <div id="zoneWindows" style="display:flex;flex-wrap:wrap;gap:12px;"></div>
         <div class="zones-split-bar">
           <span class="zones-split-label">BASE</span>
