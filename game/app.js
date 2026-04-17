@@ -535,35 +535,40 @@ const ZONE_BG_URL = (name) => `https://play.pokemonshowdown.com/sprites/gen5-bac
 // Background-image uses multi-layer: image on top, gradient underneath as fallback
 const SD_BG = 'https://play.pokemonshowdown.com/fx/bg-';
 const ZONE_BGS = {
-  route1:          { url:`${SD_BG}meadow.png`,   fb:'#1a3a0a,#0d2008' },
-  viridian_forest: { url:`${SD_BG}forest.png`,   fb:'#0a2a08,#041504' },
-  mt_moon:         { url:`${SD_BG}mountain.png`, fb:'#12123a,#07073a' },
-  diglett_cave:    { url:`${SD_BG}mountain.png`, fb:'#2a1204,#180a02' },
-  rock_tunnel:     { url:`${SD_BG}mountain.png`, fb:'#1a1410,#0a0a08' },
-  pokemon_tower:   { url:`${SD_BG}city.png`,     fb:'#1a0834,#0d0020' },
-  power_plant:     { url:`${SD_BG}city.png`,     fb:'#2a2008,#1a1400' },
-  seafoam_islands: { url:`${SD_BG}deepsea.png`,  fb:'#082a3a,#041a2a' },
-  victory_road:    { url:`${SD_BG}mountain.png`, fb:'#2a1208,#180a06' },
-  unknown_cave:    { url:`${SD_BG}mountain.png`, fb:'#100820,#080012' },
-  // Gyms
-  pewter_gym:      { url:`${SD_BG}mountain.png`, fb:'#2a1a08,#1a0e04' },
-  cerulean_gym:    { url:`${SD_BG}beach.png`,    fb:'#081a3a,#041228' },
-  celadon_gym:     { url:`${SD_BG}forest.png`,   fb:'#0a2a08,#042008' },
-  fuchsia_gym:     { url:`${SD_BG}river.png`,    fb:'#280828,#180418' },
-  saffron_gym:     { url:`${SD_BG}city.png`,     fb:'#181830,#0c0c22' },
-  cinnabar_gym:    { url:`${SD_BG}desert.png`,   fb:'#3a0808,#280404' },
-  indigo_plateau:  { url:`${SD_BG}mountain.png`, fb:'#1a1a2a,#0c0c1c' },
-  // Special
-  safari_zone:     { url:`${SD_BG}meadow.png`,   fb:'#082008,#041204' },
-  celadon_casino:  { url:`${SD_BG}city.png`,     fb:'#200820,#120412' },
-  silph_co:        { url:`${SD_BG}city.png`,     fb:'#08101a,#040810' },
-  // New zones
-  pallet_garden:   { url:`${SD_BG}meadow.png`,   fb:'#0a2a04,#061802' },
-  route22:         { url:`${SD_BG}meadow.png`,    fb:'#1a2808,#101a04' },
-  ss_anne:         { url:`${SD_BG}beach.png`,     fb:'#082038,#041428' },
-  pokemon_mansion: { url:`${SD_BG}city.png`,      fb:'#200408,#140204' },
-  mt_silver:       { url:`${SD_BG}mountain.png`,  fb:'#0a0a20,#040414' },
-  lavender_town:   { url:`${SD_BG}city.png`,      fb:'#160030,#0a0020' },
+  // ── Routes & nature ──────────────────────────────────────────
+  route1:           { url:`${SD_BG}meadow.png`,         fb:'#1a3a0a,#0d2008' },
+  viridian_forest:  { url:`${SD_BG}forest.png`,         fb:'#0a2a08,#041504' },
+  route22:          { url:`${SD_BG}meadow.png`,          fb:'#1a2808,#101a04' },
+  pallet_garden:    { url:`${SD_BG}meadow.png`,          fb:'#0a2a04,#061802' },
+  // ── Cavernes ─────────────────────────────────────────────────
+  mt_moon:          { url:`${SD_BG}mountain.png`,       fb:'#12123a,#07073a' },
+  diglett_cave:     { url:`${SD_BG}earthen-cave.png`,   fb:'#2a1204,#180a02' },
+  rock_tunnel:      { url:`${SD_BG}earthen-cave.png`,   fb:'#1a1410,#0a0a08' },
+  victory_road:     { url:`${SD_BG}mountain.png`,       fb:'#2a1208,#180a06' },
+  unknown_cave:     { url:`${SD_BG}mountain.png`,        fb:'#100820,#080012' },
+  // ── Zones urbaines ───────────────────────────────────────────
+  power_plant:      { url:`${SD_BG}city.png`,           fb:'#2a2008,#1a1400' },
+  silph_co:         { url:`${SD_BG}building.png`,        fb:'#08101a,#040810' },
+  // ── Zones spectrales / sombres ────────────────────────────────
+  pokemon_tower:    { url:`${SD_BG}hauntedlocation.png`, fb:'#0d0020,#06000f' },
+  lavender_town:    { url:`${SD_BG}hauntedlocation.png`, fb:'#160030,#0a0020' },
+  pokemon_mansion:  { url:`${SD_BG}hauntedlocation.png`, fb:'#200408,#140204' },
+  // ── Mer / côte ────────────────────────────────────────────────
+  seafoam_islands:  { url:`${SD_BG}deepsea.png`,        fb:'#082a3a,#041a2a' },
+  ss_anne:          { url:`${SD_BG}beach.png`,           fb:'#082038,#041428' },
+  // ── Montagne alta ────────────────────────────────────────────
+  mt_silver:        { url:`${SD_BG}mountain.png`,        fb:'#0a0a20,#040414' },
+  // ── Arènes ───────────────────────────────────────────────────
+  pewter_gym:       { url:`${SD_BG}mountain.png`,        fb:'#2a1a08,#1a0e04' },
+  cerulean_gym:     { url:`${SD_BG}beach.png`,           fb:'#081a3a,#041228' },
+  celadon_gym:      { url:`${SD_BG}forest.png`,          fb:'#0a2a08,#042008' },
+  fuchsia_gym:      { url:`${SD_BG}river.png`,           fb:'#280828,#180418' },
+  saffron_gym:      { url:`${SD_BG}city.png`,            fb:'#181830,#0c0c22' },
+  cinnabar_gym:     { url:`${SD_BG}desert.png`,          fb:'#3a0808,#280404' },
+  indigo_plateau:   { url:`${SD_BG}mountain.png`,        fb:'#1a1a2a,#0c0c1c' },
+  // ── Lieux spéciaux ───────────────────────────────────────────
+  safari_zone:      { url:`${SD_BG}meadow.png`,          fb:'#082008,#041204' },
+  celadon_casino:   { url:`${SD_BG}city.png`,            fb:'#1a0030,#100020' },
 };
 
 // Cosmetic backgrounds purchasable for the game screen
@@ -972,30 +977,37 @@ ZONE_BY_ID[GANG_BASE.id] = GANG_BASE;
 // ── Musiques par zone (référence les clés de MUSIC_TRACKS) ────
 // Ajoutez un fichier .mp3 dans game/music/ puis référencez-le ici.
 const ZONE_MUSIC_MAP = {
-  route1:          'forest',
-  viridian_forest: 'forest',
-  mt_moon:         'cave',
-  diglett_cave:    'cave',
-  rock_tunnel:     'cave',
-  pokemon_tower:   'lavender',
-  power_plant:     'city',
-  seafoam_islands: 'sea',
-  victory_road:    'cave',
-  unknown_cave:    'cave',
-  pewter_gym:      'gym',
-  cerulean_gym:    'gym',
-  celadon_gym:     'gym',
-  fuchsia_gym:     'gym',
-  saffron_gym:     'gym',
-  cinnabar_gym:    'gym',
-  indigo_plateau:  'elite4',
-  safari_zone:     'safari',
-  celadon_casino:  'casino',
-  silph_co:        'silph',
-  pallet_garden:   'forest',
-  route22:         'forest',
-  ss_anne:         'sea',
-  lavender_town:   'lavender',
+  // Routes & nature
+  route1:           'forest',
+  viridian_forest:  'forest',
+  route22:          'forest',
+  pallet_garden:    'forest',
+  mt_moon:          'cave',
+  diglett_cave:     'cave',
+  rock_tunnel:      'cave',
+  victory_road:     'cave',
+  unknown_cave:     'cave',
+  power_plant:      'city',
+  // Zones spéciales atmosphère
+  pokemon_tower:    'tower',
+  lavender_town:    'lavender',
+  pokemon_mansion:  'mansion',
+  mt_silver:        'elite4',
+  // Mer / bateaux
+  seafoam_islands:  'sea',
+  ss_anne:          'sea',
+  // Arènes
+  pewter_gym:       'gym',
+  cerulean_gym:     'gym',
+  celadon_gym:      'gym',
+  fuchsia_gym:      'gym',
+  saffron_gym:      'gym',
+  cinnabar_gym:     'gym',
+  indigo_plateau:   'elite4',
+  // Lieux spéciaux
+  safari_zone:      'safari',
+  celadon_casino:   'casino',
+  silph_co:         'silph',
 };
 // Applique le mapping aux objets de zone
 Object.entries(ZONE_MUSIC_MAP).forEach(([id, track]) => {
@@ -2270,22 +2282,24 @@ const SFX = (() => {
  */
 const MUSIC_TRACKS = {
   // ── Base / Routes ─────────────────────────────────────────────
-  base:        { file: 'music/BGM/First Town.mp3',    loop: true,  vol: 0.45, fr: 'Base du Gang'    },
-  forest:      { file: 'music/BGM/Route 1.mp3',       loop: true,  vol: 0.5,  fr: 'Route'            },
-  cave:        { file: 'music/BGM/Cave.mp3',           loop: true,  vol: 0.45, fr: 'Caverne'          },
-  city:        { file: 'music/BGM/Lab.mp3',            loop: true,  vol: 0.5,  fr: 'Ville'            },
-  sea:         { file: 'music/sea.mp3',                loop: true,  vol: 0.5,  fr: 'Mer'              }, // à ajouter
-  safari:      { file: 'music/safari.mp3',             loop: true,  vol: 0.5,  fr: 'Parc Safari'      }, // à ajouter
-  lavender:    { file: 'music/BGM/Cave.mp3',           loop: true,  vol: 0.35, fr: 'Lavanville'       }, // ambiance sombre
+  base:        { file: 'music/BGM/First Town.mp3',    loop: true,  vol: 0.45, fr: 'Base du Gang'       },
+  forest:      { file: 'music/BGM/Route 1.mp3',       loop: true,  vol: 0.50, fr: 'Route'               },
+  cave:        { file: 'music/BGM/Cave.mp3',           loop: true,  vol: 0.45, fr: 'Caverne'             },
+  city:        { file: 'music/BGM/Lab.mp3',            loop: true,  vol: 0.50, fr: 'Ville'               },
+  sea:         { file: 'music/BGM/Introduction.mp3',   loop: true,  vol: 0.45, fr: 'Mer / Bateau'        },
+  safari:      { file: 'music/BGM/Route 1.mp3',        loop: true,  vol: 0.45, fr: 'Parc Safari'         },
+  lavender:    { file: 'music/BGM/Cave.mp3',           loop: true,  vol: 0.30, fr: 'Lavanville'          },
+  tower:       { file: 'music/BGM/Cave.mp3',           loop: true,  vol: 0.28, fr: 'Tour Pokémon'        },
+  mansion:     { file: 'music/BGM/Cave.mp3',           loop: true,  vol: 0.35, fr: 'Manoir Pokémon'      },
   // ── Combat / Arènes ───────────────────────────────────────────
-  gym:         { file: 'music/BGM/VSTrainer.mp3',      loop: true,  vol: 0.55, fr: 'Arène'            },
-  rocket:      { file: 'music/BGM/VSRival.mp3',        loop: true,  vol: 0.55, fr: 'Team Rocket'      },
-  silph:       { file: 'music/BGM/Lab.mp3',            loop: true,  vol: 0.5,  fr: 'Sylphe SARL'      },
-  elite4:      { file: 'music/BGM/VSLegend.mp3',       loop: true,  vol: 0.6,  fr: 'Élite 4'          },
+  gym:         { file: 'music/BGM/VSTrainer.mp3',      loop: true,  vol: 0.55, fr: 'Arène'               },
+  rocket:      { file: 'music/BGM/VSRival.mp3',        loop: true,  vol: 0.55, fr: 'Team Rocket'         },
+  silph:       { file: 'music/BGM/Lab.mp3',            loop: true,  vol: 0.50, fr: 'Sylphe SARL'         },
+  elite4:      { file: 'music/BGM/VSLegend.mp3',       loop: true,  vol: 0.60, fr: 'Élite 4 / Sommet'    },
   // ── Ambiances spéciales ────────────────────────────────────────
-  casino:      { file: 'music/casino.mp3',             loop: true,  vol: 0.5,  fr: 'Casino'           }, // à ajouter
-  halloffame:  { file: 'music/BGM/Hall of Fame.mp3',   loop: false, vol: 0.6,  fr: 'Tableau d\'Honneur' },
-  title:       { file: 'music/BGM/Title.mp3',          loop: true,  vol: 0.5,  fr: 'Titre'            },
+  casino:      { file: 'music/BGM/MysteryGift.mp3',    loop: true,  vol: 0.55, fr: 'Casino'              },
+  halloffame:  { file: 'music/BGM/Hall of Fame.mp3',   loop: false, vol: 0.60, fr: 'Tableau d\'Honneur'  },
+  title:       { file: 'music/BGM/Title.mp3',          loop: true,  vol: 0.50, fr: 'Titre'               },
 };
 
 /**
@@ -6033,12 +6047,19 @@ function renderZoneSelector() {
           ? `<span style="color:var(--red)">${name}</span>`
           : `<span style="color:var(--text-dim)">${name}</span>`;
       }
+      const poolPreview = zone.pool.slice(0, 5).map(en =>
+        `<img src="${pokeSprite(en)}" style="width:16px;height:16px;image-rendering:pixelated;filter:drop-shadow(0 1px 3px rgba(0,0,0,1))" title="${SPECIES_BY_EN[en]?.fr || en}">`
+      ).join('');
+      const musicKey = zone.music;
+      const musicIcon = musicKey ? '🎵' : '';
+
       return `<div class="fog-tile unlocked ${isOpen ? 'fog-open' : ''} zone-type-${zone.type}${degraded ? ' fog-degraded' : ''}"
         data-zone="${zone.id}" style="${bgStyle}">
         <div class="fog-tile-overlay"></div>
+        <div class="fog-tile-pool-preview">${poolPreview}</div>
         <div class="fog-tile-content">
-          <div class="fog-tile-name">${displayName}${gymTag}${degradedTag}</div>
-          <div class="fog-tile-stats">${'*'.repeat(mastery)} ${combats}W</div>
+          <div class="fog-tile-name">${displayName}${degradedTag}</div>
+          <div class="fog-tile-stats">${'★'.repeat(mastery)}${mastery ? ' ' : ''}${combats}W${musicIcon ? ' '+musicIcon : ''}</div>
           <div class="fog-tile-status">${isOpen ? '[OUVERT]' : (degraded ? '[COMBAT]' : '[ENTRER]')}</div>
         </div>
         ${incomeHtml}
@@ -6778,45 +6799,88 @@ function openCodexModal() {
 
   // ── TAB 2: Spawns par zone ────────────────────────────────
   function buildSpawnsTab() {
-    const TYPE_LABEL = { route:'Route', gym:'Arène', special:'Spécial' };
+    const TYPE_LABEL = { route:'🌿 Routes & Grottes', gym:'⚔ Arènes', special:'⭐ Lieux Spéciaux' };
     const TYPE_COLOR = { route:'#5be06c', gym:'#e05b5b', special:'#e0c05b' };
+    const RARITY_C   = { common:'#aaa', uncommon:'#5be06c', rare:'#5b9be0', very_rare:'#c05be0', legendary:'#ffcc5a' };
+    const GYM_LEADER_FR = {
+      brock:'Pierre', misty:'Ondine', ltsurge:'Maj. Bob', erika:'Érika',
+      koga:'Koga', sabrina:'Morgane', blaine:'Auguste', blue:'Blue',
+    };
 
     const sections = { route:[], gym:[], special:[] };
-    for (const zone of ZONES) {
-      sections[zone.type || 'route']?.push(zone);
-    }
+    for (const zone of ZONES) sections[zone.type || 'route']?.push(zone);
 
     let html = '';
     for (const [type, zones] of Object.entries(sections)) {
       if (!zones.length) continue;
-      html += `<div style="margin-bottom:16px">
-        <div style="font-family:var(--font-pixel);font-size:9px;color:${TYPE_COLOR[type]};margin-bottom:8px;text-transform:uppercase;letter-spacing:.08em">— ${TYPE_LABEL[type] || type} —</div>`;
+      html += `<div style="margin-bottom:20px">
+        <div style="font-family:var(--font-pixel);font-size:9px;color:${TYPE_COLOR[type]};margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid rgba(255,255,255,.08)">
+          ${TYPE_LABEL[type]} — ${zones.length} zones
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px">`;
+
       for (const zone of zones) {
+        const bg     = ZONE_BGS[zone.id];
+        const bgImg  = bg ? `url('${bg.url}'),linear-gradient(180deg,${bg.fb})` : `linear-gradient(180deg,#1a1a1a,#0d0d0d)`;
+        const mKey   = zone.music;
+        const mName  = mKey && MUSIC_TRACKS[mKey] ? MUSIC_TRACKS[mKey].fr : null;
+
+        // Pokémon pool sprites
         const poolHtml = zone.pool.map(en => {
-          const sp = SPECIES_BY_EN[en];
-          if (!sp) return '';
-          const col = RARITY_COLOR[sp.rarity] || '#aaa';
-          const abbr = { common:'C', uncommon:'PC', rare:'R', very_rare:'TR', legendary:'L' }[sp.rarity] || '?';
-          return `<span style="display:inline-flex;align-items:center;gap:3px;margin:2px 3px 2px 0;padding:2px 5px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:3px;font-size:10px">
-            ${sp.fr}<span style="font-size:8px;color:${col};margin-left:2px">[${abbr}]</span>
-          </span>`;
+          const sp  = SPECIES_BY_EN[en];
+          const col = RARITY_C[sp?.rarity] || '#aaa';
+          return `<div style="display:flex;flex-direction:column;align-items:center;gap:1px" title="${sp?.fr || en}">
+            <img src="${pokeSprite(en)}" style="width:26px;height:26px;image-rendering:pixelated;filter:drop-shadow(0 1px 3px rgba(0,0,0,.9))">
+            <div style="width:4px;height:4px;border-radius:50%;background:${col};opacity:.8"></div>
+          </div>`;
         }).join('');
 
-        const rarePart = zone.rarePool ? `<div style="margin-top:4px;font-size:9px;color:#888">
-          Safari 10% : ${zone.rarePool.slice(0,5).map(e => (SPECIES_BY_EN[e.en]?.fr || e.en)).join(', ')}…
-        </div>` : '';
+        // Rare pool (premier 6)
+        const rareHtml = zone.rarePool ? `
+          <div style="margin-top:6px;padding-top:5px;border-top:1px solid rgba(255,255,255,.06)">
+            <span style="font-size:7px;font-family:var(--font-pixel);color:#888">✨ Rare (10%) : </span>
+            ${zone.rarePool.slice(0,6).map(e => {
+              const sp = SPECIES_BY_EN[e.en];
+              return `<img src="${pokeSprite(e.en)}" style="width:20px;height:20px;image-rendering:pixelated;opacity:.7" title="${sp?.fr || e.en} (w:${e.w})">`;
+            }).join('')}
+          </div>` : '';
 
-        html += `<div style="margin-bottom:10px;padding:8px;background:rgba(255,255,255,0.03);border-left:2px solid ${TYPE_COLOR[type]};border-radius:0 4px 4px 0">
-          <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:5px">
-            <span style="font-family:var(--font-pixel);font-size:9px;color:#e0e0e0">${zone.fr}</span>
-            <span style="font-size:9px;color:#555">Rep ≥ ${zone.rep}</span>
-            ${zone.unlockItem ? `<span style="font-size:8px;color:#e0c05b">🔑 ${zone.unlockItem}</span>` : ''}
+        // Gym leader
+        const gymHtml = zone.gymLeader ? (() => {
+          const lFr = GYM_LEADER_FR[zone.gymLeader] || zone.gymLeader;
+          return `<div style="display:flex;align-items:center;gap:6px;margin-top:6px;padding-top:5px;border-top:1px solid rgba(255,255,255,.06)">
+            <img src="${trainerSprite(zone.gymLeader)}" style="width:28px;height:28px;image-rendering:pixelated">
+            <div>
+              <div style="font-family:var(--font-pixel);font-size:8px;color:var(--gold)">${lFr}</div>
+              <div style="font-size:8px;color:var(--text-dim)">XP ×${zone.xpBonus}</div>
+            </div>
+          </div>`;
+        })() : '';
+
+        html += `<div style="border-radius:6px;overflow:hidden;border:1px solid rgba(255,255,255,.08)">
+          <!-- Header avec background de zone -->
+          <div style="position:relative;height:44px;background-image:${bgImg};background-size:cover;background-position:center">
+            <div style="position:absolute;inset:0;background:rgba(0,0,0,.55)"></div>
+            <div style="position:relative;z-index:1;display:flex;align-items:center;justify-content:space-between;padding:4px 8px;height:100%">
+              <div>
+                <div style="font-family:var(--font-pixel);font-size:8px;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.9)">${zone.fr}</div>
+                <div style="font-size:7px;color:rgba(255,255,255,.5)">Rep ≥ ${zone.rep}${zone.unlockItem ? ' · 🔑' : ''}</div>
+              </div>
+              <div style="text-align:right;font-size:7px;color:rgba(255,255,255,.5)">
+                ${mName ? `🎵 ${mName}` : ''}
+                ${zone.spawnRate ? `<br>Spawn ×${zone.spawnRate}` : ''}
+              </div>
+            </div>
           </div>
-          <div>${poolHtml}</div>
-          ${rarePart}
+          <!-- Pool -->
+          <div style="background:rgba(0,0,0,.6);padding:6px 8px">
+            <div style="display:flex;flex-wrap:wrap;gap:4px;align-items:flex-end">${poolHtml}</div>
+            ${rareHtml}
+            ${gymHtml}
+          </div>
         </div>`;
       }
-      html += '</div>';
+      html += '</div></div>';
     }
     return html;
   }
