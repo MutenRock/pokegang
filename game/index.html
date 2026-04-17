@@ -329,6 +329,9 @@
       flex-wrap: wrap;
       gap: 12px;
       align-items: flex-start;
+      max-height: 600px;
+      overflow-y: auto;
+      padding-bottom: 4px;
     }
 
     .zone-window {
@@ -628,7 +631,7 @@
     /* ── Market Tab ───────────────────────────────────────────────── */
     #tabMarket .market-layout {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: 1fr 1fr 1fr;
       gap: 12px;
     }
 
@@ -658,7 +661,8 @@
     }
 
     #shopPanel .shop-list,
-    #questPanel .quest-list {
+    #questPanel .quest-list,
+    #barterPanel .barter-list {
       flex: 1;
       overflow-y: auto;
     }
@@ -2715,6 +2719,10 @@
           <div id="shopPanel" class="market-panel">
             <h3>BOUTIQUE</h3>
             <div class="shop-list"></div>
+          </div>
+          <div id="barterPanel" class="market-panel">
+            <h3>TROC</h3>
+            <div class="barter-list"></div>
           </div>
         </div>
       </section>
