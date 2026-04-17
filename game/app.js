@@ -591,28 +591,28 @@ const ZONES = [
     pool:['rattata','pidgey','caterpie','weedle','spearow','nidoran-f','nidoran-m'],
     trainers:['youngster','lass'], eliteTrainer:'acetrainer', investCost:0 },
   { id:'viridian_forest',fr:'Forêt de Jade',    en:'Viridian Forest',   rep:100, spawnRate:0.08, type:'route',
-    pool:['pikachu','caterpie','metapod','butterfree','weedle','kakuna','beedrill','oddish'],
+    pool:['pikachu','caterpie','metapod','butterfree','weedle','kakuna','beedrill','oddish','bellsprout','gloom'],
     trainers:['bugcatcher','youngster'], eliteTrainer:'acetrainer', investCost:3000 },
   { id:'mt_moon',       fr:'Mont Sélénite',     en:'Mt. Moon',          rep:200, spawnRate:0.04, type:'route',
     pool:['zubat','geodude','clefairy','paras','clefable','jigglypuff'],
     trainers:['hiker','supernerd','rocketgrunt'], eliteTrainer:'ariana', investCost:5000 },
   { id:'diglett_cave',  fr:'Grotte Taupiqueur', en:'Diglett\'s Cave',   rep:250, spawnRate:0.04, type:'route',
-    pool:['diglett','dugtrio','geodude','zubat','onix'],
+    pool:['diglett','dugtrio','geodude','zubat','onix','sandshrew'],
     trainers:['hiker','camper'], eliteTrainer:'hiker', investCost:5000 },
   { id:'rock_tunnel',   fr:'Grotte',            en:'Rock Tunnel',       rep:400, spawnRate:0.04, type:'route',
-    pool:['zubat','geodude','machop','onix','cubone','kangaskhan'],
+    pool:['zubat','geodude','machop','onix','cubone','kangaskhan','drowzee','hypno'],
     trainers:['hiker','blackbelt'], eliteTrainer:'blackbelt', investCost:8000 },
   { id:'pokemon_tower', fr:'Tour Pokémon',      en:'Pokémon Tower',     rep:550, spawnRate:0.03, type:'route',
-    pool:['gastly','haunter','gengar','cubone','marowak','zubat'],
+    pool:['gastly','haunter','gengar','cubone','marowak','zubat','koffing','weezing','grimer'],
     trainers:['channeler','psychic','rocketgrunt'], eliteTrainer:'agatha', investCost:15000 },
   { id:'power_plant',   fr:'Centrale',          en:'Power Plant',       rep:700, spawnRate:0.03, type:'route',
     pool:['voltorb','electrode','magnemite','magneton','electabuzz','pikachu','raichu','zapdos'],
     trainers:['scientist','supernerd'], eliteTrainer:'ltsurge', investCost:20000 },
   { id:'seafoam_islands',fr:'Îles Écume',       en:'Seafoam Islands',   rep:800, spawnRate:0.06, type:'route',
-    pool:['tentacool','shellder','staryu','seel','dewgong','horsea','seadra','lapras','articuno'],
+    pool:['tentacool','shellder','staryu','seel','dewgong','horsea','seadra','lapras','articuno','psyduck','goldeen','jynx'],
     trainers:['swimmer','acetrainer'], eliteTrainer:'lorelei', investCost:22000 },
   { id:'victory_road',  fr:'Route Victoire',    en:'Victory Road',      rep:950, spawnRate:0.04, type:'route',
-    pool:['machoke','geodude','graveler','onix','marowak','golbat'],
+    pool:['machoke','geodude','graveler','onix','marowak','golbat','dragonair','gyarados'],
     trainers:['acetrainer','blackbelt'], eliteTrainer:'lance', investCost:35000 },
   { id:'unknown_cave',  fr:'Grotte Inconnue',   en:'Cerulean Cave',     rep:1100,spawnRate:0.03, type:'route',
     pool:['mewtwo','ditto','kadabra','alakazam','electrode','rhydon','chansey','wigglytuff'],
@@ -650,7 +650,7 @@ const ZONES = [
 
   // ══ LIEUX SPÉCIAUX (hybride : captures + events, investissement possible) ══
   { id:'safari_zone',   fr:'Parc Safari',       en:'Safari Zone',       rep:500, spawnRate:0.07, type:'special',
-    pool:['kangaskhan','tauros','scyther','pinsir','nidoran-f','nidoran-m','chansey','dratini','exeggcute'],
+    pool:['kangaskhan','tauros','scyther','pinsir','nidoran-f','nidoran-m','chansey','dratini','exeggcute','weepinbell','victreebel','vileplume','venonat','venomoth','mr-mime','hypno'],
     // rarePool: ~10% chance instead of regular pool — all currently uncapturable Pokemon
     rarePool:[
       // Ultra-rare (starters, fossils, Eevee) — w:1
@@ -699,7 +699,7 @@ const ZONES = [
     pool:['tentacool','shellder','horsea','seel','magikarp','lapras','cloyster','staryu'],
     trainers:['sailor','gentleman','swimmer'], eliteTrainer:'misty', investCost:8000 },
   { id:'pokemon_mansion',fr:'Manoir Pokémon',   en:'Pokémon Mansion',   rep:870, spawnRate:0.04, type:'special',
-    pool:['growlithe','magmar','cubone','ditto','ponyta','kangaskhan'],
+    pool:['growlithe','magmar','cubone','ditto','ponyta','kangaskhan','vulpix','ninetales','rapidash'],
     rarePool:[
       {en:'charmander',w:2},{en:'charmeleon',w:1},{en:'charizard',w:1},
       {en:'omanyte',w:2},{en:'kabuto',w:2},{en:'aerodactyl',w:1},
@@ -1168,7 +1168,7 @@ const SHOP_ITEMS = [
   { id:'rarescope', qty:1,  cost:3000,  icon:'SC',  fr:'Rarioscope',   en:'Rare Scope',      desc_fr:'Spawns rares x3 90s',   desc_en:'Rare spawns x3 90s' },
   { id:'aura',      qty:1,  cost:5000,  icon:'AU',  fr:'Aura Shiny',   en:'Shiny Aura',      desc_fr:'Shiny x5 90s',          desc_en:'Shiny x5 90s' },
   { id:'evostone',  qty:1,  cost:5000,  icon:'EV',  fr:'Pierre Evol.', en:'Evo Stone',       desc_fr:'Evoluer un Pokemon',    desc_en:'Evolve a Pokemon' },
-  { id:'rarecandy', qty:1,  cost:3000,  icon:'RC',  fr:'Super Bonbon', en:'Rare Candy',      desc_fr:'+5 niveaux',            desc_en:'+5 levels' },
+  { id:'rarecandy', qty:1,  cost:3000,  icon:'RC',  fr:'Super Bonbon', en:'Rare Candy',      desc_fr:'+1 niveau',             desc_en:'+1 level' },
   { id:'translator',qty:1,  cost:1000000,icon:'TR', fr:'Traducteur Pokemon', en:'Pokemon Translator', desc_fr:'Comprend ce que disent les Pokemon en combat', desc_en:'Understand pokemon speech in combat' },
   { id:'mysteryegg', qty:1, cost:0, icon:'EG', fr:'Oeuf Mystère', en:'Mystery Egg', desc_fr:'Contient un Pokemon introuvable — Prix croissant', desc_en:'Contains an uncatchable Pokemon — Scaling price' },
   { id:'incubator',  qty:1, cost:15000, icon:'INC', fr:'Incubateur', en:'Incubator', desc_fr:'Eclot un oeuf (reutilisable) — 1 a la fois', desc_en:'Hatches an egg (reusable) — 1 at a time' },
@@ -1441,6 +1441,7 @@ const DEFAULT_STATE = {
     llmModel: 'llama3',
     llmApiKey: '',
     sfxEnabled: true,
+    uiScale: 100,
     musicEnabled: false,
     autoCombat: true,
     discoveryMode: true,
@@ -1466,6 +1467,7 @@ const DEFAULT_STATE = {
     translator: false,
     cosmeticsPanel: false, // 50 000₽ — débloque l'onglet Cosmétiques
     autoIncubator: false,  // 50 000₽ — Infirmière Joëlle corrompue (auto-incubation)
+    chromaCharm: false,    // Gagné à 10 000 000₽ — taux shiny ×2
   },
   pension: {
     slotA: null,    // pokemon ID
@@ -1596,7 +1598,9 @@ function migrate(saved) {
   if (merged.purchases.mysteryEggCount === undefined) merged.purchases.mysteryEggCount = 0;
   if (merged.purchases.cosmeticsPanel === undefined) merged.purchases.cosmeticsPanel = false;
   if (merged.purchases.autoIncubator === undefined) merged.purchases.autoIncubator = false;
+  if (merged.purchases.chromaCharm === undefined) merged.purchases.chromaCharm = false;
   if (!merged.favoriteZones) merged.favoriteZones = [];
+  if (merged.settings.uiScale === undefined) merged.settings.uiScale = 100;
   if (!merged.lastBillCall) merged.lastBillCall = 0;
   if (!merged.pension) merged.pension = { slotA: null, slotB: null, eggAt: null };
   if (!merged.eggs) merged.eggs = [];
@@ -2551,8 +2555,9 @@ function rollPotential(ballType) {
 }
 
 function rollShiny() {
-  // Shiny Aura: x5 rate (1/40 instead of 1/200)
-  const rate = isBoostActive('aura') ? 0.025 : 0.005;
+  // Shiny Aura: x5 rate (1/40 instead of 1/200) ; Chroma Charm: ×2 permanent
+  let rate = isBoostActive('aura') ? 0.025 : 0.005;
+  if (state?.purchases?.chromaCharm) rate *= 2;
   return Math.random() < rate;
 }
 
@@ -4567,14 +4572,64 @@ function getTrainerDialogue() {
 function notify(msg, type = '') {
   const container = document.getElementById('notifications');
   if (!container) return;
+  // Stack identical toasts instead of spamming duplicates
+  const existing = [...container.querySelectorAll('.toast')].find(el =>
+    el.dataset.notifyMsg === msg && el.dataset.notifyType === (type || '')
+  );
+  if (existing) {
+    const count = (parseInt(existing.dataset.notifyCount) || 1) + 1;
+    existing.dataset.notifyCount = String(count);
+    existing.textContent = `${msg} ×${count}`;
+    clearTimeout(parseInt(existing.dataset.timerId || '0'));
+    const tid = setTimeout(() => { existing.classList.add('leaving'); setTimeout(() => existing.remove(), 300); }, 3000);
+    existing.dataset.timerId = String(tid);
+    return;
+  }
   const el = document.createElement('div');
   el.className = `toast ${type}`;
   el.textContent = msg;
+  el.dataset.notifyMsg = msg;
+  el.dataset.notifyType = type || '';
+  el.dataset.notifyCount = '1';
   container.appendChild(el);
-  setTimeout(() => {
-    el.classList.add('leaving');
-    setTimeout(() => el.remove(), 300);
-  }, 3000);
+  const tid = setTimeout(() => { el.classList.add('leaving'); setTimeout(() => el.remove(), 300); }, 3000);
+  el.dataset.timerId = String(tid);
+}
+
+// Milestone : 10 000 000₽ → Charme Chroma
+function checkMoneyMilestone() {
+  if (state?.purchases?.chromaCharm) return;
+  if (state.gang.money >= 10_000_000) {
+    state.gang.money -= 10_000_000;
+    state.purchases.chromaCharm = true;
+    saveState();
+    SFX.play('unlock');
+    const modal = document.createElement('div');
+    modal.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.96);display:flex;align-items:center;justify-content:center;';
+    modal.innerHTML = `
+      <div style="background:var(--bg-panel);border:3px solid var(--red);border-radius:var(--radius);padding:28px 32px;max-width:440px;width:92%;text-align:center;display:flex;flex-direction:column;align-items:center;gap:14px">
+        <img src="https://lab.sterenna.fr/PG/pokegang_logo.png" style="width:72px;height:72px;image-rendering:pixelated" onerror="this.style.display='none'">
+        <div style="font-family:var(--font-pixel);font-size:9px;color:var(--red);letter-spacing:2px">⚠ ALERTE — 10 000 000₽ DÉTECTÉS</div>
+        <div style="display:flex;align-items:center;justify-content:center;gap:20px">
+          <img src="${trainerSprite('scientist')}" style="width:52px;height:52px;image-rendering:pixelated">
+          <img src="${trainerSprite('giovanni')}" style="width:52px;height:52px;image-rendering:pixelated">
+        </div>
+        <div style="font-family:var(--font-pixel);font-size:8px;color:var(--gold);line-height:2">
+          L'équipe de développement vous remercie<br>
+          pour ces ressources utiles à la création<br>
+          de son empire...<br>
+          <span style="font-size:13px;color:var(--red)">MOUAHAHAHA !</span>
+        </div>
+        <div style="font-size:10px;color:var(--text-dim);line-height:1.6">
+          Vos <b style="color:var(--red)">10 000 000₽</b> ont été convertis en<br>
+          <b style="color:var(--gold)">✨ Charme Chroma</b> — taux shiny ×2 permanent !
+        </div>
+        <button style="font-family:var(--font-pixel);font-size:9px;padding:9px 24px;background:var(--red-dark);border:2px solid var(--red);border-radius:var(--radius-sm);color:var(--text);cursor:pointer" id="btnChromaCharmClose">... Très bien.</button>
+      </div>`;
+    document.body.appendChild(modal);
+    modal.querySelector('#btnChromaCharmClose').addEventListener('click', () => modal.remove());
+    notify('✨ Charme Chroma obtenu ! Taux shiny ×2', 'gold');
+  }
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -5535,12 +5590,23 @@ function openCollectionModal(zoneId) {
   const items  = { ...zs.pendingItems };
   if (income === 0 && Object.keys(items).length === 0) return;
 
-  // Auto-sélection : équipe boss + agents assignés à cette zone
   const zoneAgents = state.agents.filter(a => a.assignedZone === zoneId);
   const agentIds   = zoneAgents.map(a => a.id);
 
-  // Afficher directement l'animation de rencontre puis lancer le combat
-  showCollectionEncounter(zoneId, agentIds, income, items);
+  // Vérification mode découverte
+  if (state.settings.discoveryMode) {
+    const dexCaught = Object.values(state.pokedex).filter(e => e.caught).length;
+    const hasBossTeam = (state.gang.bossTeam || []).length > 0;
+    if (dexCaught < 10 || !hasBossTeam) {
+      const missing = [];
+      if (dexCaught < 10) missing.push(`${10 - dexCaught} espèce(s) de plus dans le Pokédex`);
+      if (!hasBossTeam) missing.push('au moins 1 Pokémon dans l\'équipe Boss (onglet Gang)');
+      notify(`⚔ Combat non disponible — il te faut : ${missing.join(' et ')}`, 'error');
+      return;
+    }
+  }
+  // Combat direct — sans écran VS intermédiaire
+  startZoneCollection(zoneId, agentIds);
 }
 
 function showCollectionEncounter(zoneId, agentIds, income, items) {
@@ -5645,6 +5711,7 @@ function startZoneCollection(zoneId, agentIds) {
   const collected = Math.round(income * (win ? 1.0 : 0.50));
 
   state.gang.money += collected;
+  checkMoneyMilestone();
   zs.pendingIncome = 0;
 
   for (const [itemId, qty] of Object.entries(items)) {
@@ -6097,14 +6164,11 @@ function buildZoneWindowEl(zoneId) {
           <span class="agent-cd-label" style="display:none;font-family:var(--font-pixel);font-size:7px;color:var(--red);background:rgba(0,0,0,.8);border-radius:2px;padding:1px 3px;white-space:nowrap;position:absolute;top:-16px;left:50%;transform:translateX(-50%)"></span>
         </div>
       `).join('')}
+      <div id="zpb-${zoneId}" style="position:absolute;top:4px;left:50%;transform:translateX(-50%);font-family:var(--font-pixel);font-size:7px;color:var(--text-dim);background:rgba(0,0,0,.55);border-radius:2px;padding:1px 5px;white-space:nowrap;z-index:2;pointer-events:none">${progressText}${zone.type === 'gym' ? ` — XP×${zone.xpBonus}` : ''}</div>
       ${state.gang.bossSprite && state.gang.bossZone === zoneId ? `<div class="zone-boss" data-boss-cd>
         <img src="${trainerSprite(state.gang.bossSprite)}" alt="Boss" onerror="this.src='${trainerSprite('acetrainer')}'">
         <span class="boss-cd-label" style="display:none;font-family:var(--font-pixel);font-size:7px;color:var(--red);background:rgba(0,0,0,.8);border-radius:2px;padding:1px 3px;white-space:nowrap;position:absolute;top:-16px;left:50%;transform:translateX(-50%)"></span>
       </div>` : ''}
-      <div class="zone-info">
-        <span class="zone-name">${zone.type === 'gym' ? '[GYM] ' : ''}${name}</span>
-        <span class="zone-level">${progressText}${zone.type === 'gym' ? ` <span style="color:var(--gold);font-size:8px">XP*${zone.xpBonus}</span>` : ''}</span>
-      </div>
       <div class="zone-slots-bar" style="display:flex;align-items:center;gap:6px;padding:3px 8px;font-family:var(--font-pixel);font-size:8px;background:rgba(0,0,0,.4);border-top:1px solid var(--border)">
         <span class="slot-count" style="color:var(--text-dim)">Agents: ${assignedAgents.length}/${zState.slots || 1}</span>
         ${(zState.slots || 1) < ZONE_SLOT_COSTS.length + 1 ? (() => {
@@ -6219,8 +6283,11 @@ function patchZoneWindow(zoneId, win) {
     banner.remove();
   }
 
+  // Update progress bar
+  const progressBar = win.querySelector(`#zpb-${zoneId}`);
+  if (progressBar) progressBar.textContent = `${progressText}${zone.type === 'gym' ? ` — XP×${zone.xpBonus}` : ''}`;
+
   // Agent overlays — remove + re-add (they're static overlays, not live spawns)
-  const zoneInfo = viewport.querySelector('.zone-info');
   viewport.querySelectorAll('.zone-agent').forEach(el => el.remove());
   state.agents.filter(a => a.assignedZone === zoneId).forEach((a, i) => {
     const agEl = document.createElement('div');
@@ -6230,7 +6297,7 @@ function patchZoneWindow(zoneId, win) {
     agEl.innerHTML = `<img src="${a.sprite}" alt="${a.name}" onerror="this.src='${trainerSprite('acetrainer')}'">`
       + `<span class="agent-label">${a.name}</span>`
       + `<span class="agent-cd-label" style="display:none;font-family:var(--font-pixel);font-size:7px;color:var(--red);background:rgba(0,0,0,.8);border-radius:2px;padding:1px 3px;white-space:nowrap;position:absolute;top:-16px;left:50%;transform:translateX(-50%)"></span>`;
-    viewport.insertBefore(agEl, zoneInfo);
+    viewport.appendChild(agEl);
   });
 
   // Boss overlay
@@ -6241,13 +6308,7 @@ function patchZoneWindow(zoneId, win) {
     bossEl.dataset.bossCd = '';
     bossEl.innerHTML = `<img src="${trainerSprite(state.gang.bossSprite)}" alt="Boss" onerror="this.src='${trainerSprite('acetrainer')}'">`
       + `<span class="boss-cd-label" style="display:none;font-family:var(--font-pixel);font-size:7px;color:var(--red);background:rgba(0,0,0,.8);border-radius:2px;padding:1px 3px;white-space:nowrap;position:absolute;top:-16px;left:50%;transform:translateX(-50%)"></span>`;
-    viewport.insertBefore(bossEl, zoneInfo);
-  }
-
-  // Zone info text
-  if (zoneInfo) {
-    const levelEl = zoneInfo.querySelector('.zone-level');
-    if (levelEl) levelEl.innerHTML = `${progressText}${zone.type === 'gym' ? ` <span style="color:var(--gold);font-size:8px">XP*${zone.xpBonus}</span>` : ''}`;
+    viewport.appendChild(bossEl);
   }
 
   // Refresh slots bar
@@ -8185,7 +8246,9 @@ function renderBattleLog() {
 function updateBattleLogMiniSprites() {
   const logPanel = document.getElementById('battleLog');
   const logTitle = document.getElementById('battleLogTitle');
-  if (!logPanel || !logTitle) return;
+  // If battle log is now a tab, mini sprites aren't needed
+  if (!logTitle) return;
+  if (!logPanel) return;
 
   const isCollapsed = logPanel.classList.contains('battle-log-collapsed');
   let miniEl = document.getElementById('battleLogMiniSprites');
@@ -8567,7 +8630,7 @@ function _bindPCCardListeners(el) {
       inTeam
         ? { action:'unteam', label:'Retirer de l\'equipe', fn: () => { state.gang.bossTeam = state.gang.bossTeam.filter(id => id !== pk.id); state.agents.forEach(a => { a.team = a.team.filter(id => id !== pk.id); }); saveState(); renderPCTab(); } }
         : { action:'team', label:'Attribuer a...', fn: () => { openAssignToPicker(pk.id); } },
-      { action:'candy', label:`Super Bonbon${hasCandy ? '' : ' (aucun)'}`, fn: () => { if (!hasCandy) return; state.inventory.rarecandy--; for (let i=0;i<5;i++) levelUpPokemon(pk, pk.level*20); saveState(); notify(`${speciesName(pk.species_en)} -> Lv.${pk.level}`, 'gold'); renderPCTab(); updateTopBar(); } },
+      { action:'candy', label:`Super Bonbon${hasCandy ? '' : ' (aucun)'}`, fn: () => { if (!hasCandy) return; state.inventory.rarecandy--; if (pk.level < 100) { pk.level++; pk.xp = 0; pk.stats = calculateStats(pk); tryAutoEvolution(pk); } saveState(); notify(`🍬 ${speciesName(pk.species_en)} → Lv.${pk.level}`, 'gold'); renderPCTab(); updateTopBar(); } },
       { action:'fav', label: pk.favorite ? 'Retirer favori' : 'Ajouter favori', fn: () => { pk.favorite = !pk.favorite; saveState(); renderPCTab(); } },
     ]);
   });
@@ -8870,7 +8933,7 @@ function renderPokemonDetail() {
     </div>
     ${(() => {
       const hasCandy = (state.inventory.rarecandy || 0) > 0;
-      return `<div style="margin-bottom:8px"><button id="btnRareCandy" style="width:100%;font-size:10px;padding:5px;background:${hasCandy ? 'var(--bg)' : 'var(--bg)'};border:1px solid ${hasCandy ? 'var(--gold)' : 'var(--border)'};border-radius:var(--radius-sm);color:${hasCandy ? 'var(--gold)' : 'var(--text-dim)'};cursor:${hasCandy ? 'pointer' : 'default'}"${hasCandy ? '' : ' disabled'}>🍬 Super Bonbon (+5 niveaux) — stock: ${state.inventory.rarecandy || 0}</button></div>`;
+      return `<div style="margin-bottom:8px"><button id="btnRareCandy" style="width:100%;font-size:10px;padding:5px;background:${hasCandy ? 'var(--bg)' : 'var(--bg)'};border:1px solid ${hasCandy ? 'var(--gold)' : 'var(--border)'};border-radius:var(--radius-sm);color:${hasCandy ? 'var(--gold)' : 'var(--text-dim)'};cursor:${hasCandy ? 'pointer' : 'default'}"${hasCandy ? '' : ' disabled'}>🍬 Super Bonbon (+1 niveau) — stock: ${state.inventory.rarecandy || 0}</button></div>`;
     })()}
     ${(() => {
       // Check if in a team
@@ -8928,7 +8991,7 @@ function renderPokemonDetail() {
   document.getElementById('btnRareCandy')?.addEventListener('click', () => {
     if ((state.inventory.rarecandy || 0) <= 0) return;
     state.inventory.rarecandy--;
-    for (let i = 0; i < 5; i++) levelUpPokemon(p, p.level * 20);
+    if (p.level < 100) { p.level++; p.xp = 0; p.stats = calculateStats(p); tryAutoEvolution(p); }
     saveState();
     notify(`🍬 ${speciesName(p.species_en)} → Lv.${p.level}`, 'gold');
     renderPCTab();
@@ -9729,7 +9792,7 @@ function openRareCandyPicker() {
       if (!p) return;
       const oldLv = p.level;
       state.inventory.rarecandy--;
-      for (let i = 0; i < 5; i++) levelUpPokemon(p, p.level * 20);
+      if (p.level < 100) { p.level++; p.xp = 0; p.stats = calculateStats(p); tryAutoEvolution(p); }
       saveState();
       notify(`🍬 ${speciesName(p.species_en)} Lv.${oldLv} → Lv.${p.level}`, 'gold');
       overlay.remove();
@@ -9755,7 +9818,7 @@ function renderBagTab() {
     { id: 'rarescope', icon: 'SC', fr: 'Rarioscope',       en: 'Rare Scope',     desc_fr: 'Spawns rares x3 90s',   desc_en: 'Rare spawns x3 90s', usable: true },
     { id: 'aura',      icon: 'AU', fr: 'Aura Shiny',       en: 'Shiny Aura',     desc_fr: 'Shiny x5 90s',          desc_en: 'Shiny x5 90s',       usable: true },
     { id: 'evostone',  icon: 'EV', fr: 'Pierre Evol.',     en: 'Evo Stone',      desc_fr: 'Evolution par pierre',  desc_en: 'Stone evolution' },
-    { id: 'rarecandy', icon: 'RC', fr: 'Super Bonbon',     en: 'Rare Candy',     desc_fr: '+5 niveaux',             desc_en: '+5 levels',          usable: true },
+    { id: 'rarecandy', icon: 'RC', fr: 'Super Bonbon',     en: 'Rare Candy',     desc_fr: '+1 niveau',              desc_en: '+1 level',          usable: true },
     { id: 'masterball',icon: 'MB', fr: 'Master Ball',      en: 'Master Ball',    desc_fr: '***** garanti',         desc_en: '***** guaranteed' },
   ];
 
@@ -10159,6 +10222,10 @@ function initSettings() {
       if (discoveryMode) discoveryMode.checked = state.settings.discoveryMode !== false;
       const sfx = document.getElementById('settingSFX');
       if (sfx) sfx.checked = state.settings.sfxEnabled !== false;
+      const uiScaleEl2 = document.getElementById('settingUIScale');
+      if (uiScaleEl2) uiScaleEl2.value = state.settings.uiScale ?? 100;
+      const uiScaleVal2 = document.getElementById('settingUIScaleVal');
+      if (uiScaleVal2) uiScaleVal2.textContent = `${state.settings.uiScale ?? 100}%`;
       modal.classList.add('active');
     }
   });
@@ -10176,6 +10243,11 @@ function initSettings() {
     if (discoveryMode) state.settings.discoveryMode = discoveryMode.checked;
     const sfx = document.getElementById('settingSFX');
     if (sfx) state.settings.sfxEnabled = sfx.checked;
+    const uiScaleEl = document.getElementById('settingUIScale');
+    if (uiScaleEl) {
+      state.settings.uiScale = parseInt(uiScaleEl.value) || 100;
+      document.documentElement.style.setProperty('--ui-scale', (state.settings.uiScale / 100).toFixed(2));
+    }
     saveState();
     detectLLM();
     document.getElementById('settingsModal')?.classList.remove('active');
@@ -11695,6 +11767,36 @@ function boot() {
   document.querySelectorAll('.tab-btn[data-tab]').forEach(btn => {
     btn.addEventListener('click', () => switchTab(btn.dataset.tab));
   });
+
+  // Tab drag-to-reorder
+  (() => {
+    const tabNav = document.querySelector('.tab-nav');
+    if (!tabNav) return;
+    tabNav.querySelectorAll('.tab-btn[data-tab]').forEach(btn => {
+      btn.setAttribute('draggable', 'true');
+      btn.addEventListener('dragstart', e => {
+        e.dataTransfer.setData('tabReorderId', btn.dataset.tab);
+        btn.style.opacity = '0.5';
+      });
+      btn.addEventListener('dragend', () => { btn.style.opacity = ''; });
+      btn.addEventListener('dragover', e => { e.preventDefault(); btn.style.outline = '1px solid var(--gold)'; });
+      btn.addEventListener('dragleave', () => { btn.style.outline = ''; });
+      btn.addEventListener('drop', e => {
+        e.preventDefault();
+        btn.style.outline = '';
+        const fromId = e.dataTransfer.getData('tabReorderId');
+        if (!fromId || fromId === btn.dataset.tab) return;
+        const fromBtn = tabNav.querySelector(`.tab-btn[data-tab="${fromId}"]`);
+        if (!fromBtn) return;
+        const allBtns = [...tabNav.querySelectorAll('.tab-btn[data-tab]')];
+        const fromIdx = allBtns.indexOf(fromBtn);
+        const toIdx   = allBtns.indexOf(btn);
+        if (fromIdx < toIdx) btn.after(fromBtn); else btn.before(fromBtn);
+        SFX.play('click');
+      });
+    });
+  })();
+
   document.getElementById('btnSaveSlots')?.addEventListener('click', openSaveSlotModal);
   document.getElementById('btnBackToIntro')?.addEventListener('click', () => showIntro());
   document.getElementById('btnCodex')?.addEventListener('click', openCodexModal);
@@ -11838,6 +11940,10 @@ function boot() {
       if (!state.openZoneOrder.includes(zId)) state.openZoneOrder.push(zId);
     }
   }
+
+  // Apply saved UI scale
+  const savedScale = state.settings?.uiScale ?? 100;
+  document.documentElement.style.setProperty('--ui-scale', (savedScale / 100).toFixed(2));
 
   // Initial render — force l'onglet actif correct au chargement
   switchTab(activeTab);
