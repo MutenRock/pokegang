@@ -1432,6 +1432,16 @@ function migrate(saved) {
   // Clean up stale training room IDs (deleted pokemon)
   const allIds = new Set((merged.pokemons || []).map(p => p.id));
   merged.trainingRoom.pokemon = (merged.trainingRoom.pokemon || []).filter(id => allIds.has(id));
+  // Résoudre les conflits d'affectation : priorité équipe > pension > formation
+  {
+    const teamSet = new Set(merged.gang.bossTeam || []);
+    // Pension : retirer si aussi en équipe
+    if (merged.pension.slotA && teamSet.has(merged.pension.slotA)) merged.pension.slotA = null;
+    if (merged.pension.slotB && teamSet.has(merged.pension.slotB)) merged.pension.slotB = null;
+    // Formation : retirer si en équipe ou en pension
+    const resolvedPension = new Set([merged.pension.slotA, merged.pension.slotB].filter(Boolean));
+    merged.trainingRoom.pokemon = (merged.trainingRoom.pokemon || []).filter(id => !teamSet.has(id) && !resolvedPension.has(id));
+  }
   return merged;
 }
 
@@ -3386,6 +3396,12 @@ function passiveAgentTick() {
       if ((state.inventory[ball] || 0) <= 0) continue;
       const pokemon = makePokemon(entry.species_en, zoneId, ball);
       if (!pokemon) continue;
+      // Crit de capture : basé sur la stat CAP de l'agent
+      const agentCritChance = (agent.stats.capture || 0) / 100;
+      if (Math.random() < agentCritChance) {
+        pokemon.potential = Math.min(5, (pokemon.potential || 1) + 1);
+        if (agent.notifyCaptures) notify(`★ ${agent.name} — Capture critique ! ★`, 'gold');
+      }
       state.inventory[ball]--;
       state.pokemons.push(pokemon);
       state.stats.totalCaught++;
@@ -3663,6 +3679,18 @@ function decayMarketSales() {
       s.lastSale = now;
       if (s.count === 0) delete state.marketSales[species];
     }
+  }
+}
+
+function removePokemonFromAllAssignments(pkId) {
+  // Équipe Boss
+  state.gang.bossTeam = state.gang.bossTeam.filter(id => id !== pkId);
+  // Formation
+  if (state.trainingRoom) state.trainingRoom.pokemon = (state.trainingRoom.pokemon || []).filter(id => id !== pkId);
+  // Pension
+  if (state.pension) {
+    if (state.pension.slotA === pkId) { state.pension.slotA = null; state.pension.eggAt = null; }
+    if (state.pension.slotB === pkId) { state.pension.slotB = null; state.pension.eggAt = null; }
   }
 }
 
@@ -4749,61 +4777,82 @@ function openBossEditModal(onDone) {
 
 function openCollectionModal(zoneId) {
   const zs = initZone(zoneId);
-  const zone = ZONE_BY_ID[zoneId];
   const income = zs.pendingIncome || 0;
-  const items  = zs.pendingItems  || {};
+  const items  = { ...zs.pendingItems };
   if (income === 0 && Object.keys(items).length === 0) return;
 
-  const zoneName = state.lang === 'fr' ? zone.fr : zone.en;
+  // Auto-sélection : équipe boss + agents assignés à cette zone
+  const zoneAgents = state.agents.filter(a => a.assignedZone === zoneId);
+  const agentIds   = zoneAgents.map(a => a.id);
 
-  const agentsHtml = state.agents.map(a => `
-    <label style="display:flex;align-items:center;gap:8px;padding:6px;border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;transition:border-color .15s">
-      <input type="checkbox" class="collect-agent-cb" value="${a.id}" style="accent-color:var(--gold)">
-      <img src="${a.sprite}" style="width:28px;height:28px;image-rendering:pixelated" onerror="this.src='${trainerSprite('acetrainer')}'">
-      <span style="font-size:11px">${a.name}</span>
-      <span style="font-size:9px;color:var(--text-dim);margin-left:auto">ATK ${a.stats?.combat || 0}</span>
-    </label>`).join('');
+  // Afficher directement l'animation de rencontre puis lancer le combat
+  showCollectionEncounter(zoneId, agentIds, income, items);
+}
 
-  const itemsSummaryHtml = Object.entries(items).length > 0
-    ? Object.entries(items).map(([id, qty]) => `${itemSprite(id)}<span style="font-size:9px">×${qty}</span>`).join(' ')
-    : '';
+function showCollectionEncounter(zoneId, agentIds, income, items) {
+  const zone = ZONE_BY_ID[zoneId];
+  const zoneName = zone ? (state.lang === 'fr' ? zone.fr : zone.en) : zoneId;
+  const zoneAgents = agentIds.map(id => state.agents.find(a => a.id === id)).filter(Boolean);
+
+  // Ennemis : policier aléatoire
+  const policePool = ['officer', 'policeman', 'acetrainer', 'sabrina', 'officer'];
+  const enemyKey = policePool[Math.floor(Math.random() * policePool.length)];
+
+  // Pokémon du boss
+  const bossPks = state.gang.bossTeam.map(id => state.pokemons.find(p => p.id === id)).filter(Boolean);
 
   const modal = document.createElement('div');
-  modal.id = 'collectionModal';
-  modal.style.cssText = 'position:fixed;inset:0;z-index:9200;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center;';
+  modal.id = 'collectionEncounter';
+  modal.style.cssText = 'position:fixed;inset:0;z-index:9200;background:rgba(0,0,0,.9);display:flex;align-items:center;justify-content:center;';
+
+  const agentSpritesHtml = zoneAgents.map(a =>
+    `<img src="${a.sprite}" style="width:44px;height:44px;image-rendering:pixelated" onerror="this.src='${trainerSprite('acetrainer')}'"><span style="font-family:var(--font-pixel);font-size:7px;color:var(--text-dim)">${a.name}</span>`
+  ).join('');
+
+  const bossPksHtml = bossPks.slice(0,3).map(pk =>
+    `<img src="${pokeSprite(pk.species_en, pk.shiny)}" style="width:36px;height:36px;image-rendering:pixelated">`
+  ).join('');
+
   modal.innerHTML = `
-    <div style="background:var(--bg-panel);border:2px solid var(--gold-dim);border-radius:var(--radius);padding:20px;max-width:420px;width:92%;display:flex;flex-direction:column;gap:14px">
-      <div style="font-family:var(--font-pixel);font-size:11px;color:var(--gold)">💰 Récolte — ${zoneName}</div>
-      <div style="font-size:12px;color:var(--text)">
-        Revenus accumulés : <strong style="color:var(--gold)">${income.toLocaleString()}₽</strong>
-        ${itemsSummaryHtml ? `<br>Objets : ${itemsSummaryHtml}` : ''}
+    <div style="background:var(--bg-panel);border:2px solid var(--gold-dim);border-radius:var(--radius);padding:24px;max-width:480px;width:92%;display:flex;flex-direction:column;align-items:center;gap:16px;text-align:center">
+      <div style="font-family:var(--font-pixel);font-size:9px;color:var(--gold)">⚡ INTERCEPTION — ${zoneName}</div>
+
+      <!-- Scène de rencontre -->
+      <div style="display:flex;align-items:center;justify-content:center;gap:24px;width:100%;padding:12px;background:rgba(0,0,0,.4);border-radius:var(--radius-sm);border:1px solid var(--border)">
+        <!-- Côté Boss -->
+        <div style="display:flex;flex-direction:column;align-items:center;gap:6px" id="encounterPlayerSide">
+          ${state.gang.bossSprite
+            ? `<img src="${trainerSprite(state.gang.bossSprite)}" style="width:56px;height:56px;image-rendering:pixelated;animation:trainerLeft 1s ease-in-out infinite">`
+            : ''}
+          ${zoneAgents.length > 0 ? `<div style="display:flex;flex-direction:column;align-items:center;gap:2px">${agentSpritesHtml}</div>` : ''}
+          <div style="display:flex;gap:3px;margin-top:2px">${bossPksHtml}</div>
+          <span style="font-family:var(--font-pixel);font-size:7px;color:var(--text)">${state.gang.bossName}</span>
+        </div>
+
+        <!-- VS -->
+        <div style="font-family:var(--font-pixel);font-size:16px;color:var(--red)">VS</div>
+
+        <!-- Côté ennemi -->
+        <div style="display:flex;flex-direction:column;align-items:center;gap:6px">
+          <img src="${trainerSprite(enemyKey)}" style="width:56px;height:56px;image-rendering:pixelated;animation:trainerRight 1s ease-in-out infinite;transform:scaleX(-1)">
+          <span style="font-family:var(--font-pixel);font-size:7px;color:var(--text-dim)">Officier Jenny</span>
+        </div>
       </div>
-      <div style="font-size:11px;color:var(--text-dim)">Sélectionne jusqu'à 3 agents pour escorter le Boss :</div>
-      <div style="display:flex;flex-direction:column;gap:6px;max-height:200px;overflow-y:auto">${agentsHtml}</div>
-      <div style="font-size:10px;color:var(--text-dim)">⚔ Victoire → 100% · Défaite → 75%</div>
-      <div style="display:flex;gap:8px;justify-content:flex-end">
-        <button id="collectCancel" style="font-family:var(--font-pixel);font-size:9px;padding:8px 14px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-dim);cursor:pointer">Annuler</button>
-        <button id="collectConfirm" style="font-family:var(--font-pixel);font-size:9px;padding:8px 14px;background:var(--bg);border:1px solid var(--gold-dim);border-radius:var(--radius-sm);color:var(--gold);cursor:pointer">Collecter</button>
-      </div>
+
+      <div style="font-size:10px;color:var(--text-dim)">La police intercepte le convoy de récolte...</div>
+
+      <button id="btnEncounterFight" style="font-family:var(--font-pixel);font-size:9px;padding:10px 24px;background:var(--red-dark);border:2px solid var(--red);border-radius:var(--radius-sm);color:var(--text);cursor:pointer;animation:glow 1.5s ease-in-out infinite alternate">⚔ COMBATTRE !</button>
     </div>`;
 
   document.body.appendChild(modal);
 
-  modal.querySelectorAll('.collect-agent-cb').forEach(cb => {
-    cb.addEventListener('change', () => {
-      const checked = [...modal.querySelectorAll('.collect-agent-cb:checked')];
-      if (checked.length > 3) { cb.checked = false; }
-    });
-  });
-
-  document.getElementById('collectCancel').addEventListener('click', () => modal.remove());
-  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
-
-  document.getElementById('collectConfirm').addEventListener('click', () => {
-    const selectedIds = [...modal.querySelectorAll('.collect-agent-cb:checked')].map(cb => cb.value);
+  modal.querySelector('#btnEncounterFight').addEventListener('click', () => {
     modal.remove();
-    startZoneCollection(zoneId, selectedIds);
+    startZoneCollection(zoneId, agentIds);
   });
+
+  // Clic hors modal = fermer sans combattre
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
 }
 
 function startZoneCollection(zoneId, agentIds) {
@@ -4827,7 +4876,7 @@ function startZoneCollection(zoneId, agentIds) {
   const playerRoll = playerPower * (0.75 + Math.random() * 0.5);
   const win = playerRoll >= enemyPower;
 
-  const collected = Math.round(income * (win ? 1.0 : 0.75));
+  const collected = Math.round(income * (win ? 1.0 : 0.50));
 
   state.gang.money += collected;
   zs.pendingIncome = 0;
@@ -4883,7 +4932,7 @@ function showCollectionResult(win, amount, items, agentIds) {
     <div style="background:var(--bg-panel);border:2px solid ${win ? 'var(--gold)' : 'var(--red)'};border-radius:var(--radius);padding:28px;max-width:400px;width:90%;display:flex;flex-direction:column;align-items:center;gap:14px;text-align:center">
       ${combatSceneHtml}
       <div style="font-family:var(--font-pixel);font-size:12px;color:${win ? 'var(--gold)' : 'var(--red)'}">
-        ${win ? 'Récolte réussie !' : 'Défaite — 75% récupérés'}
+        ${win ? 'Récolte réussie !' : 'Défaite — 50% récupérés'}
       </div>
       <div style="font-family:var(--font-pixel);font-size:18px;color:var(--gold)" id="collectAmountDisplay">0₽</div>
       ${itemsHtml}
@@ -4909,8 +4958,60 @@ function showCollectionResult(win, amount, items, agentIds) {
       display.textContent = amount.toLocaleString() + '₽';
       clearInterval(interval);
       try { SFX.coin(); } catch {}
+      // Animation de pièces après décompte
+      setTimeout(() => spawnCoinRain(win, amount), 200);
     }
   }, 25);
+}
+
+function spawnCoinRain(win, amount) {
+  // Sprite mascotte
+  const mascotKey = win ? 'meowth' : 'growlithe';
+  const mascotSrc = pokeSprite(mascotKey);
+  const topBar = document.getElementById('topBar');
+  if (!topBar) return;
+  const tbRect = topBar.getBoundingClientRect();
+
+  // Afficher la mascotte en bas à droite brièvement
+  const mascot = document.createElement('div');
+  mascot.style.cssText = `position:fixed;bottom:60px;right:30px;z-index:9500;animation:fvhIn .3s ease;`;
+  mascot.innerHTML = `<img src="${mascotSrc}" style="width:64px;height:64px;image-rendering:pixelated;${win ? '' : 'filter:grayscale(.5)'}">`;
+  document.body.appendChild(mascot);
+  setTimeout(() => mascot.remove(), 2500);
+
+  // Nombre de pièces proportionnel au montant (max 20)
+  const coinCount = Math.min(20, Math.max(4, Math.floor(amount / 500)));
+  const symbol = win ? '₽' : '−₽';
+  const color  = win ? '#ffcc5a' : '#cc4444';
+
+  for (let i = 0; i < coinCount; i++) {
+    setTimeout(() => {
+      const coin = document.createElement('div');
+      const startX = 60 + Math.random() * (window.innerWidth - 120);
+      const startY = window.innerHeight - 80 - Math.random() * 120;
+      coin.style.cssText = `
+        position:fixed;z-index:9400;pointer-events:none;
+        font-family:var(--font-pixel);font-size:11px;color:${color};
+        left:${startX}px;top:${startY}px;
+        text-shadow:0 0 4px ${color};
+      `;
+      coin.textContent = symbol;
+      document.body.appendChild(coin);
+
+      // Voler vers la topbar
+      const targetX = tbRect.left + tbRect.width / 2 + (Math.random() - 0.5) * 80;
+      const targetY = tbRect.top + tbRect.height / 2;
+      const duration = 600 + Math.random() * 400;
+
+      coin.animate([
+        { left: startX + 'px', top: startY + 'px', opacity: 1, transform: 'scale(1)' },
+        { left: targetX + 'px', top: targetY + 'px', opacity: 0.8, transform: 'scale(0.6)' },
+      ], { duration, easing: 'ease-in', fill: 'forwards' }).onfinish = () => {
+        coin.remove();
+        try { SFX.coin && SFX.coin(); } catch {}
+      };
+    }, i * 60);
+  }
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -4947,11 +5048,21 @@ function renderZoneSelector() {
       const incomeTier = income <= 0 ? 0 : income < 500 ? 1 : income < 2000 ? 2 : income < 5000 ? 3 : income < 15000 ? 4 : 5;
       const incomeHtml = incomeTier > 0 ? `
         <div class="zone-income-btn income-tier${incomeTier}" data-collect-zone="${zone.id}">₽</div>` : '';
+      // GYM/gym-boss: color name based on defeat state
+      const isGym = zone.type === 'gym' || zone.type === 'gym-boss';
+      let displayName = name;
+      if (isGym) {
+        if (zState.gymDefeated) {
+          displayName = `<span style="color:var(--red)">${name}</span>`;
+        } else {
+          displayName = `<span style="color:var(--text-dim)">${name}</span>`;
+        }
+      }
       html += `<div class="fog-tile unlocked ${isOpen ? 'fog-open' : ''} zone-type-${zone.type}${degraded ? ' fog-degraded' : ''}"
         data-zone="${zone.id}" style="${bgStyle}">
         <div class="fog-tile-overlay"></div>
         <div class="fog-tile-content">
-          <div class="fog-tile-name">${name}${gymTag}${degradedTag}</div>
+          <div class="fog-tile-name">${displayName}${gymTag}${degradedTag}</div>
           <div class="fog-tile-stats">${'*'.repeat(mastery)} ${combats}W</div>
           <div class="fog-tile-status">${isOpen ? '[OUVERT]' : (degraded ? '[COMBAT]' : '[ENTRER]')}</div>
         </div>
@@ -5032,34 +5143,51 @@ function renderZoneWindows() {
   const container = document.getElementById('zoneWindows');
   if (!container) return;
 
+  // Ensure layout: gangBaseContainer (left, fixed) + zonesGrid (right, scrollable)
+  let gangContainer = container.querySelector('#gangBaseContainer');
+  let zonesGrid = container.querySelector('#zonesGrid');
+  if (!gangContainer) {
+    const baseDiv = document.createElement('div');
+    baseDiv.id = 'gangBaseContainer';
+    baseDiv.style.cssText = 'flex-shrink:0;width:360px;';
+    const gridDiv = document.createElement('div');
+    gridDiv.id = 'zonesGrid';
+    gridDiv.style.cssText = 'flex:1;display:flex;flex-wrap:wrap;gap:12px;align-content:flex-start;';
+    container.innerHTML = '';
+    container.appendChild(baseDiv);
+    container.appendChild(gridDiv);
+    gangContainer = baseDiv;
+    zonesGrid = gridDiv;
+  }
+
   // ── Gang Base: always rebuild (no spawns inside) ──────────────
   const gangHtml = renderGangBaseWindow();
-  const existingBase = container.querySelector('#gangBaseWin');
+  const existingBase = gangContainer.querySelector('#gangBaseWin');
   if (existingBase) {
     const tmp = document.createElement('div');
     tmp.innerHTML = gangHtml;
-    container.replaceChild(tmp.firstElementChild, existingBase);
+    gangContainer.replaceChild(tmp.firstElementChild, existingBase);
   } else {
-    container.innerHTML = gangHtml;
+    gangContainer.innerHTML = gangHtml;
   }
-  bindGangBase(container);
+  bindGangBase(gangContainer);
 
   // "No zones" placeholder
-  let placeholder = container.querySelector('.zone-placeholder');
+  let placeholder = zonesGrid.querySelector('.zone-placeholder');
   if (openZones.size === 0) {
     if (!placeholder) {
       placeholder = document.createElement('div');
       placeholder.className = 'zone-placeholder';
       placeholder.style.cssText = 'color:var(--text-dim);padding:40px;text-align:center';
       placeholder.textContent = 'Sélectionnez une zone pour commencer';
-      container.appendChild(placeholder);
+      zonesGrid.appendChild(placeholder);
     }
     return;
   }
   placeholder?.remove();
 
   // ── Remove zone windows that are no longer open ───────────────
-  container.querySelectorAll('.zone-window').forEach(el => {
+  zonesGrid.querySelectorAll('.zone-window').forEach(el => {
     if (!openZones.has(el.id.replace('zw-', ''))) el.remove();
   });
 
@@ -5103,7 +5231,7 @@ function renderZoneWindows() {
           renderZoneWindows();
         }
       });
-      container.appendChild(win);
+      zonesGrid.appendChild(win);
       updateZoneTimers(zoneId);
       (zoneSpawns[zoneId] || []).forEach(s => renderSpawnInWindow(zoneId, s));
     }
@@ -5146,6 +5274,8 @@ function buildZoneWindowEl(zoneId) {
   const win = document.createElement('div');
   win.className = `zone-window zone-type-${zone.type || 'field'}`;
   win.id = `zw-${zoneId}`;
+  const masteryClass = mastery >= 3 ? 'zone-mastery-3' : mastery === 2 ? 'zone-mastery-2' : mastery === 1 ? 'zone-mastery-1' : '';
+  if (masteryClass) win.classList.add(masteryClass);
 
   win.innerHTML = `
     <div class="zone-headbar${degraded ? ' zone-headbar-degraded' : ''}" data-zone-hb="${zoneId}">
@@ -5252,6 +5382,9 @@ function patchZoneWindow(zoneId, win) {
     const statsEl = headbar.querySelector('.headbar-stats');
     if (statsEl) statsEl.innerHTML = `${'*'.repeat(mastery)} ${boosts.map(b => `<span class="boost-tag">${b}</span>`).join('')}`;
   }
+  win.classList.remove('zone-mastery-1','zone-mastery-2','zone-mastery-3');
+  const mc = mastery >= 3 ? 'zone-mastery-3' : mastery === 2 ? 'zone-mastery-2' : mastery === 1 ? 'zone-mastery-1' : '';
+  if (mc) win.classList.add(mc);
 
   const viewport = win.querySelector('.zone-viewport');
   if (!viewport) return;
@@ -5875,6 +6008,7 @@ function openTeamPicker(type, targetId, onDone) {
       if (!pk) return;
       if (type === 'boss') {
         if (state.gang.bossTeam.length < 3) {
+          removePokemonFromAllAssignments(pkId);
           state.gang.bossTeam.push(pkId);
         }
       } else {
@@ -5901,7 +6035,7 @@ function openTeamPicker(type, targetId, onDone) {
           const pk = state.pokemons.find(p => p.id === pkId);
           if (!pk) return;
           if (type === 'boss') {
-            if (state.gang.bossTeam.length < 3) state.gang.bossTeam.push(pkId);
+            if (state.gang.bossTeam.length < 3) { removePokemonFromAllAssignments(pkId); state.gang.bossTeam.push(pkId); }
           } else {
             const agent = state.agents.find(a => a.id === targetId);
             if (agent && agent.team.length < 3) agent.team.push(pkId);
@@ -5989,7 +6123,7 @@ function openAssignToPicker(pokemonId) {
       const destType = el.dataset.destType;
       const destId = el.dataset.destId;
       if (destType === 'boss') {
-        if (state.gang.bossTeam.length < 3) state.gang.bossTeam.push(pokemonId);
+        if (state.gang.bossTeam.length < 3) { removePokemonFromAllAssignments(pokemonId); state.gang.bossTeam.push(pokemonId); }
       } else {
         const agent = state.agents.find(a => a.id === destId);
         if (agent && agent.team.length < 3) agent.team.push(pokemonId);
@@ -6338,7 +6472,17 @@ function animateCapture(zoneId, spawnObj, spawnEl) {
         if (activeTab === 'tabPC') renderPCTab();
         updateZoneTimers(zoneId);
       } else {
-        spawnEl.classList.remove('catching');
+        // Fade out au contact, puis fade in si échec
+        if (spawnEl) {
+          spawnEl.style.transition = 'opacity .15s, transform .15s';
+          spawnEl.style.opacity = '0';
+          spawnEl.style.transform = 'scale(.7)';
+          setTimeout(() => {
+            spawnEl.style.opacity = '1';
+            spawnEl.style.transform = '';
+            spawnEl.classList.remove('catching');
+          }, 350);
+        }
       }
     }
 
@@ -7856,6 +8000,7 @@ function renderPokemonDetail() {
   });
 
   document.getElementById('btnSendPension')?.addEventListener('click', () => {
+    removePokemonFromAllAssignments(p.id);
     if (!state.pension.slotA) state.pension.slotA = p.id;
     else if (!state.pension.slotB && state.pension.slotA !== p.id) state.pension.slotB = p.id;
     else { notify('Pension pleine'); return; }
@@ -7864,6 +8009,7 @@ function renderPokemonDetail() {
     renderPCTab();
   });
   document.getElementById('btnSendTraining')?.addEventListener('click', () => {
+    removePokemonFromAllAssignments(p.id);
     if (!state.trainingRoom.pokemon) state.trainingRoom.pokemon = [];
     if (state.trainingRoom.pokemon.length >= 6) { notify('Salle pleine (max 6)'); return; }
     if (!state.trainingRoom.pokemon.includes(p.id)) state.trainingRoom.pokemon.push(p.id);
@@ -9241,6 +9387,7 @@ function renderTrainingTab() {
     for (const id of _trSelected) {
       if (added >= availSlots) break;
       if (!state.trainingRoom.pokemon.includes(id)) {
+        removePokemonFromAllAssignments(id);
         state.trainingRoom.pokemon.push(id);
         added++;
       }
@@ -9882,6 +10029,7 @@ function renderPensionView(container) {
   container.querySelectorAll('.pension-candidate').forEach(el => {
     el.addEventListener('click', () => {
       const pkId = el.dataset.pkId;
+      removePokemonFromAllAssignments(pkId);
       if (!state.pension.slotA) state.pension.slotA = pkId;
       else if (!state.pension.slotB && state.pension.slotA !== pkId) state.pension.slotB = pkId;
       else return;
