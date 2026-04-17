@@ -164,7 +164,7 @@ const POKEMON_GEN1 = [
   {en:'mewtwo',fr:'Mewtwo',dex:150,types:['Psychic'],baseAtk:110,baseDef:90,baseSpd:130,rarity:'legendary',moves:['Psyko','Laser Glace','Tonnerre','Soin']},
   {en:'mew',fr:'Mew',dex:151,types:['Psychic'],baseAtk:100,baseDef:100,baseSpd:100,rarity:'legendary',moves:['Psyko','Métronome','Surf','Lance-Flamme']},
   // Secret — not visible in Pokédex, obtainable via secret code
-  {en:'missingno',fr:'MissingNo',dex:0,types:['Normal'],baseAtk:0,baseDef:255,baseSpd:0,rarity:'legendary',moves:['Métronome','Rugissement','Charge','Hurlement'],hidden:true},
+  {en:'missingno',fr:'MissingNo',dex:0,types:['Normal','Psychic'],baseAtk:100,baseDef:100,baseSpd:100,rarity:'legendary',moves:['Morphing','Psyko','Métronome','Surf'],hidden:true,noSell:true},
 ];
 
 // Type names in French
@@ -181,22 +181,102 @@ const SPECIES_BY_EN = {};
 const SPECIES_BY_DEX = {};
 POKEMON_GEN1.forEach(s => { SPECIES_BY_EN[s.en] = s; SPECIES_BY_DEX[s.dex] = s; });
 
-// ── Secret codes (entered in PC search bar) ───────────────────
+// ── Secret codes ───────────────────────────────────────────
 const SECRET_CODES = {
   'MERCIDAVOIRJOUEMONJEU': {
-    key: 'code_missingno', oneTime: true,
-    exec: () => {
+    key: 'code_missingno',
+    cooldownMs: 60 * 60 * 1000,
+    label: '👾 MissingNo',
+    exec: (claim) => {
       const existing = state.pokemons.find(p => p.species_en === 'missingno');
-      if (existing) { notify('Tu possèdes déjà MissingNo !', 'error'); return false; }
+      if (existing) { notify('Tu possèdes déjà MissingNo !', 'error'); return; }
       const p = makePokemon('missingno', 'secret', 'pokeball');
-      p.potential = 5; p.level = randInt(128, 255); p.shiny = Math.random() < 0.1;
+      p.potential = 5; p.level = 1; p.shiny = Math.random() < 0.5; p.noSell = true;
       state.pokemons.push(p);
       if (!state.pokedex['missingno']) state.pokedex['missingno'] = {};
       state.pokedex['missingno'].caught = true; state.pokedex['missingno'].count = 1;
+      claim();
       saveState();
       notify('👾 MissingNo a rejoint ton PC ! Le tissu du jeu tremble…', 'gold');
       _pcLastRenderKey = ''; renderPokemonGrid(true);
-      return true;
+    }
+  },
+  'POKEGANGSTARTER': {
+    key: 'code_starter',
+    oneTime: true,
+    label: '🌟 Starter surprise',
+    exec: (claim) => {
+      const starters = ['bulbasaur','charmander','squirtle'];
+      const choices = starters.map(sp => {
+        const shiny = Math.random() < 0.5;
+        const spDef = POKEMON_GEN1.find(s => s.en === sp);
+        return {
+          emoji: `<img src="${pokeSprite(sp, shiny)}" style="width:56px;height:56px;image-rendering:pixelated${shiny ? ';filter:drop-shadow(0 0 6px gold)' : ''}">`,
+          label: (shiny ? '✨ ' : '') + (spDef?.fr || sp),
+          sublabel: 'Lv.1',
+          onPick: () => {
+            const p = makePokemon(sp, 'reward', 'pokeball');
+            p.level = 1; p.shiny = shiny; p.potential = Math.random() < 0.2 ? 2 : 1;
+            state.pokemons.push(p);
+            claim(); saveState();
+            notify(`🎁 ${spDef?.fr || sp}${shiny ? ' ✨' : ''} a rejoint ton PC !`, 'gold');
+            _pcLastRenderKey = ''; renderPokemonGrid(true);
+          }
+        };
+      });
+      showRewardChoicePopup('🎁 Choisis ton Starter !', 'Une seule chance — choisit bien.', choices);
+    }
+  },
+  'POKEGANGBALLS': {
+    key: 'code_balls',
+    cooldownMs: 24 * 60 * 60 * 1000,
+    label: '🎯 Pack de Balls',
+    exec: (claim) => {
+      const packs = [
+        { emoji: '🔴', label: '6× Poké Ball', sublabel: 'Bon départ', items: {pokeball:6} },
+        { emoji: '🔵', label: '3× Super Ball', sublabel: 'Efficacité +', items: {greatball:3} },
+        { emoji: '🟡', label: '1× Hyper Ball', sublabel: 'Pour les rares', items: {ultraball:1} },
+      ];
+      const choices = packs.map(pack => ({
+        emoji: pack.emoji,
+        label: pack.label,
+        sublabel: pack.sublabel,
+        onPick: () => {
+          for (const [k, v] of Object.entries(pack.items)) state.inventory[k] = (state.inventory[k] || 0) + v;
+          claim(); saveState(); updateTopBar();
+          notify(`🎁 ${pack.label} ajouté à ton inventaire !`, 'success');
+        }
+      }));
+      showRewardChoicePopup('🎯 Choisis ton pack de Balls !', 'Recharger dans 24h.', choices);
+    }
+  },
+  'POKEGANGPIKACHU': {
+    key: 'code_pikachu',
+    oneTime: true,
+    label: '⚡ Pikachu spécial',
+    exec: (claim) => {
+      const shiny = Math.random() < 0.5;
+      const choices = [
+        { sp:'pikachu', bonus: 'ATK ×2', atk: 2 },
+        { sp:'pikachu', bonus: 'VIT ×2', spd: 2 },
+        { sp:'pikachu', bonus: 'Potentiel ★★★', pot: 3 },
+      ].map(opt => ({
+        emoji: `<img src="${pokeSprite(opt.sp, shiny)}" style="width:56px;height:56px;image-rendering:pixelated${shiny ? ';filter:drop-shadow(0 0 6px gold)' : ''}">`,
+        label: (shiny ? '✨ ' : '') + 'Pikachu',
+        sublabel: opt.bonus,
+        onPick: () => {
+          const p = makePokemon('pikachu', 'reward', 'pokeball');
+          p.level = 1; p.shiny = shiny;
+          if (opt.atk) p.atk = Math.round((p.atk || 10) * opt.atk);
+          if (opt.spd) p.spd = Math.round((p.spd || 10) * opt.spd);
+          if (opt.pot) p.potential = opt.pot;
+          state.pokemons.push(p);
+          claim(); saveState();
+          notify(`⚡ Pikachu${shiny ? ' ✨' : ''} — ${opt.bonus} — a rejoint ton PC !`, 'gold');
+          _pcLastRenderKey = ''; renderPokemonGrid(true);
+        }
+      }));
+      showRewardChoicePopup('⚡ Choisis ton Pikachu !', 'Chaque version est unique.', choices);
     }
   },
 };
@@ -205,17 +285,60 @@ function checkSecretCode(input) {
   const code = input.trim().toUpperCase();
   const def = SECRET_CODES[code];
   if (!def) return false;
-  if (def.oneTime && state.claimedCodes?.[def.key]) {
+
+  const now = Date.now();
+  const lastUsed = state.claimedCodes?.[def.key];
+
+  if (def.cooldownMs) {
+    if (lastUsed && now - lastUsed < def.cooldownMs) {
+      const remaining = Math.ceil((def.cooldownMs - (now - lastUsed)) / 60000);
+      notify(`Code en recharge — ${remaining} min restante${remaining > 1 ? 's' : ''}.`, 'error');
+      return true;
+    }
+  } else if (def.oneTime && lastUsed) {
     notify('Ce code a déjà été utilisé.', 'error');
-    return true; // consume the input
+    return true;
   }
-  const success = def.exec();
-  if (success && def.oneTime) {
+
+  def.exec(() => {
     state.claimedCodes = state.claimedCodes || {};
-    state.claimedCodes[def.key] = true;
-    saveState();
-  }
+    state.claimedCodes[def.key] = def.cooldownMs ? now : true;
+  });
   return true;
+}
+
+// ── Reward choice popup ─────────────────────────────────────
+// choices = array of { label, sublabel, emoji, onPick: () => void }
+function showRewardChoicePopup(title, subtitle, choices) {
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:9800;background:rgba(0,0,0,.92);display:flex;align-items:center;justify-content:center;padding:16px';
+
+  const cardsHtml = choices.map((c, i) => `
+    <div class="reward-choice-card" data-choice="${i}" style="cursor:pointer;background:var(--bg-panel);border:2px solid var(--border);border-radius:var(--radius);padding:16px 12px;display:flex;flex-direction:column;align-items:center;gap:8px;min-width:120px;max-width:160px;flex:1;transition:border-color .15s,transform .15s">
+      <div style="font-size:40px;line-height:1">${c.emoji}</div>
+      <div style="font-family:var(--font-pixel);font-size:9px;color:var(--text);text-align:center;line-height:1.4">${c.label}</div>
+      ${c.sublabel ? `<div style="font-size:9px;color:var(--text-dim);text-align:center">${c.sublabel}</div>` : ''}
+      <button style="margin-top:4px;font-family:var(--font-pixel);font-size:8px;padding:6px 12px;background:var(--red-dark);border:1px solid var(--red);border-radius:var(--radius-sm);color:var(--text);cursor:pointer">Choisir</button>
+    </div>`).join('');
+
+  overlay.innerHTML = `
+    <div style="background:var(--bg-panel);border:2px solid var(--gold);border-radius:var(--radius);padding:24px;max-width:560px;width:100%;display:flex;flex-direction:column;gap:16px">
+      <div style="font-family:var(--font-pixel);font-size:12px;color:var(--gold);text-align:center">${title}</div>
+      ${subtitle ? `<div style="font-size:10px;color:var(--text-dim);text-align:center">${subtitle}</div>` : ''}
+      <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">${cardsHtml}</div>
+    </div>`;
+
+  document.body.appendChild(overlay);
+
+  overlay.querySelectorAll('.reward-choice-card').forEach(card => {
+    card.addEventListener('mouseenter', () => { card.style.borderColor = 'var(--gold)'; card.style.transform = 'translateY(-3px)'; });
+    card.addEventListener('mouseleave', () => { card.style.borderColor = 'var(--border)'; card.style.transform = ''; });
+    card.addEventListener('click', () => {
+      const idx = parseInt(card.dataset.choice);
+      overlay.remove();
+      choices[idx].onPick();
+    });
+  });
 }
 
 // Short Pokédex descriptions (FR)
@@ -1198,6 +1321,7 @@ function t(key, vars = {}) {
 
 // ── App version — bump on every deploy to force client reload ──
 const APP_VERSION = '2.2.0';
+const GAME_VERSION = 'v0.0 — pre-alpha';
 
 const SAVE_KEYS = ['pokeforge.v6', 'pokeforge.v6.s2', 'pokeforge.v6.s3'];
 let activeSaveSlot = Math.min(2, parseInt(localStorage.getItem('pokeforge.activeSlot') || '0'));
@@ -3696,6 +3820,18 @@ function removePokemonFromAllAssignments(pkId) {
 }
 
 function sellPokemon(pokemonIds, _shinyConfirmed = false) {
+  // Block noSell pokemon (ex: MissingNo)
+  const noSellBlocked = pokemonIds.filter(id => {
+    const p = state.pokemons.find(pk => pk.id === id);
+    if (!p) return false;
+    const species = POKEMON_GEN1.find(s => s.en === p.species_en);
+    return species?.noSell === true;
+  });
+  if (noSellBlocked.length > 0) {
+    notify('Ce Pokémon ne peut pas être vendu.', 'error');
+    pokemonIds = pokemonIds.filter(id => !noSellBlocked.includes(id));
+    if (pokemonIds.length === 0) return;
+  }
   // Filter out homesick pokemon — they cannot be sold
   const homesickBlocked = pokemonIds.filter(id => {
     const p = state.pokemons.find(pk => pk.id === id);
@@ -4581,6 +4717,9 @@ function renderGangTab() {
     <!-- ── Stats ── -->
     <div class="gang-section-label">— STATISTIQUES —</div>
     <div class="gang-stats-row">${statsHtml}</div>
+
+    <!-- ── Version ── -->
+    <div style="margin-top:16px;text-align:center;font-family:var(--font-pixel);font-size:7px;color:var(--text-dim);letter-spacing:1px;opacity:.5">${GAME_VERSION}</div>
   </div>`;
 
   // ── Handlers ──
@@ -9197,6 +9336,22 @@ function initSettings() {
   document.getElementById('btnPurgeSprites')?.addEventListener('click', () => {
     notify(state.lang === 'fr' ? 'Cache navigateur purgé' : 'Browser cache purged', 'success');
   });
+
+  document.getElementById('btnRedeemCode')?.addEventListener('click', () => {
+    const input = document.getElementById('rewardCodeInput');
+    if (!input) return;
+    const val = input.value.trim();
+    if (!val) return;
+    const found = checkSecretCode(val);
+    if (!found) notify('Code inconnu.', 'error');
+    input.value = '';
+  });
+  document.getElementById('rewardCodeInput')?.addEventListener('keydown', e => {
+    if (e.key === 'Enter') document.getElementById('btnRedeemCode')?.click();
+  });
+  // Afficher la version dans les settings
+  const settingsVersionEl = document.getElementById('settingsVersion');
+  if (settingsVersionEl) settingsVersionEl.textContent = GAME_VERSION;
 }
 
 // ════════════════════════════════════════════════════════════════
