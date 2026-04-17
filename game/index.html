@@ -666,6 +666,7 @@
       background: var(--blue); color: var(--bg);
       padding: 1px 3px; border-radius: 2px; line-height: 1; pointer-events: none;
     }
+    .pc-pension-badge { position:absolute;top:2px;left:2px;background:#c05be0;color:#fff;font-family:var(--font-pixel);font-size:5px;padding:1px 3px;border-radius:2px;z-index:2; }
     .pc-pokemon.in-training {
       border-color: var(--blue);
       box-shadow: 0 0 6px rgba(68,136,204,.4);
@@ -2509,6 +2510,7 @@
                 <option value="species">Espece</option>
                 <option value="id">No. Pokedex</option>
                 <option value="name">Nom A-Z</option>
+                <option value="price">Prix ₽</option>
               </select>
               <select id="pcFilter">
                 <option value="all">Tous</option>
@@ -2520,6 +2522,8 @@
                 <option value="pot3">*** (3)</option>
                 <option value="pot2">** (2)</option>
                 <option value="pot1">* (1)</option>
+                <option value="pension">[PS] Pension</option>
+                <option value="training">[TR] Formation</option>
               </select>
             </div>
             <div id="pokemonGrid"></div>
