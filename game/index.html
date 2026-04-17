@@ -2935,6 +2935,15 @@
           <input type="checkbox" id="settingDiscoveryMode" checked>
         </div>
         <div class="settings-row">
+          <label>Musique de fond</label>
+          <input type="checkbox" id="settingMusic">
+        </div>
+        <div class="settings-row">
+          <label>Volume musique <span id="settingMusicVolVal" style="color:var(--gold);margin-left:4px">50%</span></label>
+          <input type="range" id="settingMusicVol" min="0" max="100" step="5" value="50" style="width:110px"
+            oninput="document.getElementById('settingMusicVolVal').textContent=this.value+'%'">
+        </div>
+        <div class="settings-row">
           <label>Effets sonores (SFX)</label>
           <input type="checkbox" id="settingSFX" checked>
         </div>
