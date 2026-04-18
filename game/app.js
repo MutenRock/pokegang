@@ -1667,10 +1667,12 @@ const DEFAULT_STATE = {
   marketSales: {}, // { [species_en]: { count, lastSale } } — supply/demand
   favorites: [],   // array of pokemon IDs marked as favorite
   trainingRoom: {
-    pokemon: [],   // up to 6 pokemon IDs training here
-    log: [],       // recent training events
-    level: 1,      // room upgrade level
+    pokemon: [],      // up to 6 pokemon IDs training here
+    log: [],          // recent training events
+    level: 1,         // room upgrade level
+    lastFight: null,  // timestamp du dernier combat d'entraînement
   },
+  _savedAt: 0,       // timestamp de la dernière sauvegarde
   cosmetics: {
     gameBg: null,       // CSS gradient/color for game background
     bossBg: null,       // CSS for boss panel background
@@ -1719,13 +1721,9 @@ let state = structuredClone(DEFAULT_STATE);
 let _supaLastSaveAt = 0;
 const SUPA_SAVE_THROTTLE_MS = 30_000; // max 1 cloud save / 30s
 
+const MAX_HISTORY = 30; // cap des entrées d'historique par Pokémon (anti-QuotaExceeded)
+
 function saveState() {
-  // Cleanup avant save
-  for (const p of state.pokemons) {
-    if (p.history && p.history.length > 20) {
-      p.history = p.history.slice(-20);
-    }
-  }
   if (!state.marketSales) state.marketSales = {}; // guard: toujours initialisé
 
   // Playtime accumulation
@@ -1735,8 +1733,7 @@ function saveState() {
   }
 
   state._savedAt = Date.now();
-  // Cap pokemon history arrays before serializing (prevents QuotaExceededError)
-  const MAX_HISTORY = 30;
+  // Cap historiques avant sérialisation
   for (const p of state.pokemons) {
     if (p.history && p.history.length > MAX_HISTORY) {
       p.history = p.history.slice(-MAX_HISTORY);
@@ -1794,7 +1791,7 @@ function loadState() {
       // Lister les champs qui ont été ajoutés (présents dans DEFAULT_STATE mais absents du raw)
       const addedFields = [];
       if (!saved.behaviourLogs)       addedFields.push('Logs comportementaux');
-      if (!saved.discoveryProgress?.agentsUnlocked !== undefined && saved.discoveryProgress?.agentsUnlocked === undefined)
+      if (saved.discoveryProgress?.agentsUnlocked === undefined)
                                        addedFields.push('Progression découverte étendue');
       if (saved.settings?.classicSprites === undefined) addedFields.push('Option sprites');
       if (!saved.eggs)                addedFields.push('Système d\'œufs');
@@ -1818,7 +1815,10 @@ function loadState() {
     // Stamper le schéma courant dans la save migrée
     migrated._schemaVersion = SAVE_SCHEMA_VERSION;
     return migrated;
-  } catch { return null; }
+  } catch (e) {
+    console.error('[PokéForge] Erreur loadState() — save corrompue ou illisible :', e);
+    return null;
+  }
 }
 
 function migrate(saved) {
@@ -1828,11 +1828,8 @@ function migrate(saved) {
   merged.inventory = { ...structuredClone(DEFAULT_STATE.inventory), ...saved.inventory };
   merged.stats = { ...structuredClone(DEFAULT_STATE.stats), ...saved.stats };
   merged.settings = { ...structuredClone(DEFAULT_STATE.settings), ...saved.settings };
-  if (!merged.discoveryProgress) merged.discoveryProgress = { marketUnlocked: false, pokedexUnlocked: false, missionsUnlocked: false };
-  if (merged.discoveryProgress.missionsUnlocked === undefined) merged.discoveryProgress.missionsUnlocked = false;
-  if (merged.discoveryProgress.agentsUnlocked === undefined) merged.discoveryProgress.agentsUnlocked = false;
-  if (merged.discoveryProgress.battleLogUnlocked === undefined) merged.discoveryProgress.battleLogUnlocked = false;
-  if (merged.discoveryProgress.cosmeticsUnlocked === undefined) merged.discoveryProgress.cosmeticsUnlocked = false;
+  // Migration: discoveryProgress — merge avec valeurs par défaut complètes
+  merged.discoveryProgress = { ...structuredClone(DEFAULT_STATE.discoveryProgress), ...(saved.discoveryProgress || {}) };
   if (!merged.behaviourLogs) merged.behaviourLogs = { firstCombatAt:0, firstCaptureAt:0, firstPurchaseAt:0, firstAgentAt:0, firstMissionAt:0, tabViewCounts:{} };
   if (!merged.behaviourLogs.tabViewCounts) merged.behaviourLogs.tabViewCounts = {};
   // Nouveau joueur → découverte ON ; joueur existant sans ce champ → OFF (déjà habitué)
@@ -1872,10 +1869,8 @@ function migrate(saved) {
   if (!merged.missions.completed) merged.missions.completed = [];
   if (!merged.missions.hourly) merged.missions.hourly = { reset: 0, slots: [], baseline: {}, claimed: [] };
   // Migration: trainingRoom + cosmetics + purchases
-  if (!merged.trainingRoom) merged.trainingRoom = { pokemon: [], log: [], level: 1 };
-  if (!merged.trainingRoom.log) merged.trainingRoom.log = [];
-  if (!merged.trainingRoom.lastFight) merged.trainingRoom.lastFight = null;
-  if (!merged.trainingRoom.level) merged.trainingRoom.level = 1;
+  if (!merged.trainingRoom) merged.trainingRoom = structuredClone(DEFAULT_STATE.trainingRoom);
+  merged.trainingRoom = { ...structuredClone(DEFAULT_STATE.trainingRoom), ...merged.trainingRoom };
   if (!merged.cosmetics) merged.cosmetics = { gameBg: null, bossBg: null, unlockedBgs: [] };
   if (!merged.lab) merged.lab = { trackedSpecies: [] };
   if (!merged.lab.trackedSpecies) merged.lab.trackedSpecies = [];
