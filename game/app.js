@@ -1907,12 +1907,44 @@ function sanitizeSpriteName(en) {
   return en.replace(/[^a-z0-9]/g, '');
 }
 
-function pokeSprite(en, shiny = false) {
+// ── Pokémon sprite resolution ────────────────────────────────────────────────
+// Variants disponibles (depuis pokemon-sprites-kanto.json) :
+//   'main'         → FireRed/LeafGreen (défaut)
+//   'showdown'     → Animated GIF Showdown
+//   'icon'         → Icône miniature Gen 7
+//   'artwork'      → Artwork officiel haute résolution
+//   'artworkShiny' → Artwork officiel shiny
+//   'back'         → Dos face
+//   'shiny'        → Version brillante face
+//   'backShiny'    → Dos brillant
+//   'retroRedBlue' → Sprite Rogue/Bleu
+//   'retroYellow'  → Sprite Jaune
+function pokeSpriteVariant(en, variant = 'main', shiny = false) {
+  const sp = SPECIES_BY_EN[en];
+  const dexId = sp?.dex;
+  if (dexId && typeof getPokemonSprite === 'function') {
+    const key = shiny && variant === 'main' ? 'shiny'
+              : shiny && variant === 'back'  ? 'backShiny'
+              : variant;
+    const url = getPokemonSprite(dexId, key);
+    if (url) return url;
+  }
+  // Fallback Showdown
   const base = shiny ? 'gen5-shiny' : 'gen5';
   return `https://play.pokemonshowdown.com/sprites/${base}/${sanitizeSpriteName(en)}.png`;
 }
 
+function pokeSprite(en, shiny = false) {
+  return pokeSpriteVariant(en, 'main', shiny);
+}
+
 function pokeSpriteBack(en, shiny = false) {
+  const sp = SPECIES_BY_EN[en];
+  const dexId = sp?.dex;
+  if (dexId && typeof getPokemonSprite === 'function') {
+    const url = getPokemonSprite(dexId, shiny ? 'backShiny' : 'back');
+    if (url) return url;
+  }
   const base = shiny ? 'gen5-back-shiny' : 'gen5-back';
   return `https://play.pokemonshowdown.com/sprites/${base}/${sanitizeSpriteName(en)}.png`;
 }
@@ -1943,8 +1975,39 @@ const CUSTOM_TRAINER_SPRITES = {
   giovanni: 'https://www.pokepedia.fr/images/archive/7/73/20230124191924%21Sprite_Giovanni_RB.png',
 };
 
+// ── Trainer sprite resolution ────────────────────────────────────────────────
+// Index à plat construit après chargement de trainer-sprites-grouped.json
+const _trainerJsonIndex = {};
+
+function _buildTrainerIndex() {
+  if (!TRAINER_GROUPS?.trainers) return;
+  const base = 'https://play.pokemonshowdown.com/sprites/trainers/';
+  const groups = TRAINER_GROUPS.trainers;
+  for (const [groupName, groupData] of Object.entries(groups)) {
+    if (groupName === 'factions') {
+      for (const [, arr] of Object.entries(groupData)) {
+        if (Array.isArray(arr)) arr.forEach(rel => {
+          const slug = rel.replace(/\.png$/, '').replace(/[^a-z0-9]/gi, '').toLowerCase();
+          _trainerJsonIndex[slug] = base + rel;
+        });
+      }
+    } else if (typeof groupData === 'object' && !Array.isArray(groupData)) {
+      for (const [key, rel] of Object.entries(groupData)) {
+        const slug = rel.replace(/\.png$/, '').toLowerCase();
+        const keyNorm = key.replace(/[^a-z0-9]/gi, '').toLowerCase();
+        _trainerJsonIndex[slug] = base + rel;
+        _trainerJsonIndex[keyNorm] = base + rel;
+      }
+    }
+  }
+}
+
 function trainerSprite(name) {
   if (CUSTOM_TRAINER_SPRITES[name]) return CUSTOM_TRAINER_SPRITES[name];
+  // Chercher dans l'index JSON si disponible
+  const norm = (name || '').replace(/[^a-z0-9]/gi, '').toLowerCase();
+  if (_trainerJsonIndex[norm]) return _trainerJsonIndex[norm];
+  // Fallback Showdown
   const fixed = SPRITE_FIX[name] || name;
   return `https://play.pokemonshowdown.com/sprites/trainers/${fixed}.png`;
 }
@@ -1958,8 +2021,8 @@ function safeTrainerImg(name, { style = '', cls = '' } = {}) {
   const src = trainerSprite(name);
   return `<img src="${src}" ${cls ? `class="${cls}"` : ''} style="${style}" alt="${name}" onerror="this.src='${FALLBACK_TRAINER_SVG}';this.onerror=null">`;
 }
-function safePokeImg(species_en, { shiny = false, back = false, style = '', cls = '' } = {}) {
-  const src = back ? pokeSpriteBack(species_en, shiny) : pokeSprite(species_en, shiny);
+function safePokeImg(species_en, { shiny = false, back = false, variant = 'main', style = '', cls = '' } = {}) {
+  const src = back ? pokeSpriteBack(species_en, shiny) : pokeSpriteVariant(species_en, variant, shiny);
   return `<img src="${src}" ${cls ? `class="${cls}"` : ''} style="${style}" alt="${species_en}" onerror="this.src='${FALLBACK_POKEMON_SVG}';this.onerror=null">`;
 }
 
@@ -12587,6 +12650,22 @@ function boot() {
 
   // Check boss sprite validity (broken save migration)
   checkBossSpriteValidity();
+
+  // ── Charger les données de sprites (async, non-bloquant) ─────────────────
+  // loaders.js doit être chargé avant app.js dans le HTML
+  if (typeof loadPokemonSprites === 'function') {
+    Promise.allSettled([
+      loadPokemonSprites(),
+      loadItemSprites(),
+      loadTrainerGroups().then(() => _buildTrainerIndex()),
+      loadZoneTrainerPools(),
+    ]).then(results => {
+      const labels = ['pokemon-sprites', 'item-sprites', 'trainer-sprites', 'zone-trainer-pools'];
+      results.forEach((r, i) => {
+        if (r.status === 'rejected') console.warn(`[Sprites] Échec chargement ${labels[i]} :`, r.reason);
+      });
+    });
+  }
 
   // Start game loop
   startGameLoop();
