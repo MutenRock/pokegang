@@ -2643,7 +2643,7 @@ function showInfoModal(tabId) {
       body: `
         <strong>Quêtes horaires</strong> — 3 quêtes Moyennes + 2 Difficiles, réinitialisées toutes les heures. Reroll possible contre 10 rep.<br><br>
         <strong>Histoire & Objectifs</strong> — Quêtes permanentes liées à la progression. Complète-les pour des grosses récompenses.<br><br>
-        <strong>Balls</strong> — Chaque type améliore le potentiel max capturé. Échanges : 10 PB→3 GB, 10 GB→3 UB, 1000 UB→1 MB.<br><br>
+        <strong>Balls</strong> — Chaque type améliore le potentiel max capturé. Troc (onglet Troc) : 10 PB→1 GB, 10 GB→1 UB, 10 UB→1 MB.<br><br>
         <strong>Multiplicateur ×1/×5/×10</strong> — Achète en lot depuis la boutique.<br><br>
         <strong>Boosts temporaires</strong> — S'activent depuis le Sac dans la fenêtre de zone. Durée 60–90s.<br><br>
         <span class="dim">Vends des Pokémon depuis le PC pour financer tes achats.</span>
@@ -8389,8 +8389,8 @@ function renderMarketTab() {
 const BARTER_RECIPES = [
   // [donnerItemId, donnerQty, recevoirItemId, recevoirQty, label]
   ['pokeball',  10, 'greatball',  1,  '10 Poké Balls → 1 Super Ball'],
-  ['greatball',  5, 'ultraball',  1,  '5 Super Balls → 1 Hyper Ball'],
-  ['ultraball',  3, 'masterball', 1,  '3 Hyper Balls → 1 Master Ball'],
+  ['greatball', 10, 'ultraball',  1,  '10 Super Balls → 1 Hyper Ball'],
+  ['ultraball', 10, 'masterball', 1,  '10 Hyper Balls → 1 Master Ball'],
   ['lure',       5, 'superlure',  1,  '5 Leurres → 1 Super Leurre'],
   ['superlure',  3, 'evostone',   1,  '3 Super Leurres → 1 Pierre Évol.'],
   ['rarecandy',  3, 'evostone',   1,  '3 Super Bonbons → 1 Pierre Évol.'],
@@ -8587,31 +8587,6 @@ function renderShopPanel() {
     </div>`;
   }).join('');
 
-  // ── Ball trade section ─────────────────────────────────────────
-  const pb  = state.inventory.pokeball  || 0;
-  const gb  = state.inventory.greatball || 0;
-  const ub  = state.inventory.ultraball || 0;
-  const mb  = state.inventory.masterball|| 0;
-  // Rates: 10 PB → 3 GB  |  10 GB → 3 UB  |  1000 UB → 1 MB
-  const tradeRows = [
-    { fromId:'pokeball',  fromQty:10, toId:'greatball', toQty:3,  label:`10 Poké Ball → 3 Super Ball`, canTrade: pb >= 10  },
-    { fromId:'greatball', fromQty:10, toId:'ultraball',  toQty:3,  label:`10 Super Ball → 3 Hyper Ball`, canTrade: gb >= 10  },
-    { fromId:'ultraball', fromQty:1000, toId:'masterball',toQty:1, label:`1000 Hyper Ball → 1 Master Ball`, canTrade: ub >= 1000 },
-  ];
-  const tradeHtml = `
-    <div style="padding:10px 4px;border-top:2px solid var(--border);margin-top:4px">
-      <div style="font-family:var(--font-pixel);font-size:9px;color:var(--gold);margin-bottom:8px">— ÉCHANGE —</div>
-      ${tradeRows.map((t, i) => `
-        <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)">
-          <div style="font-size:10px;color:${t.canTrade?'var(--text)':'var(--text-dim)'}">${t.label}</div>
-          <button class="btn-ball-trade" data-trade-idx="${i}"
-            style="font-family:var(--font-pixel);font-size:8px;padding:5px 10px;background:var(--bg);
-              border:1px solid ${t.canTrade?'var(--blue)':'var(--border)'};border-radius:var(--radius-sm);
-              color:${t.canTrade?'var(--blue)':'var(--text-dim)'};cursor:${t.canTrade?'pointer':'default'}"
-            ${t.canTrade?'':'disabled'}>Échanger</button>
-        </div>`).join('')}
-    </div>`;
-
   // ── Active ball selector ───────────────────────────────────────
   const ballSel = `
     <div style="padding:10px 4px;border-top:2px solid var(--border);margin-top:4px">
@@ -8631,7 +8606,7 @@ function renderShopPanel() {
       <span style="font-family:var(--font-pixel);font-size:8px;color:var(--text-dim)">Quantité :</span>
       ${multBar}
     </div>
-    ${itemsHtml}${tradeHtml}${ballSel}`;
+    ${itemsHtml}${ballSel}`;
 
   // ── Bind events ────────────────────────────────────────────────
   panel.querySelectorAll('.shop-mult-btn').forEach(btn => {
@@ -8651,19 +8626,6 @@ function renderShopPanel() {
       updateTopBar();
       renderShopPanel();
       if (activeTab === 'tabZones') renderZoneWindows();
-    });
-  });
-  panel.querySelectorAll('.btn-ball-trade').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const t = tradeRows[parseInt(btn.dataset.tradeIdx)];
-      if (!t || !t.canTrade) return;
-      state.inventory[t.fromId] -= t.fromQty;
-      state.inventory[t.toId]   = (state.inventory[t.toId] || 0) + t.toQty;
-      saveState();
-      notify(`Échange : ${t.label}`, 'gold');
-      if (t.toId === 'masterball') notify('🏆 MASTER BALL obtenue !', 'gold');
-      updateTopBar();
-      renderShopPanel();
     });
   });
   panel.querySelectorAll('[data-ball]').forEach(btn => {
