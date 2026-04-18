@@ -2885,6 +2885,7 @@
         <div id="zoneWindows" style="display:flex;flex-wrap:wrap;gap:12px;"></div>
         <div class="zones-split-bar">
           <span class="zones-split-label">BASE</span>
+          <button id="btnCollectAllZones" class="zones-close-all-btn" style="background:var(--gold-dark,#7a6000);border-color:var(--gold-dim);color:var(--gold);display:none">₽ Tout récolter</button>
           <button id="btnCloseAllZones" class="zones-close-all-btn">✕ Fermer tout</button>
         </div>
         <div id="zoneBottom" style="display:flex;gap:12px;align-items:flex-start;">
@@ -3111,16 +3112,6 @@
           <input type="checkbox" id="settingSFX" checked>
         </div>
         <div class="settings-row">
-          <label>Code secret</label>
-          <div style="display:flex;gap:4px">
-            <input type="password" id="cheatInput" placeholder="••••••••"
-              style="width:110px;font-family:var(--font-pixel);font-size:9px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);padding:2px 6px"
-              onkeydown="if(event.key==='Enter')tryCheatCode('cheatInput')">
-            <button onclick="tryCheatCode('cheatInput')"
-              style="font-family:var(--font-pixel);font-size:9px;padding:2px 8px;background:var(--bg-panel);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-dim);cursor:pointer">🎁</button>
-          </div>
-        </div>
-        <div class="settings-row">
           <label>Taille de l'interface <span id="settingUIScaleVal" style="color:var(--gold);margin-left:4px">100%</span></label>
           <input type="range" id="settingUIScale" min="70" max="130" step="5" value="100" style="width:110px"
             oninput="document.getElementById('settingUIScaleVal').textContent=this.value+'%';document.documentElement.style.setProperty('--ui-scale',(this.value/100).toFixed(2))">
@@ -3199,6 +3190,6 @@
   <script src="config.js?v=1"></script>
   <!-- Sprite data loaders (variables internes isolées dans IIFE, no global pollution) -->
   <script src="data/loaders.js?v=3"></script>
-  <script src="app.js?v=3"></script>
+  <script src="app.js?v=4"></script>
 </body>
 </html>
