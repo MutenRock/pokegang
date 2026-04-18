@@ -573,14 +573,23 @@ const ZONE_BGS = {
 
 // Cosmetic backgrounds purchasable for the game screen
 const COSMETIC_BGS = {
-  meadow:  { fr:'Prairie',    cost:5000,  url:`${SD_BG}meadow.png`   },
-  forest:  { fr:'Foret',      cost:8000,  url:`${SD_BG}forest.png`   },
-  mountain:{ fr:'Montagne',   cost:10000, url:`${SD_BG}mountain.png` },
-  beach:   { fr:'Plage',      cost:8000,  url:`${SD_BG}beach.png`    },
-  river:   { fr:'Riviere',    cost:6000,  url:`${SD_BG}river.png`    },
-  city:    { fr:'Ville',      cost:12000, url:`${SD_BG}city.png`     },
-  desert:  { fr:'Desert',     cost:10000, url:`${SD_BG}desert.png`   },
-  deepsea: { fr:'Fond Marin', cost:20000, url:`${SD_BG}deepsea.png`  },
+  // ── Fonds d'écran photo (CDN Showdown) ───────────────────────
+  meadow:        { fr:'Prairie',       cost:5000,  url:`${SD_BG}meadow.png`,   type:'image' },
+  forest:        { fr:'Forêt',         cost:8000,  url:`${SD_BG}forest.png`,   type:'image' },
+  mountain:      { fr:'Montagne',      cost:10000, url:`${SD_BG}mountain.png`, type:'image' },
+  beach:         { fr:'Plage',         cost:8000,  url:`${SD_BG}beach.png`,    type:'image' },
+  river:         { fr:'Rivière',       cost:6000,  url:`${SD_BG}river.png`,    type:'image' },
+  city:          { fr:'Ville',         cost:12000, url:`${SD_BG}city.png`,     type:'image' },
+  desert:        { fr:'Désert',        cost:10000, url:`${SD_BG}desert.png`,   type:'image' },
+  deepsea:       { fr:'Fond Marin',    cost:20000, url:`${SD_BG}deepsea.png`,  type:'image' },
+  // ── Thèmes couleur (dégradés CSS) ────────────────────────────
+  theme_red:     { fr:'Rouge Sang',    cost:2000,  gradient:'linear-gradient(145deg,#160000 0%,#2e0808 50%,#0a0000 100%)', type:'gradient' },
+  theme_blue:    { fr:'Bleu Glacé',    cost:2000,  gradient:'linear-gradient(145deg,#000c1a 0%,#081a30 50%,#000810 100%)', type:'gradient' },
+  theme_purple:  { fr:'Nuit Violette', cost:2000,  gradient:'linear-gradient(145deg,#0c0018 0%,#1a0830 50%,#060010 100%)', type:'gradient' },
+  theme_green:   { fr:'Vert Toxik',    cost:2000,  gradient:'linear-gradient(145deg,#001400 0%,#0a2010 50%,#000a00 100%)', type:'gradient' },
+  theme_gold:    { fr:'Doré',          cost:4000,  gradient:'linear-gradient(145deg,#1a1000 0%,#2e2000 50%,#0a0800 100%)', type:'gradient' },
+  theme_sunset:  { fr:'Coucher Soleil',cost:4000,  gradient:'linear-gradient(145deg,#1a0800 0%,#2e1000 40%,#180016 100%)', type:'gradient' },
+  theme_midnight:{ fr:'Minuit',        cost:3000,  gradient:'linear-gradient(145deg,#020204 0%,#060610 50%,#000004 100%)', type:'gradient' },
 };
 
 // Sequential gym unlock order
@@ -5301,9 +5310,8 @@ function loadSlot(slotIdx) {
 function applyCosmetics() {
   const bgKey = state.cosmetics?.gameBg;
   const bg = bgKey ? COSMETIC_BGS[bgKey] : null;
-  // Apply background to both html + body for full-viewport coverage
   const _bgTargets = [document.documentElement, document.body];
-  if (bg) {
+  if (bg?.type === 'image') {
     _bgTargets.forEach(el => {
       el.style.backgroundImage = `url('${bg.url}')`;
       el.style.backgroundSize = 'cover';
@@ -5311,11 +5319,22 @@ function applyCosmetics() {
       el.style.backgroundPosition = 'center';
       el.style.backgroundRepeat = 'no-repeat';
     });
-    // Make game panels semi-transparent so background shows through
     document.documentElement.style.setProperty('--bg', 'rgba(10,10,10,0.72)');
     document.documentElement.style.setProperty('--bg-card', 'rgba(20,20,20,0.70)');
     document.documentElement.style.setProperty('--bg-panel', 'rgba(26,26,26,0.70)');
     document.documentElement.style.setProperty('--bg-hover', 'rgba(34,34,34,0.80)');
+  } else if (bg?.type === 'gradient') {
+    _bgTargets.forEach(el => {
+      el.style.backgroundImage = bg.gradient;
+      el.style.backgroundSize = 'cover';
+      el.style.backgroundAttachment = 'fixed';
+      el.style.backgroundPosition = 'center';
+      el.style.backgroundRepeat = 'no-repeat';
+    });
+    document.documentElement.style.setProperty('--bg', '#0a0a0a');
+    document.documentElement.style.setProperty('--bg-card', '#141414');
+    document.documentElement.style.setProperty('--bg-panel', '#1a1a1a');
+    document.documentElement.style.setProperty('--bg-hover', '#222');
   } else {
     _bgTargets.forEach(el => { el.style.backgroundImage = ''; });
     document.documentElement.style.setProperty('--bg', '#0a0a0a');
@@ -5365,27 +5384,110 @@ function renderCosmeticsPanel(container) {
   const unlocked = new Set(state.cosmetics?.unlockedBgs || []);
   const active = state.cosmetics?.gameBg || null;
 
+  // ── Jukebox ──────────────────────────────────────────────────
+  const JUKEBOX_TRACKS = [
+    { key: 'base',     icon: '🏠', label: 'Base' },
+    { key: 'forest',   icon: '🌿', label: 'Route' },
+    { key: 'cave',     icon: '⛏', label: 'Caverne' },
+    { key: 'city',     icon: '🏙', label: 'Ville' },
+    { key: 'sea',      icon: '🌊', label: 'Mer' },
+    { key: 'safari',   icon: '🦒', label: 'Safari' },
+    { key: 'lavender', icon: '💜', label: 'Lavanville' },
+    { key: 'tower',    icon: '👻', label: 'Tour' },
+    { key: 'mansion',  icon: '🕯', label: 'Manoir' },
+    { key: 'gym',      icon: '⚔', label: 'Arène' },
+    { key: 'rocket',   icon: '🚀', label: 'Rocket' },
+    { key: 'silph',    icon: '🔬', label: 'Sylphe' },
+    { key: 'elite4',   icon: '👑', label: 'Élite 4' },
+    { key: 'casino',   icon: '🎰', label: 'Casino' },
+  ];
+  const isTrackUnlocked = (key) => {
+    if (key === 'base') return true;
+    return ZONES.some(z => z.music === key && isZoneUnlocked(z.id));
+  };
+  const currentJuke = state.settings?.jukeboxTrack || null;
+  const jukeHtml = JUKEBOX_TRACKS.map(t => {
+    const tUnlocked = isTrackUnlocked(t.key);
+    const tActive = currentJuke === t.key;
+    return `<div class="jukebox-track${tActive ? ' active' : ''}${tUnlocked ? '' : ' locked'}" data-jukebox-track="${t.key}" title="${t.label}${tUnlocked ? '' : ' — Verrou'}">
+      <span class="juke-icon">${tUnlocked ? t.icon : '🔒'}</span>
+      <span class="juke-label">${t.label}</span>
+    </div>`;
+  }).join('');
+
+  // ── Fonds d'écran ─────────────────────────────────────────────
+  const bgImagesHtml = Object.entries(COSMETIC_BGS).filter(([,c]) => c.type === 'image').map(([key, c]) => {
+    const own = unlocked.has(key);
+    const isActive = active === key;
+    return `<div class="cosm-card ${isActive ? 'cosm-active' : ''}" data-cosm="${key}" style="border:2px solid ${isActive ? 'var(--gold)' : own ? 'var(--green)' : 'var(--border)'};border-radius:var(--radius-sm);padding:8px;cursor:pointer;background:var(--bg-card)">
+      <div style="height:50px;background-image:url('${c.url}');background-size:cover;background-position:center;border-radius:2px;margin-bottom:6px"></div>
+      <div style="font-size:9px">${c.fr}</div>
+      <div style="font-size:8px;color:${isActive ? 'var(--gold)' : own ? 'var(--green)' : 'var(--text-dim)'}">
+        ${isActive ? '[ ACTIF ]' : own ? 'Équiper' : c.cost.toLocaleString() + '₽'}
+      </div>
+    </div>`;
+  }).join('');
+
+  const bgGradientsHtml = Object.entries(COSMETIC_BGS).filter(([,c]) => c.type === 'gradient').map(([key, c]) => {
+    const own = unlocked.has(key);
+    const isActive = active === key;
+    return `<div class="cosm-card ${isActive ? 'cosm-active' : ''}" data-cosm="${key}" style="border:2px solid ${isActive ? 'var(--gold)' : own ? 'var(--green)' : 'var(--border)'};border-radius:var(--radius-sm);padding:8px;cursor:pointer;background:var(--bg-card)">
+      <div style="height:50px;background:${c.gradient};border-radius:2px;margin-bottom:6px"></div>
+      <div style="font-size:9px">${c.fr}</div>
+      <div style="font-size:8px;color:${isActive ? 'var(--gold)' : own ? 'var(--green)' : 'var(--text-dim)'}">
+        ${isActive ? '[ ACTIF ]' : own ? 'Équiper' : c.cost.toLocaleString() + '₽'}
+      </div>
+    </div>`;
+  }).join('');
+
   container.innerHTML = `
-    <div style="font-family:var(--font-pixel);font-size:9px;color:var(--gold);margin-bottom:10px">COSMETIQUES — FOND D\'ECRAN</div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px">
+    <!-- ── Jukebox ── -->
+    <div style="font-family:var(--font-pixel);font-size:9px;color:var(--gold);margin-bottom:8px">🎵 JUKEBOX
+      <span style="font-size:7px;color:var(--text-dim);font-weight:normal;margin-left:6px">${currentJuke ? MUSIC_TRACKS[currentJuke]?.fr || currentJuke : 'AUTO'}</span>
+    </div>
+    <div class="base-jukebox" style="margin-bottom:18px">${jukeHtml}
+      <div class="jukebox-track${!currentJuke ? ' active' : ''}" data-jukebox-track="__auto__" title="Musique automatique selon la zone">
+        <span class="juke-icon">🔄</span>
+        <span class="juke-label">AUTO</span>
+      </div>
+    </div>
+
+    <!-- ── Fonds d'écran photo ── -->
+    <div style="font-family:var(--font-pixel);font-size:9px;color:var(--gold);margin-bottom:10px">🖼 FOND D'ÉCRAN</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;margin-bottom:8px">
       <div class="cosm-card ${!active ? 'cosm-active' : ''}" data-cosm="none" style="border:2px solid ${!active ? 'var(--gold)' : 'var(--border)'};border-radius:var(--radius-sm);padding:8px;cursor:pointer;background:var(--bg-card)">
         <div style="height:50px;background:linear-gradient(180deg,#0a0a0a,#1a1a1a);border-radius:2px;margin-bottom:6px"></div>
-        <div style="font-size:9px">Defaut</div>
-        <div style="font-size:8px;color:${!active ? 'var(--gold)' : 'var(--green)'}">Gratuit ${!active ? '[ ACTIF ]' : ''}</div>
+        <div style="font-size:9px">Défaut</div>
+        <div style="font-size:8px;color:${!active ? 'var(--gold)' : 'var(--text-dim)'}">Gratuit ${!active ? '[ ACTIF ]' : ''}</div>
       </div>
-      ${Object.entries(COSMETIC_BGS).map(([key, c]) => {
-        const own = unlocked.has(key);
-        const isActive = active === key;
-        return `<div class="cosm-card ${isActive ? 'cosm-active' : ''}" data-cosm="${key}" style="border:2px solid ${isActive ? 'var(--gold)' : own ? 'var(--green)' : 'var(--border)'};border-radius:var(--radius-sm);padding:8px;cursor:pointer;background:var(--bg-card)">
-          <div style="height:50px;background-image:url('${c.url}');background-size:cover;background-position:center;border-radius:2px;margin-bottom:6px"></div>
-          <div style="font-size:9px">${c.fr}</div>
-          <div style="font-size:8px;color:${isActive ? 'var(--gold)' : own ? 'var(--green)' : 'var(--text-dim)'}">
-            ${isActive ? '[ ACTIF ]' : own ? 'Equiper' : c.cost.toLocaleString() + 'P'}
-          </div>
-        </div>`;
-      }).join('')}
+      ${bgImagesHtml}
+    </div>
+
+    <!-- ── Thèmes couleur ── -->
+    <div style="font-family:var(--font-pixel);font-size:9px;color:var(--gold);margin-bottom:10px;margin-top:6px">🎨 THÈMES</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px">
+      ${bgGradientsHtml}
     </div>`;
 
+  // Jukebox handlers
+  container.querySelectorAll('[data-jukebox-track]').forEach(el => {
+    el.addEventListener('click', () => {
+      const key = el.dataset.jukeboxTrack;
+      if (el.classList.contains('locked')) { notify('🔒 Débloquez cette zone pour accéder à cette musique', 'error'); return; }
+      if (key === '__auto__') {
+        state.settings.jukeboxTrack = null;
+        notify('🎵 Jukebox → Auto', 'success');
+      } else {
+        state.settings.jukeboxTrack = key;
+        notify(`🎵 ${MUSIC_TRACKS[key]?.fr || key}`, 'success');
+      }
+      saveState();
+      MusicPlayer.updateFromContext();
+      renderCosmeticsPanel(container);
+    });
+  });
+
+  // Wallpaper / theme handlers
   container.querySelectorAll('.cosm-card').forEach(el => {
     el.addEventListener('click', () => {
       const key = el.dataset.cosm;
@@ -5402,14 +5504,15 @@ function renderCosmeticsPanel(container) {
         saveState(); applyCosmetics();
         renderCosmeticsPanel(container);
       } else {
-        if (state.gang.money < c.cost) { notify('Fonds insuffisants.'); return; }
-        showConfirm(`Acheter le fond "${c.fr}" pour ${c.cost.toLocaleString()}₽ ?`, () => {
+        if (state.gang.money < c.cost) { notify('Fonds insuffisants.', 'error'); return; }
+        showConfirm(`Acheter "${c.fr}" pour ${c.cost.toLocaleString()}₽ ?`, () => {
           state.gang.money -= c.cost;
           state.cosmetics.unlockedBgs = [...(state.cosmetics.unlockedBgs || []), key];
           state.cosmetics.gameBg = key;
           saveState(); applyCosmetics();
           updateTopBar();
-          notify(`Fond "${c.fr}" debloque !`, 'gold');
+          notify(`🎨 "${c.fr}" débloqué !`, 'gold');
+          SFX.play('unlock');
           renderCosmeticsPanel(container);
         }, null, { confirmLabel: 'Acheter', cancelLabel: 'Annuler' });
       }
@@ -6864,50 +6967,6 @@ function renderGangBaseWindow() {
         : `<div style="font-size:8px;color:var(--text-dim);padding:2px 0 3px;opacity:.5">${state.lang === 'fr' ? 'Aucun incubateur — achetez-en au Marché' : 'No incubators — buy some at the Market'}</div>`}
     </div>
 
-    <!-- ── Jukebox ── -->
-    ${(() => {
-      const jukeboxTracks = [
-        { key: 'base',     icon: '🏠', label: 'Base' },
-        { key: 'forest',   icon: '🌿', label: 'Route' },
-        { key: 'cave',     icon: '⛏', label: 'Caverne' },
-        { key: 'city',     icon: '🏙', label: 'Ville' },
-        { key: 'sea',      icon: '🌊', label: 'Mer' },
-        { key: 'safari',   icon: '🦒', label: 'Safari' },
-        { key: 'lavender', icon: '💜', label: 'Lavanville' },
-        { key: 'tower',    icon: '👻', label: 'Tour' },
-        { key: 'mansion',  icon: '🕯', label: 'Manoir' },
-        { key: 'gym',      icon: '⚔', label: 'Arène' },
-        { key: 'rocket',   icon: '🚀', label: 'Rocket' },
-        { key: 'silph',    icon: '🔬', label: 'Sylphe' },
-        { key: 'elite4',   icon: '👑', label: 'Élite 4' },
-        { key: 'casino',   icon: '🎰', label: 'Casino' },
-      ];
-      // A track is unlocked if any zone using it is unlocked, or if 'base' (always)
-      const isTrackUnlocked = (key) => {
-        if (key === 'base') return true;
-        return ZONES.some(z => z.music === key && isZoneUnlocked(z.id));
-      };
-      const currentJuke = state.settings?.jukeboxTrack || null;
-      const tracksHtml = jukeboxTracks.map(t => {
-        const unlocked = isTrackUnlocked(t.key);
-        const active = currentJuke === t.key;
-        return `<div class="jukebox-track${active ? ' active' : ''}${unlocked ? '' : ' locked'}" data-jukebox-track="${t.key}" title="${t.label}${unlocked ? '' : ' — Verrou'}">
-          <span class="juke-icon">${unlocked ? t.icon : '🔒'}</span>
-          <span class="juke-label">${t.label}</span>
-        </div>`;
-      }).join('');
-      return `<div class="base-inv-section">
-        <div class="base-inv-label">🎵 JUKEBOX
-          <span style="font-size:7px;color:var(--text-dim);font-weight:normal;margin-left:4px">${currentJuke ? MUSIC_TRACKS[currentJuke]?.fr || currentJuke : 'AUTO'}</span>
-        </div>
-        <div class="base-jukebox">${tracksHtml}
-          <div class="jukebox-track${!currentJuke ? ' active' : ''}" data-jukebox-track="__auto__" title="Musique automatique selon la zone">
-            <span class="juke-icon">🔄</span>
-            <span class="juke-label">AUTO</span>
-          </div>
-        </div>
-      </div>`;
-    })()}
 
   </div>`;
 }
@@ -6976,23 +7035,6 @@ function bindGangBase(container) {
   // Export button
   container.querySelector('.base-export-btn')?.addEventListener('click', exportGangImage);
 
-  // Jukebox track selection
-  container.querySelectorAll('[data-jukebox-track]').forEach(el => {
-    el.addEventListener('click', () => {
-      const key = el.dataset.jukeboxTrack;
-      if (el.classList.contains('locked')) { notify('🔒 Débloquez cette zone pour accéder à cette musique', 'error'); return; }
-      if (key === '__auto__') {
-        state.settings.jukeboxTrack = null;
-        notify('🎵 Jukebox → Auto', 'success');
-      } else {
-        state.settings.jukeboxTrack = key;
-        notify(`🎵 ${MUSIC_TRACKS[key]?.fr || key}`, 'success');
-      }
-      saveState();
-      MusicPlayer.updateFromContext();
-      renderGangBasePanel();
-    });
-  });
 }
 
 // ── Codex — Prix & Spawns reference modal ────────────────────
@@ -7990,14 +8032,8 @@ function openCombatPopup(zoneId, spawnObj) {
 
   currentCombat = { zoneId, spawnObj, playerTeam: available };
 
-  // Jingle d'intro de combat
-  (() => {
-    const tk = spawnObj?.trainerKey;
-    if (tk === 'giovanni' || tk === 'blue' || tk === 'red') JinglePlayer.play('rival_encounter');
-    else if (tk === 'agatha' || tk === 'lorelei' || tk === 'bruno' || tk === 'lance') JinglePlayer.play('legend_encounter');
-    else if (tk === 'youngster') JinglePlayer.play('youngster');
-    else JinglePlayer.play('trainer_encounter');
-  })();
+  // Jingle d'intro de combat — désactivé temporairement
+  // (() => { ... })();
 
   const inlineCombat = document.getElementById('battleArena');
   if (!inlineCombat) return;
