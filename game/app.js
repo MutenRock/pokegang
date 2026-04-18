@@ -1531,6 +1531,7 @@ const DEFAULT_STATE = {
     autoCombat: true,
     discoveryMode: true,
     autoBuyBall: null,  // null | 'pokeball' | 'greatball' | 'ultraball'
+    classicSprites: false, // true = Showdown Gen 5 animés, false = sprites JSON (FireRed/LeafGreen)
   },
   log: [],
   marketSales: {}, // { [species_en]: { count, lastSale } } — supply/demand
@@ -1659,6 +1660,7 @@ function migrate(saved) {
   // Nouveau joueur → découverte ON ; joueur existant sans ce champ → OFF (déjà habitué)
   if (merged.settings.discoveryMode === undefined) merged.settings.discoveryMode = false;
   if (merged.settings.autoBuyBall === undefined) merged.settings.autoBuyBall = null;
+  if (merged.settings.classicSprites === undefined) merged.settings.classicSprites = false;
   merged.activeBoosts = { ...structuredClone(DEFAULT_STATE.activeBoosts), ...(saved.activeBoosts || {}) };
   merged.activeEvents = saved.activeEvents || {};
   // Migration: bossTeam
@@ -1920,16 +1922,20 @@ function sanitizeSpriteName(en) {
 //   'retroRedBlue' → Sprite Rogue/Bleu
 //   'retroYellow'  → Sprite Jaune
 function pokeSpriteVariant(en, variant = 'main', shiny = false) {
-  const sp = SPECIES_BY_EN[en];
-  const dexId = sp?.dex;
-  if (dexId && typeof getPokemonSprite === 'function') {
-    const key = shiny && variant === 'main' ? 'shiny'
-              : shiny && variant === 'back'  ? 'backShiny'
-              : variant;
-    const url = getPokemonSprite(dexId, key);
-    if (url) return url;
+  // Mode classique (Showdown Gen 5 animés) ou variante explicitement Showdown → bypass JSON
+  const classic = state?.settings?.classicSprites || variant === 'showdown';
+  if (!classic) {
+    const sp = SPECIES_BY_EN[en];
+    const dexId = sp?.dex;
+    if (dexId && typeof getPokemonSprite === 'function') {
+      const key = shiny && variant === 'main' ? 'shiny'
+                : shiny && variant === 'back'  ? 'backShiny'
+                : variant;
+      const url = getPokemonSprite(dexId, key);
+      if (url) return url;
+    }
   }
-  // Fallback Showdown
+  // Fallback / mode classique : Showdown Gen 5
   const base = shiny ? 'gen5-shiny' : 'gen5';
   return `https://play.pokemonshowdown.com/sprites/${base}/${sanitizeSpriteName(en)}.png`;
 }
@@ -1939,11 +1945,13 @@ function pokeSprite(en, shiny = false) {
 }
 
 function pokeSpriteBack(en, shiny = false) {
-  const sp = SPECIES_BY_EN[en];
-  const dexId = sp?.dex;
-  if (dexId && typeof getPokemonSprite === 'function') {
-    const url = getPokemonSprite(dexId, shiny ? 'backShiny' : 'back');
-    if (url) return url;
+  if (!state?.settings?.classicSprites) {
+    const sp = SPECIES_BY_EN[en];
+    const dexId = sp?.dex;
+    if (dexId && typeof getPokemonSprite === 'function') {
+      const url = getPokemonSprite(dexId, shiny ? 'backShiny' : 'back');
+      if (url) return url;
+    }
   }
   const base = shiny ? 'gen5-back-shiny' : 'gen5-back';
   return `https://play.pokemonshowdown.com/sprites/${base}/${sanitizeSpriteName(en)}.png`;
@@ -10586,6 +10594,8 @@ function showIntro() {
       if (autoCombat) autoCombat.checked = state.settings.autoCombat !== false;
       const discoveryMode = document.getElementById('settingDiscoveryMode');
       if (discoveryMode) discoveryMode.checked = state.settings.discoveryMode !== false;
+      const classicSprites = document.getElementById('settingClassicSprites');
+      if (classicSprites) classicSprites.checked = state.settings.classicSprites === true;
       const sfx = document.getElementById('settingSFX');
       if (sfx) sfx.checked = state.settings.sfxEnabled !== false;
       modal.classList.add('active');
@@ -10901,6 +10911,8 @@ function initSettings() {
       if (autoCombat) autoCombat.checked = state.settings.autoCombat !== false;
       const discoveryMode = document.getElementById('settingDiscoveryMode');
       if (discoveryMode) discoveryMode.checked = state.settings.discoveryMode !== false;
+      const classicSpritesB = document.getElementById('settingClassicSprites');
+      if (classicSpritesB) classicSpritesB.checked = state.settings.classicSprites === true;
       const sfx = document.getElementById('settingSFX');
       if (sfx) sfx.checked = state.settings.sfxEnabled !== false;
       const musicEl = document.getElementById('settingMusic');
@@ -10928,6 +10940,8 @@ function initSettings() {
     if (autoCombat) state.settings.autoCombat = autoCombat.checked;
     const discoveryMode = document.getElementById('settingDiscoveryMode');
     if (discoveryMode) state.settings.discoveryMode = discoveryMode.checked;
+    const classicSprites = document.getElementById('settingClassicSprites');
+    if (classicSprites) state.settings.classicSprites = classicSprites.checked;
     const sfx = document.getElementById('settingSFX');
     if (sfx) state.settings.sfxEnabled = sfx.checked;
     const musicEl = document.getElementById('settingMusic');
