@@ -217,9 +217,13 @@ const _mkTitleExec = (titleId) => (claim) => {
   }
   const t = TITLES.find(x => x.id === titleId);
   state.unlockedTitles.push(titleId);
+  // Sync avec purchases (pour les titres achetables en boutique)
+  state.purchases = state.purchases || {};
+  state.purchases[`title_${titleId}`] = true;
   claim(); saveState();
   notify(`🏆 Titre débloqué : "${t?.label || titleId}" !`, 'gold');
-  if (typeof renderGangTab === 'function' && activeTab === 'tabGang') renderGangTab();
+  if (typeof renderGangTab    === 'function' && activeTab === 'tabGang')      renderGangTab();
+  if (typeof renderCosmeticsTab === 'function' && activeTab === 'tabCosmetics') renderCosmeticsTab();
 };
 
 const SECRET_CODES = {
@@ -4024,10 +4028,14 @@ function spawnInZone(zoneId) {
     });
     speciesEN = filteredRare.length > 0 ? pick(filteredRare) : pick(zone.pool);
   } else {
-    // Legendaires : poids très faible (5%) par rapport aux autres pokémon
+    // Légendaires : taux fixe ~1% par légendaire (poids relatif aux non-légendaires)
+    const _legCount    = zone.pool.filter(en => SPECIES_BY_EN[en]?.rarity === 'legendary').length;
+    const _nonLegCount = zone.pool.length - _legCount;
+    // legendaryW donne P(légendaire) ≈ 1% : poids = nonLeg / 99 vs non-leg poids = 1
+    const _legendaryW  = _nonLegCount > 0 ? _nonLegCount / 99 : 1;
     const poolWithWeights = zone.pool.map(en => ({
       en,
-      w: SPECIES_BY_EN[en]?.rarity === 'legendary' ? 0.05 : 1,
+      w: SPECIES_BY_EN[en]?.rarity === 'legendary' ? _legendaryW : 1,
     }));
     const totalW = poolWithWeights.reduce((s, x) => s + x.w, 0);
     let roll = Math.random() * totalW;
@@ -5488,6 +5496,16 @@ function tryCheatCode(inputId) {
   const raw = input.value.trim().toUpperCase();
   input.value = '';
   if (!raw) return;
+
+  // 1. Essaie d'abord SECRET_CODES (codes titres, codes spéciaux)
+  if (checkSecretCode(raw)) {
+    // checkSecretCode gère déjà les notifications et la sauvegarde
+    // Refresh cosmétiques si tab actif
+    if (activeTab === 'tabCosmetics') renderCosmeticsTab();
+    return;
+  }
+
+  // 2. Sinon legacy _CHEAT_CODES
   const key = btoa(raw);
   if (_usedCodes.has(key)) { notify('❌ Code déjà utilisé cette session', 'error'); return; }
   const code = _CHEAT_CODES[key];
@@ -5504,6 +5522,7 @@ function tryCheatCode(inputId) {
     notify(`🏆 Titre obtenu : ${code.title}`, 'gold');
   }
   saveState();
+  if (activeTab === 'tabCosmetics') renderCosmeticsTab();
 }
 
 // ── Gym Raid (manual + auto) ──────────────────────────────────
@@ -10865,6 +10884,150 @@ function getSpawnZones(species_en) {
     .map(z => ({ name: state.lang === 'fr' ? z.fr : z.en, rate: z.spawnRate, id: z.id }));
 }
 
+// ── Pokédex Assistant (Professeur Oak) ───────────────────────────────────────
+
+const DEX_ASSISTANT_PRICES = {
+  common:    100,
+  uncommon:  300,
+  rare:     1000,
+  very_rare: 3000,
+  legendary: 8000,
+};
+
+const DEX_ASSISTANT_TIPS = {
+  legendary: [
+    'Les légendaires sont extrêmement rares (≈1% par spawn). Installe plusieurs agents dans les zones concernées et sois patient.',
+    'Un légendaire peut aussi apparaître pendant un raid de zone. Concentre tes forces !',
+    'Active le mode "Rare Scope" depuis le marché pour forcer l\'apparition des espèces rares (légendaires exclus, mais ça libère de la place dans le pool).',
+  ],
+  very_rare: [
+    'Cette espèce est très rare. Le "Rare Scope" du marché triple ses chances d\'apparition.',
+    'Assigne plusieurs agents dans les zones indiquées pour multiplier les chances de rencontre.',
+    'Un niveau de maîtrise élevé dans la zone augmente la fréquence des spawns globaux.',
+  ],
+  rare: [
+    'Espèce rare — plusieurs sessions de farm seront nécessaires. Garde les Poké Balls prêtes !',
+    'Le "Rare Scope" peut aider à filtrer les espèces communes et augmenter le taux des rares.',
+    'En mode automatique, assigne un agent spécialisé en capture dans la zone la plus active.',
+  ],
+  uncommon: [
+    'Espèce peu commune. Quelques heures de farm avec un agent en capture suffisent généralement.',
+    'Privilégie la zone avec le meilleur spawnRate (affiché dans Zones de Spawn).',
+    'Les coffres de zone peuvent parfois contenir des Pokémon de rareté peu commune.',
+  ],
+  common: [
+    'Espèce commune — tu devrais en trouver rapidement, même sans agent assigné.',
+    'Lance une capture manuelle depuis la zone ou laisse un agent s\'en occuper.',
+    'Si tu en as besoin en shiny, active le Charme Chroma depuis le marché cosmétiques.',
+  ],
+};
+
+function _getDexAssistantCostHtml(sp) {
+  const price = DEX_ASSISTANT_PRICES[sp.rarity] ?? 500;
+  const canAfford = state.gang.money >= price;
+  return `<button id="dexAssistantBtn" style="
+    width:100%;font-family:var(--font-pixel);font-size:8px;padding:7px 10px;
+    background:rgba(255,204,90,.06);border:1px solid ${canAfford ? 'rgba(255,204,90,.4)' : 'var(--border)'};
+    border-radius:var(--radius-sm);color:${canAfford ? 'var(--gold)' : 'var(--text-dim)'};
+    cursor:${canAfford ? 'pointer' : 'default'};text-align:left;
+    display:flex;align-items:center;justify-content:space-between;gap:6px
+  ">
+    <span>🎓 Conseil du Professeur</span>
+    <span style="font-family:sans-serif;font-size:9px;color:${canAfford ? 'var(--gold-dim)' : '#444'}">${price.toLocaleString()}₽</span>
+  </button>`;
+}
+
+function openDexAssistant(species_en) {
+  const sp = SPECIES_BY_EN[species_en];
+  if (!sp) return;
+
+  const price = DEX_ASSISTANT_PRICES[sp.rarity] ?? 500;
+  if (state.gang.money < price) {
+    notify(`Fonds insuffisants — ${price.toLocaleString()}₽ requis.`, 'error');
+    return;
+  }
+
+  const spawnZones = getSpawnZones(sp.en);
+  const rarity     = sp.rarity ?? 'common';
+  const rarityFR   = { common:'Commun', uncommon:'Peu commun', rare:'Rare', very_rare:'Très rare', legendary:'Légendaire' };
+  const rarityCol  = { common:'#aaa', uncommon:'#5be06c', rare:'#5b9be0', very_rare:'#c05be0', legendary:'#ffcc5a' };
+
+  // Pick 2 random tips for this rarity
+  const pool = DEX_ASSISTANT_TIPS[rarity] ?? DEX_ASSISTANT_TIPS.common;
+  const tips = pool.length <= 2 ? pool : [pool[Math.floor(Math.random() * pool.length)]];
+
+  // Best zone by spawnRate
+  const bestZone = spawnZones.sort((a, b) => b.rate - a.rate)[0];
+
+  const zonesHtml = spawnZones.length
+    ? spawnZones.map(z => `
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid var(--border)">
+          <span style="font-size:9px">${z.name}</span>
+          <span style="font-size:8px;color:var(--text-dim)">${(z.rate * 100).toFixed(1)}% / tick</span>
+        </div>`).join('')
+    : `<div style="font-size:9px;color:var(--text-dim)">Aucune zone connue pour cette espèce.</div>`;
+
+  const tipsHtml = tips.map(tip =>
+    `<div style="display:flex;gap:8px;align-items:flex-start;padding:6px 0;border-bottom:1px solid var(--border)">
+      <span style="color:var(--gold);font-size:12px;flex-shrink:0">💡</span>
+      <span style="font-size:9px;color:var(--text);line-height:1.5">${tip}</span>
+    </div>`
+  ).join('');
+
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px';
+  overlay.innerHTML = `
+    <div style="background:var(--bg-panel);border:2px solid var(--gold-dim);border-radius:var(--radius);padding:22px;max-width:440px;width:100%;max-height:88vh;overflow-y:auto;display:flex;flex-direction:column;gap:14px">
+
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div style="font-family:var(--font-pixel);font-size:10px;color:var(--gold)">🎓 Professeur Oak</div>
+        <button id="btnDexAssistClose" style="background:none;border:none;color:var(--text-dim);font-size:18px;cursor:pointer">✕</button>
+      </div>
+
+      <!-- En-tête Pokémon -->
+      <div style="display:flex;align-items:center;gap:12px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px">
+        <img src="${pokeSprite(sp.en, false)}" style="width:52px;height:52px;image-rendering:pixelated">
+        <div>
+          <div style="font-family:var(--font-pixel);font-size:11px">${sp.fr}</div>
+          <div style="font-size:8px;color:var(--text-dim)">#${String(sp.dex).padStart(3,'0')} — ${sp.types.map(typeFr).join('/')}</div>
+          <div style="margin-top:4px">
+            <span style="font-size:8px;padding:2px 8px;border-radius:8px;background:rgba(255,204,90,.12);border:1px solid ${rarityCol[rarity]};color:${rarityCol[rarity]}">${rarityFR[rarity]}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Zones de spawn -->
+      <div>
+        <div style="font-family:var(--font-pixel);font-size:8px;color:var(--text-dim);margin-bottom:6px">📍 ZONES DE SPAWN</div>
+        ${zonesHtml}
+        ${bestZone ? `<div style="font-size:8px;color:var(--green);margin-top:6px">✓ Meilleure zone : <b>${bestZone.name}</b> (${(bestZone.rate * 100).toFixed(1)}% / tick)</div>` : ''}
+      </div>
+
+      <!-- Conseils -->
+      <div>
+        <div style="font-family:var(--font-pixel);font-size:8px;color:var(--text-dim);margin-bottom:4px">📋 CONSEILS</div>
+        ${tipsHtml}
+      </div>
+
+      <!-- Coût déduit -->
+      <div style="font-size:8px;color:var(--text-dim);border-top:1px solid var(--border);padding-top:8px;text-align:right">
+        −${price.toLocaleString()}₽ déduits · Solde : <span style="color:var(--gold)">${(state.gang.money - price).toLocaleString()}₽</span>
+      </div>
+    </div>`;
+
+  // Déduire le prix
+  state.gang.money -= price;
+  updateTopBar();
+  saveState();
+
+  document.body.appendChild(overlay);
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+  overlay.querySelector('#btnDexAssistClose')?.addEventListener('click', () => overlay.remove());
+
+  // Refresh le bouton dans le détail (plus assez d'argent peut-être)
+  renderDexDetail(species_en);
+}
+
 function renderDexDetail(species_en) {
   const panel = document.getElementById('dexDetail');
   if (!panel) return;
@@ -10934,10 +11097,18 @@ function renderDexDetail(species_en) {
         🔍 Voir dans le PC (×${ownedCount})
       </button>
     </div>` : ''}
-    ` : `<div style="color:var(--text-dim);font-size:10px;padding:20px;text-align:center">Pas encore rencontré</div>`}
+    <div style="margin-top:8px">
+      ${_getDexAssistantCostHtml(sp)}
+    </div>
+    ` : `
+    <div style="color:var(--text-dim);font-size:10px;padding:20px;text-align:center">Pas encore rencontré</div>
+    <div style="margin-top:4px">
+      ${_getDexAssistantCostHtml(sp)}
+    </div>`}
   `;
 
   document.getElementById('dexFilterPCBtn')?.addEventListener('click', () => filterPCBySpecies(sp.en));
+  document.getElementById('dexAssistantBtn')?.addEventListener('click', () => openDexAssistant(species_en));
 }
 
 function renderPokedexTab() {
@@ -11513,6 +11684,107 @@ function cleanObsoleteData(s) {
 }
 
 /**
+ * Hub-screen slot repair modal.
+ * Lets the user pick a slot and re-applies migrate() + cleanups on it.
+ */
+function openHubSlotRepairModal() {
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px';
+
+  const slotHtml = [0, 1, 2].map(i => {
+    const prev = getSlotPreview(i);
+    const label = prev
+      ? `<b style="color:var(--text)">${prev.name}</b> <span style="color:var(--text-dim);font-size:9px">(${prev.pokemon} pkm · ⭐${prev.rep})</span>`
+      : `<span style="color:#555;font-style:italic">Vide</span>`;
+    return `<label style="display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;background:var(--bg);${!prev ? 'opacity:.4;pointer-events:none' : ''}">
+      <input type="radio" name="repairTargetSlot" value="${i}" ${i === activeSaveSlot ? 'checked' : ''} ${!prev ? 'disabled' : ''} style="accent-color:#ffa000">
+      <span style="font-family:var(--font-pixel);font-size:8px;color:#ffa000">SLOT ${i+1}</span>
+      <span style="font-size:10px">${label}</span>
+    </label>`;
+  }).join('');
+
+  overlay.innerHTML = `
+    <div style="background:var(--bg-panel);border:2px solid #ffa000;border-radius:var(--radius);padding:24px;max-width:480px;width:100%;display:flex;flex-direction:column;gap:14px">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div style="font-family:var(--font-pixel);font-size:11px;color:#ffa000">🔧 Réparer un slot</div>
+        <button id="btnRepairSlotClose" style="background:none;border:none;color:var(--text-dim);font-size:18px;cursor:pointer">✕</button>
+      </div>
+      <div style="font-size:9px;color:var(--text-dim);line-height:1.5">
+        Réapplique toutes les migrations, corrige les champs manquants et nettoie les incohérences.
+        <b style="color:var(--text)">Tes données ne seront pas effacées.</b>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px">${slotHtml}</div>
+      <div style="display:flex;gap:8px;margin-top:4px">
+        <button id="btnRepairSlotConfirm" style="flex:1;font-family:var(--font-pixel);font-size:9px;padding:10px;background:var(--bg);border:2px solid #ffa000;border-radius:var(--radius-sm);color:#ffa000;cursor:pointer">
+          🔧 Réparer ce slot
+        </button>
+        <button id="btnRepairSlotCancel" style="font-family:var(--font-pixel);font-size:8px;padding:10px 14px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-dim);cursor:pointer">
+          Annuler
+        </button>
+      </div>
+    </div>`;
+
+  document.body.appendChild(overlay);
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+  overlay.querySelector('#btnRepairSlotClose')?.addEventListener('click',  () => overlay.remove());
+  overlay.querySelector('#btnRepairSlotCancel')?.addEventListener('click', () => overlay.remove());
+
+  overlay.querySelector('#btnRepairSlotConfirm')?.addEventListener('click', () => {
+    const targetSlot = parseInt(overlay.querySelector('input[name="repairTargetSlot"]:checked')?.value ?? activeSaveSlot);
+    const raw = localStorage.getItem(SAVE_KEYS[targetSlot]);
+    if (!raw) { notify('Slot vide — rien à réparer.', 'error'); overlay.remove(); return; }
+
+    showConfirm(`Réparer le Slot ${targetSlot + 1} ?<br><span style="color:var(--text-dim);font-size:10px">Toutes les migrations seront réappliquées. Données intactes.</span>`, () => {
+      try {
+        const parsed = JSON.parse(raw);
+        // Re-run migrate
+        const fixed = migrate(parsed);
+        // Trim histories
+        let histTrimmed = 0;
+        for (const p of fixed.pokemons || []) {
+          if (p.history && p.history.length > MAX_HISTORY) {
+            histTrimmed += p.history.length - MAX_HISTORY;
+            p.history = p.history.slice(-MAX_HISTORY);
+          }
+        }
+        // Ghost IDs
+        const allIds = new Set((fixed.pokemons || []).map(p => p.id));
+        fixed.gang.bossTeam = (fixed.gang.bossTeam || []).filter(id => allIds.has(id));
+        if (fixed.pension?.slotA && !allIds.has(fixed.pension.slotA)) fixed.pension.slotA = null;
+        if (fixed.pension?.slotB && !allIds.has(fixed.pension.slotB)) fixed.pension.slotB = null;
+        if (fixed.trainingRoom?.pokemon) fixed.trainingRoom.pokemon = fixed.trainingRoom.pokemon.filter(id => allIds.has(id));
+        // Invalid title slots
+        const allTitleIds = new Set((TITLES || []).map(t => t.id));
+        ['titleA','titleB','titleC','titleD'].forEach(slot => {
+          if (fixed.gang[slot] && !allTitleIds.has(fixed.gang[slot])) fixed.gang[slot] = null;
+        });
+
+        localStorage.setItem(SAVE_KEYS[targetSlot], JSON.stringify(fixed));
+
+        // If we just repaired the active slot, reload state
+        if (targetSlot === activeSaveSlot) {
+          state = fixed;
+          saveState();
+        }
+
+        overlay.remove();
+        notify(`✅ Slot ${targetSlot + 1} réparé.${histTrimmed > 0 ? ` ${histTrimmed} entrées d'historique nettoyées.` : ''}`, 'success');
+
+        // Refresh hub
+        const introOverlay = document.getElementById('introOverlay');
+        if (introOverlay?.classList.contains('active')) {
+          introOverlay.classList.remove('active');
+          showIntro();
+        }
+      } catch (err) {
+        notify('Erreur lors de la réparation — slot non modifié.', 'error');
+        console.error(err);
+      }
+    }, null, { confirmLabel: 'Réparer', cancelLabel: 'Annuler' });
+  });
+}
+
+/**
  * Hub-screen import modal.
  * Shows a save preview, a slot destination picker and optional cleanup options,
  * then writes the migrated save to the chosen slot.
@@ -11898,6 +12170,9 @@ function showIntro() {
     });
   };
   renderSlots();
+
+  // ── Hub repair button ─────────────────────────────────────────
+  document.getElementById('btnHubRepairSlot')?.addEventListener('click', () => openHubSlotRepairModal());
 
   // ── Hub import button ─────────────────────────────────────────
   document.getElementById('btnHubImportSave')?.addEventListener('click', () => {
@@ -12319,12 +12594,6 @@ function renderSettingsPanel() {
         <button id="btnExportSave">📤 Exporter</button>
         <button id="btnImportSave">📥 Importer</button>
       </div>
-      <div class="settings-actions" style="margin-top:8px">
-        <button id="btnRepairSave" style="width:100%;background:rgba(255,160,0,.08);border-color:#ffa000;color:#ffa000">🔧 Réparer ma save</button>
-      </div>
-      <div style="font-size:8px;color:var(--text-dim);margin-top:4px;line-height:1.4">
-        Reapplique toutes les migrations, corrige les champs manquants et nettoie les incohérences sans toucher à tes données.
-      </div>
     </div>
 
     <!-- Cache -->
@@ -12453,7 +12722,16 @@ function _bindSettingsActionButtons() {
     input.click();
   });
   document.getElementById('btnPurgeSprites')?.addEventListener('click', () => {
-    notify(state.lang === 'fr' ? 'Cache navigateur purgé' : 'Browser cache purged', 'success');
+    // Tente de vider le cache navigateur via Cache API, puis recharge
+    const doReload = () => { saveState(); location.reload(true); };
+    if ('caches' in window) {
+      caches.keys().then(names => {
+        Promise.all(names.map(n => caches.delete(n))).then(doReload).catch(doReload);
+      }).catch(doReload);
+    } else {
+      doReload();
+    }
+    notify('🗑 Cache purgé — rechargement en cours…', 'success');
   });
   document.getElementById('btnResetAll')?.addEventListener('click', () => {
     showConfirm(t('reset_confirm'), () => {
@@ -12466,7 +12744,6 @@ function _bindSettingsActionButtons() {
       showIntro();
     }, null, { danger: true, confirmLabel: 'Réinitialiser', cancelLabel: 'Annuler' });
   });
-  document.getElementById('btnRepairSave')?.addEventListener('click', repairSave);
   document.getElementById('btnRedeemCode')?.addEventListener('click', () => tryCheatCode('rewardCodeInput'));
   document.getElementById('rewardCodeInput')?.addEventListener('keydown', e => {
     if (e.key === 'Enter') tryCheatCode('rewardCodeInput');
@@ -12532,7 +12809,15 @@ function initSettings() {
     detectLLM();
     SFX.play('menuClose');
     document.getElementById('settingsModal')?.classList.remove('active');
-    renderAll();
+
+    // Rechargement auto si sprites classiques ou thème changé (modifications visuelles globales)
+    const needsReload = (_settingsSnap?.classicSprites !== state.settings.classicSprites)
+                     || (_settingsLangSnap             !== state.lang);
+    if (needsReload) {
+      setTimeout(() => location.reload(true), 150);
+    } else {
+      renderAll();
+    }
   });
 }
 

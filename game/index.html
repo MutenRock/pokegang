@@ -3072,19 +3072,32 @@
           <!-- filled by JS -->
         </div>
 
-        <button id="btnHubImportSave" style="
-          font-family:var(--font-pixel);font-size:8px;padding:10px 14px;
-          background:rgba(255,140,0,.08);border:1px dashed rgba(255,140,0,.5);
-          border-radius:var(--radius-sm);color:#ffa040;cursor:pointer;
-          text-align:left;margin-bottom:16px;width:100%;
-          transition:background .15s,border-color .15s
-        " onmouseover="this.style.background='rgba(255,140,0,.15)';this.style.borderColor='rgba(255,140,0,.8)'"
-           onmouseout="this.style.background='rgba(255,140,0,.08)';this.style.borderColor='rgba(255,140,0,.5)'">
-          📥 Importer une save existante
-          <div style="font-family:sans-serif;font-size:10px;color:var(--text-dim);margin-top:3px">
-            Convertit automatiquement depuis n'importe quel ancien format
-          </div>
-        </button>
+        <div style="display:flex;gap:8px;margin-bottom:16px">
+          <button id="btnHubRepairSlot" style="
+            flex:1;font-family:var(--font-pixel);font-size:8px;padding:10px 10px;
+            background:rgba(255,160,0,.06);border:1px dashed rgba(255,160,0,.4);
+            border-radius:var(--radius-sm);color:#ffa000;cursor:pointer;
+            text-align:center;transition:background .15s,border-color .15s
+          " onmouseover="this.style.background='rgba(255,160,0,.14)';this.style.borderColor='rgba(255,160,0,.8)'"
+             onmouseout="this.style.background='rgba(255,160,0,.06)';this.style.borderColor='rgba(255,160,0,.4)'">
+            🔧 Réparer un slot
+            <div style="font-family:sans-serif;font-size:9px;color:var(--text-dim);margin-top:3px">
+              Corrige & migre une save
+            </div>
+          </button>
+          <button id="btnHubImportSave" style="
+            flex:1;font-family:var(--font-pixel);font-size:8px;padding:10px 10px;
+            background:rgba(255,140,0,.06);border:1px dashed rgba(255,140,0,.4);
+            border-radius:var(--radius-sm);color:#ffa040;cursor:pointer;
+            text-align:center;transition:background .15s,border-color .15s
+          " onmouseover="this.style.background='rgba(255,140,0,.14)';this.style.borderColor='rgba(255,140,0,.8)'"
+             onmouseout="this.style.background='rgba(255,140,0,.06)';this.style.borderColor='rgba(255,140,0,.4)'">
+            📥 Importer une save
+            <div style="font-family:sans-serif;font-size:9px;color:var(--text-dim);margin-top:3px">
+              Depuis fichier JSON
+            </div>
+          </button>
+        </div>
 
         <div class="intro-section-label">NOUVELLE PARTIE</div>
 
@@ -3146,6 +3159,6 @@
   <script src="config.js?v=1"></script>
   <!-- Sprite data loaders (variables internes isolées dans IIFE, no global pollution) -->
   <script src="data/loaders.js?v=3"></script>
-  <script src="app.js?v=18"></script>
+  <script src="app.js?v=19"></script>
 </body>
 </html>
