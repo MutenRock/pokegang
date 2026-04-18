@@ -12015,6 +12015,12 @@ function renderSettingsPanel() {
         <button id="btnExportSave">📤 Exporter</button>
         <button id="btnImportSave">📥 Importer</button>
       </div>
+      <div class="settings-actions" style="margin-top:8px">
+        <button id="btnRepairSave" style="width:100%;background:rgba(255,160,0,.08);border-color:#ffa000;color:#ffa000">🔧 Réparer ma save</button>
+      </div>
+      <div style="font-size:8px;color:var(--text-dim);margin-top:4px;line-height:1.4">
+        Reapplique toutes les migrations, corrige les champs manquants et nettoie les incohérences sans toucher à tes données.
+      </div>
     </div>
 
     <!-- Cache -->
@@ -12056,6 +12062,81 @@ function renderSettingsPanel() {
   `;
 }
 
+function repairSave() {
+  showConfirm(
+    'Réparer la save : reappliquer toutes les migrations et corriger les champs manquants ?\nTes données ne seront pas effacées.',
+    () => {
+      try {
+        // Snapshot avant
+        const before = { pokemons: state.pokemons.length, agents: state.agents.length, money: state.gang.money, rep: state.gang.reputation };
+
+        // Réappliquer migrate() sur le state courant
+        const raw = JSON.parse(JSON.stringify(state)); // deep clone sérialisable
+        state = migrate(raw);
+
+        // Nettoyage supplémentaire
+        // 1. Historiques trop longs
+        let histTrimmed = 0;
+        for (const p of state.pokemons) {
+          if (p.history && p.history.length > MAX_HISTORY) {
+            histTrimmed += p.history.length - MAX_HISTORY;
+            p.history = p.history.slice(-MAX_HISTORY);
+          }
+        }
+        // 2. IDs fantômes en équipe boss
+        const allIds = new Set(state.pokemons.map(p => p.id));
+        const teamBefore = state.gang.bossTeam.length;
+        state.gang.bossTeam = state.gang.bossTeam.filter(id => allIds.has(id));
+        // 3. IDs fantômes en pension
+        if (state.pension.slotA && !allIds.has(state.pension.slotA)) state.pension.slotA = null;
+        if (state.pension.slotB && !allIds.has(state.pension.slotB)) state.pension.slotB = null;
+        // 4. IDs fantômes en salle d'entraînement
+        const trainBefore = state.trainingRoom.pokemon.length;
+        state.trainingRoom.pokemon = state.trainingRoom.pokemon.filter(id => allIds.has(id));
+        // 5. Titres dans les slots qui n'existent plus
+        const validTitleIds = new Set(TITLES.map(t => t.id));
+        for (const key of ['titleA','titleB','titleC','titleD']) {
+          if (state.gang[key] && !validTitleIds.has(state.gang[key])) state.gang[key] = null;
+        }
+        if (!state.gang.titleA) state.gang.titleA = 'recrue';
+
+        saveState();
+
+        // Rapport
+        const ghostTeam  = teamBefore - state.gang.bossTeam.length;
+        const ghostTrain = trainBefore - state.trainingRoom.pokemon.length;
+        const after = { pokemons: state.pokemons.length, agents: state.agents.length };
+        const lines = [
+          `✅ Migrations reappliquées`,
+          histTrimmed   ? `📋 ${histTrimmed} entrée(s) d'historique tronquées` : null,
+          ghostTeam     ? `👥 ${ghostTeam} ID fantôme(s) retiré(s) de l'équipe boss` : null,
+          ghostTrain    ? `🏋 ${ghostTrain} ID fantôme(s) retiré(s) de la salle d'entraînement` : null,
+          before.pokemons !== after.pokemons ? `⚠ Nombre de Pokémon modifié (${before.pokemons} → ${after.pokemons})` : null,
+          `💾 Save sauvegardée — ${after.pokemons} Pokémon, ${after.agents} agents`,
+        ].filter(Boolean);
+
+        // Afficher le rapport dans un mini-modal
+        const rpt = document.createElement('div');
+        rpt.style.cssText = 'position:fixed;inset:0;z-index:10100;background:rgba(0,0,0,.8);display:flex;align-items:center;justify-content:center;padding:20px';
+        rpt.innerHTML = `
+          <div style="background:var(--bg-panel);border:2px solid #ffa000;border-radius:var(--radius);padding:20px;max-width:380px;width:100%;display:flex;flex-direction:column;gap:10px">
+            <div style="font-family:var(--font-pixel);font-size:10px;color:#ffa000">🔧 Rapport de réparation</div>
+            <div style="display:flex;flex-direction:column;gap:6px">${lines.map(l => `<div style="font-size:9px;color:var(--text)">${l}</div>`).join('')}</div>
+            <button id="btnRptClose" style="font-family:var(--font-pixel);font-size:8px;padding:8px;background:var(--bg);border:1px solid #ffa000;border-radius:var(--radius-sm);color:#ffa000;cursor:pointer;margin-top:4px">Fermer</button>
+          </div>`;
+        document.body.appendChild(rpt);
+        rpt.querySelector('#btnRptClose').addEventListener('click', () => { rpt.remove(); renderAll(); });
+
+      } catch (err) {
+        console.error('[PokéForge] repairSave() error:', err);
+        notify('Erreur lors de la réparation — save non-modifiée.', 'error');
+      }
+    },
+    null,
+    { confirmLabel: 'Réparer', cancelLabel: 'Annuler' }
+  );
+}
+
 function _bindSettingsActionButtons() {
   document.getElementById('btnExportSave')?.addEventListener('click', exportSave);
   document.getElementById('btnImportSave')?.addEventListener('click', () => {
@@ -12081,6 +12162,7 @@ function _bindSettingsActionButtons() {
       showIntro();
     }, null, { danger: true, confirmLabel: 'Réinitialiser', cancelLabel: 'Annuler' });
   });
+  document.getElementById('btnRepairSave')?.addEventListener('click', repairSave);
   document.getElementById('btnRedeemCode')?.addEventListener('click', () => tryCheatCode('rewardCodeInput'));
   document.getElementById('rewardCodeInput')?.addEventListener('keydown', e => {
     if (e.key === 'Enter') tryCheatCode('rewardCodeInput');
