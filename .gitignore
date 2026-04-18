@@ -48,8 +48,9 @@ pokeforge.patch
 external/
 .claude/settings.local.json
 
-# Supabase — clés privées (copier config.example.js → config.js)
-game/config.js
+# Supabase — config.js contient des valeurs vides, est commité (pas de clés)
+# Pour un vrai env local avec clés Supabase, utilise game/config.local.js (gitignored)
+game/config.local.js
 .claude/worktrees/agent-a1b6fc0d/
 .claude/settings.local.json
 .claude/settings.local.json
