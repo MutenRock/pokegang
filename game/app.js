@@ -7965,7 +7965,7 @@ function renderSpawnInWindow(zoneId, spawnObj) {
     });
   } else if (spawnObj.type === 'raid') {
     // Master Ball sprite for raids
-    el.innerHTML = `<img src="${ITEM_SPRITES.masterball}" style="width:48px;height:48px;image-rendering:pixelated;filter:drop-shadow(0 0 8px #ff4444)">`;
+    el.innerHTML = `<img src="${ITEM_SPRITE_URLS.masterball}" style="width:48px;height:48px;image-rendering:pixelated;filter:drop-shadow(0 0 8px #ff4444)">`;
     el.title = state.lang === 'fr' ? spawnObj.trainer.fr : spawnObj.trainer.en;
     el.style.animation = 'glow 1s ease-in-out infinite, float 2s ease-in-out infinite';
     el.addEventListener('click', () => {
@@ -11741,7 +11741,7 @@ function renderPensionView(container) {
       const pct = total > 0 ? Math.round((1 - rem / total) * 100) : 100;
       const remStr = rem <= 0 ? 'Pret !' : rem < 60000 ? `${Math.ceil(rem / 1000)}s` : `${Math.ceil(rem / 60000)}min`;
       html += `<div style="display:flex;align-items:center;gap:8px;padding:8px;border:1px solid var(--gold-dim);border-radius:var(--radius-sm);margin-bottom:6px;background:var(--bg)">
-        <img src="${ITEM_SPRITES.incubator}" style="width:24px;height:24px">
+        <img src="${ITEM_SPRITE_URLS.incubator}" style="width:24px;height:24px">
         <img src="${pokeSprite(egg.species_en)}" style="width:36px;height:36px">
         <div style="flex:1">
           <div style="font-size:9px">${speciesName(egg.species_en)}${egg.shiny ? ' [S]' : ''} ${'*'.repeat(egg.potential)}</div>
@@ -11755,7 +11755,7 @@ function renderPensionView(container) {
     // Free slots
     for (let i = 0; i < freeSlots; i++) {
       html += `<div style="display:flex;align-items:center;gap:8px;padding:8px;border:1px dashed var(--border);border-radius:var(--radius-sm);margin-bottom:6px;color:var(--text-dim);font-size:9px">
-        <img src="${ITEM_SPRITES.incubator}" style="width:24px;height:24px;opacity:.4">
+        <img src="${ITEM_SPRITE_URLS.incubator}" style="width:24px;height:24px;opacity:.4">
         <span>Incubateur libre — cliquez un oeuf ci-dessous</span>
       </div>`;
     }
@@ -11778,7 +11778,7 @@ function renderPensionView(container) {
             ? `${speciesName(egg.parentA)} × ${speciesName(egg.parentB)}`
             : '? × ?';
         return `<div style="display:flex;align-items:center;gap:8px;padding:6px;border-bottom:1px solid var(--border)">
-          <img src="${ITEM_SPRITES.incubator}" style="width:36px;height:36px;opacity:.85;image-rendering:pixelated">
+          <img src="${ITEM_SPRITE_URLS.incubator}" style="width:36px;height:36px;opacity:.85;image-rendering:pixelated">
           <div style="flex:1">
             <div style="font-size:9px;color:var(--gold)">Oeuf ${rarity} ${'*'.repeat(egg.potential || 1)}</div>
             <div style="font-size:8px;color:var(--text-dim)">${parentsStr} — éclosion : ${hatchStr}</div>
