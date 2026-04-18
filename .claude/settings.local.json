@@ -116,7 +116,11 @@
       "Bash(git commit -m ' *)",
       "Bash(git fetch *)",
       "Bash(git cherry-pick *)",
-      "Bash(git branch *)"
+      "Bash(git branch *)",
+      "Bash(node --check C:/Users/pierr/Documents/GitHub/pokeforge/game/app.js)",
+      "Bash(git stash *)",
+      "Bash(node -e ' *)",
+      "Bash(git remote *)"
     ]
   }
 }
