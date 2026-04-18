@@ -2045,10 +2045,11 @@ const CUSTOM_TRAINER_SPRITES = {
 // Index à plat construit après chargement de trainer-sprites-grouped.json
 const _trainerJsonIndex = {};
 
-function _buildTrainerIndex() {
-  if (!TRAINER_GROUPS?.trainers) return;
+function _buildTrainerIndex(data) {
+  // `data` = résultat de loadTrainerGroups() — TRAINER_GROUPS n'est plus global (IIFE loaders.js)
+  if (!data?.trainers) return;
   const base = 'https://play.pokemonshowdown.com/sprites/trainers/';
-  const groups = TRAINER_GROUPS.trainers;
+  const groups = data.trainers;
   for (const [groupName, groupData] of Object.entries(groups)) {
     if (groupName === 'factions') {
       for (const [, arr] of Object.entries(groupData)) {
@@ -13266,7 +13267,7 @@ function boot() {
     Promise.allSettled([
       loadPokemonSprites(),
       loadItemSprites(),
-      loadTrainerGroups().then(() => _buildTrainerIndex()),
+      loadTrainerGroups().then(data => _buildTrainerIndex(data)),
       loadZoneTrainerPools(),
     ]).then(results => {
       const labels = ['pokemon-sprites', 'item-sprites', 'trainer-sprites', 'zone-trainer-pools'];
