@@ -10932,11 +10932,7 @@ function showIntro() {
 
   // ── Settings gear button ──────────────────────────────────────
   document.getElementById('introSettingsBtn')?.addEventListener('click', () => {
-    const modal = document.getElementById('settingsModal');
-    if (modal) {
-      renderSettingsPanel();
-      modal.classList.add('active');
-    }
+    openSettingsModal();
   });
 
   // ── Animated showcase ─────────────────────────────────────────
@@ -11252,16 +11248,150 @@ const SFX_LABELS = {
   menuClose: 'Fermeture menu',
 };
 
+// ── Snapshot pour live-preview + revert ─────────────────────────────────────
+let _settingsSnap     = null;   // structuredClone(state.settings) au moment d'ouvrir
+let _settingsLangSnap = 'fr';   // state.lang au moment d'ouvrir
+
+// Ouvre la fenêtre de paramètres : snapshot + render + bind live
+function openSettingsModal() {
+  const modal = document.getElementById('settingsModal');
+  if (!modal) return;
+  _settingsSnap     = structuredClone(state.settings);
+  _settingsLangSnap = state.lang;
+  renderSettingsPanel();
+  _bindSettingsLive();
+  modal.classList.add('active');
+}
+
+// Applique immédiatement les effets visuels/audio depuis l'UI (working copy)
+function _applySettingsLive() {
+  const el = document.getElementById('settingsContent');
+  if (!el) return;
+  const readTog = (id, def) => {
+    const b = el.querySelector(`[data-toggle-id="${id}"]`);
+    return b ? b.dataset.on === 'true' : def;
+  };
+
+  const lightTheme  = readTog('lightTheme', false);
+  const lowSpec     = readTog('lowSpec',    false);
+  const musicOn     = readTog('music',      false);
+  const sfxOn       = readTog('sfx',        true);
+  const musicVol    = parseInt(document.getElementById('sVolMusic')?.value)   || 80;
+  const sfxVol      = parseInt(document.getElementById('sVolSFX')?.value)     || 80;
+  const uiScale     = parseInt(document.getElementById('sUIScale')?.value)    || 100;
+  const zoneScale   = parseInt(document.getElementById('sZoneScale')?.value)  || 100;
+
+  // DOM / CSS (effets immédiats)
+  document.body.classList.toggle('theme-light', lightTheme);
+  document.body.classList.toggle('low-spec',    lowSpec);
+  document.documentElement.style.setProperty('--ui-scale',   (uiScale   / 100).toFixed(2));
+  document.documentElement.style.setProperty('--zone-scale', (zoneScale / 100).toFixed(2));
+
+  // Musique
+  if (musicOn) {
+    MusicPlayer.setVolume(musicVol / 1000);
+    MusicPlayer.updateFromContext?.();
+  } else {
+    MusicPlayer.stop();
+  }
+
+  // Écriture dans state (working copy — pas encore sauvegardé)
+  Object.assign(state.settings, {
+    lightTheme, lowSpec, sfxEnabled: sfxOn, sfxVol,
+    musicEnabled: musicOn, musicVol, uiScale, zoneScale,
+  });
+}
+
+// Restaure l'état d'avant ouverture (bouton ×)
+function _revertSettings() {
+  if (!_settingsSnap) return;
+  state.settings = structuredClone(_settingsSnap);
+  state.lang      = _settingsLangSnap;
+
+  const S = state.settings;
+  document.body.classList.toggle('theme-light', S.lightTheme === true);
+  document.body.classList.toggle('low-spec',    S.lowSpec    === true);
+  document.documentElement.style.setProperty('--ui-scale',   ((S.uiScale   ?? 100) / 100).toFixed(2));
+  document.documentElement.style.setProperty('--zone-scale', ((S.zoneScale ?? 100) / 100).toFixed(2));
+  if (S.musicEnabled) {
+    MusicPlayer.setVolume((S.musicVol ?? 80) / 1000);
+    MusicPlayer.updateFromContext?.();
+  } else {
+    MusicPlayer.stop();
+  }
+}
+
+// Bind tous les listeners live sur les contrôles (appelé après renderSettingsPanel)
+function _bindSettingsLive() {
+  const el = document.getElementById('settingsContent');
+  if (!el) return;
+
+  // Toggles principaux → live apply
+  el.querySelectorAll('.s-toggle[data-toggle-id]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const on = btn.dataset.on !== 'true';
+      btn.dataset.on  = String(on);
+      btn.textContent = on ? 'Activé' : 'Désactivé';
+      _applySettingsLive();
+    });
+  });
+
+  // SFX individuels → mise à jour working copy immédiate
+  el.querySelectorAll('.s-toggle[data-sfx-key]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const on = btn.dataset.on !== 'true';
+      btn.dataset.on  = String(on);
+      btn.textContent = on ? 'Activé' : 'Désactivé';
+      if (!state.settings.sfxIndividual) state.settings.sfxIndividual = {};
+      state.settings.sfxIndividual[btn.dataset.sfxKey] = on;
+    });
+  });
+
+  // Sliders → mise à jour du label + apply live
+  const bindSlider = (id, labelId, suffix, applyFn) => {
+    const slider = document.getElementById(id);
+    const label  = document.getElementById(labelId);
+    if (!slider) return;
+    slider.addEventListener('input', function () {
+      if (label) label.textContent = this.value + suffix;
+      applyFn?.(this.value);
+      _applySettingsLive();
+    });
+  };
+  bindSlider('sVolMusic',  'sVolMusicVal',  '%');
+  bindSlider('sVolSFX',    'sVolSFXVal',    '%');
+  bindSlider('sUIScale',   'sUIScaleVal',   '%');
+  bindSlider('sZoneScale', 'sZoneScaleVal', '%');
+
+  // Accordéon sons individuels
+  document.getElementById('btnSfxSubToggle')?.addEventListener('click', () => {
+    const inner = document.getElementById('sfxSubList');
+    if (inner) {
+      inner.classList.toggle('open');
+      const arrow = inner.classList.contains('open') ? '▾' : '▸';
+      const b = document.getElementById('btnSfxSubToggle');
+      if (b) b.textContent = `${arrow} Sons individuels`;
+    }
+  });
+
+  // Boutons d'action (export / import / purge / reset / code)
+  _bindSettingsActionButtons();
+
+  // Version
+  const vEl = document.getElementById('settingsVersion');
+  if (vEl) vEl.textContent = GAME_VERSION;
+}
+
+// Rendu HTML uniquement (pas de listeners — séparation claire)
 function renderSettingsPanel() {
   const el = document.getElementById('settingsContent');
   if (!el) return;
 
   const S = state.settings;
 
-  // Helper: toggle button HTML
-  const tog = (id, on, label) => `<button class="s-toggle" data-toggle-id="${id}" data-on="${!!on}">${on ? 'Activé' : 'Désactivé'}</button>`;
+  const tog = (id, on) =>
+    `<button class="s-toggle" data-toggle-id="${id}" data-on="${!!on}">${on ? 'Activé' : 'Désactivé'}</button>`;
 
-  // SFX individual rows
   const sfxRows = Object.entries(SFX_LABELS).map(([key, label]) => {
     const on = S.sfxIndividual?.[key] !== false;
     return `<div class="sfx-sub-row">
@@ -11309,8 +11439,7 @@ function renderSettingsPanel() {
       </div>
       <div class="settings-row">
         <label>Volume musique <span id="sVolMusicVal" style="color:var(--gold);margin-left:4px">${S.musicVol ?? 80}%</span></label>
-        <input type="range" id="sVolMusic" min="0" max="100" step="5" value="${S.musicVol ?? 80}" style="width:110px"
-          oninput="document.getElementById('sVolMusicVal').textContent=this.value+'%';window._MusicPlayer_setVol(this.value)">
+        <input type="range" id="sVolMusic" min="0" max="100" step="5" value="${S.musicVol ?? 80}" style="width:110px">
       </div>
       <div class="settings-row">
         <label>Effets sonores (SFX)</label>
@@ -11318,8 +11447,7 @@ function renderSettingsPanel() {
       </div>
       <div class="settings-row">
         <label>Volume SFX <span id="sVolSFXVal" style="color:var(--gold);margin-left:4px">${S.sfxVol ?? 80}%</span></label>
-        <input type="range" id="sVolSFX" min="0" max="100" step="5" value="${S.sfxVol ?? 80}" style="width:110px"
-          oninput="document.getElementById('sVolSFXVal').textContent=this.value+'%'">
+        <input type="range" id="sVolSFX" min="0" max="100" step="5" value="${S.sfxVol ?? 80}" style="width:110px">
       </div>
       <div class="sfx-sublist">
         <button id="btnSfxSubToggle" style="font-family:var(--font-pixel);font-size:8px;padding:4px 10px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-dim);cursor:pointer;width:100%;text-align:left">
@@ -11344,13 +11472,11 @@ function renderSettingsPanel() {
       </div>
       <div class="settings-row">
         <label>Taille interface <span id="sUIScaleVal" style="color:var(--gold);margin-left:4px">${S.uiScale ?? 100}%</span></label>
-        <input type="range" id="sUIScale" min="70" max="130" step="5" value="${S.uiScale ?? 100}" style="width:110px"
-          oninput="document.getElementById('sUIScaleVal').textContent=this.value+'%';document.documentElement.style.setProperty('--ui-scale',(this.value/100).toFixed(2))">
+        <input type="range" id="sUIScale" min="70" max="130" step="5" value="${S.uiScale ?? 100}" style="width:110px">
       </div>
       <div class="settings-row">
         <label>Sprites zones <span id="sZoneScaleVal" style="color:var(--gold);margin-left:4px">${S.zoneScale ?? 100}%</span></label>
-        <input type="range" id="sZoneScale" min="50" max="200" step="10" value="${S.zoneScale ?? 100}" style="width:110px"
-          oninput="document.getElementById('sZoneScaleVal').textContent=this.value+'%';document.documentElement.style.setProperty('--zone-scale',(this.value/100).toFixed(2))">
+        <input type="range" id="sZoneScale" min="50" max="200" step="10" value="${S.zoneScale ?? 100}" style="width:110px">
       </div>
     </div>
 
@@ -11400,46 +11526,6 @@ function renderSettingsPanel() {
       </div>
     </div>
   `;
-
-  // Toggle click handlers
-  el.querySelectorAll('.s-toggle[data-toggle-id]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const on = btn.dataset.on !== 'true';
-      btn.dataset.on = String(on);
-      btn.textContent = on ? 'Activé' : 'Désactivé';
-    });
-  });
-
-  // SFX individual toggles
-  el.querySelectorAll('.s-toggle[data-sfx-key]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const on = btn.dataset.on !== 'true';
-      btn.dataset.on = String(on);
-      btn.textContent = on ? 'Activé' : 'Désactivé';
-    });
-  });
-
-  // SFX sub-list accordion
-  document.getElementById('btnSfxSubToggle')?.addEventListener('click', () => {
-    const inner = document.getElementById('sfxSubList');
-    if (inner) {
-      inner.classList.toggle('open');
-      const arrow = inner.classList.contains('open') ? '▾' : '▸';
-      const btn = document.getElementById('btnSfxSubToggle');
-      if (btn) btn.textContent = `${arrow} Sons individuels`;
-    }
-  });
-
-  // Live music volume preview
-  window._MusicPlayer_setVol = (v) => MusicPlayer.setVolume(parseInt(v) / 1000);
-
-
-  // Re-bind export/import/purge/reset buttons (they're now inside settingsContent)
-  _bindSettingsActionButtons();
-
-  // Afficher la version dans les settings
-  const settingsVersionEl = document.getElementById('settingsVersion');
-  if (settingsVersionEl) settingsVersionEl.textContent = GAME_VERSION;
 }
 
 function _bindSettingsActionButtons() {
@@ -11474,69 +11560,58 @@ function _bindSettingsActionButtons() {
 }
 
 function initSettings() {
+  // Ouvre depuis la barre principale
   document.getElementById('btnSettings')?.addEventListener('click', () => {
     SFX.play('menuOpen');
-    const modal = document.getElementById('settingsModal');
-    if (modal) {
-      renderSettingsPanel();
-      modal.classList.add('active');
-    }
+    openSettingsModal();
   });
 
-  function saveSettingsAndClose() {
+  // × Ferme sans sauvegarder → revert vers le snapshot
+  document.getElementById('btnCloseSettings')?.addEventListener('click', () => {
+    _revertSettings();
+    SFX.play('menuClose');
+    document.getElementById('settingsModal')?.classList.remove('active');
+  });
+
+  // ✓ Valider → finalise la lecture UI → save → ferme
+  document.getElementById('btnSaveSettings')?.addEventListener('click', () => {
     const el = document.getElementById('settingsContent');
-
-    // Lang
-    const langSel = document.getElementById('settingLang');
-    if (langSel) state.lang = langSel.value;
-
-    // Toggle buttons
     const readToggle = (id, def = true) => {
       const btn = el?.querySelector(`[data-toggle-id="${id}"]`);
       return btn ? btn.dataset.on === 'true' : def;
     };
-    state.settings.autoCombat    = readToggle('autoCombat', true);
-    state.settings.discoveryMode = readToggle('discoveryMode', true);
-    state.settings.classicSprites= readToggle('classicSprites', false);
-    state.settings.musicEnabled  = readToggle('music', false);
-    state.settings.sfxEnabled    = readToggle('sfx', true);
-    state.settings.lightTheme    = readToggle('lightTheme', false);
-    state.settings.lowSpec       = readToggle('lowSpec', false);
 
-    // Volume sliders
-    const musicVolEl = document.getElementById('sVolMusic');
-    if (musicVolEl) {
-      state.settings.musicVol = parseInt(musicVolEl.value) || 80;
-      if (state.settings.musicEnabled) MusicPlayer.setVolume(state.settings.musicVol / 1000);
-      else MusicPlayer.stop();
-    }
-    const sfxVolEl = document.getElementById('sVolSFX');
-    if (sfxVolEl) state.settings.sfxVol = parseInt(sfxVolEl.value) || 80;
+    // Langue
+    const langSel = document.getElementById('settingLang');
+    if (langSel) state.lang = langSel.value;
 
-    // Scale sliders
-    const uiScaleEl = document.getElementById('sUIScale');
-    if (uiScaleEl) {
-      state.settings.uiScale = parseInt(uiScaleEl.value) || 100;
-      document.documentElement.style.setProperty('--ui-scale', (state.settings.uiScale / 100).toFixed(2));
-    }
-    const zoneScaleEl = document.getElementById('sZoneScale');
-    if (zoneScaleEl) {
-      state.settings.zoneScale = parseInt(zoneScaleEl.value) || 100;
-      document.documentElement.style.setProperty('--zone-scale', (state.settings.zoneScale / 100).toFixed(2));
-    }
+    // Toggles (lecture complète — _applySettingsLive a déjà écrit la plupart, mais on consolide)
+    state.settings.autoCombat     = readToggle('autoCombat',    true);
+    state.settings.discoveryMode  = readToggle('discoveryMode', true);
+    state.settings.classicSprites = readToggle('classicSprites',false);
+    state.settings.musicEnabled   = readToggle('music',         false);
+    state.settings.sfxEnabled     = readToggle('sfx',           true);
+    state.settings.lightTheme     = readToggle('lightTheme',    false);
+    state.settings.lowSpec        = readToggle('lowSpec',        false);
 
-    // SFX individual
+    // Sliders
+    state.settings.musicVol  = parseInt(document.getElementById('sVolMusic')?.value)   || 80;
+    state.settings.sfxVol    = parseInt(document.getElementById('sVolSFX')?.value)     || 80;
+    state.settings.uiScale   = parseInt(document.getElementById('sUIScale')?.value)    || 100;
+    state.settings.zoneScale = parseInt(document.getElementById('sZoneScale')?.value)  || 100;
+
+    // SFX individuels
     if (!state.settings.sfxIndividual) state.settings.sfxIndividual = {};
     el?.querySelectorAll('.s-toggle[data-sfx-key]').forEach(btn => {
       state.settings.sfxIndividual[btn.dataset.sfxKey] = btn.dataset.on === 'true';
     });
 
-    // Theme & low-spec
+    // Applique les effets définitifs
     document.body.classList.toggle('theme-light', state.settings.lightTheme === true);
-    document.body.classList.toggle('low-spec',    state.settings.lowSpec === true);
-
-    // Music
-    if (state.settings.musicEnabled) MusicPlayer.updateFromContext();
+    document.body.classList.toggle('low-spec',    state.settings.lowSpec    === true);
+    document.documentElement.style.setProperty('--ui-scale',   (state.settings.uiScale   / 100).toFixed(2));
+    document.documentElement.style.setProperty('--zone-scale', (state.settings.zoneScale / 100).toFixed(2));
+    if (state.settings.musicEnabled) { MusicPlayer.setVolume(state.settings.musicVol / 1000); MusicPlayer.updateFromContext(); }
     else MusicPlayer.stop();
 
     saveState();
@@ -11544,15 +11619,7 @@ function initSettings() {
     SFX.play('menuClose');
     document.getElementById('settingsModal')?.classList.remove('active');
     renderAll();
-  }
-
-  // × ferme sans sauvegarder
-  document.getElementById('btnCloseSettings')?.addEventListener('click', () => {
-    document.getElementById('settingsModal')?.classList.remove('active');
   });
-
-  // ✓ Valider — sauvegarde et ferme
-  document.getElementById('btnSaveSettings')?.addEventListener('click', saveSettingsAndClose);
 }
 
 // ════════════════════════════════════════════════════════════════
