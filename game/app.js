@@ -5604,6 +5604,8 @@ function triggerGymRaid(zoneId, isAuto) {
 // ════════════════════════════════════════════════════════════════
 
 let activeTab = 'tabZones';
+let gangBaseDrawerOpen = false;
+let zoneFilter = 'all'; // 'all' | 'fav' | 'route' | 'city' | 'special'
 
 function hintLink(label, tabId) {
   return `<button onclick="switchTab('${tabId}')" style="font-family:var(--font-pixel);font-size:9px;color:var(--red);background:none;border:none;border-bottom:1px solid var(--red);cursor:pointer;padding:0">${label}</button>`;
@@ -5875,6 +5877,7 @@ function renderAll() {
   updateTopBar();
   renderHint(activeTab);
   renderActiveTab();
+  renderGangBaseDrawer();
 }
 
 function renderActiveTab() {
@@ -7223,10 +7226,10 @@ function collectAllZones() {
 // ════════════════════════════════════════════════════════════════
 
 function renderZonesTab() {
-  renderGangBasePanel();
   renderZoneSelector();
   renderZoneWindows();
   _bindZoneActionButtons();
+  renderGangBasePanel(); // updates drawer handle + panel content
 }
 
 function _bindZoneActionButtons() {
@@ -7253,9 +7256,15 @@ function renderZoneSelector() {
   const el = document.getElementById('zoneSelector');
   if (!el) return;
 
-  // Séparation : gauche = routes, droite = villes & lieux spéciaux
-  const zonesLeft  = ZONES.filter(z => z.type === 'route');
-  const zonesRight = ZONES.filter(z => z.type === 'city' || z.type === 'special');
+  // Filter zones based on active tab
+  let filteredZones;
+  switch (zoneFilter) {
+    case 'fav':     filteredZones = ZONES.filter(z => (state.favoriteZones||[]).includes(z.id)); break;
+    case 'route':   filteredZones = ZONES.filter(z => z.type === 'route'); break;
+    case 'city':    filteredZones = ZONES.filter(z => z.type === 'city'); break;
+    case 'special': filteredZones = ZONES.filter(z => z.type === 'special'); break;
+    default:        filteredZones = ZONES; break;
+  }
 
   function buildTile(zone) {
     const unlocked = isZoneUnlocked(zone.id);
@@ -7322,18 +7331,7 @@ function renderZoneSelector() {
     }
   }
 
-  const html = `
-    <div class="fog-split-layout">
-      <div class="fog-col">
-        <div class="fog-col-label">— ROUTES —</div>
-        <div class="fog-map">${zonesLeft.map(buildTile).join('')}</div>
-      </div>
-      <div class="fog-col fog-col-combat">
-        <div class="fog-col-label">— VILLES &amp; LIEUX —</div>
-        <div class="fog-map">${zonesRight.map(buildTile).join('')}</div>
-      </div>
-    </div>`;
-  el.innerHTML = html;
+  el.innerHTML = `<div class="fog-map">${filteredZones.map(buildTile).join('')}</div>`;
 
   el.querySelectorAll('.fog-tile.unlocked').forEach(tile => {
     tile.addEventListener('click', () => {
@@ -7370,6 +7368,18 @@ function renderZoneSelector() {
       SFX.play('click');
       saveState();
     });
+  });
+
+  // Bind filter tabs
+  document.querySelectorAll('.zone-ftab').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.filter === zoneFilter);
+    if (!btn._filterBound) {
+      btn._filterBound = true;
+      btn.addEventListener('click', () => {
+        zoneFilter = btn.dataset.filter;
+        renderZoneSelector();
+      });
+    }
   });
 }
 
@@ -7455,6 +7465,65 @@ function closeZoneWindow(zoneId) {
 // Track headbar expanded state per zone
 const headbarExpanded = {};
 
+function renderGangBaseDrawer() {
+  const drawer = document.getElementById('gangBaseDrawer');
+  const handle = document.getElementById('gangBaseHandle');
+  if (!drawer || !handle) return;
+
+  // Toggle open/close
+  drawer.classList.toggle('open', gangBaseDrawerOpen);
+
+  // Active ball icon for handle
+  const ball = state.activeBall || 'pokeball';
+  const ballQty = state.inventory?.[ball] || 0;
+  const ballUrl = getItemSprite?.(ball) || '';
+
+  // Active boost for handle
+  const BOOST_IDS = ['lure','superlure','incense','rarescope','aura'];
+  const activeBoost = BOOST_IDS.find(b => isBoostActive(b));
+  const boostSecs = activeBoost ? Math.ceil(boostRemaining(activeBoost)) : 0;
+  const boostUrl = activeBoost ? (getItemSprite?.(activeBoost) || '') : '';
+
+  // Money compact
+  const money = state.gang.money;
+  const moneyStr = money >= 1_000_000 ? (money/1_000_000).toFixed(1)+'M'
+                 : money >= 1_000     ? Math.floor(money/1_000)+'k'
+                 : String(money);
+
+  handle.innerHTML = `
+    <img src="${trainerSprite(state.gang.bossSprite || 'rocketgrunt')}"
+         style="width:28px;height:28px;border-radius:2px"
+         onerror="this.style.display='none'">
+    <div class="gbd-handle-item" style="font-size:6px;color:var(--gold)">
+      <span>₽</span><span>${moneyStr}</span>
+    </div>
+    ${ballUrl ? `<div class="gbd-handle-item" title="${ball} ×${ballQty}">
+      <img src="${ballUrl}" style="width:20px;height:20px">
+      <span style="font-size:6px;color:var(--text-dim)">×${ballQty}</span>
+    </div>` : ''}
+    ${activeBoost && boostUrl ? `<div class="gbd-handle-item" title="${activeBoost} ${boostSecs}s">
+      <img src="${boostUrl}" style="width:18px;height:18px">
+      <span style="font-size:6px;color:var(--gold-dim)">${boostSecs}s</span>
+    </div>` : ''}
+    <div class="gbd-arrow">${gangBaseDrawerOpen ? '▶' : '◀'}</div>
+  `;
+
+  if (!handle._drawerBound) {
+    handle._drawerBound = true;
+    handle.addEventListener('click', () => {
+      gangBaseDrawerOpen = !gangBaseDrawerOpen;
+      renderGangBaseDrawer();
+    });
+    // Click outside to close
+    document.addEventListener('click', e => {
+      if (gangBaseDrawerOpen && !document.getElementById('gangBaseDrawer')?.contains(e.target)) {
+        gangBaseDrawerOpen = false;
+        renderGangBaseDrawer();
+      }
+    }, true);
+  }
+}
+
 function renderGangBasePanel() {
   const gangContainer = document.getElementById('gangBaseContainer');
   if (!gangContainer) return;
@@ -7468,6 +7537,7 @@ function renderGangBasePanel() {
     gangContainer.innerHTML = gangHtml;
   }
   bindGangBase(gangContainer);
+  renderGangBaseDrawer();
 }
 
 function renderZoneWindows() {
