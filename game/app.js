@@ -163,6 +163,32 @@ const POKEMON_GEN1 = [
   {en:'dragonite',fr:'Dracolosse',dex:149,types:['Dragon','Flying'],baseAtk:134,baseDef:95,baseSpd:80,rarity:'very_rare',moves:['Draco-Rage','Surf','Tonnerre','Déflagration']},
   {en:'mewtwo',fr:'Mewtwo',dex:150,types:['Psychic'],baseAtk:110,baseDef:90,baseSpd:130,rarity:'legendary',moves:['Psyko','Laser Glace','Tonnerre','Soin']},
   {en:'mew',fr:'Mew',dex:151,types:['Psychic'],baseAtk:100,baseDef:100,baseSpd:100,rarity:'legendary',moves:['Psyko','Métronome','Surf','Lance-Flamme']},
+
+  // ── Bébés Pokémon (pré-évolutions Gen 1 ajoutées en Gen 2) ──────
+  {en:'pichu',fr:'Pichu',dex:172,types:['Electric'],baseAtk:40,baseDef:15,baseSpd:60,rarity:'rare',moves:['Charge','Vive-Attaque','Tonnerre','Rugissement']},
+  {en:'cleffa',fr:'Mélo',dex:173,types:['Normal'],baseAtk:25,baseDef:28,baseSpd:15,rarity:'common',moves:['Chant','Câlinerie','Tonnerre','Métronome']},
+  {en:'igglybuff',fr:'Toudoudou',dex:174,types:['Normal'],baseAtk:30,baseDef:15,baseSpd:15,rarity:'common',moves:['Chant','Charge','Câlinerie','Rugissement']},
+  {en:'smoochum',fr:'Lippouti',dex:238,types:['Ice','Psychic'],baseAtk:45,baseDef:30,baseSpd:65,rarity:'rare',moves:['Blizzard','Psyko','Laser Glace','Rugissement']},
+  {en:'elekid',fr:'Élekid',dex:239,types:['Electric'],baseAtk:55,baseDef:35,baseSpd:95,rarity:'rare',moves:['Cage Éclair','Tonnerre','Vive-Attaque','Rugissement']},
+  {en:'magby',fr:'Magby',dex:240,types:['Fire'],baseAtk:55,baseDef:30,baseSpd:83,rarity:'rare',moves:['Flammèche','Brouillard','Vive-Attaque','Rugissement']},
+  {en:'tyrogue',fr:'Debugant',dex:236,types:['Fighting'],baseAtk:35,baseDef:35,baseSpd:35,rarity:'rare',moves:['Coup Bas','Tranche','Ticket','Rugissement']},
+
+  // ── Évolutions Gen 2 de Pokémon Gen 1 ───────────────────────────
+  {en:'crobat',fr:'Nostenfer',dex:169,types:['Poison','Flying'],baseAtk:90,baseDef:80,baseSpd:130,rarity:'rare',moves:['Vampigraine','Tranche','Cru-Aile','Toxic']},
+  {en:'bellossom',fr:'Joliflor',dex:182,types:['Grass'],baseAtk:80,baseDef:95,baseSpd:50,rarity:'rare',moves:['Tranch\'Herbe','Danse Fleur','Poudre Toxik','Soin']},
+  {en:'politoed',fr:'Tarpaud',dex:186,types:['Water'],baseAtk:75,baseDef:75,baseSpd:70,rarity:'rare',moves:['Surf','Hydrocanon','Blizzard','Rugissement']},
+  {en:'slowking',fr:'Roigada',dex:199,types:['Water','Psychic'],baseAtk:75,baseDef:80,baseSpd:30,rarity:'rare',moves:['Surf','Psyko','Blizzard','Amnésie']},
+  {en:'steelix',fr:'Steelix',dex:208,types:['Steel','Ground'],baseAtk:85,baseDef:200,baseSpd:30,rarity:'very_rare',moves:['Séisme','Tranche','Tonnerre','Griffe de Fer']},
+  {en:'scizor',fr:'Cizayox',dex:212,types:['Bug','Steel'],baseAtk:130,baseDef:100,baseSpd:65,rarity:'very_rare',moves:['Tranche','Balle Graine','Vive-Attaque','Danse Lames']},
+  {en:'espeon',fr:'Mentali',dex:196,types:['Psychic'],baseAtk:130,baseDef:60,baseSpd:110,rarity:'very_rare',moves:['Psyko','Choc Mental','Laser Glace','Rugissement']},
+  {en:'umbreon',fr:'Noctali',dex:197,types:['Dark'],baseAtk:65,baseDef:110,baseSpd:65,rarity:'very_rare',moves:['Tranche','Morsure','Rugissement','Rugissement']},
+  {en:'kingdra',fr:'Hyporoi',dex:230,types:['Water','Dragon'],baseAtk:95,baseDef:95,baseSpd:85,rarity:'very_rare',moves:['Hydrocanon','Draco-Rage','Surf','Blizzard']},
+  {en:'blissey',fr:'Leuphorie',dex:242,types:['Normal'],baseAtk:10,baseDef:10,baseSpd:55,rarity:'very_rare',moves:['Soin','Boul\'Armure','Météores','Chant']},
+
+  // ── Légendaires Gen 2 ───────────────────────��───────────────────
+  {en:'lugia',fr:'Lugia',dex:249,types:['Psychic','Flying'],baseAtk:90,baseDef:130,baseSpd:110,rarity:'legendary',moves:['Aérojet','Psy-Ultime','Surf','Brouillard']},
+  {en:'ho-oh',fr:'Ho-Oh',dex:250,types:['Fire','Flying'],baseAtk:130,baseDef:90,baseSpd:90,rarity:'legendary',moves:['Feu Sacré','Cru-Aile','Psyko','Soin']},
+
   // Secret — not visible in Pokédex, obtainable via secret code
   {en:'missingno',fr:'MissingNo',dex:0,types:['Normal','Psychic'],baseAtk:100,baseDef:100,baseSpd:100,rarity:'legendary',moves:['Morphing','Psyko','Métronome','Surf'],hidden:true,noSell:true},
 ];
@@ -495,6 +521,28 @@ const POKEDEX_DESC = {
   mewtwo:'Créé par manipulation génétique. Le Pokémon le plus puissant jamais créé.',
   mew:'Contient le code génétique de tous les Pokémon. Seuls quelques chanceux l\'ont vu.',
   missingno:'Entité glitch de la Région de Kanto. Son existence est une anomalie dans le tissu du jeu.',
+  // Bébés
+  pichu:'Encore jeune pour maîtriser son électricité. Il peut se choquer lui-même.',
+  cleffa:'Aux nuits étoilées, des groupes de Mélo dansent autour de leur chef.',
+  igglybuff:'Son corps est si élastique qu\'il rebondit partout. Adore chanter.',
+  smoochum:'Cherche à reconnaître les choses avec ses lèvres. Très curieux.',
+  elekid:'Tourne les bras pour générer de l\'électricité. Son corps crépite.',
+  magby:'Exhale des flammes à 600 °C. Indice d\'activité d\'un volcan.',
+  tyrogue:'Bagarreur-né. Son évolution dépend de son entraînement.',
+  // Évos Gen 2 de Gen 1
+  crobat:'Vole silencieusement dans le noir total grâce à ses quatre ailes.',
+  bellossom:'Quand le soleil brille, ses pétales s\'ouvrent et il danse.',
+  politoed:'Grâce à ses doigts recourbés, il gouverne les Ptitard comme un roi.',
+  slowking:'A développé des capacités intellectuelles extrêmes suite à la piqûre de Ramoloss.',
+  steelix:'Son corps s\'est endurci en métal après des années sous la Terre.',
+  scizor:'Ses pinces imitent des têtes pour intimider l\'adversaire.',
+  espeon:'Utilise son pelage fin pour sentir les courants d\'air et prédire l\'avenir.',
+  umbreon:'Ses anneaux brillent la nuit. Sécrète une sueur toxique quand menacé.',
+  kingdra:'Vit dans les profondeurs de l\'océan. Son souffle crée des tsunamis.',
+  blissey:'Son oeuf nourrit quiconque le mange et apporte le bonheur.',
+  // Légendaires Gen 2
+  lugia:'Gardien des mers. Son battement d\'ailes peut déclencher des tempêtes de 40 jours.',
+  'ho-oh':'Le phénix arc-en-ciel. Quiconque le voit est promis à un bonheur éternel.',
 };
 
 function getDexDesc(species_en) {
@@ -624,10 +672,10 @@ const ZONES = [
     pool:['voltorb','electrode','magnemite','magneton','electabuzz','pikachu','raichu','zapdos'],
     trainers:['scientist','supernerd'], eliteTrainer:'ltsurge', investCost:20000 },
   { id:'seafoam_islands',fr:'Îles Écume',       en:'Seafoam Islands',   rep:800, spawnRate:0.06, type:'route',
-    pool:['tentacool','shellder','staryu','seel','dewgong','horsea','seadra','lapras','articuno','psyduck','goldeen','jynx'],
+    pool:['tentacool','shellder','staryu','seel','dewgong','horsea','seadra','lapras','articuno','psyduck','goldeen','jynx','lugia'],
     trainers:['swimmer','acetrainer'], eliteTrainer:'lorelei', investCost:22000 },
   { id:'victory_road',  fr:'Route Victoire',    en:'Victory Road',      rep:950, spawnRate:0.04, type:'route',
-    pool:['machoke','geodude','graveler','onix','marowak','golbat','dragonair','gyarados','moltres'],
+    pool:['machoke','geodude','graveler','onix','marowak','golbat','dragonair','gyarados','moltres','ho-oh'],
     trainers:['acetrainer','blackbelt'], eliteTrainer:'lance', investCost:35000 },
   { id:'unknown_cave',  fr:'Grotte Inconnue',   en:'Cerulean Cave',     rep:1100,spawnRate:0.03, type:'route',
     pool:['mewtwo','ditto','kadabra','alakazam','electrode','rhydon','chansey','wigglytuff'],
@@ -2272,6 +2320,7 @@ const ITEM_SPRITE_URLS = {
   casino_ticket:'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/coin-case.png',
   silph_keycard:'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/silph-scope.png',
   boat_ticket:  'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/ss-ticket.png',
+  pokecoin:     'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/amulet-coin.png',
 };
 function itemSprite(id) {
   const url = ITEM_SPRITE_URLS[id];
@@ -3000,6 +3049,27 @@ const EVOLUTIONS = [
   ['dratini','dragonair',30],['dragonair','dragonite',55],
   ['eevee','vaporeon','item'], // will use the single item for all trade evos
   ['zubat','golbat',22],
+
+  // ── Gen 2 : bébés → Gen 1 ───────────────────────────────────────
+  ['pichu','pikachu',10],
+  ['cleffa','clefairy',5],
+  ['igglybuff','jigglypuff',5],
+  ['smoochum','jynx',30],
+  ['elekid','electabuzz',30],
+  ['magby','magmar',30],
+  ['tyrogue','hitmonlee',20],
+
+  // ── Gen 2 : évolutions supplémentaires de Gen 1 ─────────────────
+  ['golbat','crobat',35],
+  ['gloom','bellossom','item'],       // split avec vileplume
+  ['poliwhirl','politoed','item'],    // split avec poliwrath
+  ['slowpoke','slowking','item'],     // split avec slowbro
+  ['onix','steelix','item'],
+  ['scyther','scizor','item'],
+  ['eevee','espeon','item'],
+  ['eevee','umbreon','item'],
+  ['seadra','kingdra','item'],
+  ['chansey','blissey',30],
 ];
 
 const EVO_BY_SPECIES = {};
@@ -5886,16 +5956,24 @@ function renderCosmeticsPanel(container) {
   // ── Infirmière Joëlle corrompue ────────────────────────────────
   const nurseDiv = document.createElement('div');
   nurseDiv.style.cssText = 'margin-top:20px';
-  const nurseOwned = state.purchases?.autoIncubator;
+  const nurseOwned   = !!state.purchases?.autoIncubator;
+  const nurseEnabled = state.purchases?.autoIncubatorEnabled !== false; // true par défaut
   nurseDiv.innerHTML = `
     <div style="font-family:var(--font-pixel);font-size:9px;color:var(--gold);margin-bottom:10px">SERVICES SPÉCIAUX</div>
-    <div style="background:var(--bg-card);border:1px solid ${nurseOwned ? 'var(--green)' : 'var(--border)'};border-radius:var(--radius-sm);padding:10px;display:flex;gap:12px;align-items:flex-start">
-      <div style="font-size:28px;flex-shrink:0">💉</div>
+    <div style="background:var(--bg-card);border:1px solid ${nurseOwned ? (nurseEnabled ? 'var(--green)' : 'var(--border)') : 'var(--border)'};border-radius:var(--radius-sm);padding:10px;display:flex;gap:12px;align-items:flex-start">
+      <img src="${trainerSprite('nurse')}" style="width:48px;height:48px;image-rendering:pixelated;flex-shrink:0;${nurseOwned && !nurseEnabled ? 'opacity:.4;filter:grayscale(1)' : ''}" onerror="this.style.display='none'">
       <div style="flex:1">
-        <div style="font-family:var(--font-pixel);font-size:9px;color:${nurseOwned ? 'var(--green)' : 'var(--text)'};margin-bottom:4px">Infirmière Joëlle corrompue</div>
-        <div style="font-size:8px;color:var(--text-dim);margin-bottom:8px">Met automatiquement les oeufs en incubation dès qu'un incubateur est libre. Service permanent.</div>
+        <div style="font-family:var(--font-pixel);font-size:9px;color:${nurseOwned ? (nurseEnabled ? 'var(--green)' : 'var(--text-dim)') : 'var(--text)'};margin-bottom:4px">Infirmière Joëlle corrompue</div>
+        <div style="font-size:8px;color:var(--text-dim);margin-bottom:8px">Met automatiquement les oeufs en incubation dès qu'un incubateur est libre.</div>
         ${nurseOwned
-          ? `<div style="font-family:var(--font-pixel);font-size:8px;color:var(--green)">✓ SERVICE ACTIF</div>`
+          ? `<div style="display:flex;align-items:center;gap:8px">
+               <span style="font-family:var(--font-pixel);font-size:8px;color:${nurseEnabled ? 'var(--green)' : 'var(--text-dim)'}">
+                 ${nurseEnabled ? '✓ EN POSTE' : '✗ CONGÉ'}
+               </span>
+               <button id="btnToggleNurse" style="font-family:var(--font-pixel);font-size:8px;padding:4px 10px;background:var(--bg);border:1px solid ${nurseEnabled ? 'var(--red)' : 'var(--green)'};border-radius:var(--radius-sm);color:${nurseEnabled ? 'var(--red)' : 'var(--green)'};cursor:pointer">
+                 ${nurseEnabled ? 'Mettre en congé' : 'Rappeler'}
+               </button>
+             </div>`
           : `<button id="btnBuyNurse" style="font-family:var(--font-pixel);font-size:8px;padding:6px 12px;background:var(--bg);border:1px solid var(--gold-dim);border-radius:var(--radius-sm);color:var(--gold);cursor:pointer">Embaucher — 300 000₽</button>`}
       </div>
     </div>`;
@@ -5905,12 +5983,22 @@ function renderCosmeticsPanel(container) {
     showConfirm('Embaucher l\'Infirmière Joëlle corrompue pour 300 000₽ ? (permanent)', () => {
       state.gang.money -= 300000;
       state.purchases.autoIncubator = true;
+      state.purchases.autoIncubatorEnabled = true;
       saveState(); updateTopBar();
       SFX.play('unlock');
       notify('💉 Joëlle est en poste ! Les oeufs seront auto-incubés.', 'gold');
       tryAutoIncubate();
       renderCosmeticsPanel(container);
     }, null, { confirmLabel: 'Embaucher', cancelLabel: 'Annuler' });
+  });
+  nurseDiv.querySelector('#btnToggleNurse')?.addEventListener('click', () => {
+    state.purchases.autoIncubatorEnabled = !nurseEnabled;
+    saveState();
+    const msg = state.purchases.autoIncubatorEnabled
+      ? '💉 Joëlle est de retour en poste !'
+      : '😴 Joëlle est en congé.';
+    notify(msg, 'success');
+    renderCosmeticsPanel(container);
   });
 
   // ── Achats spéciaux (Titres, Charme Chroma, Auto-récolte) ──────
@@ -5954,13 +6042,14 @@ function renderCosmeticsPanel(container) {
     },
     {
       id: 'autoCollect',
-      icon: '🤖', label: 'Récolte automatique',
+      icon: `<img src="${ITEM_SPRITE_URLS.pokecoin}" style="width:28px;height:28px;image-rendering:pixelated" onerror="this.replaceWith(document.createTextNode('🪙'))">`,
+      label: 'Récolte automatique',
       desc: 'Les collectes de zone se font sans combat. Permanent.',
       cost: 100_000,
       owned: () => !!state.purchases?.autoCollect,
       buy: () => {
         state.purchases.autoCollect = true;
-        notify('🤖 Récolte automatique activée !', 'gold');
+        notify('🪙 Récolte automatique activée !', 'gold');
       },
     },
   ];
@@ -9513,6 +9602,7 @@ function renderPCTab() {
 // Auto-incubation — Infirmière Joëlle corrompue
 function tryAutoIncubate() {
   if (!state.purchases?.autoIncubator) return;
+  if (state.purchases?.autoIncubatorEnabled === false) return; // en congé
   const incubatorCount = state.inventory?.incubator || 0;
   if (incubatorCount === 0) return;
   const eggs = state.eggs || [];
@@ -10428,7 +10518,15 @@ function renderDexDetail(species_en) {
   panel.classList.remove('hidden');
   panel.innerHTML = `
     <div style="text-align:center;margin-bottom:10px">
-      <img src="${pokeSprite(sp.en, entry.shiny)}" style="width:80px;height:80px;${!caught ? 'filter:grayscale(1) brightness(.5)' : ''}">
+      <div style="display:inline-flex;gap:8px;align-items:flex-end;justify-content:center">
+        <div style="position:relative;display:inline-block">
+          <img src="${pokeSprite(sp.en, false)}" style="width:80px;height:80px;${!caught ? 'filter:grayscale(1) brightness(.5)' : ''}">
+        </div>
+        ${caught && entry.shiny ? `<div style="position:relative;display:inline-block">
+          <img src="${pokeSprite(sp.en, true)}" style="width:64px;height:64px;filter:drop-shadow(0 0 6px gold)">
+          <span style="position:absolute;top:-4px;right:-4px;font-size:11px">✨</span>
+        </div>` : ''}
+      </div>
       <div style="font-family:var(--font-pixel);font-size:11px;margin-top:4px">${caught ? (state.lang === 'fr' ? sp.fr : sp.en) : '???'}</div>
       <div style="font-size:9px;color:var(--text-dim)">#${String(sp.dex).padStart(3,'0')} — ${caught ? sp.types.map(typeFr).join('/') : '?'}</div>
     </div>
@@ -10442,7 +10540,7 @@ function renderDexDetail(species_en) {
       <div style="color:var(--text-dim);margin-bottom:4px;font-family:var(--font-pixel)">CAPTURES</div>
       <div>Total capturés : <b style="color:var(--gold)">${entry.count || 0}</b></div>
       <div>Dans le PC : <b>${ownedCount}</b></div>
-      ${entry.shiny ? '<div style="color:var(--gold)">Shiny obtenu !</div>' : ''}
+      ${entry.shiny ? '<div style="color:var(--gold)">✨ Chromatique obtenu !</div>' : ''}
     </div>
 
     <div style="font-size:9px;margin-bottom:10px">
@@ -10499,11 +10597,13 @@ function renderPokedexTab() {
     const caught = entry?.caught;
     const seen = entry?.seen;
     const sel = dexSelectedEn === sp.en ? 'selected' : '';
-    return `<div class="dex-entry ${caught ? 'caught' : ''} ${!seen && !caught ? 'unseen' : ''} ${sel}" data-dex-en="${sp.en}">
+    const hasShiny = !!entry?.shiny;
+    return `<div class="dex-entry ${caught ? 'caught' : ''} ${!seen && !caught ? 'unseen' : ''} ${sel}" data-dex-en="${sp.en}" style="position:relative">
       ${caught || seen
-        ? `<img src="${pokeSprite(sp.en, entry?.shiny)}" style="width:36px;height:36px;${!caught ? 'filter:brightness(0)' : ''}">`
+        ? `<img src="${pokeSprite(sp.en, hasShiny)}" style="width:36px;height:36px;${!caught ? 'filter:brightness(0)' : ''}">`
         : `<div style="width:36px;height:36px;display:flex;align-items:center;justify-content:center;color:var(--text-dim);font-size:14px">?</div>`
       }
+      ${hasShiny ? `<span style="position:absolute;top:-3px;right:-3px;font-size:9px;line-height:1;pointer-events:none" title="Chromatique obtenu">✨</span>` : ''}
       <div class="dex-number">#${String(sp.dex).padStart(3, '0')}</div>
     </div>`;
   }).join('');
