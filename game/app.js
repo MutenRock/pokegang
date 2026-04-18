@@ -1450,8 +1450,19 @@ const SAVE_KEYS = ['pokeforge.v6', 'pokeforge.v6.s2', 'pokeforge.v6.s3'];
 let activeSaveSlot = Math.min(2, parseInt(localStorage.getItem('pokeforge.activeSlot') || '0'));
 let SAVE_KEY = SAVE_KEYS[activeSaveSlot];
 
+// ── Versionnage du schéma de save ────────────────────────────────────────────
+// Incrémenter à chaque ajout de champ majeur pour déclencher le banner migration.
+const SAVE_SCHEMA_VERSION = 7;
+
+// Anciennes clés localStorage (versions antérieures à v6)
+const LEGACY_SAVE_KEYS = ['pokeforge.v5', 'pokeforge.v4', 'pokeforge.v3', 'pokeforge.v2', 'pokeforge.v1', 'pokeforge'];
+
+// Résultat de migration exposé au boot pour afficher le banner
+let _migrationResult = null; // null | { from: string, fields: string[] }
+
 const DEFAULT_STATE = {
   version: '6.0.0',
+  _schemaVersion: SAVE_SCHEMA_VERSION,
   lang: 'fr',
   gang: {
     name: 'Team ???',
@@ -1635,11 +1646,53 @@ function formatPlaytime(seconds) {
 }
 
 function loadState() {
-  const raw = localStorage.getItem(SAVE_KEY);
+  let raw = localStorage.getItem(SAVE_KEY);
+  let legacyKey = null;
+
+  // ── Détection save legacy (clés anciennes) ────────────────────────────────
+  if (!raw) {
+    for (const key of LEGACY_SAVE_KEYS) {
+      const legacy = localStorage.getItem(key);
+      if (legacy) { raw = legacy; legacyKey = key; break; }
+    }
+  }
+
   if (!raw) return null;
   try {
     const saved = JSON.parse(raw);
-    return migrate(saved);
+    const fromVersion = saved._schemaVersion ?? saved.version ?? 'inconnue';
+    const needsMigration = legacyKey || (saved._schemaVersion !== SAVE_SCHEMA_VERSION);
+
+    const migrated = migrate(saved);
+
+    if (needsMigration) {
+      // Lister les champs qui ont été ajoutés (présents dans DEFAULT_STATE mais absents du raw)
+      const addedFields = [];
+      if (!saved.behaviourLogs)       addedFields.push('Logs comportementaux');
+      if (!saved.discoveryProgress?.agentsUnlocked !== undefined && saved.discoveryProgress?.agentsUnlocked === undefined)
+                                       addedFields.push('Progression découverte étendue');
+      if (saved.settings?.classicSprites === undefined) addedFields.push('Option sprites');
+      if (!saved.eggs)                addedFields.push('Système d\'œufs');
+      if (!saved.pension)             addedFields.push('Pension');
+      if (!saved.trainingRoom)        addedFields.push('Salle d\'entraînement');
+      if (!saved.missions)            addedFields.push('Missions');
+      if (!saved.cosmetics)           addedFields.push('Cosmétiques');
+
+      _migrationResult = {
+        from: legacyKey ? `clé ${legacyKey}` : `schéma v${fromVersion}`,
+        toLegacyKey: legacyKey,
+        fields: addedFields,
+      };
+
+      // Si c'était une clé legacy, migrer dans la clé v6 et nettoyer l'ancienne
+      if (legacyKey) {
+        try { localStorage.removeItem(legacyKey); } catch {}
+      }
+    }
+
+    // Stamper le schéma courant dans la save migrée
+    migrated._schemaVersion = SAVE_SCHEMA_VERSION;
+    return migrated;
   } catch { return null; }
 }
 
@@ -1739,6 +1792,8 @@ function migrate(saved) {
     const resolvedPension = new Set([merged.pension.slotA, merged.pension.slotB].filter(Boolean));
     merged.trainingRoom.pokemon = (merged.trainingRoom.pokemon || []).filter(id => !teamSet.has(id) && !resolvedPension.has(id));
   }
+  // Toujours stamper la version schéma courante
+  merged._schemaVersion = SAVE_SCHEMA_VERSION;
   return merged;
 }
 
@@ -2179,8 +2234,8 @@ const BALL_SPRITES = {
   duskball:  'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/dusk-ball.png',
 };
 
-// Item sprites — PokeAPI
-const ITEM_SPRITES = {
+// Item sprites — PokeAPI (renommé ITEM_SPRITE_URLS pour éviter collision avec loaders.js)
+const ITEM_SPRITE_URLS = {
   pokeball:   'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-ball.png',
   greatball:  'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/great-ball.png',
   ultraball:  'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/ultra-ball.png',
@@ -2204,7 +2259,7 @@ const ITEM_SPRITES = {
   boat_ticket:  'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/ss-ticket.png',
 };
 function itemSprite(id) {
-  const url = ITEM_SPRITES[id];
+  const url = ITEM_SPRITE_URLS[id];
   return url
     ? `<img src="${url}" style="width:28px;height:28px;image-rendering:pixelated" onerror="this.style.display='none'">`
     : `<span style="font-family:var(--font-pixel);font-size:8px;color:var(--text-dim)">${id.toUpperCase().slice(0,3)}</span>`;
@@ -7954,7 +8009,7 @@ function renderSpawnInWindow(zoneId, spawnObj) {
     const evtBallKey = evt.trainerKey
       ? (evt.minRep >= 70 ? 'masterball' : evt.minRep >= 40 ? 'ultraball' : 'greatball')
       : 'pokeball';
-    el.innerHTML = `<img src="${ITEM_SPRITES[evtBallKey]}" style="width:44px;height:44px;image-rendering:pixelated;filter:drop-shadow(0 0 8px rgba(255,204,90,.9))">`;
+    el.innerHTML = `<img src="${ITEM_SPRITE_URLS[evtBallKey]}" style="width:44px;height:44px;image-rendering:pixelated;filter:drop-shadow(0 0 8px rgba(255,204,90,.9))">`;
     el.title = state.lang === 'fr' ? evt.fr : evt.en;
     el.style.animation = 'glow 1s ease-in-out infinite, float 2s ease-in-out infinite';
     el.addEventListener('click', () => {
@@ -12463,6 +12518,55 @@ function _triggerDailyReload() {
   setTimeout(() => location.reload(true), 500);
 }
 
+function showMigrationBanner({ from, toLegacyKey, fields }) {
+  const overlay = document.createElement('div');
+  overlay.style.cssText = `
+    position:fixed;inset:0;background:rgba(0,0,0,0.82);z-index:12000;
+    display:flex;align-items:center;justify-content:center;padding:16px;
+    animation:fadeIn .3s ease
+  `;
+  const fieldsHtml = fields.length
+    ? `<ul style="margin:8px 0 0 0;padding-left:18px;font-size:9px;color:var(--text-dim);line-height:1.8">
+        ${fields.map(f => `<li>${f}</li>`).join('')}
+      </ul>`
+    : '';
+  const legacyNote = toLegacyKey
+    ? `<div style="margin-top:8px;font-size:9px;color:var(--red);background:rgba(255,0,0,.07);padding:6px 8px;border-radius:4px;border-left:2px solid var(--red)">
+        ⚠ Ancienne sauvegarde détectée (<code style="font-size:9px">${toLegacyKey}</code>).<br>
+        Convertie et transférée vers le slot actuel. L'ancienne clé a été supprimée.
+      </div>`
+    : '';
+
+  overlay.innerHTML = `
+    <div style="background:var(--bg-panel);border:2px solid var(--gold-dim);border-radius:var(--radius);
+                padding:22px 24px;max-width:420px;width:100%;box-shadow:0 8px 40px rgba(0,0,0,.6)">
+      <div style="font-family:var(--font-pixel);font-size:11px;color:var(--gold);margin-bottom:4px">
+        🔄 SAVE MISE À JOUR
+      </div>
+      <div style="font-size:10px;color:var(--text-dim);margin-bottom:4px">
+        Depuis : <span style="color:var(--text)">${from}</span> →
+        schéma <span style="color:var(--gold)">v${SAVE_SCHEMA_VERSION}</span>
+      </div>
+      ${fields.length ? `<div style="font-size:9px;color:var(--text-dim);margin-top:6px">Nouveaux éléments ajoutés :</div>${fieldsHtml}` : ''}
+      ${legacyNote}
+      <div style="margin-top:8px;font-size:9px;color:var(--text-dim)">
+        Ta progression, Pokémon et argent sont intacts. ✅
+      </div>
+      <div style="margin-top:16px;text-align:right">
+        <button id="btnMigrationOk" class="btn-gold" style="padding:6px 20px;font-size:10px">
+          OK, continuer →
+        </button>
+      </div>
+    </div>`;
+
+  document.body.appendChild(overlay);
+  overlay.querySelector('#btnMigrationOk').addEventListener('click', () => {
+    overlay.remove();
+    saveState(); // persiste le nouveau schéma
+  });
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+}
+
 function boot() {
   // Version check — must run before anything else; may trigger reload
   if (checkVersionOnBoot()) return;
@@ -12473,6 +12577,11 @@ function boot() {
     state = saved;
   }
   state.sessionStart = Date.now();
+
+  // ── Banner de migration si save convertie ────────────────────────────────
+  if (_migrationResult) {
+    setTimeout(() => showMigrationBanner(_migrationResult), 1200);
+  }
 
   // Init tab navigation
   document.querySelectorAll('.tab-btn[data-tab]').forEach(btn => {
