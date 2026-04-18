@@ -1570,6 +1570,17 @@ const DEFAULT_STATE = {
     marketUnlocked: false,
     pokedexUnlocked: false,
     missionsUnlocked: false,
+    agentsUnlocked: false,
+    battleLogUnlocked: false,
+    cosmeticsUnlocked: false,
+  },
+  behaviourLogs: {
+    firstCombatAt: 0,
+    firstCaptureAt: 0,
+    firstPurchaseAt: 0,
+    firstAgentAt: 0,
+    firstMissionAt: 0,
+    tabViewCounts: {},
   },
 };
 
@@ -1640,6 +1651,11 @@ function migrate(saved) {
   merged.settings = { ...structuredClone(DEFAULT_STATE.settings), ...saved.settings };
   if (!merged.discoveryProgress) merged.discoveryProgress = { marketUnlocked: false, pokedexUnlocked: false, missionsUnlocked: false };
   if (merged.discoveryProgress.missionsUnlocked === undefined) merged.discoveryProgress.missionsUnlocked = false;
+  if (merged.discoveryProgress.agentsUnlocked === undefined) merged.discoveryProgress.agentsUnlocked = false;
+  if (merged.discoveryProgress.battleLogUnlocked === undefined) merged.discoveryProgress.battleLogUnlocked = false;
+  if (merged.discoveryProgress.cosmeticsUnlocked === undefined) merged.discoveryProgress.cosmeticsUnlocked = false;
+  if (!merged.behaviourLogs) merged.behaviourLogs = { firstCombatAt:0, firstCaptureAt:0, firstPurchaseAt:0, firstAgentAt:0, firstMissionAt:0, tabViewCounts:{} };
+  if (!merged.behaviourLogs.tabViewCounts) merged.behaviourLogs.tabViewCounts = {};
   // Nouveau joueur → découverte ON ; joueur existant sans ce champ → OFF (déjà habitué)
   if (merged.settings.discoveryMode === undefined) merged.settings.discoveryMode = false;
   if (merged.settings.autoBuyBall === undefined) merged.settings.autoBuyBall = null;
@@ -3037,8 +3053,8 @@ function checkTitleUnlocks() {
 
 function updateDiscovery() {
   if (!state.settings.discoveryMode) {
-    // Tout visible
-    ['tabMarket','tabPokedex','tabMissions'].forEach(id => {
+    // Tout visible — aucune restriction
+    ['tabMarket','tabPokedex','tabMissions','tabAgents','tabBattleLog','tabCosmetics'].forEach(id => {
       const btn = document.querySelector(`[data-tab="${id}"]`);
       if (btn) btn.style.display = '';
     });
@@ -3065,6 +3081,13 @@ function updateDiscovery() {
     notify('📖 Le Pokédex est maintenant accessible !', 'gold');
   }
 
+  // Agents : débloqué quand 3+ combats gagnés
+  if (!state.discoveryProgress.agentsUnlocked && totalFightsWon >= 3) {
+    state.discoveryProgress.agentsUnlocked = true;
+    saveState();
+    notify('👥 Les Agents sont maintenant accessibles ! Assigne des Pokémon pour récolter en automatique.', 'gold');
+  }
+
   // Missions : débloqué quand 10+ combats gagnés
   if (!state.discoveryProgress.missionsUnlocked && totalFightsWon >= 10) {
     state.discoveryProgress.missionsUnlocked = true;
@@ -3072,15 +3095,42 @@ function updateDiscovery() {
     notify('📋 Les Missions sont maintenant accessibles !', 'gold');
   }
 
+  // Log de combat : débloqué quand 15+ combats gagnés
+  if (!state.discoveryProgress.battleLogUnlocked && totalFightsWon >= 15) {
+    state.discoveryProgress.battleLogUnlocked = true;
+    saveState();
+    notify('⚔ Le Log de combat est maintenant accessible !', 'gold');
+  }
+
+  // Cosmétiques : débloqué quand 30+ combats gagnés
+  if (!state.discoveryProgress.cosmeticsUnlocked && totalFightsWon >= 30) {
+    state.discoveryProgress.cosmeticsUnlocked = true;
+    saveState();
+    notify('🎨 Les Cosmétiques sont maintenant accessibles !', 'gold');
+  }
+
   // Appliquer la visibilité
+  // PC (Pokémon) : TOUJOURS visible, jamais masqué
+  const pcBtn = document.querySelector('[data-tab="tabPC"]');
+  if (pcBtn) pcBtn.style.display = '';
+
   const marketBtn = document.querySelector('[data-tab="tabMarket"]');
   if (marketBtn) marketBtn.style.display = state.discoveryProgress.marketUnlocked ? '' : 'none';
 
   const dexBtn = document.querySelector('[data-tab="tabPokedex"]');
   if (dexBtn) dexBtn.style.display = state.discoveryProgress.pokedexUnlocked ? '' : 'none';
 
+  const agentsBtn = document.querySelector('[data-tab="tabAgents"]');
+  if (agentsBtn) agentsBtn.style.display = state.discoveryProgress.agentsUnlocked ? '' : 'none';
+
   const missionsBtn = document.querySelector('[data-tab="tabMissions"]');
   if (missionsBtn) missionsBtn.style.display = state.discoveryProgress.missionsUnlocked ? '' : 'none';
+
+  const battleLogBtn = document.querySelector('[data-tab="tabBattleLog"]');
+  if (battleLogBtn) battleLogBtn.style.display = state.discoveryProgress.battleLogUnlocked ? '' : 'none';
+
+  const cosmeticsBtn = document.querySelector('[data-tab="tabCosmetics"]');
+  if (cosmeticsBtn) cosmeticsBtn.style.display = state.discoveryProgress.cosmeticsUnlocked ? '' : 'none';
 }
 
 function openTitleModal() {
@@ -3650,6 +3700,9 @@ function tryCapture(zoneId, speciesEN, bonusPotential = 0) {
   if (bonusPotential > 0) pokemon.potential = Math.min(5, pokemon.potential + bonusPotential);
   state.pokemons.push(pokemon);
   state.stats.totalCaught++;
+  // Behavioural log — première capture
+  if (!state.behaviourLogs) state.behaviourLogs = {};
+  if (!state.behaviourLogs.firstCaptureAt) state.behaviourLogs.firstCaptureAt = Date.now();
   // Zone captures counter
   if (zoneId && state.zones[zoneId]) state.zones[zoneId].captures = (state.zones[zoneId].captures || 0) + 1;
   // Pokedex
@@ -3713,6 +3766,9 @@ function resolveCombat(playerTeamIds, trainerData) {
 
 function applyCombatResult(result, playerTeamIds, trainerData) {
   state.stats.totalFights++;
+  // Behavioural log — premier combat
+  if (!state.behaviourLogs) state.behaviourLogs = {};
+  if (!state.behaviourLogs.firstCombatAt) state.behaviourLogs.firstCombatAt = Date.now();
   if (result.win && result.reward >= 0) {
     state.stats.totalFightsWon++;
     if (result.reward > 0) {
@@ -4027,6 +4083,9 @@ function rollNewAgent() {
 function recruitAgent(agentData) {
   state.agents.push(agentData);
   addLog(t('recruit_agent') + ': ' + agentData.name);
+  // Behavioural log — premier agent recruté
+  if (!state.behaviourLogs) state.behaviourLogs = {};
+  if (!state.behaviourLogs.firstAgentAt) state.behaviourLogs.firstAgentAt = Date.now();
   saveState();
 }
 
@@ -4659,6 +4718,9 @@ function buyItem(itemDef) {
   }
   state.gang.money -= actualCost;
   state.stats.totalMoneySpent += actualCost;
+  // Behavioural log — premier achat
+  if (!state.behaviourLogs) state.behaviourLogs = {};
+  if (!state.behaviourLogs.firstPurchaseAt) state.behaviourLogs.firstPurchaseAt = Date.now();
 
   if (itemDef.id === 'translator') {
     state.purchases.translator = true;
@@ -5111,6 +5173,10 @@ function switchTab(tabId) {
     sessionStorage.setItem('pg_visited_tabs', JSON.stringify([..._visitedTabs]));
     showFirstVisitHint(tabId);
   }
+  // Behavioural log — compteur de visites par onglet
+  if (!state.behaviourLogs) state.behaviourLogs = {};
+  if (!state.behaviourLogs.tabViewCounts) state.behaviourLogs.tabViewCounts = {};
+  state.behaviourLogs.tabViewCounts[tabId] = (state.behaviourLogs.tabViewCounts[tabId] || 0) + 1;
 }
 
 function updateTopBar() {
@@ -6406,13 +6472,21 @@ function renderZoneSelector() {
 }
 
 function openZoneWindow(zoneId) {
+  // Guard : si déjà ouverte, ne rien faire (évite les timers orphelins)
+  if (openZones.has(zoneId)) { renderZonesTab(); return; }
   openZones.add(zoneId);
+  // Persister l'ordre pour la musique et le rechargement
+  if (!state.openZoneOrder) state.openZoneOrder = [];
+  if (!state.openZoneOrder.includes(zoneId)) state.openZoneOrder.push(zoneId);
+  saveState();
   initZone(zoneId);
   zoneSpawns[zoneId] = [];
   // Boss auto-moves to first opened zone if not set
   if (!state.gang.bossZone || !openZones.has(state.gang.bossZone)) {
     state.gang.bossZone = zoneId;
   }
+  // Nettoyer un éventuel timer résiduel avant d'en créer un nouveau
+  if (zoneSpawnTimers[zoneId]) { clearInterval(zoneSpawnTimers[zoneId]); delete zoneSpawnTimers[zoneId]; }
   // Start spawn timer
   const zone = ZONE_BY_ID[zoneId];
   if (zone) {
@@ -6425,6 +6499,9 @@ function openZoneWindow(zoneId) {
 
 function closeZoneWindow(zoneId) {
   openZones.delete(zoneId);
+  // Retirer de l'ordre persisté → MusicPlayer ne lira plus cette zone
+  state.openZoneOrder = (state.openZoneOrder || []).filter(id => id !== zoneId);
+  saveState();
   if (zoneSpawnTimers[zoneId]) {
     clearInterval(zoneSpawnTimers[zoneId]);
     delete zoneSpawnTimers[zoneId];
