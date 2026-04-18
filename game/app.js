@@ -1943,21 +1943,158 @@ function importSave(file) {
   reader.onload = (e) => {
     try {
       const raw = JSON.parse(e.target.result);
-      // Detect legacy save: missing eggs/pension/trainingRoom = old version
-      const isLegacy = !raw.eggs || !raw.pension || !raw.trainingRoom;
-      if (isLegacy && (raw.pokemons?.length || raw.agents?.length)) {
-        openLegacyImportModal(raw);
-      } else {
-        state = migrate(raw);
-        saveState();
-        renderAll();
-        notify('Save importée avec succès.', 'success');
+      if (!raw || typeof raw !== 'object' || (!raw.gang && !raw.pokemons)) {
+        notify('Import échoué — fichier invalide ou non-reconnu.', 'error'); return;
       }
+      openImportPreviewModal(raw);
     } catch {
-      notify('Import échoué — fichier invalide.', 'error');
+      notify('Import échoué — fichier JSON invalide.', 'error');
     }
   };
   reader.readAsText(file);
+}
+
+// ── Modal de prévisualisation + conversion d'import ──────────────────────────
+function openImportPreviewModal(raw) {
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px';
+
+  // ── Analyse de la save importée ──────────────────────────────────────────
+  const schemaVer   = raw._schemaVersion ?? raw.version ?? '?';
+  const isLegacy    = !raw.eggs || !raw.pension || !raw.trainingRoom;
+  const isVeryOld   = !raw.gang || !raw.pokemons;
+  const gangName    = raw.gang?.name    ?? '—';
+  const bossName    = raw.gang?.bossName ?? '—';
+  const reputation  = (raw.gang?.reputation ?? 0).toLocaleString();
+  const money       = (raw.gang?.money ?? 0).toLocaleString();
+  const pokeCount   = (raw.pokemons  || []).length;
+  const agentCount  = (raw.agents    || []).length;
+  const dexCaught   = Object.values(raw.pokedex || {}).filter(e => e.caught).length;
+  const shinyCount  = Object.values(raw.pokedex || {}).filter(e => e.shiny).length;
+  const savedAt     = raw._savedAt ? new Date(raw._savedAt).toLocaleString('fr-FR') : '—';
+  const playtime    = raw.playtime  ? formatPlaytime(raw.playtime) : '—';
+
+  // ── Liste des champs qui seront ajoutés/migrés ───────────────────────────
+  const migrations = [];
+  if (!raw.eggs)             migrations.push('Système d\'œufs');
+  if (!raw.pension)          migrations.push('Pension');
+  if (!raw.trainingRoom)     migrations.push('Salle d\'entraînement');
+  if (!raw.missions)         migrations.push('Missions');
+  if (!raw.cosmetics)        migrations.push('Cosmétiques');
+  if (!raw.unlockedTitles)   migrations.push('Titres débloqués');
+  if (raw.gang?.titleC === undefined) migrations.push('Slots de titres (×4)');
+  if (!raw.behaviourLogs)    migrations.push('Logs comportementaux');
+  if (!raw.lab)              migrations.push('Laboratoire');
+  if (!raw.purchases)        migrations.push('Achats spéciaux');
+  if (!raw.eggs && !raw.inventory?.incubator) migrations.push('Inventaire incubateurs');
+  if (raw.settings?.uiScale === undefined) migrations.push('Paramètres UI avancés');
+
+  const migHtml = migrations.length
+    ? migrations.map(m => `<div style="display:flex;gap:6px;align-items:center;font-size:8px;color:var(--text-dim)"><span style="color:var(--green)">✓</span>${m}</div>`).join('')
+    : '<div style="font-size:8px;color:var(--green)">Aucune migration nécessaire — save à jour</div>';
+
+  const versionBadge = isLegacy
+    ? `<span style="font-size:7px;padding:2px 6px;border-radius:8px;background:rgba(255,160,0,.15);border:1px solid #ffa000;color:#ffa000">Version ancienne</span>`
+    : `<span style="font-size:7px;padding:2px 6px;border-radius:8px;background:rgba(0,200,100,.1);border:1px solid var(--green);color:var(--green)">Format compatible</span>`;
+
+  overlay.innerHTML = `
+    <div style="background:var(--bg-panel);border:2px solid var(--gold-dim);border-radius:var(--radius);padding:24px;max-width:620px;width:100%;max-height:90vh;overflow-y:auto;display:flex;flex-direction:column;gap:16px">
+
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div style="font-family:var(--font-pixel);font-size:11px;color:var(--gold)">📥 Importer une Save</div>
+        <button id="btnImportClose" style="background:none;border:none;color:var(--text-dim);font-size:18px;cursor:pointer">✕</button>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+
+        <!-- Infos save importée -->
+        <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;display:flex;flex-direction:column;gap:8px">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div style="font-family:var(--font-pixel);font-size:8px;color:var(--text-dim)">SAVE IMPORTÉE</div>
+            ${versionBadge}
+          </div>
+          <div style="font-family:var(--font-pixel);font-size:12px;color:var(--red)">${gangName}</div>
+          <div style="font-size:9px;color:var(--text-dim)">Boss : <span style="color:var(--text)">${bossName}</span></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-top:4px">
+            <div style="font-size:8px;color:var(--text-dim)">🎯 Pokémon <span style="color:var(--text)">${pokeCount}</span></div>
+            <div style="font-size:8px;color:var(--text-dim)">👤 Agents <span style="color:var(--text)">${agentCount}</span></div>
+            <div style="font-size:8px;color:var(--text-dim)">⭐ Rép. <span style="color:var(--gold)">${reputation}</span></div>
+            <div style="font-size:8px;color:var(--text-dim)">₽ <span style="color:var(--text)">${money}</span></div>
+            <div style="font-size:8px;color:var(--text-dim)">📖 Pokédex <span style="color:var(--text)">${dexCaught}</span></div>
+            <div style="font-size:8px;color:var(--text-dim)">✨ Shinies <span style="color:var(--text)">${shinyCount}</span></div>
+          </div>
+          <div style="font-size:7px;color:var(--text-dim);border-top:1px solid var(--border);padding-top:6px;margin-top:2px">
+            Sauvegardé le ${savedAt}<br>Temps de jeu : ${playtime} · Schéma v${schemaVer}
+          </div>
+        </div>
+
+        <!-- Champs à migrer -->
+        <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;display:flex;flex-direction:column;gap:6px">
+          <div style="font-family:var(--font-pixel);font-size:8px;color:var(--text-dim);margin-bottom:4px">MIGRATION AUTOMATIQUE</div>
+          ${migHtml}
+        </div>
+      </div>
+
+      <!-- Avertissement écrasement -->
+      <div style="background:rgba(204,51,51,.08);border:1px solid rgba(204,51,51,.3);border-radius:var(--radius-sm);padding:10px;font-size:9px;color:var(--text-dim)">
+        ⚠ <b style="color:var(--red)">Import complet</b> : remplacera définitivement la save active (slot ${activeSaveSlot + 1}).
+        Exporte d'abord ta save actuelle si tu veux la conserver.
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <button id="btnImportBackupFirst" style="font-family:var(--font-pixel);font-size:8px;padding:8px 12px;background:var(--bg);border:1px solid var(--border-light);border-radius:var(--radius-sm);color:var(--text-dim);cursor:pointer;text-align:left">
+          💾 Exporter ma save actuelle avant d'importer
+        </button>
+        <div style="display:flex;gap:8px">
+          <button id="btnImportFull" style="flex:2;font-family:var(--font-pixel);font-size:9px;padding:12px;background:var(--bg);border:2px solid var(--gold);border-radius:var(--radius-sm);color:var(--gold);cursor:pointer">
+            ⚡ Import complet<br><span style="font-size:7px;color:var(--text-dim);font-family:sans-serif">Tous les données migrées automatiquement</span>
+          </button>
+          ${isLegacy ? `<button id="btnImportHeritage" style="flex:1;font-family:var(--font-pixel);font-size:9px;padding:12px;background:var(--bg);border:1px solid var(--border-light);border-radius:var(--radius-sm);color:var(--text-dim);cursor:pointer">
+            🏆 Mode héritage<br><span style="font-size:7px;font-family:sans-serif">1 agent + 2 Pokémon</span>
+          </button>` : ''}
+        </div>
+        <button id="btnImportCancel" style="font-family:var(--font-pixel);font-size:8px;padding:8px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-dim);cursor:pointer">
+          Annuler
+        </button>
+      </div>
+    </div>`;
+
+  document.body.appendChild(overlay);
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+
+  overlay.querySelector('#btnImportClose')?.addEventListener('click',  () => overlay.remove());
+  overlay.querySelector('#btnImportCancel')?.addEventListener('click', () => overlay.remove());
+
+  overlay.querySelector('#btnImportBackupFirst')?.addEventListener('click', () => {
+    exportSave();
+    overlay.querySelector('#btnImportBackupFirst').textContent = '✅ Save actuelle exportée !';
+    overlay.querySelector('#btnImportBackupFirst').style.color = 'var(--green)';
+  });
+
+  overlay.querySelector('#btnImportFull')?.addEventListener('click', () => {
+    showConfirm(
+      `Remplacer la save du slot ${activeSaveSlot + 1} par la save importée de "${gangName}" ?`,
+      () => {
+        try {
+          state = migrate(raw);
+          saveState();
+          overlay.remove();
+          renderAll();
+          notify(`✅ Save de "${gangName}" importée et convertie au format actuel.`, 'success');
+        } catch (err) {
+          notify('Erreur lors de la conversion — save non-importée.', 'error');
+          console.error(err);
+        }
+      },
+      null,
+      { confirmLabel: 'Importer', cancelLabel: 'Annuler' }
+    );
+  });
+
+  overlay.querySelector('#btnImportHeritage')?.addEventListener('click', () => {
+    overlay.remove();
+    openLegacyImportModal(raw);
+  });
 }
 
 function openLegacyImportModal(legacyData) {
