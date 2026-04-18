@@ -627,7 +627,7 @@ const ZONES = [
     pool:['tentacool','shellder','staryu','seel','dewgong','horsea','seadra','lapras','articuno','psyduck','goldeen','jynx'],
     trainers:['swimmer','acetrainer'], eliteTrainer:'lorelei', investCost:22000 },
   { id:'victory_road',  fr:'Route Victoire',    en:'Victory Road',      rep:950, spawnRate:0.04, type:'route',
-    pool:['machoke','geodude','graveler','onix','marowak','golbat','dragonair','gyarados'],
+    pool:['machoke','geodude','graveler','onix','marowak','golbat','dragonair','gyarados','moltres'],
     trainers:['acetrainer','blackbelt'], eliteTrainer:'lance', investCost:35000 },
   { id:'unknown_cave',  fr:'Grotte Inconnue',   en:'Cerulean Cave',     rep:1100,spawnRate:0.03, type:'route',
     pool:['mewtwo','ditto','kadabra','alakazam','electrode','rhydon','chansey','wigglytuff'],
@@ -2115,18 +2115,23 @@ function initSession() {
       const saved = JSON.parse(raw);
       if (now - saved.ts < SESSION_IDLE_MS) {
         _sessionBaseline = saved;
+        // Migration : anciens saves de session sans caught/sold
+        if (_sessionBaseline.caughtAtStart === undefined) _sessionBaseline.caughtAtStart = state.stats.totalCaught || 0;
+        if (_sessionBaseline.soldAtStart   === undefined) _sessionBaseline.soldAtStart   = state.stats.totalSold   || 0;
         return; // session en cours — on la continue
       }
     } catch {}
   }
   // Nouvelle session
   _sessionBaseline = {
-    ts:     now,
-    money:  state.gang.money,
-    rep:    state.gang.reputation,
-    pokemon: state.pokemons.length,
-    shinies: state.stats.shinyCaught || 0,
-    fights:  state.stats.totalFightsWon || 0,
+    ts:           now,
+    money:        state.gang.money,
+    rep:          state.gang.reputation,
+    pokemon:      state.pokemons.length,
+    shinies:      state.stats.shinyCaught    || 0,
+    fights:       state.stats.totalFightsWon || 0,
+    caughtAtStart: state.stats.totalCaught   || 0,
+    soldAtStart:   state.stats.totalSold     || 0,
   };
   localStorage.setItem(SESSION_KEY, JSON.stringify(_sessionBaseline));
 }
@@ -2140,24 +2145,32 @@ function _saveSessionActivity() {
 
 function getSessionDelta() {
   if (!_sessionBaseline) return null;
-  const dMoney   = state.gang.money         - _sessionBaseline.money;
-  const dRep     = state.gang.reputation    - _sessionBaseline.rep;
-  const dPokemon = state.pokemons.length    - _sessionBaseline.pokemon;
-  const dShiny   = (state.stats.shinyCaught || 0) - _sessionBaseline.shinies;
-  const dFights  = (state.stats.totalFightsWon || 0) - _sessionBaseline.fights;
-  // N'affiche que les deltas non-nuls
+  const dMoney  = state.gang.money            - _sessionBaseline.money;
+  const dRep    = state.gang.reputation       - _sessionBaseline.rep;
+  const dCaught = (state.stats.totalCaught   || 0) - (_sessionBaseline.caughtAtStart || 0);
+  const dSold   = (state.stats.totalSold     || 0) - (_sessionBaseline.soldAtStart   || 0);
+  const dShiny  = (state.stats.shinyCaught   || 0) - (_sessionBaseline.shinies       || 0);
+  const dFights = (state.stats.totalFightsWon|| 0) - (_sessionBaseline.fights        || 0);
+
   const parts = [];
-  const fmt = (v, icon, unit = '') => {
-    if (v === 0) return null;
-    const sign = v > 0 ? '+' : '';
-    const color = v > 0 ? 'var(--green-dim,#4a8)' : 'var(--red)';
-    return `<span style="color:${color}">${sign}${typeof v === 'number' && Math.abs(v) >= 1000 ? v.toLocaleString() : v}${unit} ${icon}</span>`;
+  const fmtPos = (v, icon) => {
+    if (v <= 0) return null;
+    const color = 'var(--green-dim,#4a8)';
+    return `<span style="color:${color}">+${Math.abs(v) >= 1000 ? v.toLocaleString() : v} ${icon}</span>`;
   };
-  if (dMoney  !== 0) parts.push(fmt(dMoney,  '₽'));
-  if (dPokemon!== 0) parts.push(fmt(dPokemon,'🎯'));
-  if (dRep    !== 0) parts.push(fmt(dRep,    '⭐'));
-  if (dShiny  !== 0) parts.push(fmt(dShiny,  '✨'));
-  if (dFights !== 0) parts.push(fmt(dFights, '⚔'));
+  const fmtAny = (v, icon) => {
+    if (v === 0) return null;
+    const sign  = v > 0 ? '+' : '';
+    const color = v > 0 ? 'var(--green-dim,#4a8)' : 'var(--red)';
+    return `<span style="color:${color}">${sign}${Math.abs(v) >= 1000 ? v.toLocaleString() : v} ${icon}</span>`;
+  };
+
+  if (dMoney  !== 0) parts.push(fmtAny(dMoney,  '₽'));
+  if (dCaught  > 0)  parts.push(fmtPos(dCaught, '🎯'));
+  if (dSold    > 0)  parts.push(`<span style="color:var(--text-dim)">-${dSold} 💱</span>`);
+  if (dRep    !== 0) parts.push(fmtAny(dRep,    '⭐'));
+  if (dShiny   > 0)  parts.push(fmtPos(dShiny,  '✨'));
+  if (dFights  > 0)  parts.push(fmtPos(dFights, '⚔'));
   return parts.filter(Boolean).join(' · ');
 }
 
@@ -5296,6 +5309,51 @@ function isBallAssistActive() {
   return Date.now() < _ballAssistUntil;
 }
 
+// ════════════════════════════════════════════════════════════════
+// RACCOURCIS CLAVIER GLOBAUX
+//  1-7 → onglets  |  Échap → ferme modale/fenêtre de zone
+// ════════════════════════════════════════════════════════════════
+function initKeyboardShortcuts() {
+  document.addEventListener('keydown', e => {
+    // Ignore si le focus est dans un champ texte
+    const tag = e.target.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+    // Ignore si une modale bloquante est ouverte
+    if (document.getElementById('settingsModal')?.classList.contains('active')) return;
+    if (document.getElementById('confirmModal')) return;
+
+    switch (e.key) {
+      // ── Onglets principaux ───────────────────────────────────
+      case '1': switchTab('tabZones');    break;
+      case '2': switchTab('tabPC');       break;
+      case '3': switchTab('tabAgents');   break;
+      case '4': switchTab('tabMarket');   break;
+      case '5': switchTab('tabGang');     break;
+      case '6': switchTab('tabPokedex');  break;
+      case '7': switchTab('tabCosmetics'); break;
+
+      // ── Sous-vues PC ─────────────────────────────────────────
+      case 'p': case 'P':
+        pcView = 'grid'; switchTab('tabPC'); break;
+      case 'e': case 'E':
+        pcView = 'eggs'; switchTab('tabPC'); break;
+      case 't': case 'T':
+        pcView = 'training'; switchTab('tabPC'); break;
+      case 'l': case 'L':
+        pcView = 'lab'; switchTab('tabPC'); break;
+
+      // ── Fermeture rapide ─────────────────────────────────────
+      case 'Escape': {
+        // Ferme d'abord les fenêtres de zone ouvertes
+        if (openZones && openZones.size > 0) {
+          for (const zid of [...openZones]) closeZoneWindow(zid);
+        }
+        break;
+      }
+    }
+  });
+}
+
 function switchTab(tabId) {
   if (tabId !== 'tabPC') _pcLastRenderKey = ''; // force full rebuild on next PC visit
   SFX.play('tabSwitch');
@@ -5329,6 +5387,8 @@ function updateTopBar() {
   if (moneyEl) moneyEl.innerHTML = `<span>₽</span> ${state.gang.money.toLocaleString()}`;
   const repEl = document.getElementById('repDisplay');
   if (repEl) repEl.innerHTML = `<span>⭐</span> ${state.gang.reputation.toLocaleString()}`;
+  const pkCountEl = document.getElementById('pokemonCountDisplay');
+  if (pkCountEl) pkCountEl.innerHTML = `<span>🎯</span> ${state.pokemons.length.toLocaleString()}`;
 
   // ── Ball assist silencieux (early-game) ───────────────────
   checkBallAssist();
@@ -6019,12 +6079,12 @@ function renderGangTab() {
 
   // ── Stats ──
   const statsHtml = [
-    [s.totalCaught, 'Captures'],
-    [s.totalSold, 'Vendus'],
+    [state.pokemons.length,                  'Possédés'],
+    [s.totalCaught,                          'Capturés'],
+    [s.totalSold,                            'Vendus'],
+    [s.shinyCaught,                          '✨ Chromas'],
     [`${s.totalFightsWon}/${s.totalFights}`, 'Combats'],
     [`${s.totalMoneyEarned.toLocaleString()}₽`, 'Gains'],
-    [s.shinyCaught, 'Shinies'],
-    [g.reputation, 'Réputation'],
   ].map(([val, label]) => `<div class="gang-stat-card"><div class="stat-value">${val}</div><div class="stat-label">${label}</div></div>`).join('');
 
   const repPct = Math.min(100, g.reputation);
@@ -13250,6 +13310,9 @@ function boot() {
 
   // Init settings
   initSettings();
+
+  // Raccourcis clavier globaux
+  initKeyboardShortcuts();
 
   // Init missions
   initMissions();
