@@ -1570,7 +1570,6 @@ const DEFAULT_STATE = {
     eggAt: null,    // timestamp when next egg generates
   },
   eggs: [],         // [{ id, species_en, hatchAt, potential, shiny }]
-  lastBillCall: 0,
   playtime: 0,      // secondes de jeu total
   sessionStart: 0,  // timestamp début session
   openZoneOrder: [],
@@ -1763,7 +1762,6 @@ function migrate(saved) {
   if (merged.settings.lightTheme === undefined) merged.settings.lightTheme = false;
   if (merged.settings.lowSpec === undefined)   merged.settings.lowSpec  = false;
   if (!merged.settings.sfxIndividual)          merged.settings.sfxIndividual = {};
-  if (!merged.lastBillCall) merged.lastBillCall = 0;
   if (!merged.pension) merged.pension = { slotA: null, slotB: null, eggAt: null };
   if (!merged.eggs) merged.eggs = [];
   // Migration: eggs need incubating flag; auto-hatching eggs get paused
@@ -2363,10 +2361,9 @@ const SFX = (() => {
       setTimeout(() => playTone(880, 0.05, 'sine', 0.05), 50);
     },
     buy() {
-      // Achat confirmé — cha-ching
-      playTone(523, 0.06, 'sine', 0.1);
-      setTimeout(() => playTone(659, 0.06, 'sine', 0.1), 70);
-      setTimeout(() => playTone(1047, 0.12, 'sine', 0.12), 130);
+      // Achat confirmé — coin sound plus grave
+      playTone(659, 0.08, 'sine', 0.1);
+      setTimeout(() => playTone(880, 0.12, 'sine', 0.12), 80);
     },
     unlock() {
       // Déverrouillage / découverte — fanfare ascendante
@@ -2801,7 +2798,7 @@ function showInfoModal(tabId) {
       body: `
         <strong>Quêtes horaires</strong> — 3 quêtes Moyennes + 2 Difficiles, réinitialisées toutes les heures. Reroll possible contre 10 rep.<br><br>
         <strong>Histoire & Objectifs</strong> — Quêtes permanentes liées à la progression. Complète-les pour des grosses récompenses.<br><br>
-        <strong>Balls</strong> — Chaque type améliore le potentiel max capturé. Troc (onglet Troc) : 10 PB→1 GB, 10 GB→1 UB, 10 UB→1 MB.<br><br>
+        <strong>Balls</strong> — Chaque type améliore le potentiel max capturé. Troc (onglet Troc) : 10 PB→1 GB, 10 GB→1 UB, 100 UB⇄1 MB.<br><br>
         <strong>Multiplicateur ×1/×5/×10</strong> — Achète en lot depuis la boutique.<br><br>
         <strong>Boosts temporaires</strong> — S'activent depuis le Sac dans la fenêtre de zone. Durée 60–90s.<br><br>
         <span class="dim">Vends des Pokémon depuis le PC pour financer tes achats.</span>
@@ -8910,20 +8907,39 @@ function renderMarketTab() {
 // ── Troc d'objets ─────────────────────────────────────────────
 const BARTER_RECIPES = [
   // [donnerItemId, donnerQty, recevoirItemId, recevoirQty, label]
-  ['pokeball',  10, 'greatball',  1,  '10 Poké Balls → 1 Super Ball'],
-  ['greatball', 10, 'ultraball',  1,  '10 Super Balls → 1 Hyper Ball'],
-  ['ultraball', 10, 'masterball', 1,  '10 Hyper Balls → 1 Master Ball'],
-  ['lure',       5, 'superlure',  1,  '5 Leurres → 1 Super Leurre'],
-  ['superlure',  3, 'evostone',   1,  '3 Super Leurres → 1 Pierre Évol.'],
-  ['rarecandy',  3, 'evostone',   1,  '3 Super Bonbons → 1 Pierre Évol.'],
-  ['incense',    3, 'aura',       1,  '3 Encens → 1 Aura Shiny'],
-  ['potion',    10, 'rarecandy',  1,  '10 Potions → 1 Super Bonbon'],
+  ['pokeball',  10, 'greatball',  1,   '10 Poké Balls → 1 Super Ball'],
+  ['greatball', 10, 'ultraball',  1,   '10 Super Balls → 1 Hyper Ball'],
+  // index 2 = MB ⇄ HB (bidirectionnel — voir _barterMbReverse)
+  ['ultraball', 100, 'masterball', 1,  '100 Hyper Balls → 1 Master Ball'],
+  ['lure',       5, 'superlure',  1,   '5 Leurres → 1 Super Leurre'],
+  ['superlure',  3, 'evostone',   1,   '3 Super Leurres → 1 Pierre Évol.'],
+  ['rarecandy',  3, 'evostone',   1,   '3 Super Bonbons → 1 Pierre Évol.'],
+  ['incense',    3, 'aura',       1,   '3 Encens → 1 Aura Shiny'],
+  ['potion',    10, 'rarecandy',  1,   '10 Potions → 1 Super Bonbon'],
 ];
+
+// Sens du troc MB ⇄ HB (false = 100 HB→1 MB ; true = 1 MB→100 HB)
+let _barterMbReverse = false;
 
 function renderBarterPanel() {
   const panel = document.querySelector('#barterPanel .barter-list');
   if (!panel) return;
-  panel.innerHTML = BARTER_RECIPES.map((r, i) => {
+
+  // Recette active pour le troc MB (index 2), sens selon _barterMbReverse
+  const mbRecipe = _barterMbReverse
+    ? ['masterball', 1,   'ultraball', 100, '1 Master Ball → 100 Hyper Balls']
+    : ['ultraball',  100, 'masterball', 1,  '100 Hyper Balls → 1 Master Ball'];
+  const recipes = [...BARTER_RECIPES];
+  recipes[2] = mbRecipe;
+
+  // Bouton toggle sens MB en tête de panel
+  const toggleBtn = `<div style="padding:6px 4px 4px;border-bottom:1px solid var(--border)">
+    <button id="btnBarterMbToggle" style="font-family:var(--font-pixel);font-size:7px;padding:4px 10px;background:var(--bg);border:1px solid var(--gold-dim);border-radius:var(--radius-sm);color:var(--gold);cursor:pointer">
+      ⇄ ${_barterMbReverse ? 'MB → 100 HB' : '100 HB → MB'}
+    </button>
+  </div>`;
+
+  panel.innerHTML = toggleBtn + recipes.map((r, i) => {
     const [giveId, giveQty, getId, getQty, label] = r;
     const owned = state.inventory?.[giveId] || 0;
     const canAfford = owned >= giveQty;
@@ -8935,9 +8951,14 @@ function renderBarterPanel() {
     </div>`;
   }).join('');
 
+  document.getElementById('btnBarterMbToggle')?.addEventListener('click', () => {
+    _barterMbReverse = !_barterMbReverse;
+    renderBarterPanel();
+  });
+
   panel.querySelectorAll('[data-barter]').forEach(btn => {
     btn.addEventListener('click', () => {
-      const [giveId, giveQty, getId, getQty] = BARTER_RECIPES[parseInt(btn.dataset.barter)];
+      const [giveId, giveQty, getId, getQty] = recipes[parseInt(btn.dataset.barter)];
       if ((state.inventory?.[giveId] || 0) < giveQty) { SFX.play('error'); return; }
       state.inventory[giveId] -= giveQty;
       state.inventory[getId] = (state.inventory[getId] || 0) + getQty;
@@ -12545,28 +12566,6 @@ function startGameLoop() {
     }
   }, 1000);
 
-  // "Appel de Léo" — Bill teleports a rare Pokemon to your PC every 3 hours
-  const BILL_INTERVAL = 3 * 60 * 60 * 1000;
-  const BILL_POOL = [
-    'porygon','lapras','eevee','jynx','electabuzz','magmar','pinsir','tauros',
-    'scyther','dratini','chansey','snorlax','farfetchd','lickitung','hitmonlee','hitmonchan',
-  ];
-  setInterval(() => {
-    if (Date.now() - state.lastBillCall >= BILL_INTERVAL) {
-      state.lastBillCall = Date.now();
-      const species_en = pick(BILL_POOL);
-      const sp = SPECIES_BY_EN[species_en];
-      if (!sp) return;
-      const p = makePokemon(species_en, 'bill_pc', 'pokeball');
-      if (!p) return;
-      p.level = randInt(15, 35);
-      p.capturedIn = 'bill_pc';
-      p.stats = calculateStats(p);
-      state.pokemons.push(p);
-      saveState();
-      notify(`Léo a téléporté un ${speciesName(species_en)} dans votre PC !`, 'gold');
-    }
-  }, 5 * 60 * 1000); // check every 5 minutes
 }
 
 // ════════════════════════════════════════════════════════════════
