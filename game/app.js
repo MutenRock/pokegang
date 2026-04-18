@@ -11432,6 +11432,7 @@ function renderSettingsPanel() {
   // Live music volume preview
   window._MusicPlayer_setVol = (v) => MusicPlayer.setVolume(parseInt(v) / 1000);
 
+
   // Re-bind export/import/purge/reset buttons (they're now inside settingsContent)
   _bindSettingsActionButtons();
 
