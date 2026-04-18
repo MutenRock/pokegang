@@ -369,8 +369,6 @@
     .zone-spawn.catching { pointer-events: none; animation: none; }
     /* Sprites dans les zones — plus grands + ombre */
     .zone-spawn img {
-      width: 72px !important;
-      height: 72px !important;
       filter: drop-shadow(0 3px 4px rgba(0,0,0,.8));
     }
 
@@ -1725,6 +1723,55 @@
     .settings-actions button.danger { border-color: var(--red-dark); color: var(--red); }
     .settings-actions button.danger:hover { background: var(--red-dark); color: #fff; }
 
+    /* ── Settings toggle buttons ── */
+    .s-toggle {
+      font-family: var(--font-pixel);
+      font-size: 8px;
+      padding: 5px 14px;
+      border-radius: 20px;
+      cursor: pointer;
+      min-width: 96px;
+      text-align: center;
+      transition: all .15s;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text-dim);
+      white-space: nowrap;
+    }
+    .s-toggle[data-on="true"] {
+      border-color: var(--green);
+      color: var(--green);
+      background: rgba(68,187,85,.12);
+    }
+    /* ── Light theme ── */
+    body.theme-light {
+      --bg: #f0f0f0;
+      --bg-card: #e5e5e5;
+      --bg-panel: #ddd;
+      --bg-hover: #ccc;
+      --border: #bbb;
+      --border-light: #999;
+      --text: #111;
+      --text-dim: #555;
+    }
+    /* ── Low-spec (reduce motion) ── */
+    body.low-spec *, body.low-spec *::before, body.low-spec *::after {
+      animation-duration: .001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: .001ms !important;
+    }
+    /* ── Zone sprite scale (env sprites only) ── */
+    .zone-spawn img {
+      width: calc(72px * var(--zone-scale, 1)) !important;
+      height: calc(72px * var(--zone-scale, 1)) !important;
+    }
+    /* ── SFX sub-list accordion ── */
+    .sfx-sublist { margin-top:6px; }
+    .sfx-sublist-inner { display:none; flex-direction:column; gap:2px; margin-top:8px; padding:8px; background:var(--bg); border:1px solid var(--border); border-radius:var(--radius-sm); }
+    .sfx-sublist-inner.open { display:flex; }
+    .sfx-sub-row { display:flex; align-items:center; justify-content:space-between; padding:4px 0; }
+    .sfx-sub-row label { font-size:10px; color:var(--text-dim); }
+
     /* ══════════════════════════════════════════════════════════════
        UX POLISH — Lisibilité, Focus Visuel, Feedback Dopamine
     ══════════════════════════════════════════════════════════════ */
@@ -3051,118 +3098,11 @@
     <div class="settings-box">
       <div class="settings-header">
         <h2>⚙ Paramètres</h2>
-        <button class="btn-close" id="btnCloseSettings" title="Fermer sans sauvegarder">&times;</button>
+        <button class="btn-close" id="btnCloseSettings" title="Fermer">&times;</button>
       </div>
-
-      <div class="settings-content">
-
-      <div class="settings-section">
-        <h4>Langue</h4>
-        <div class="settings-row">
-          <label>Langue du jeu</label>
-          <select id="settingLang">
-            <option value="fr" selected>Français</option>
-            <option value="en">English</option>
-          </select>
-        </div>
+      <div class="settings-content" id="settingsContent">
+        <!-- rendered by renderSettingsPanel() -->
       </div>
-
-      <div class="settings-section">
-        <h4>IA / LLM</h4>
-        <div class="settings-row">
-          <label>Fournisseur</label>
-          <select id="settingLLM">
-            <option value="none">Aucun</option>
-            <option value="openai">OpenAI</option>
-            <option value="anthropic">Anthropic</option>
-            <option value="local">Local (Ollama)</option>
-          </select>
-        </div>
-        <div class="settings-row">
-          <label>Clé API</label>
-          <input type="text" id="settingAPIKey" placeholder="sk-...">
-        </div>
-      </div>
-
-      <div class="settings-section">
-        <h4>Gameplay</h4>
-        <div class="settings-row">
-          <label>Auto-combat agents</label>
-          <input type="checkbox" id="settingAutoCombat" checked>
-        </div>
-        <div class="settings-row">
-          <label>Mode Découverte (tutoriel)</label>
-          <input type="checkbox" id="settingDiscoveryMode" checked>
-        </div>
-        <div class="settings-row">
-          <label>Sprites classiques <span style="font-size:.75em;opacity:.6">(Gen 5 animés Showdown)</span></label>
-          <input type="checkbox" id="settingClassicSprites">
-        </div>
-        <div class="settings-row">
-          <label>Musique de fond</label>
-          <input type="checkbox" id="settingMusic">
-        </div>
-        <div class="settings-row">
-          <label>Volume musique <span id="settingMusicVolVal" style="color:var(--gold);margin-left:4px">50%</span></label>
-          <input type="range" id="settingMusicVol" min="0" max="100" step="5" value="50" style="width:110px"
-            oninput="document.getElementById('settingMusicVolVal').textContent=this.value+'%'">
-        </div>
-        <div class="settings-row">
-          <label>Effets sonores (SFX)</label>
-          <input type="checkbox" id="settingSFX" checked>
-        </div>
-        <div class="settings-row">
-          <label>Taille de l'interface <span id="settingUIScaleVal" style="color:var(--gold);margin-left:4px">100%</span></label>
-          <input type="range" id="settingUIScale" min="70" max="130" step="5" value="100" style="width:110px"
-            oninput="document.getElementById('settingUIScaleVal').textContent=this.value+'%';document.documentElement.style.setProperty('--ui-scale',(this.value/100).toFixed(2))">
-        </div>
-      </div>
-
-      <div class="settings-section">
-        <h4>Sauvegarde</h4>
-        <div class="settings-actions">
-          <button id="btnExportSave">📤 Exporter</button>
-          <button id="btnImportSave">📥 Importer</button>
-        </div>
-      </div>
-
-      <div class="settings-section">
-        <h4>Cache</h4>
-        <div class="settings-actions">
-          <button id="btnPurgeSprites" class="danger">Purger sprites</button>
-          <button id="btnResetAll" class="danger">Reset complet</button>
-        </div>
-      </div>
-
-      <div class="settings-section">
-        <h4>🎁 Code récompense</h4>
-        <div class="settings-row" style="flex-direction:column;align-items:stretch;gap:6px">
-          <div style="display:flex;gap:6px">
-            <input type="text" id="rewardCodeInput" placeholder="Entre un code..." style="flex:1;text-transform:uppercase;letter-spacing:1px">
-            <button id="btnRedeemCode" style="font-family:var(--font-pixel);font-size:8px;padding:6px 10px;background:var(--red-dark);border:1px solid var(--red);border-radius:var(--radius-sm);color:var(--text);cursor:pointer;white-space:nowrap">Valider</button>
-          </div>
-          <div style="font-size:9px;color:var(--text-dim)">Les codes sont distribués sur le Discord.</div>
-        </div>
-      </div>
-
-      <div class="settings-section">
-        <h4>Aide &amp; Contact</h4>
-        <div style="font-size:10px;color:var(--text-dim);line-height:1.6;margin-bottom:10px">
-          <b style="color:var(--gold)">PokéForge — Gang Wars</b><br>
-          Capturez des Pokémon, recrutez des agents, combattez des dresseurs et élargissez votre gang.<br><br>
-          <b style="color:var(--text)">Progression :</b> Gagnez de la réputation via les <b>combats spéciaux</b> et les <b>raids</b> pour débloquer de nouvelles zones.<br>
-          <b style="color:var(--text)">Oeufs :</b> Élevez des Pokémon à la Pension pour obtenir des oeufs — achetez un <b>incubateur</b> au Marché pour les faire éclore.<br>
-          <b style="color:var(--text)">Entraînement :</b> Placez des Pokémon en salle d'entraînement pour des XP passifs. Améliorez la salle pour plus d'efficacité.<br>
-          <b style="color:var(--text)">Agents :</b> Recrutez des agents et assignez-les à des zones pour automatiser captures et combats.<br>
-          <b style="color:var(--text)">Labo :</b> Sacrifiez des doublons pour améliorer le potentiel de vos meilleurs Pokémon.
-        </div>
-        <div style="padding:8px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:10px;text-align:center">
-          Contact &amp; Support — Discord : <b style="color:var(--gold)">mutenrock</b>
-        </div>
-      </div>
-
-      </div><!-- end .settings-content -->
-
       <div class="settings-footer">
         <div style="font-family:var(--font-pixel);font-size:7px;color:var(--text-dim);opacity:.6;letter-spacing:1px">
           PokéGang <span id="settingsVersion"></span>

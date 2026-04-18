@@ -1532,6 +1532,11 @@ const DEFAULT_STATE = {
     musicVol: 50,
     uiScale: 100,
     musicEnabled: false,
+    sfxVol: 80,
+    zoneScale: 100,
+    lightTheme: false,
+    lowSpec: false,
+    sfxIndividual: {},
     autoCombat: true,
     discoveryMode: true,
     autoBuyBall: null,  // null | 'pokeball' | 'greatball' | 'ultraball'
@@ -1753,6 +1758,11 @@ function migrate(saved) {
   if (!merged.favoriteZones) merged.favoriteZones = [];
   if (merged.settings.uiScale === undefined) merged.settings.uiScale = 100;
   if (merged.settings.musicVol === undefined) merged.settings.musicVol = 50;
+  if (merged.settings.sfxVol === undefined)   merged.settings.sfxVol   = 80;
+  if (merged.settings.zoneScale === undefined) merged.settings.zoneScale = 100;
+  if (merged.settings.lightTheme === undefined) merged.settings.lightTheme = false;
+  if (merged.settings.lowSpec === undefined)   merged.settings.lowSpec  = false;
+  if (!merged.settings.sfxIndividual)          merged.settings.sfxIndividual = {};
   if (!merged.lastBillCall) merged.lastBillCall = 0;
   if (!merged.pension) merged.pension = { slotA: null, slotB: null, eggAt: null };
   if (!merged.eggs) merged.eggs = [];
@@ -2288,10 +2298,11 @@ const SFX = (() => {
     const c = getCtx();
     const osc = c.createOscillator();
     const gain = c.createGain();
+    const sfxMult = (state?.settings?.sfxVol ?? 80) / 100;
     osc.type = type;
     osc.frequency.setValueAtTime(freq, c.currentTime);
-    gain.gain.setValueAtTime(volume, c.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, c.currentTime + duration);
+    gain.gain.setValueAtTime(volume * sfxMult, c.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + duration);
     osc.connect(gain);
     gain.connect(c.destination);
     osc.start();
@@ -2406,6 +2417,7 @@ const SFX = (() => {
     _enabled() { return state?.settings?.sfxEnabled !== false; },
     play(name, ...args) {
       if (!this._enabled()) return;
+      if (state?.settings?.sfxIndividual?.[name] === false) return;
       try { this[name]?.(...args); } catch {}
     },
   };
@@ -3600,11 +3612,23 @@ function spawnInZone(zoneId) {
   } else if (isBoostActive('rarescope') && Math.random() < 0.5) {
     const filteredRare = zone.pool.filter(en => {
       const sp = SPECIES_BY_EN[en];
-      return sp && (sp.rarity === 'rare' || sp.rarity === 'very_rare' || sp.rarity === 'legendary');
+      return sp && (sp.rarity === 'rare' || sp.rarity === 'very_rare');
+      // légendaires exclus du boost rarescope
     });
     speciesEN = filteredRare.length > 0 ? pick(filteredRare) : pick(zone.pool);
   } else {
-    speciesEN = pick(zone.pool);
+    // Legendaires : poids très faible (5%) par rapport aux autres pokémon
+    const poolWithWeights = zone.pool.map(en => ({
+      en,
+      w: SPECIES_BY_EN[en]?.rarity === 'legendary' ? 0.05 : 1,
+    }));
+    const totalW = poolWithWeights.reduce((s, x) => s + x.w, 0);
+    let roll = Math.random() * totalW;
+    speciesEN = poolWithWeights[poolWithWeights.length - 1].en;
+    for (const x of poolWithWeights) {
+      roll -= x.w;
+      if (roll <= 0) { speciesEN = x.en; break; }
+    }
   }
   return { type: 'pokemon', species_en: speciesEN };
 }
@@ -10909,20 +10933,7 @@ function showIntro() {
   document.getElementById('introSettingsBtn')?.addEventListener('click', () => {
     const modal = document.getElementById('settingsModal');
     if (modal) {
-      const langSel = document.getElementById('settingLang');
-      if (langSel) langSel.value = state.lang;
-      const llmSel = document.getElementById('settingLLM');
-      if (llmSel) llmSel.value = state.settings.llmProvider;
-      const apiKey = document.getElementById('settingAPIKey');
-      if (apiKey) apiKey.value = state.settings.llmApiKey;
-      const autoCombat = document.getElementById('settingAutoCombat');
-      if (autoCombat) autoCombat.checked = state.settings.autoCombat !== false;
-      const discoveryMode = document.getElementById('settingDiscoveryMode');
-      if (discoveryMode) discoveryMode.checked = state.settings.discoveryMode !== false;
-      const classicSprites = document.getElementById('settingClassicSprites');
-      if (classicSprites) classicSprites.checked = state.settings.classicSprites === true;
-      const sfx = document.getElementById('settingSFX');
-      if (sfx) sfx.checked = state.settings.sfxEnabled !== false;
+      renderSettingsPanel();
       modal.classList.add('active');
     }
   });
@@ -11221,70 +11232,312 @@ function showBossSpriteRepairModal() {
 // 20.  UI — SETTINGS MODAL
 // ════════════════════════════════════════════════════════════════
 
+// ── SFX individual sound labels ────────────────────────────────
+const SFX_LABELS = {
+  levelUp:   'Montée de niveau',
+  capture:   'Capture',
+  evolve:    'Évolution',
+  ballThrow: 'Lancer de Ball',
+  notify:    'Notification',
+  coin:      'Argent / Récolte',
+  buy:       'Achat',
+  unlock:    'Déverrouillage',
+  chest:     'Coffre',
+  sell:      'Vente',
+  error:     'Erreur',
+  click:     'Clic UI',
+  tabSwitch: 'Changement onglet',
+  menuOpen:  'Ouverture menu',
+  menuClose: 'Fermeture menu',
+};
+
+function renderSettingsPanel() {
+  const el = document.getElementById('settingsContent');
+  if (!el) return;
+
+  const S = state.settings;
+
+  // Helper: toggle button HTML
+  const tog = (id, on, label) => `<button class="s-toggle" data-toggle-id="${id}" data-on="${!!on}">${on ? 'Activé' : 'Désactivé'}</button>`;
+
+  // SFX individual rows
+  const sfxRows = Object.entries(SFX_LABELS).map(([key, label]) => {
+    const on = S.sfxIndividual?.[key] !== false;
+    return `<div class="sfx-sub-row">
+      <label>${label}</label>
+      <button class="s-toggle" data-sfx-key="${key}" data-on="${on}">${on ? 'Activé' : 'Désactivé'}</button>
+    </div>`;
+  }).join('');
+
+  el.innerHTML = `
+    <!-- Langue -->
+    <div class="settings-section">
+      <h4>🌐 Langue</h4>
+      <div class="settings-row">
+        <label>Langue du jeu</label>
+        <select id="settingLang">
+          <option value="fr" ${S.lang === 'fr' || state.lang === 'fr' ? 'selected' : ''}>Français</option>
+          <option value="en" ${state.lang === 'en' ? 'selected' : ''}>English</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Gameplay -->
+    <div class="settings-section">
+      <h4>🎮 Gameplay</h4>
+      <div class="settings-row">
+        <label>Auto-combat agents</label>
+        ${tog('autoCombat', S.autoCombat !== false)}
+      </div>
+      <div class="settings-row">
+        <label>Mode Découverte <span style="font-size:.75em;opacity:.6">(tutoriel progressif)</span></label>
+        ${tog('discoveryMode', S.discoveryMode !== false)}
+      </div>
+      <div class="settings-row">
+        <label>Sprites classiques <span style="font-size:.75em;opacity:.6">(Gen 5 Showdown)</span></label>
+        ${tog('classicSprites', S.classicSprites === true)}
+      </div>
+    </div>
+
+    <!-- Audio -->
+    <div class="settings-section">
+      <h4>🔊 Audio</h4>
+      <div class="settings-row">
+        <label>Musique de fond</label>
+        ${tog('music', S.musicEnabled === true)}
+      </div>
+      <div class="settings-row">
+        <label>Volume musique <span id="sVolMusicVal" style="color:var(--gold);margin-left:4px">${S.musicVol ?? 80}%</span></label>
+        <input type="range" id="sVolMusic" min="0" max="100" step="5" value="${S.musicVol ?? 80}" style="width:110px"
+          oninput="document.getElementById('sVolMusicVal').textContent=this.value+'%';window._MusicPlayer_setVol(this.value)">
+      </div>
+      <div class="settings-row">
+        <label>Effets sonores (SFX)</label>
+        ${tog('sfx', S.sfxEnabled !== false)}
+      </div>
+      <div class="settings-row">
+        <label>Volume SFX <span id="sVolSFXVal" style="color:var(--gold);margin-left:4px">${S.sfxVol ?? 80}%</span></label>
+        <input type="range" id="sVolSFX" min="0" max="100" step="5" value="${S.sfxVol ?? 80}" style="width:110px"
+          oninput="document.getElementById('sVolSFXVal').textContent=this.value+'%'">
+      </div>
+      <div class="sfx-sublist">
+        <button id="btnSfxSubToggle" style="font-family:var(--font-pixel);font-size:8px;padding:4px 10px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-dim);cursor:pointer;width:100%;text-align:left">
+          ▸ Sons individuels
+        </button>
+        <div class="sfx-sublist-inner" id="sfxSubList">
+          ${sfxRows}
+        </div>
+      </div>
+    </div>
+
+    <!-- Affichage -->
+    <div class="settings-section">
+      <h4>🖥 Affichage</h4>
+      <div class="settings-row">
+        <label>Thème clair</label>
+        ${tog('lightTheme', S.lightTheme === true)}
+      </div>
+      <div class="settings-row">
+        <label>Mode légère <span style="font-size:.75em;opacity:.6">(réduit animations)</span></label>
+        ${tog('lowSpec', S.lowSpec === true)}
+      </div>
+      <div class="settings-row">
+        <label>Taille interface <span id="sUIScaleVal" style="color:var(--gold);margin-left:4px">${S.uiScale ?? 100}%</span></label>
+        <input type="range" id="sUIScale" min="70" max="130" step="5" value="${S.uiScale ?? 100}" style="width:110px"
+          oninput="document.getElementById('sUIScaleVal').textContent=this.value+'%';document.documentElement.style.setProperty('--ui-scale',(this.value/100).toFixed(2))">
+      </div>
+      <div class="settings-row">
+        <label>Sprites zones <span id="sZoneScaleVal" style="color:var(--gold);margin-left:4px">${S.zoneScale ?? 100}%</span></label>
+        <input type="range" id="sZoneScale" min="50" max="200" step="10" value="${S.zoneScale ?? 100}" style="width:110px"
+          oninput="document.getElementById('sZoneScaleVal').textContent=this.value+'%';document.documentElement.style.setProperty('--zone-scale',(this.value/100).toFixed(2))">
+      </div>
+    </div>
+
+    <!-- Sauvegarde -->
+    <div class="settings-section">
+      <h4>💾 Sauvegarde</h4>
+      <div class="settings-actions">
+        <button id="btnExportSave">📤 Exporter</button>
+        <button id="btnImportSave">📥 Importer</button>
+      </div>
+    </div>
+
+    <!-- Cache -->
+    <div class="settings-section">
+      <h4>🗑 Cache</h4>
+      <div class="settings-actions">
+        <button id="btnPurgeSprites" class="danger">Purger sprites</button>
+        <button id="btnResetAll" class="danger">Reset complet</button>
+      </div>
+    </div>
+
+    <!-- Code récompense -->
+    <div class="settings-section">
+      <h4>🎁 Code récompense</h4>
+      <div class="settings-row" style="flex-direction:column;align-items:stretch;gap:6px">
+        <div style="display:flex;gap:6px">
+          <input type="text" id="rewardCodeInput" placeholder="Entre un code..." style="flex:1;text-transform:uppercase;letter-spacing:1px">
+          <button id="btnRedeemCode" style="font-family:var(--font-pixel);font-size:8px;padding:6px 10px;background:var(--red-dark);border:1px solid var(--red);border-radius:var(--radius-sm);color:var(--text);cursor:pointer;white-space:nowrap">Valider</button>
+        </div>
+        <div style="font-size:9px;color:var(--text-dim)">Les codes sont distribués sur le Discord.</div>
+      </div>
+    </div>
+
+    <!-- Aide -->
+    <div class="settings-section">
+      <h4>ℹ Aide &amp; Contact</h4>
+      <div style="font-size:10px;color:var(--text-dim);line-height:1.6;margin-bottom:10px">
+        <b style="color:var(--gold)">PokéForge — Gang Wars</b><br>
+        Capturez des Pokémon, recrutez des agents, combattez des dresseurs et élargissez votre gang.<br><br>
+        <b style="color:var(--text)">Progression :</b> Gagnez de la réputation via les <b>combats spéciaux</b> et les <b>raids</b>.<br>
+        <b style="color:var(--text)">Oeufs :</b> Élevez des Pokémon à la Pension — achetez un <b>incubateur</b> au Marché.<br>
+        <b style="color:var(--text)">Agents :</b> Recrutez des agents et assignez-les à des zones pour automatiser captures et combats.<br>
+        <b style="color:var(--text)">Labo :</b> Sacrifiez des doublons pour améliorer le potentiel de vos meilleurs Pokémon.
+      </div>
+      <div style="padding:8px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:10px;text-align:center">
+        Contact &amp; Support — Discord : <b style="color:var(--gold)">mutenrock</b>
+      </div>
+    </div>
+  `;
+
+  // Toggle click handlers
+  el.querySelectorAll('.s-toggle[data-toggle-id]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const on = btn.dataset.on !== 'true';
+      btn.dataset.on = String(on);
+      btn.textContent = on ? 'Activé' : 'Désactivé';
+    });
+  });
+
+  // SFX individual toggles
+  el.querySelectorAll('.s-toggle[data-sfx-key]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const on = btn.dataset.on !== 'true';
+      btn.dataset.on = String(on);
+      btn.textContent = on ? 'Activé' : 'Désactivé';
+    });
+  });
+
+  // SFX sub-list accordion
+  document.getElementById('btnSfxSubToggle')?.addEventListener('click', () => {
+    const inner = document.getElementById('sfxSubList');
+    if (inner) {
+      inner.classList.toggle('open');
+      const arrow = inner.classList.contains('open') ? '▾' : '▸';
+      const btn = document.getElementById('btnSfxSubToggle');
+      if (btn) btn.textContent = `${arrow} Sons individuels`;
+    }
+  });
+
+  // Live music volume preview
+  window._MusicPlayer_setVol = (v) => MusicPlayer.setVolume(parseInt(v) / 1000);
+
+
+  // Re-bind export/import/purge/reset buttons (they're now inside settingsContent)
+  _bindSettingsActionButtons();
+
+  // Afficher la version dans les settings
+  const settingsVersionEl = document.getElementById('settingsVersion');
+  if (settingsVersionEl) settingsVersionEl.textContent = GAME_VERSION;
+}
+
+function _bindSettingsActionButtons() {
+  document.getElementById('btnExportSave')?.addEventListener('click', exportSave);
+  document.getElementById('btnImportSave')?.addEventListener('click', () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.addEventListener('change', () => {
+      if (input.files[0]) importSave(input.files[0]);
+    });
+    input.click();
+  });
+  document.getElementById('btnPurgeSprites')?.addEventListener('click', () => {
+    notify(state.lang === 'fr' ? 'Cache navigateur purgé' : 'Browser cache purged', 'success');
+  });
+  document.getElementById('btnResetAll')?.addEventListener('click', () => {
+    showConfirm(t('reset_confirm'), () => {
+      localStorage.removeItem(SAVE_KEY);
+      state = structuredClone(DEFAULT_STATE);
+      // Close all zone windows
+      for (const zid of [...openZones]) closeZoneWindow(zid);
+      pcSelectedId = null;
+      selectedForSale.clear();
+      showIntro();
+    }, null, { danger: true, confirmLabel: 'Réinitialiser', cancelLabel: 'Annuler' });
+  });
+  document.getElementById('btnRedeemCode')?.addEventListener('click', () => tryCheatCode('rewardCodeInput'));
+  document.getElementById('rewardCodeInput')?.addEventListener('keydown', e => {
+    if (e.key === 'Enter') tryCheatCode('rewardCodeInput');
+  });
+}
+
 function initSettings() {
   document.getElementById('btnSettings')?.addEventListener('click', () => {
     SFX.play('menuOpen');
     const modal = document.getElementById('settingsModal');
     if (modal) {
-      // Sync values
-      const langSel = document.getElementById('settingLang');
-      if (langSel) langSel.value = state.lang;
-      const llmSel = document.getElementById('settingLLM');
-      if (llmSel) llmSel.value = state.settings.llmProvider;
-      const apiKey = document.getElementById('settingAPIKey');
-      if (apiKey) apiKey.value = state.settings.llmApiKey;
-      const autoCombat = document.getElementById('settingAutoCombat');
-      if (autoCombat) autoCombat.checked = state.settings.autoCombat !== false;
-      const discoveryMode = document.getElementById('settingDiscoveryMode');
-      if (discoveryMode) discoveryMode.checked = state.settings.discoveryMode !== false;
-      const classicSpritesB = document.getElementById('settingClassicSprites');
-      if (classicSpritesB) classicSpritesB.checked = state.settings.classicSprites === true;
-      const sfx = document.getElementById('settingSFX');
-      if (sfx) sfx.checked = state.settings.sfxEnabled !== false;
-      const musicEl = document.getElementById('settingMusic');
-      if (musicEl) musicEl.checked = state.settings.musicEnabled === true;
-      const musicVolEl = document.getElementById('settingMusicVol');
-      if (musicVolEl) musicVolEl.value = state.settings.musicVol ?? 50;
-      const musicVolVal = document.getElementById('settingMusicVolVal');
-      if (musicVolVal) musicVolVal.textContent = `${state.settings.musicVol ?? 50}%`;
-      const uiScaleEl2 = document.getElementById('settingUIScale');
-      if (uiScaleEl2) uiScaleEl2.value = state.settings.uiScale ?? 100;
-      const uiScaleVal2 = document.getElementById('settingUIScaleVal');
-      if (uiScaleVal2) uiScaleVal2.textContent = `${state.settings.uiScale ?? 100}%`;
+      renderSettingsPanel();
       modal.classList.add('active');
     }
   });
 
   function saveSettingsAndClose() {
+    const el = document.getElementById('settingsContent');
+
+    // Lang
     const langSel = document.getElementById('settingLang');
     if (langSel) state.lang = langSel.value;
-    const llmSel = document.getElementById('settingLLM');
-    if (llmSel) state.settings.llmProvider = llmSel.value;
-    const apiKey = document.getElementById('settingAPIKey');
-    if (apiKey) state.settings.llmApiKey = apiKey.value;
-    const autoCombat = document.getElementById('settingAutoCombat');
-    if (autoCombat) state.settings.autoCombat = autoCombat.checked;
-    const discoveryMode = document.getElementById('settingDiscoveryMode');
-    if (discoveryMode) state.settings.discoveryMode = discoveryMode.checked;
-    const classicSprites = document.getElementById('settingClassicSprites');
-    if (classicSprites) state.settings.classicSprites = classicSprites.checked;
-    const sfx = document.getElementById('settingSFX');
-    if (sfx) state.settings.sfxEnabled = sfx.checked;
-    const musicEl = document.getElementById('settingMusic');
-    if (musicEl) {
-      state.settings.musicEnabled = musicEl.checked;
-      if (!musicEl.checked) MusicPlayer.stop(); else MusicPlayer.updateFromContext();
-    }
-    const musicVolEl = document.getElementById('settingMusicVol');
+
+    // Toggle buttons
+    const readToggle = (id, def = true) => {
+      const btn = el?.querySelector(`[data-toggle-id="${id}"]`);
+      return btn ? btn.dataset.on === 'true' : def;
+    };
+    state.settings.autoCombat    = readToggle('autoCombat', true);
+    state.settings.discoveryMode = readToggle('discoveryMode', true);
+    state.settings.classicSprites= readToggle('classicSprites', false);
+    state.settings.musicEnabled  = readToggle('music', false);
+    state.settings.sfxEnabled    = readToggle('sfx', true);
+    state.settings.lightTheme    = readToggle('lightTheme', false);
+    state.settings.lowSpec       = readToggle('lowSpec', false);
+
+    // Volume sliders
+    const musicVolEl = document.getElementById('sVolMusic');
     if (musicVolEl) {
-      state.settings.musicVol = parseInt(musicVolEl.value) || 50;
-      MusicPlayer.setVolume(state.settings.musicVol / 100);
+      state.settings.musicVol = parseInt(musicVolEl.value) || 80;
+      if (state.settings.musicEnabled) MusicPlayer.setVolume(state.settings.musicVol / 1000);
+      else MusicPlayer.stop();
     }
-    const uiScaleEl = document.getElementById('settingUIScale');
+    const sfxVolEl = document.getElementById('sVolSFX');
+    if (sfxVolEl) state.settings.sfxVol = parseInt(sfxVolEl.value) || 80;
+
+    // Scale sliders
+    const uiScaleEl = document.getElementById('sUIScale');
     if (uiScaleEl) {
       state.settings.uiScale = parseInt(uiScaleEl.value) || 100;
       document.documentElement.style.setProperty('--ui-scale', (state.settings.uiScale / 100).toFixed(2));
     }
+    const zoneScaleEl = document.getElementById('sZoneScale');
+    if (zoneScaleEl) {
+      state.settings.zoneScale = parseInt(zoneScaleEl.value) || 100;
+      document.documentElement.style.setProperty('--zone-scale', (state.settings.zoneScale / 100).toFixed(2));
+    }
+
+    // SFX individual
+    if (!state.settings.sfxIndividual) state.settings.sfxIndividual = {};
+    el?.querySelectorAll('.s-toggle[data-sfx-key]').forEach(btn => {
+      state.settings.sfxIndividual[btn.dataset.sfxKey] = btn.dataset.on === 'true';
+    });
+
+    // Theme & low-spec
+    document.body.classList.toggle('theme-light', state.settings.lightTheme === true);
+    document.body.classList.toggle('low-spec',    state.settings.lowSpec === true);
+
+    // Music
+    if (state.settings.musicEnabled) MusicPlayer.updateFromContext();
+    else MusicPlayer.stop();
+
     saveState();
     detectLLM();
     SFX.play('menuClose');
@@ -11299,50 +11552,6 @@ function initSettings() {
 
   // ✓ Valider — sauvegarde et ferme
   document.getElementById('btnSaveSettings')?.addEventListener('click', saveSettingsAndClose);
-
-  document.getElementById('btnExportSave')?.addEventListener('click', exportSave);
-
-  document.getElementById('btnImportSave')?.addEventListener('click', () => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.json';
-    input.addEventListener('change', () => {
-      if (input.files[0]) importSave(input.files[0]);
-    });
-    input.click();
-  });
-
-  document.getElementById('btnResetAll')?.addEventListener('click', () => {
-    showConfirm(t('reset_confirm'), () => {
-      localStorage.removeItem(SAVE_KEY);
-      state = structuredClone(DEFAULT_STATE);
-      // Close all zone windows
-      for (const zid of [...openZones]) closeZoneWindow(zid);
-      pcSelectedId = null;
-      selectedForSale.clear();
-      showIntro();
-    }, null, { danger: true, confirmLabel: 'Réinitialiser', cancelLabel: 'Annuler' });
-  });
-
-  document.getElementById('btnPurgeSprites')?.addEventListener('click', () => {
-    notify(state.lang === 'fr' ? 'Cache navigateur purgé' : 'Browser cache purged', 'success');
-  });
-
-  document.getElementById('btnRedeemCode')?.addEventListener('click', () => {
-    const input = document.getElementById('rewardCodeInput');
-    if (!input) return;
-    const val = input.value.trim();
-    if (!val) return;
-    const found = checkSecretCode(val);
-    if (!found) notify('Code inconnu.', 'error');
-    input.value = '';
-  });
-  document.getElementById('rewardCodeInput')?.addEventListener('keydown', e => {
-    if (e.key === 'Enter') document.getElementById('btnRedeemCode')?.click();
-  });
-  // Afficher la version dans les settings
-  const settingsVersionEl = document.getElementById('settingsVersion');
-  if (settingsVersionEl) settingsVersionEl.textContent = GAME_VERSION;
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -13038,8 +13247,11 @@ function boot() {
   // Apply saved UI scale
   const savedScale = state.settings?.uiScale ?? 100;
   document.documentElement.style.setProperty('--ui-scale', (savedScale / 100).toFixed(2));
+  document.documentElement.style.setProperty('--zone-scale', ((state.settings?.zoneScale ?? 100) / 100).toFixed(2));
+  document.body.classList.toggle('theme-light', state.settings?.lightTheme === true);
+  document.body.classList.toggle('low-spec',    state.settings?.lowSpec === true);
   // Apply saved music volume
-  MusicPlayer.setVolume((state.settings?.musicVol ?? 50) / 100);
+  MusicPlayer.setVolume((state.settings?.musicVol ?? 80) / 1000);
 
   // Initial render — force l'onglet actif correct au chargement
   switchTab(activeTab);
