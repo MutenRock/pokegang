@@ -11467,6 +11467,260 @@ function renderBagTab() {
 // 19.  UI — INTRO OVERLAY
 // ════════════════════════════════════════════════════════════════
 
+// ── Hub-Import helpers ────────────────────────────────────────────────────────
+
+/**
+ * Upgrades every 4★ pokémon to 5★ automatically.
+ * Priority: shiny first → highest level → PC order (array index).
+ * Note: shinies can't be used as recipe material in-game, but here
+ * we just bulk-upgrade all 4★, shinies first (they benefit most).
+ * Returns the number of pokémon mutated.
+ */
+function applyAutoMutation(pokemons) {
+  const candidates = pokemons
+    .map((p, idx) => ({ p, idx }))
+    .filter(({ p }) => p.potential === 4);
+
+  // Sort: shiny first → level desc → PC order
+  candidates.sort((a, b) => {
+    const aS = a.p.shiny ? 1 : 0, bS = b.p.shiny ? 1 : 0;
+    if (bS !== aS) return bS - aS;
+    const aL = a.p.level ?? 0, bL = b.p.level ?? 0;
+    if (bL !== aL) return bL - aL;
+    return a.idx - b.idx;
+  });
+
+  for (const { p } of candidates) p.potential = 5;
+  return candidates.length;
+}
+
+/**
+ * Removes zone states for zone IDs no longer present in the current ZONES list.
+ * Returns the number of orphan zones removed.
+ */
+function cleanObsoleteData(s) {
+  const validIds = new Set(ZONES.map(z => z.id));
+  let removed = 0;
+  if (s.zones) {
+    for (const zoneId of Object.keys(s.zones)) {
+      if (!validIds.has(zoneId)) {
+        delete s.zones[zoneId];
+        removed++;
+      }
+    }
+  }
+  return removed;
+}
+
+/**
+ * Hub-screen import modal.
+ * Shows a save preview, a slot destination picker and optional cleanup options,
+ * then writes the migrated save to the chosen slot.
+ */
+function openHubImportModal(raw) {
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px';
+
+  // ── Save preview data ────────────────────────────────────────────────────
+  const gangName    = raw.gang?.name     ?? '—';
+  const bossName    = raw.gang?.bossName ?? '—';
+  const reputation  = (raw.gang?.reputation ?? 0).toLocaleString();
+  const money       = (raw.gang?.money ?? 0).toLocaleString();
+  const pokeCount   = (raw.pokemons  || []).length;
+  const count4star  = (raw.pokemons  || []).filter(p => p.potential === 4).length;
+  const count4shiny = (raw.pokemons  || []).filter(p => p.potential === 4 && p.shiny).length;
+  const agentCount  = (raw.agents    || []).length;
+  const dexCaught   = Object.values(raw.pokedex || {}).filter(e => e.caught).length;
+  const shinyCount  = Object.values(raw.pokedex || {}).filter(e => e.shiny).length;
+  const savedAt     = raw._savedAt ? new Date(raw._savedAt).toLocaleString('fr-FR') : '—';
+  const playtime    = raw.playtime  ? formatPlaytime(raw.playtime) : '—';
+  const schemaVer   = raw._schemaVersion ?? raw.version ?? '?';
+
+  // Detect potential orphan zones
+  const validIds = new Set(ZONES.map(z => z.id));
+  const orphanZones = Object.keys(raw.zones || {}).filter(id => !validIds.has(id));
+
+  // ── Slot picker HTML ─────────────────────────────────────────────────────
+  const slotHtml = [0, 1, 2].map(i => {
+    const prev = getSlotPreview(i);
+    const label = prev
+      ? `<b style="color:var(--text)">${prev.name}</b> <span style="color:var(--text-dim);font-size:9px">(${prev.pokemon} pkm · ⭐${prev.rep})</span>`
+      : `<span style="color:#555;font-style:italic">Vide</span>`;
+    return `<label style="display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;background:var(--bg);transition:border-color .15s" id="hubSlotLabel${i}">
+      <input type="radio" name="hubTargetSlot" value="${i}" ${i === 0 ? 'checked' : ''} style="accent-color:var(--gold)">
+      <span style="font-family:var(--font-pixel);font-size:8px;color:var(--gold)">SLOT ${i+1}</span>
+      <span style="font-size:10px">${label}</span>
+    </label>`;
+  }).join('');
+
+  // ── Warnings ─────────────────────────────────────────────────────────────
+  const warnMutation = count4star > 0
+    ? `<span style="color:#ffa040">${count4star} Pokémon 4★ détectés${count4shiny > 0 ? ` (dont ${count4shiny} ✨ shiny)` : ''} — tous passeront en 5★</span>`
+    : `<span style="color:var(--text-dim)">Aucun Pokémon 4★ détecté</span>`;
+  const warnClean = orphanZones.length > 0
+    ? `<span style="color:#ffa040">${orphanZones.length} zone(s) obsolète(s) supprimée(s)</span>`
+    : `<span style="color:var(--text-dim)">Aucune zone obsolète</span>`;
+
+  overlay.innerHTML = `
+    <div style="background:var(--bg-panel);border:2px solid #ffa040;border-radius:var(--radius);padding:24px;max-width:640px;width:100%;max-height:92vh;overflow-y:auto;display:flex;flex-direction:column;gap:16px">
+
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div style="font-family:var(--font-pixel);font-size:11px;color:#ffa040">📥 Importer une Save</div>
+        <button id="btnHubImportClose" style="background:none;border:none;color:var(--text-dim);font-size:18px;cursor:pointer">✕</button>
+      </div>
+
+      <!-- Save preview -->
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;display:flex;flex-direction:column;gap:6px">
+        <div style="font-family:var(--font-pixel);font-size:8px;color:var(--text-dim);margin-bottom:4px">SAVE IMPORTÉE</div>
+        <div style="font-family:var(--font-pixel);font-size:13px;color:var(--red)">${gangName}</div>
+        <div style="font-size:9px;color:var(--text-dim)">Boss : <span style="color:var(--text)">${bossName}</span></div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin-top:4px">
+          <div style="font-size:8px;color:var(--text-dim)">🎯 Pokémon <span style="color:var(--text)">${pokeCount}</span></div>
+          <div style="font-size:8px;color:var(--text-dim)">👤 Agents <span style="color:var(--text)">${agentCount}</span></div>
+          <div style="font-size:8px;color:var(--text-dim)">⭐ Rép. <span style="color:var(--gold)">${reputation}</span></div>
+          <div style="font-size:8px;color:var(--text-dim)">₽ <span style="color:var(--text)">${money}</span></div>
+          <div style="font-size:8px;color:var(--text-dim)">📖 Pokédex <span style="color:var(--text)">${dexCaught}</span></div>
+          <div style="font-size:8px;color:var(--text-dim)">✨ Shinies <span style="color:var(--text)">${shinyCount}</span></div>
+        </div>
+        <div style="font-size:7px;color:var(--text-dim);border-top:1px solid var(--border);padding-top:6px;margin-top:2px">
+          Sauvegardé le ${savedAt} · Temps de jeu : ${playtime} · Schéma v${schemaVer}
+        </div>
+      </div>
+
+      <!-- Slot picker -->
+      <div>
+        <div style="font-family:var(--font-pixel);font-size:8px;color:var(--gold);margin-bottom:8px;letter-spacing:1px">SLOT DE DESTINATION</div>
+        <div style="display:flex;flex-direction:column;gap:6px" id="hubSlotPicker">
+          ${slotHtml}
+        </div>
+      </div>
+
+      <!-- Options -->
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <div style="font-family:var(--font-pixel);font-size:8px;color:var(--gold);letter-spacing:1px">OPTIONS D'IMPORT</div>
+
+        <label style="display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg);cursor:pointer">
+          <input type="checkbox" id="chkAutoMutation" ${count4star > 0 ? 'checked' : ''} style="margin-top:2px;accent-color:var(--gold)">
+          <div>
+            <div style="font-family:var(--font-pixel);font-size:8px;color:var(--text);margin-bottom:3px">⚡ Mutation auto 4★ → 5★</div>
+            <div style="font-size:9px;color:var(--text-dim)">Améliore tous les Pokémon 4★ en 5★ automatiquement.<br>Priorité : ✨ shiny → niveau → ordre PC. Les shinys ne seront jamais utilisés comme matière première.</div>
+            <div style="font-size:8px;margin-top:4px">${warnMutation}</div>
+          </div>
+        </label>
+
+        <label style="display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg);cursor:pointer">
+          <input type="checkbox" id="chkCleanObsolete" ${orphanZones.length > 0 ? 'checked' : ''} style="margin-top:2px;accent-color:var(--gold)">
+          <div>
+            <div style="font-family:var(--font-pixel);font-size:8px;color:var(--text);margin-bottom:3px">🧹 Nettoyage des données obsolètes</div>
+            <div style="font-size:9px;color:var(--text-dim)">Supprime les zones, états et environnements qui n'existent plus dans la version actuelle du jeu.<br>Ces données seront remplacées par <i>"information perdue avec le temps"</i>.</div>
+            <div style="font-size:8px;margin-top:4px">${warnClean}</div>
+          </div>
+        </label>
+      </div>
+
+      <!-- Warning -->
+      <div style="background:rgba(255,140,0,.08);border:1px solid rgba(255,140,0,.3);border-radius:var(--radius-sm);padding:10px;font-size:9px;color:var(--text-dim)">
+        ⚠ Le slot de destination sera <b style="color:#ffa040">écrasé</b>. Exporte ta save actuelle si tu veux la conserver.
+      </div>
+
+      <!-- Actions -->
+      <div style="display:flex;gap:8px">
+        <button id="btnHubImportBackup" style="flex:1;font-family:var(--font-pixel);font-size:8px;padding:10px;background:var(--bg);border:1px solid var(--border-light);border-radius:var(--radius-sm);color:var(--text-dim);cursor:pointer">
+          💾 Exporter ma save actuelle
+        </button>
+        <button id="btnHubImportConfirm" style="flex:2;font-family:var(--font-pixel);font-size:9px;padding:10px;background:var(--bg);border:2px solid #ffa040;border-radius:var(--radius-sm);color:#ffa040;cursor:pointer">
+          📥 Importer dans ce slot
+        </button>
+      </div>
+      <button id="btnHubImportCancel" style="font-family:var(--font-pixel);font-size:8px;padding:8px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-dim);cursor:pointer">
+        Annuler
+      </button>
+
+    </div>`;
+
+  document.body.appendChild(overlay);
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+
+  overlay.querySelector('#btnHubImportClose')?.addEventListener('click',  () => overlay.remove());
+  overlay.querySelector('#btnHubImportCancel')?.addEventListener('click', () => overlay.remove());
+
+  // Slot label hover effect
+  overlay.querySelectorAll('#hubSlotPicker label').forEach(lbl => {
+    lbl.addEventListener('mouseenter', () => lbl.style.borderColor = '#ffa040');
+    lbl.addEventListener('mouseleave', () => lbl.style.borderColor = 'var(--border)');
+  });
+
+  overlay.querySelector('#btnHubImportBackup')?.addEventListener('click', () => {
+    exportSave();
+    const btn = overlay.querySelector('#btnHubImportBackup');
+    btn.textContent = '✅ Save exportée !';
+    btn.style.color = 'var(--green)';
+  });
+
+  overlay.querySelector('#btnHubImportConfirm')?.addEventListener('click', () => {
+    const targetSlot = parseInt(overlay.querySelector('input[name="hubTargetSlot"]:checked')?.value ?? '0');
+    const doMutation = overlay.querySelector('#chkAutoMutation')?.checked ?? false;
+    const doClean    = overlay.querySelector('#chkCleanObsolete')?.checked ?? false;
+
+    showConfirm(
+      `Importer la save de <b>${gangName}</b> dans le Slot ${targetSlot + 1} ?<br><span style="color:var(--text-dim);font-size:10px">Le contenu actuel du slot sera effacé.</span>`,
+      () => {
+        try {
+          // Deep clone before mutation
+          const draft = JSON.parse(JSON.stringify(raw));
+
+          // Apply optional steps before migration
+          let mutated = 0, cleaned = 0;
+          if (doMutation && draft.pokemons) mutated = applyAutoMutation(draft.pokemons);
+          if (doClean)                      cleaned  = cleanObsoleteData(draft);
+
+          // Full migration to current schema
+          const migrated = migrate(draft);
+
+          // Add cleaned-zone log if relevant
+          if (doClean && cleaned > 0) {
+            if (!migrated.behaviourLogs) migrated.behaviourLogs = {};
+            migrated.behaviourLogs._importCleanedZones = cleaned;
+            // Add a visible log to pokedex area isn't natural — add a note to notifications array if present
+            if (!migrated._importNotes) migrated._importNotes = [];
+            migrated._importNotes.push(`information perdue avec le temps (${cleaned} zone(s) obsolète(s) supprimée(s))`);
+          }
+
+          // Save to the target slot (don't affect current active game)
+          localStorage.setItem(SAVE_KEYS[targetSlot], JSON.stringify(migrated));
+
+          overlay.remove();
+
+          // Compose summary message
+          const parts = [`✅ Save de "${gangName}" importée dans le Slot ${targetSlot + 1}.`];
+          if (mutated > 0) parts.push(`⚡ ${mutated} Pokémon 4★ → 5★.`);
+          if (cleaned > 0) parts.push(`🧹 ${cleaned} zone(s) obsolète(s) supprimée(s).`);
+          parts.push('Clique ▶ sur le slot pour jouer.');
+          notify(parts.join(' '), 'success');
+
+          // Refresh hub slot display if introOverlay is visible
+          const introSlots = document.getElementById('introSlots');
+          if (introSlots) {
+            // Re-trigger showIntro rendering by dispatching a custom event, or simply reload slots
+            // We call the global renderSlots if accessible — it's locally scoped, so refresh the overlay
+            const introOverlay = document.getElementById('introOverlay');
+            if (introOverlay?.classList.contains('active')) {
+              // Remove active class to reset, then re-show
+              introOverlay.classList.remove('active');
+              showIntro();
+            }
+          }
+        } catch (err) {
+          notify('Erreur lors de l\'importation — save non modifiée.', 'error');
+          console.error(err);
+        }
+      },
+      null,
+      { confirmLabel: 'Importer', cancelLabel: 'Annuler' }
+    );
+  });
+}
+
 function showIntro() {
   const overlay = document.getElementById('introOverlay');
   if (!overlay) return;
@@ -11644,6 +11898,28 @@ function showIntro() {
     });
   };
   renderSlots();
+
+  // ── Hub import button ─────────────────────────────────────────
+  document.getElementById('btnHubImportSave')?.addEventListener('click', () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.addEventListener('change', () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = e => {
+        try {
+          const parsed = JSON.parse(e.target.result);
+          openHubImportModal(parsed);
+        } catch {
+          notify('Fichier invalide — impossible de lire la save.', 'error');
+        }
+      };
+      reader.readAsText(file);
+    });
+    input.click();
+  });
 
   // ── Sprite picker ─────────────────────────────────────────────
   const picker = document.getElementById('spritePicker');
