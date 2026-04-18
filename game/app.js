@@ -11428,6 +11428,17 @@ function _bindSettingsLive() {
     });
   });
 
+  // Boutons preview ▶ — joue le son directement (ignore le mute individuel)
+  el.querySelectorAll('.sfx-preview-btn[data-sfx-preview]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const key = btn.dataset.sfxPreview;
+      try { SFX[key]?.(); } catch {}
+      // Flash visuel bref
+      btn.textContent = '♪';
+      setTimeout(() => { btn.textContent = '▶'; }, 400);
+    });
+  });
+
   // Sliders → mise à jour du label + apply live
   const bindSlider = (id, labelId, suffix, applyFn) => {
     const slider = document.getElementById(id);
@@ -11477,7 +11488,10 @@ function renderSettingsPanel() {
     const on = S.sfxIndividual?.[key] !== false;
     return `<div class="sfx-sub-row">
       <label>${label}</label>
-      <button class="s-toggle" data-sfx-key="${key}" data-on="${on}">${on ? 'Activé' : 'Désactivé'}</button>
+      <div style="display:flex;align-items:center;gap:6px">
+        <button class="sfx-preview-btn" data-sfx-preview="${key}" title="Écouter" style="font-family:var(--font-pixel);font-size:9px;padding:2px 7px;background:var(--bg);border:1px solid var(--border-light);border-radius:var(--radius-sm);color:var(--text-dim);cursor:pointer;line-height:1">▶</button>
+        <button class="s-toggle" data-sfx-key="${key}" data-on="${on}">${on ? 'Activé' : 'Désactivé'}</button>
+      </div>
     </div>`;
   }).join('');
 
