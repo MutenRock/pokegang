@@ -1172,6 +1172,26 @@ const MISSIONS = [
     stat:'_pokedexCaught',target:151,reward:{money:100000,rep:100},icon:'👑',
     desc_fr:'151 espèces capturées. Vous êtes un MAÎTRE Pokémon !',
     desc_en:'151 species caught. You are a Pokémon MASTER!' },
+  { id:'story_pokedex_full', type:'story', fr:'Encyclopédie Vivante', en:'Living Encyclopedia',
+    stat:'_dexFullCaught', target:170,
+    reward:{ money:250000, rep:200 }, icon:'🌟',
+    desc_fr:'Pokédex complet — toutes les espèces de Kanto et de la génération suivante !',
+    desc_en:'Complete Pokédex — every species from Kanto and beyond!' },
+  { id:'story_chroma_starters', type:'story', fr:'Triade Chromatique', en:'Chromatic Triad',
+    stat:'_shinyStarterCount', target:3,
+    reward:{ money:500000, rep:150 }, icon:'✨',
+    desc_fr:'Posséder les 3 starters de Kanto en version chromatique.',
+    desc_en:'Own all 3 Kanto starters in their shiny form.' },
+  { id:'story_chroma_legends', type:'story', fr:'Seigneur Chromatique', en:'Shiny Lord',
+    stat:'_shinyLegendaryCount', target:7,
+    reward:{ money:1000000, rep:300 }, icon:'✨',
+    desc_fr:'Obtenir tous les légendaires en version chromatique. Une prouesse sans précédent.',
+    desc_en:'Obtain every legendary in shiny form. An unprecedented feat.' },
+  { id:'story_chroma_dex', type:'story', fr:'Dresseur Chromatique', en:'Shiny Trainer',
+    stat:'_shinyDexCount', target:170,
+    reward:{ money:2000000, rep:500 }, icon:'✨',
+    desc_fr:'Pokédex chromatique complet — un shiny de chaque espèce !',
+    desc_en:'Full shiny Pokédex — one shiny of every species!' },
   // ── Missions Lore ──
   { id:'story_starters_pallet', type:'story', fr:'Starters de Pallet', en:'Pallet Starters',
     stat:'_starterCount', target:3, reward:{ money:30000, rep:30 }, icon:'★',
@@ -1518,6 +1538,8 @@ const DEFAULT_STATE = {
     titleA: 'recrue',
     titleB: null,
     titleLiaison: '',
+    titleC: null,
+    titleD: null,
   },
   inventory: {
     pokeball: 20,
@@ -1662,6 +1684,13 @@ function saveState() {
   }
 
   state._savedAt = Date.now();
+  // Cap pokemon history arrays before serializing (prevents QuotaExceededError)
+  const MAX_HISTORY = 30;
+  for (const p of state.pokemons) {
+    if (p.history && p.history.length > MAX_HISTORY) {
+      p.history = p.history.slice(-MAX_HISTORY);
+    }
+  }
   const data = JSON.stringify(state);
   try {
     localStorage.setItem(SAVE_KEY, data);
@@ -1769,6 +1798,8 @@ function migrate(saved) {
   if (!merged.gang.titleA) merged.gang.titleA = 'recrue';
   if (merged.gang.titleB === undefined) merged.gang.titleB = null;
   if (merged.gang.titleLiaison === undefined) merged.gang.titleLiaison = '';
+  if (merged.gang.titleC === undefined) merged.gang.titleC = null;
+  if (merged.gang.titleD === undefined) merged.gang.titleD = null;
   // Migration: marketSales + favorites
   if (!merged.marketSales) merged.marketSales = {};
   if (!merged.favorites) merged.favorites = [];
@@ -3214,6 +3245,13 @@ const TITLES = [
   // Spéciaux (débloqués par quête/event)
   { id:'glitcheur',   label:'Glitcheur',          category:'special' }, // possession de MissingNo
   { id:'fondateur',   label:'Fondateur',          category:'special' }, // débloqué au début
+  // Pokédex (débloqués en complétant le Pokédex)
+  { id:'professeur',      label:'Professeur',          category:'pokedex', dexType:'kanto' },     // 151 espèces Kanto
+  { id:'maitre_dresseur', label:'Maître Dresseur',     category:'pokedex', dexType:'full' },      // toutes espèces non-cachées
+  // Chromatiques (débloqués avec les shinies)
+  { id:'triade_chroma',   label:'Triade Chromatique',  category:'shiny_special', shinyType:'starters' },    // 3 starters shiny
+  { id:'seigneur_chroma', label:'Seigneur Chromatique',category:'shiny_special', shinyType:'legendaries' }, // tous légendaires shiny
+  { id:'dresseur_chroma', label:'Dresseur Chromatique',category:'shiny_special', shinyType:'full_dex' },    // tous pokémon shiny
 ];
 
 const LIAISONS = ['', 'de', "de l'", 'du', 'des', 'à', 'et', '&', 'alias', 'dit'];
@@ -3252,6 +3290,24 @@ function checkTitleUnlocks() {
       unlock = true; // toujours débloqué
     } else if (t.category === 'special' && t.id === 'glitcheur') {
       unlock = state.pokemons.some(p => p.species_en === 'missingno');
+    } else if (t.category === 'pokedex') {
+      if (t.dexType === 'kanto') {
+        const kantoCount = POKEMON_GEN1.filter(s => !s.hidden && s.dex >= 1 && s.dex <= 151 && state.pokedex[s.en]?.caught).length;
+        const kantoTotal = POKEMON_GEN1.filter(s => !s.hidden && s.dex >= 1 && s.dex <= 151).length;
+        unlock = kantoCount >= kantoTotal;
+      } else if (t.dexType === 'full') {
+        const fullCount = POKEMON_GEN1.filter(s => !s.hidden && state.pokedex[s.en]?.caught).length;
+        const fullTotal = POKEMON_GEN1.filter(s => !s.hidden).length;
+        unlock = fullCount >= fullTotal;
+      }
+    } else if (t.category === 'shiny_special') {
+      if (t.shinyType === 'starters') {
+        unlock = ['bulbasaur','charmander','squirtle'].every(s => state.pokedex[s]?.shiny);
+      } else if (t.shinyType === 'legendaries') {
+        unlock = POKEMON_GEN1.filter(s => s.rarity === 'legendary' && !s.hidden).every(s => state.pokedex[s.en]?.shiny);
+      } else if (t.shinyType === 'full_dex') {
+        unlock = POKEMON_GEN1.filter(s => !s.hidden).every(s => state.pokedex[s.en]?.shiny);
+      }
     }
     if (unlock) { unlocked.add(t.id); newOnes.push(t); }
   }
@@ -3351,14 +3407,49 @@ function openTitleModal() {
   const overlay = document.createElement('div');
   overlay.style.cssText = 'position:fixed;inset:0;z-index:9700;background:rgba(0,0,0,.88);display:flex;align-items:center;justify-content:center;padding:16px';
 
-  const categories = { rep:'Réputation', type_capture:'Type', stat:'Exploit', shop:'Boutique', special:'Spécial' };
+  // Slot colors: 1=gold, 2=red, 3=cyan, 4=violet
+  const SLOT_DEFS = [
+    { key:'titleA', label:'Titre 1', color:'var(--gold)',     bg:'rgba(255,204,90,.15)' },
+    { key:'titleB', label:'Titre 2', color:'var(--red)',      bg:'rgba(204,51,51,.15)' },
+    { key:'titleC', label:'Badge 1', color:'#4fc3f7',         bg:'rgba(79,195,247,.12)' },
+    { key:'titleD', label:'Badge 2', color:'#ce93d8',         bg:'rgba(206,147,216,.12)' },
+  ];
+
+  const categories = {
+    rep:'Réputation', type_capture:'Type', stat:'Exploit',
+    shop:'Boutique', special:'Spécial',
+    pokedex:'Pokédex', shiny_special:'Chromatique'
+  };
+
+  let _activeSlot = 0; // index into SLOT_DEFS
 
   const renderModal = () => {
-    const t1 = state.gang.titleA;
-    const t2 = state.gang.titleB;
+    const slots = SLOT_DEFS.map(s => state.gang[s.key]);
     const lia = state.gang.titleLiaison || '';
+    const activeSlotDef = SLOT_DEFS[_activeSlot];
 
     const liaOptions = LIAISONS.map(l => `<option value="${l}" ${l === lia ? 'selected' : ''}>${l || '(aucun)'}</option>`).join('');
+
+    // ── Slot selector buttons ──────────────────────────────────
+    const slotBtns = SLOT_DEFS.map((s, i) => {
+      const isActive = i === _activeSlot;
+      const val = slots[i];
+      const lbl = val ? getTitleLabel(val) : '—';
+      return `<button class="slot-sel-btn" data-slot="${i}"
+        style="flex:1;font-family:var(--font-pixel);font-size:7px;padding:5px 4px;border-radius:var(--radius-sm);cursor:pointer;
+               background:${isActive ? s.bg : 'var(--bg)'};
+               border:2px solid ${isActive ? s.color : 'var(--border)'};
+               color:${isActive ? s.color : 'var(--text-dim)'}">
+        ${s.label}<br><span style="font-size:6px;opacity:.8">${lbl}</span>
+      </button>`;
+    }).join('');
+
+    // ── Liaison row (only relevant for titleA+titleB) ──────────
+    const liaRow = `<div style="display:flex;gap:6px;align-items:center;justify-content:center;flex-wrap:wrap;margin-top:6px">
+      <span style="font-size:8px;color:var(--text-dim)">Liaison :</span>
+      <select id="titleLiaison" style="background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:3px;font-size:8px;padding:2px 4px">${liaOptions}</select>
+      <button id="btnClearTitles" style="font-size:7px;padding:2px 6px;background:var(--bg);border:1px solid var(--border);border-radius:3px;color:var(--text-dim);cursor:pointer">Tout effacer</button>
+    </div>`;
 
     let titlesHtml = '';
     for (const [cat, catLabel] of Object.entries(categories)) {
@@ -3369,45 +3460,59 @@ function openTitleModal() {
         <div style="display:flex;flex-wrap:wrap;gap:6px">`;
       for (const t of group) {
         const isUnlocked = unlocked.has(t.id);
-        const isT1 = t1 === t.id;
-        const isT2 = t2 === t.id;
+        const slotIdx = slots.findIndex(s => s === t.id);
         let hint = '';
         if (!isUnlocked) {
           if (t.category === 'rep') hint = `⭐ ${t.repReq} rep`;
           else if (t.category === 'type_capture') hint = `${t.countReq}× type ${t.typeReq}`;
           else if (t.category === 'stat') hint = `${t.countReq}× ${t.statReq}`;
           else if (t.category === 'shop') hint = `${(t.shopPrice||0).toLocaleString()}₽`;
+          else if (t.category === 'pokedex') hint = t.dexType === 'kanto' ? 'Compléter le Pokédex Kanto (151)' : 'Compléter tout le Pokédex';
+          else if (t.category === 'shiny_special') hint = t.shinyType === 'starters' ? '3 starters chromatiques' : t.shinyType === 'legendaries' ? 'Tous légendaires chromatiques' : 'Pokédex chromatique complet';
           else hint = '???';
         }
+        const assigned = slotIdx >= 0;
+        const assignedColor = assigned ? SLOT_DEFS[slotIdx].color : '';
+        const assignedBg    = assigned ? SLOT_DEFS[slotIdx].bg    : '';
         const style = isUnlocked
-          ? `background:${isT1 ? 'rgba(255,204,90,.15)' : isT2 ? 'rgba(204,51,51,.15)' : 'var(--bg-card)'};border:1px solid ${isT1 ? 'var(--gold)' : isT2 ? 'var(--red)' : 'var(--border)'};color:var(--text);cursor:pointer`
-          : 'background:var(--bg);border:1px solid var(--border);color:var(--text-dim);opacity:.5;cursor:not-allowed';
+          ? `background:${assigned ? assignedBg : 'var(--bg-card)'};border:1px solid ${assigned ? assignedColor : 'var(--border)'};color:${assigned ? assignedColor : 'var(--text)'};cursor:pointer`
+          : 'background:var(--bg);border:1px solid var(--border);color:var(--text-dim);opacity:.4;cursor:not-allowed';
+        const badge = assigned ? ` <span style="font-size:6px;opacity:.7">${SLOT_DEFS[slotIdx].label}</span>` : '';
         titlesHtml += `<div class="title-chip ${isUnlocked ? 'title-unlocked' : 'title-locked'}" data-title-id="${t.id}"
           style="font-family:var(--font-pixel);font-size:8px;padding:4px 8px;border-radius:var(--radius-sm);${style}"
-          title="${isUnlocked ? (isT1 ? 'Titre principal' : isT2 ? 'Titre secondaire' : 'Cliquer pour sélectionner') : hint}">
-          ${t.label}${isT1 ? ' 1' : isT2 ? ' 2' : ''}
+          title="${isUnlocked ? (assigned ? `Slot: ${SLOT_DEFS[slotIdx].label} — Cliquer pour retirer` : `Assigner au ${activeSlotDef.label}`) : hint}">
+          ${t.label}${badge}
         </div>`;
       }
       titlesHtml += '</div></div>';
     }
 
+    // Current title preview
+    const mainTitle = getBossFullTitle();
+    const tC = getTitleLabel(state.gang.titleC);
+    const tD = getTitleLabel(state.gang.titleD);
+    const badgesPreview = [tC, tD].filter(Boolean).map((b, i) => {
+      const color = i === 0 ? '#4fc3f7' : '#ce93d8';
+      return `<span style="font-family:var(--font-pixel);font-size:7px;padding:2px 6px;border-radius:10px;border:1px solid ${color};color:${color}">${b}</span>`;
+    }).join('');
+
     overlay.innerHTML = `
-      <div style="background:var(--bg-panel);border:2px solid var(--gold);border-radius:var(--radius);padding:20px;max-width:560px;width:100%;max-height:80vh;display:flex;flex-direction:column;gap:12px;overflow:hidden">
+      <div style="background:var(--bg-panel);border:2px solid var(--gold);border-radius:var(--radius);padding:20px;max-width:600px;width:100%;max-height:85vh;display:flex;flex-direction:column;gap:12px;overflow:hidden">
         <div style="display:flex;justify-content:space-between;align-items:center">
           <div style="font-family:var(--font-pixel);font-size:11px;color:var(--gold)">🏆 Titres</div>
           <button id="btnCloseTitleModal" style="background:none;border:none;color:var(--text-dim);font-size:18px;cursor:pointer">✕</button>
         </div>
         <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px;text-align:center">
-          <div style="font-family:var(--font-pixel);font-size:10px;color:var(--gold-dim);margin-bottom:6px">${getBossFullTitle()}</div>
-          <div style="display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap">
-            <span style="font-size:9px;color:var(--text-dim)">Titre 1 :</span>
-            <span style="font-family:var(--font-pixel);font-size:9px;color:var(--gold)">${getTitleLabel(t1) || '—'}</span>
-            <select id="titleLiaison" style="background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:3px;font-size:9px;padding:2px 4px">${liaOptions}</select>
-            <span style="font-size:9px;color:var(--text-dim)">Titre 2 :</span>
-            <span style="font-family:var(--font-pixel);font-size:9px;color:var(--red)">${getTitleLabel(t2) || '—'}</span>
-            ${t1 || t2 ? `<button id="btnClearTitles" style="font-size:8px;padding:2px 6px;background:var(--bg);border:1px solid var(--border);border-radius:3px;color:var(--text-dim);cursor:pointer">Effacer</button>` : ''}
-          </div>
-          <div style="font-size:8px;color:var(--text-dim);margin-top:6px">Clic gauche → Titre 1 &nbsp;|&nbsp; Clic droit → Titre 2</div>
+          <div style="font-family:var(--font-pixel);font-size:10px;color:var(--gold-dim);margin-bottom:4px">${mainTitle}</div>
+          ${badgesPreview ? `<div style="display:flex;gap:6px;justify-content:center;margin-bottom:4px">${badgesPreview}</div>` : ''}
+          ${liaRow}
+        </div>
+        <div style="display:flex;gap:6px">
+          <span style="font-size:8px;color:var(--text-dim);align-self:center;white-space:nowrap">Slot actif :</span>
+          ${slotBtns}
+        </div>
+        <div style="font-size:8px;color:var(--text-dim);text-align:center">
+          Clic → Assigner au <span style="color:${activeSlotDef.color}">${activeSlotDef.label}</span> &nbsp;|&nbsp; Clic sur badge → Retirer
         </div>
         <div style="overflow-y:auto;flex:1">${titlesHtml}</div>
       </div>`;
@@ -3415,31 +3520,39 @@ function openTitleModal() {
     overlay.querySelector('#btnCloseTitleModal')?.addEventListener('click', () => overlay.remove());
     overlay.querySelector('#titleLiaison')?.addEventListener('change', e => {
       state.gang.titleLiaison = e.target.value;
-      saveState();
-      renderModal();
+      saveState(); renderModal();
       if (activeTab === 'tabGang') renderGangTab();
     });
     overlay.querySelector('#btnClearTitles')?.addEventListener('click', () => {
-      state.gang.titleA = 'recrue';
-      state.gang.titleB = null;
+      state.gang.titleA = 'recrue'; state.gang.titleB = null;
+      state.gang.titleC = null;    state.gang.titleD = null;
       saveState(); renderModal();
       if (activeTab === 'tabGang') renderGangTab();
     });
 
+    // Slot selector clicks
+    overlay.querySelectorAll('.slot-sel-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        _activeSlot = Number(btn.dataset.slot);
+        renderModal();
+      });
+    });
+
+    // Title chip clicks
     overlay.querySelectorAll('.title-unlocked').forEach(chip => {
       chip.addEventListener('click', () => {
         const id = chip.dataset.titleId;
-        if (state.gang.titleA === id) { state.gang.titleA = null; }
-        else if (state.gang.titleB === id) { /* do nothing on re-click */ }
-        else { state.gang.titleA = id; }
-        saveState(); renderModal();
-        if (activeTab === 'tabGang') renderGangTab();
-      });
-      chip.addEventListener('contextmenu', e => {
-        e.preventDefault();
-        const id = chip.dataset.titleId;
-        if (state.gang.titleB === id) { state.gang.titleB = null; }
-        else { state.gang.titleB = id; }
+        const slotKey = SLOT_DEFS[_activeSlot].key;
+        // If already in this slot → deselect
+        if (state.gang[slotKey] === id) {
+          state.gang[slotKey] = _activeSlot === 0 ? 'recrue' : null;
+        } else {
+          // Remove from any other slot first (avoid duplicates)
+          for (const s of SLOT_DEFS) {
+            if (state.gang[s.key] === id) state.gang[s.key] = s.key === 'titleA' ? null : null;
+          }
+          state.gang[slotKey] = id;
+        }
         saveState(); renderModal();
         if (activeTab === 'tabGang') renderGangTab();
       });
@@ -4121,6 +4234,21 @@ function getMissionStat(statKey) {
   }
   if (statKey === '_zonesWithCapture') {
     return Object.values(state.zones).filter(z => (z.captures || 0) > 0).length;
+  }
+  if (statKey === '_dexKantoCaught') {
+    return POKEMON_GEN1.filter(s => !s.hidden && s.dex >= 1 && s.dex <= 151 && state.pokedex[s.en]?.caught).length;
+  }
+  if (statKey === '_dexFullCaught') {
+    return POKEMON_GEN1.filter(s => !s.hidden && state.pokedex[s.en]?.caught).length;
+  }
+  if (statKey === '_shinyDexCount') {
+    return POKEMON_GEN1.filter(s => !s.hidden && state.pokedex[s.en]?.shiny).length;
+  }
+  if (statKey === '_shinyStarterCount') {
+    return ['bulbasaur','charmander','squirtle'].filter(s => state.pokedex[s]?.shiny).length;
+  }
+  if (statKey === '_shinyLegendaryCount') {
+    return POKEMON_GEN1.filter(s => s.rarity === 'legendary' && !s.hidden && state.pokedex[s.en]?.shiny).length;
   }
   return state.stats[statKey] || 0;
 }
@@ -5453,7 +5581,12 @@ function switchTab(tabId) {
 function updateTopBar() {
   const gangEl = document.getElementById('gangNameDisplay');
   const moneyEl = document.getElementById('moneyDisplay');
-  if (gangEl) gangEl.textContent = state.gang.name;
+  if (gangEl) {
+    const kantoComplete = POKEMON_GEN1.filter(s => !s.hidden && s.dex >= 1 && s.dex <= 151).every(s => state.pokedex[s.en]?.caught);
+    const fullComplete  = POKEMON_GEN1.filter(s => !s.hidden).every(s => state.pokedex[s.en]?.caught);
+    const dexIcon = fullComplete ? ' 🌟' : kantoComplete ? ' 📖' : '';
+    gangEl.textContent = state.gang.name + dexIcon;
+  }
   if (moneyEl) moneyEl.innerHTML = `<span>₽</span> ${state.gang.money.toLocaleString()}`;
   const repEl = document.getElementById('repDisplay');
   if (repEl) repEl.innerHTML = `<span>⭐</span> ${state.gang.reputation.toLocaleString()}`;
@@ -5940,11 +6073,18 @@ function renderCosmeticsPanel(container) {
   const t1label = t1id ? (TITLES.find(t => t.id === t1id)?.label || t1id) : '—';
   const t2label = t2id ? (TITLES.find(t => t.id === t2id)?.label || t2id) : '—';
   const titleStr = [t1label, lia, t2label].filter(Boolean).join(' ');
+  const tCLabel = getTitleLabel(state.gang.titleC);
+  const tDLabel = getTitleLabel(state.gang.titleD);
+  const badgesHtml = [tCLabel, tDLabel].filter(Boolean).map((b, i) => {
+    const color = i === 0 ? '#4fc3f7' : '#ce93d8';
+    return `<span style="font-family:var(--font-pixel);font-size:7px;padding:2px 7px;border-radius:10px;border:1px solid ${color};color:${color}">${b}</span>`;
+  }).join('');
   titresDiv.innerHTML = `
     <div style="font-family:var(--font-pixel);font-size:9px;color:var(--gold);margin-bottom:10px">TITRES</div>
     <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px;display:flex;flex-direction:column;gap:8px">
-      <div style="font-size:9px;color:var(--text-dim)">Titre actif :</div>
+      <div style="font-size:9px;color:var(--text-dim)">Titre principal :</div>
       <div style="font-family:var(--font-pixel);font-size:10px;color:var(--gold);min-height:1em">${titleStr || '(aucun)'}</div>
+      ${badgesHtml ? `<div style="display:flex;gap:6px;flex-wrap:wrap">${badgesHtml}</div>` : ''}
       <div style="font-size:8px;color:var(--text-dim)">${(state.unlockedTitles||[]).length} titres débloqués</div>
       <button id="btnOpenTitlesFromCosm" style="font-family:var(--font-pixel);font-size:8px;padding:6px 12px;background:var(--bg);border:1px solid var(--gold-dim);border-radius:var(--radius-sm);color:var(--gold);cursor:pointer;align-self:flex-start">🏷 Gérer les titres</button>
     </div>`;
@@ -6189,6 +6329,14 @@ function renderGangTab() {
         <div style="font-family:var(--font-pixel);font-size:16px;color:var(--red);line-height:1.3">${g.name}</div>
         <div style="font-size:11px;color:var(--text-dim);margin-top:2px">Boss : <span style="color:var(--text)">${g.bossName}</span></div>
 <div style="font-family:var(--font-pixel);font-size:8px;color:var(--gold-dim);margin-top:2px;letter-spacing:.5px">${getBossFullTitle()}</div>
+${(() => {
+  const tC = getTitleLabel(g.titleC);
+  const tD = getTitleLabel(g.titleD);
+  const badges = [tC, tD].filter(Boolean);
+  if (!badges.length) return '';
+  const colors = ['#4fc3f7','#ce93d8'];
+  return `<div style="display:flex;gap:5px;margin-top:3px;flex-wrap:wrap">${badges.map((b,i)=>`<span style="font-family:var(--font-pixel);font-size:6px;padding:2px 6px;border-radius:10px;border:1px solid ${colors[i]};color:${colors[i]}">${b}</span>`).join('')}</div>`;
+})()}
 <button id="btnOpenTitles" style="margin-top:4px;font-family:var(--font-pixel);font-size:7px;padding:3px 8px;background:var(--bg);border:1px solid var(--border-light);border-radius:var(--radius-sm);color:var(--text-dim);cursor:pointer">🏆 Titres</button>
         <div style="display:flex;gap:16px;margin-top:6px;flex-wrap:wrap">
           <span style="font-size:10px;color:var(--gold)">⭐ ${g.reputation.toLocaleString()}</span>
