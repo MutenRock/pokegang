@@ -542,17 +542,17 @@ const ZONE_BGS = {
   pallet_garden:    { url:`${SD_BG}meadow.png`,          fb:'#0a2a04,#061802' },
   // ── Cavernes ─────────────────────────────────────────────────
   mt_moon:          { url:`${SD_BG}mountain.png`,       fb:'#12123a,#07073a' },
-  diglett_cave:     { url:`${SD_BG}earthen-cave.png`,   fb:'#2a1204,#180a02' },
-  rock_tunnel:      { url:`${SD_BG}earthen-cave.png`,   fb:'#1a1410,#0a0a08' },
+  diglett_cave:     { url:`${SD_BG}mountain.png`,        fb:'#2a1204,#180a02' },
+  rock_tunnel:      { url:`${SD_BG}mountain.png`,        fb:'#1a1410,#0a0a08' },
   victory_road:     { url:`${SD_BG}mountain.png`,       fb:'#2a1208,#180a06' },
   unknown_cave:     { url:`${SD_BG}mountain.png`,        fb:'#100820,#080012' },
   // ── Zones urbaines ───────────────────────────────────────────
   power_plant:      { url:`${SD_BG}city.png`,           fb:'#2a2008,#1a1400' },
-  silph_co:         { url:`${SD_BG}building.png`,        fb:'#08101a,#040810' },
+  silph_co:         { url:`${SD_BG}city.png`,             fb:'#08101a,#040810' },
   // ── Zones spectrales / sombres ────────────────────────────────
-  pokemon_tower:    { url:`${SD_BG}hauntedlocation.png`, fb:'#0d0020,#06000f' },
-  lavender_town:    { url:`${SD_BG}hauntedlocation.png`, fb:'#160030,#0a0020' },
-  pokemon_mansion:  { url:`${SD_BG}hauntedlocation.png`, fb:'#200408,#140204' },
+  pokemon_tower:    { url:`${SD_BG}city.png`,            fb:'#0d0020,#06000f' },
+  lavender_town:    { url:`${SD_BG}city.png`,            fb:'#160030,#0a0020' },
+  pokemon_mansion:  { url:`${SD_BG}city.png`,            fb:'#200408,#140204' },
   // ── Mer / côte ────────────────────────────────────────────────
   seafoam_islands:  { url:`${SD_BG}deepsea.png`,        fb:'#082a3a,#041a2a' },
   ss_anne:          { url:`${SD_BG}beach.png`,           fb:'#082038,#041428' },
@@ -590,7 +590,7 @@ const GYM_ORDER = ['pewter_gym','cerulean_gym','celadon_gym','fuchsia_gym','saff
 const POT_UPGRADE_COSTS = [3, 6, 12, 24]; // index = current potential-1 (1->2, 2->3, 3->4, 4->5)
 
 // Zone categories for UI grouping
-// type: 'route' (captures + investissement) | 'gym' (combats only, no invest) | 'special' (hybride)
+// type: 'route' (captures + investissement) | 'city' (ville avec arène) | 'special' (hybride)
 const ZONES = [
   // ══ ROUTES & NATURE (captures + investissement) ══
   { id:'route1',        fr:'Route 1',           en:'Route 1',           rep:0,   spawnRate:0.07, type:'route',
@@ -624,35 +624,35 @@ const ZONES = [
     pool:['mewtwo','ditto','kadabra','alakazam','electrode','rhydon','chansey','wigglytuff'],
     trainers:[], eliteTrainer:'red', investCost:60000 },
 
-  // ══ ARÈNES (combats uniquement, pas d'investissement) ══
-  { id:'pewter_gym',    fr:'Arène d\'Argenta',  en:'Pewter Gym',        rep:150, spawnRate:0.06, type:'gym',
-    pool:['geodude','onix','graveler','sandshrew'],
-    trainers:['hiker','camper','pokemonranger'], eliteTrainer:'brock', investCost:0,
-    gymLeader:'brock', xpBonus:1.5 },
-  { id:'cerulean_gym',  fr:'Arène d\'Azuria',   en:'Cerulean Gym',      rep:300, spawnRate:0.06, type:'gym',
-    pool:['staryu','psyduck','goldeen','horsea','seel'],
-    trainers:['swimmer','picnicker','pokemonranger'], eliteTrainer:'misty', investCost:0,
-    gymLeader:'misty', xpBonus:1.5 },
-  { id:'celadon_gym',   fr:'Arène de Céladopole',en:'Celadon Gym',      rep:450, spawnRate:0.06, type:'gym',
-    pool:['bellsprout','oddish','gloom','weepinbell','victreebel','vileplume'],
-    trainers:['lass','beauty','acetrainer','pokemonranger'], eliteTrainer:'erika', investCost:0,
-    gymLeader:'erika', xpBonus:1.8 },
-  { id:'fuchsia_gym',   fr:'Arène de Parmanie', en:'Fuchsia Gym',       rep:650, spawnRate:0.06, type:'gym',
-    pool:['venonat','venomoth','koffing','weezing','grimer','muk'],
-    trainers:['juggler','psychic','pokemonranger'], eliteTrainer:'koga', investCost:0,
-    gymLeader:'koga', xpBonus:2.0 },
-  { id:'saffron_gym',   fr:'Arène de Safrania', en:'Saffron Gym',       rep:800, spawnRate:0.06, type:'gym',
-    pool:['abra','kadabra','alakazam','mr-mime','jynx','hypno'],
-    trainers:['psychic','channeler','pokemonranger'], eliteTrainer:'sabrina', investCost:0,
-    gymLeader:'sabrina', xpBonus:2.2 },
-  { id:'cinnabar_gym',  fr:'Arène de Cramois\'île',en:'Cinnabar Gym',   rep:850, spawnRate:0.06, type:'gym',
-    pool:['growlithe','ponyta','rapidash','magmar','vulpix','ninetales','flareon','moltres'],
-    trainers:['supernerd','scientist','acetrainer','pokemonranger'], eliteTrainer:'blaine', investCost:0,
-    gymLeader:'blaine', xpBonus:2.5 },
-  { id:'indigo_plateau',fr:'Plateau Indigo',    en:'Indigo Plateau',    rep:1000,spawnRate:0.06, type:'gym',
-    pool:['dragonair','dragonite','gyarados','lapras','snorlax'],
-    trainers:['acetrainer','pokemonranger','pokemonrangerf'], eliteTrainer:'blue', investCost:0,
-    gymLeader:'blue', xpBonus:3.0 },
+  // ══ VILLES (spawn + arène) ══
+  { id:'pewter_gym',    fr:'Argenta',           en:'Pewter City',       rep:150, spawnRate:0.06, type:'city',
+    pool:['geodude','onix','sandshrew','pidgey','rattata','nidoran-m','nidoran-f','spearow'],
+    trainers:['hiker','camper','youngster','lass'], eliteTrainer:'brock', investCost:3000,
+    gymLeader:'brock', gymType:'rock', xpBonus:1.5 },
+  { id:'cerulean_gym',  fr:'Azuria',            en:'Cerulean City',     rep:300, spawnRate:0.06, type:'city',
+    pool:['staryu','psyduck','goldeen','horsea','seel','tentacool','shellder','slowpoke'],
+    trainers:['swimmer','picnicker','youngster','lass'], eliteTrainer:'misty', investCost:5000,
+    gymLeader:'misty', gymType:'water', xpBonus:1.5 },
+  { id:'celadon_gym',   fr:'Céladopole',        en:'Celadon City',      rep:450, spawnRate:0.06, type:'city',
+    pool:['bellsprout','oddish','gloom','weepinbell','victreebel','vileplume','meowth','eevee'],
+    trainers:['lass','beauty','acetrainer'], eliteTrainer:'erika', investCost:8000,
+    gymLeader:'erika', gymType:'grass', xpBonus:1.8 },
+  { id:'fuchsia_gym',   fr:'Parmanie',          en:'Fuchsia City',      rep:650, spawnRate:0.06, type:'city',
+    pool:['venonat','venomoth','koffing','weezing','scyther','pinsir','tauros'],
+    trainers:['juggler','psychic','acetrainer'], eliteTrainer:'koga', investCost:12000,
+    gymLeader:'koga', gymType:'poison', xpBonus:2.0 },
+  { id:'saffron_gym',   fr:'Safrania',          en:'Saffron City',      rep:800, spawnRate:0.06, type:'city',
+    pool:['abra','kadabra','alakazam','mr-mime','jynx','hypno','porygon','hitmonlee','hitmonchan'],
+    trainers:['psychic','channeler','acetrainer'], eliteTrainer:'sabrina', investCost:20000,
+    gymLeader:'sabrina', gymType:'psychic', xpBonus:2.2 },
+  { id:'cinnabar_gym',  fr:'Cramois\'île',      en:'Cinnabar Island',   rep:850, spawnRate:0.06, type:'city',
+    pool:['growlithe','ponyta','rapidash','magmar','vulpix','ninetales','flareon'],
+    trainers:['supernerd','scientist','acetrainer'], eliteTrainer:'blaine', investCost:25000,
+    gymLeader:'blaine', gymType:'fire', xpBonus:2.5 },
+  { id:'indigo_plateau',fr:'Plateau Indigo',    en:'Indigo Plateau',    rep:1000,spawnRate:0.06, type:'city',
+    pool:['dragonair','dragonite','gyarados','lapras','snorlax','arcanine','machamp','gengar'],
+    trainers:['acetrainer','acetrainerf','pokemonranger'], eliteTrainer:'blue', investCost:50000,
+    gymLeader:'blue', gymType:'mixed', xpBonus:3.0 },
 
   // ══ LIEUX SPÉCIAUX (hybride : captures + events, investissement possible) ══
   { id:'safari_zone',   fr:'Parc Safari',       en:'Safari Zone',       rep:500, spawnRate:0.07, type:'special',
@@ -1252,7 +1252,7 @@ const SHOP_ITEMS = [
   { id:'casino_ticket', qty:1, cost:20000, icon:'🎰', fr:'Ticket Casino',    en:'Casino Ticket',   desc_fr:'Accès au Casino de Céladopole',         desc_en:'Access to Celadon Casino' },
   { id:'silph_keycard', qty:1, cost:50000, icon:'🔑', fr:'Badge Sylphe',     en:'Silph Keycard',   desc_fr:'Accès à Sylphe SARL',                   desc_en:'Access to Silph Co.' },
   { id:'boat_ticket',   qty:1, cost:15000, icon:'⚓', fr:'Ticket Bateau',    en:'Boat Ticket',     desc_fr:'Monte à bord du Bateau St. Anne',        desc_en:'Board the S.S. Anne' },
-  { id:'egg_scanner', qty:1, cost:1000000, icon:'🔬', fr:'Scanneur d\'Oeuf', en:'Egg Scanner', desc_fr:'80% chance de révéler l\'espèce d\'un oeuf', desc_en:'80% chance to reveal an egg\'s species' },
+  { id:'egg_scanner', qty:1, cost:5000, icon:'🔬', fr:'Scanneur d\'Oeuf', en:'Egg Scanner', desc_fr:'89% révèle l\'espèce, 10% détruit l\'outil, 1% détruit l\'oeuf', desc_en:'89% reveals species, 10% destroys tool, 1% destroys egg' },
   { id:'title_richissime', fr:'Titre "Richissime"', en:'Title "Richissime"', price:5000000, category:'cosmetic',
     desc:'Débloquer le titre légendaire "Richissime". Ostentation maximale.',
     onBuy: () => {
@@ -1560,6 +1560,7 @@ const DEFAULT_STATE = {
   discoveryProgress: {
     marketUnlocked: false,
     pokedexUnlocked: false,
+    missionsUnlocked: false,
   },
 };
 
@@ -1628,7 +1629,8 @@ function migrate(saved) {
   merged.inventory = { ...structuredClone(DEFAULT_STATE.inventory), ...saved.inventory };
   merged.stats = { ...structuredClone(DEFAULT_STATE.stats), ...saved.stats };
   merged.settings = { ...structuredClone(DEFAULT_STATE.settings), ...saved.settings };
-  if (!merged.discoveryProgress) merged.discoveryProgress = { marketUnlocked: false, pokedexUnlocked: false };
+  if (!merged.discoveryProgress) merged.discoveryProgress = { marketUnlocked: false, pokedexUnlocked: false, missionsUnlocked: false };
+  if (merged.discoveryProgress.missionsUnlocked === undefined) merged.discoveryProgress.missionsUnlocked = false;
   // Nouveau joueur → découverte ON ; joueur existant sans ce champ → OFF (déjà habitué)
   if (merged.settings.discoveryMode === undefined) merged.settings.discoveryMode = false;
   if (merged.settings.autoBuyBall === undefined) merged.settings.autoBuyBall = null;
@@ -2401,6 +2403,12 @@ const MusicPlayer = (() => {
     updateFromContext() {
       if (!_isEnabled()) { this.stop(); return; }
 
+      // Priorité 0 : jukebox manuel
+      if (state?.settings?.jukeboxTrack) {
+        this.play(state.settings.jukeboxTrack);
+        return;
+      }
+
       // Priorité : première zone ouverte qui a une musique définie
       for (const zId of (state.openZoneOrder || [])) {
         const zone = ZONE_BY_ID[zId];
@@ -2465,7 +2473,6 @@ const JinglePlayer = (() => {
  * Utilise Audio HTML plutôt que Web Audio pour les fichiers complexes.
  */
 const SE_SOUNDS = {
-  capture:    'music/SE/BW2BattleBalls.mp3',
   buy:        'music/SE/Charm.mp3',
   level_up:   'music/SE/BW2Summary.mp3',
   slash:      'music/SE/Slash.mp3',
@@ -3030,6 +3037,7 @@ function updateDiscovery() {
   }
 
   const dexCaught = Object.values(state.pokedex).filter(e => e.caught).length;
+  const totalFightsWon = state.stats?.totalFightsWon || 0;
 
   // Marché : débloqué quand 0 balls pour la première fois
   if (!state.discoveryProgress.marketUnlocked) {
@@ -3048,6 +3056,13 @@ function updateDiscovery() {
     notify('📖 Le Pokédex est maintenant accessible !', 'gold');
   }
 
+  // Missions : débloqué quand 10+ combats gagnés
+  if (!state.discoveryProgress.missionsUnlocked && totalFightsWon >= 10) {
+    state.discoveryProgress.missionsUnlocked = true;
+    saveState();
+    notify('📋 Les Missions sont maintenant accessibles !', 'gold');
+  }
+
   // Appliquer la visibilité
   const marketBtn = document.querySelector('[data-tab="tabMarket"]');
   if (marketBtn) marketBtn.style.display = state.discoveryProgress.marketUnlocked ? '' : 'none';
@@ -3055,9 +3070,8 @@ function updateDiscovery() {
   const dexBtn = document.querySelector('[data-tab="tabPokedex"]');
   if (dexBtn) dexBtn.style.display = state.discoveryProgress.pokedexUnlocked ? '' : 'none';
 
-  // Missions toujours caché pour l'instant
   const missionsBtn = document.querySelector('[data-tab="tabMissions"]');
-  if (missionsBtn) missionsBtn.style.display = 'none';
+  if (missionsBtn) missionsBtn.style.display = state.discoveryProgress.missionsUnlocked ? '' : 'none';
 }
 
 function openTitleModal() {
@@ -3211,8 +3225,8 @@ function isZoneUnlocked(zoneId) {
   // Never visited: requires full conditions
   if (state.gang.reputation < zone.rep) return false;
   if (zone.unlockItem && !state.purchases?.[zone.unlockItem]) return false;
-  // Gyms require sequential unlock: previous gym must be defeated
-  if (zone.type === 'gym') {
+  // Cities (gyms) require sequential unlock: previous city must be defeated
+  if (zone.type === 'city') {
     const idx = GYM_ORDER.indexOf(zoneId);
     if (idx > 0) {
       const prevId = GYM_ORDER[idx - 1];
@@ -3391,12 +3405,11 @@ function spawnInZone(zoneId) {
     return { type: 'trainer', trainerKey, trainer, team };
   }
 
-  // 5. Gym zones — combat only, no wild Pokémon
-  if (zone.type === 'gym') {
-    const trainerKey = pick(zone.trainers.length ? zone.trainers : [zone.eliteTrainer || 'acetrainer']);
+  // 5. City zones — extra trainer chance (no fallback to combat-only, pokemon can also spawn)
+  if (zone.type === 'city' && r < 0.55 && zone.trainers.length > 0) {
+    const trainerKey = pick(zone.trainers);
     const trainer = TRAINER_TYPES[trainerKey];
     if (trainer) return { type: 'trainer', trainerKey, trainer, team: makeTrainerTeam(zone, trainerKey) };
-    return null;
   }
 
   // 6. Pokemon spawn — Rare Scope triples chance of rare+ species
@@ -3564,7 +3577,7 @@ function activateEvent(zoneId, event) {
       const shiny = Math.random() < 0.01;
       state.eggs.push({ id: uid(), species_en, hatchAt: null, incubating: false, potential, shiny, gifted: true });
       tryAutoIncubate();
-      notify(`${event.icon} Oeuf de ${speciesName(species_en)} découvert !${state.purchases?.autoIncubator ? ' (auto-incubé)' : ' Placez-le dans un incubateur.'}`, 'gold');
+      notify(`${event.icon} 🥚 Un œuf mystérieux est apparu… On se demande ce qu'il contient !`, 'gold');
     }
   }
 
@@ -3577,10 +3590,6 @@ function activateEvent(zoneId, event) {
 function investInZone(zoneId) {
   const zone = ZONE_BY_ID[zoneId];
   if (!zone) return false;
-  if (zone.type === 'gym') {
-    notify(state.lang === 'fr' ? 'Les arènes ne peuvent pas être investies !' : 'Gyms cannot be invested!');
-    return false;
-  }
   const zState = initZone(zoneId);
   if (zState.invested) return false;
   const cost = zone.investCost || 0;
@@ -3726,14 +3735,20 @@ function applyCombatResult(result, playerTeamIds, trainerData) {
     const combatZone = ZONE_BY_ID[trainerData.zoneId];
     if (combatZone?.gymLeader && trainerData.trainerKey === combatZone.gymLeader) {
       const zs = initZone(trainerData.zoneId);
-      if (!zs.gymDefeated) {
-        zs.gymDefeated = true;
-        notify(`Arene vaincue ! La prochaine arene est debloquee.`, 'gold');
+      const wasDefeated = zs.gymDefeated;
+      zs.gymDefeated = true;
+      if (!wasDefeated) {
+        notify(`🏆 ${combatZone.fr} — Champion vaincu ! La voie est libre.`, 'gold');
+        // Déclenche la vérification de nouvelles zones débloquées par la séquence
+        setTimeout(() => checkForNewlyUnlockedZones(state.gang.reputation - 0.001), 600);
+      }
+      if (trainerData.isGymRaid) {
+        zs.gymRaidLastFight = Date.now();
       }
     }
     // XP to team (gyms give bonus XP)
     const zone = ZONE_BY_ID[trainerData.zoneId];
-    const gymBonus = (zone?.type === 'gym' && zone?.xpBonus) ? zone.xpBonus : 1;
+    const gymBonus = (zone?.type === 'city' && zone?.xpBonus) ? zone.xpBonus : 1;
     const xpEach = Math.round((10 + trainerData.trainer.diff * 5) * gymBonus * 0.75);
     for (const id of playerTeamIds) {
       const p = state.pokemons.find(pk => pk.id === id);
@@ -3759,6 +3774,14 @@ function checkForNewlyUnlockedZones(prevRep) {
   const newZones = ZONES.filter(z => {
     if (!z.rep || z.rep === 0) return false;
     if (z.unlockItem && !state.purchases?.[z.unlockItem]) return false;
+    // Cities require previous city to be defeated
+    if (z.type === 'city') {
+      const idx = GYM_ORDER.indexOf(z.id);
+      if (idx > 0) {
+        const prevId = GYM_ORDER[idx - 1];
+        if (!state.zones[prevId]?.gymDefeated) return false;
+      }
+    }
     return prevRep < z.rep && state.gang.reputation >= z.rep;
   });
   newZones.forEach((zone, i) => {
@@ -4251,11 +4274,31 @@ function passiveAgentTick() {
           notify(`[WIN] ${agent.name} +${reward}P`, 'success');
         }
         addLog(t('agent_win', { agent: agent.name }));
+        addBattleLogEntry({
+          ts: Date.now(),
+          zoneName: `[Agent] ${agent.name} — ${ZONE_BY_ID[zoneId]?.fr || zoneId}`,
+          win: true,
+          reward: reward,
+          repGain: repGain,
+          lines: [`${agent.name} a battu un dresseur. +${reward}₽ +${repGain}rep`],
+          trainerKey: entry.trainerKey,
+          isAgent: true,
+        });
       } else {
         state.stats.totalFights++;
         state.gang.reputation = Math.max(0, state.gang.reputation - 5);
         if (agent.notifyCaptures) notify(`[KO] ${agent.name} defaite...`);
         addLog(t('agent_lose', { agent: agent.name }));
+        addBattleLogEntry({
+          ts: Date.now(),
+          zoneName: `[Agent] ${agent.name} — ${ZONE_BY_ID[zoneId]?.fr || zoneId}`,
+          win: false,
+          reward: 0,
+          repGain: 0,
+          lines: [`${agent.name} a perdu un combat.`],
+          trainerKey: entry.trainerKey,
+          isAgent: true,
+        });
       }
       changed = true;
 
@@ -4265,6 +4308,24 @@ function passiveAgentTick() {
       if (agent.notifyCaptures) notify(`📦 ${agent.name} — ${loot.msg}`, loot.type);
       changed = true;
     }
+  }
+
+  // Auto gym raid: for each city zone with gymLeader, if cooldown passed + agent assigned + 1 manual win
+  const raidCooldownMs = 5 * 60 * 1000;
+  const checkedRaidZones = new Set();
+  for (const agent of state.agents) {
+    if (!agent.assignedZone) continue;
+    const zid = agent.assignedZone;
+    if (checkedRaidZones.has(zid)) continue;
+    if (openZones.has(zid)) continue;
+    const raidZone = ZONE_BY_ID[zid];
+    if (!raidZone || raidZone.type !== 'city' || !raidZone.gymLeader) continue;
+    const rzs = state.zones[zid];
+    if (!rzs || !rzs.gymDefeated) continue; // need at least 1 manual win
+    if ((rzs.combatsWon || 0) < 10) continue;
+    if (Date.now() - (rzs.gymRaidLastFight || 0) < raidCooldownMs) continue;
+    checkedRaidZones.add(zid);
+    if (triggerGymRaid(zid, true)) changed = true;
   }
 
   if (changed) {
@@ -4630,7 +4691,7 @@ function buyItem(itemDef) {
     state.eggs.push({ id: uid(), species_en, hatchAt: null, incubating: false, potential, shiny, mystery: true });
     state.purchases.mysteryEggCount = (state.purchases.mysteryEggCount || 0) + 1;
     tryAutoIncubate();
-    notify(`Oeuf Mystère obtenu !${state.purchases?.autoIncubator ? ' (auto-incubé)' : ' Placez-le dans un incubateur.'}`, 'gold');
+    notify(`🥚 Un œuf mystérieux est apparu… On se demande ce qu'il contient !`, 'gold');
     saveState();
     return true;
   }
@@ -4774,6 +4835,111 @@ function checkMoneyMilestone() {
     modal.querySelector('#btnChromaCharmClose').addEventListener('click', () => modal.remove());
     notify('✨ Charme Chroma obtenu ! Taux shiny ×2', 'gold');
   }
+}
+
+// ── Cheat Codes ───────────────────────────────────────────────
+const _CHEAT_CODES = {
+  [btoa('RICHISSIM')]:       { money: 5_000_000 },
+  [btoa('DOUBLERICHISSIM')]: { money: 10_000_000, title: 'doublerichissim' },
+};
+const _usedCodes = new Set();
+
+function tryCheatCode(inputId) {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+  const raw = input.value.trim().toUpperCase();
+  input.value = '';
+  if (!raw) return;
+  const key = btoa(raw);
+  if (_usedCodes.has(key)) { notify('❌ Code déjà utilisé cette session', 'error'); return; }
+  const code = _CHEAT_CODES[key];
+  if (!code) { notify('❌ Code invalide', 'error'); SFX.play('error'); return; }
+  _usedCodes.add(key);
+  if (code.money) {
+    state.gang.money += code.money;
+    updateTopBar();
+    notify(`💰 +${code.money.toLocaleString()}₽ !`, 'gold');
+    SFX.play('unlock');
+  }
+  if (code.title) {
+    state.purchases[`title_${code.title}`] = true;
+    notify(`🏆 Titre obtenu : ${code.title}`, 'gold');
+  }
+  saveState();
+}
+
+// ── Gym Raid (manual + auto) ──────────────────────────────────
+function triggerGymRaid(zoneId, isAuto) {
+  const zone = ZONE_BY_ID[zoneId];
+  if (!zone || !zone.gymLeader) return false;
+  const zs = initZone(zoneId);
+  const raidCooldownMs = 5 * 60 * 1000;
+  if (Date.now() - (zs.gymRaidLastFight || 0) < raidCooldownMs) {
+    if (!isAuto) notify('⏳ Raid d\'arène en cooldown !', 'error');
+    return false;
+  }
+  if ((zs.combatsWon || 0) < 10) {
+    if (!isAuto) notify('⚔ Remportez 10 combats d\'abord !', 'error');
+    return false;
+  }
+  // Auto requires at least 1 manual win
+  if (isAuto && !zs.gymDefeated) return false;
+
+  zs.gymRaidLastFight = Date.now();
+  saveState();
+
+  // Build the gym leader's team
+  const trainerKey = zone.gymLeader;
+  const trainer = TRAINER_TYPES[trainerKey];
+  if (!trainer) return false;
+
+  const eliteDiff = trainer.diff + 3;
+  const teamSize = 3;
+  const team = [];
+  for (let i = 0; i < teamSize; i++) {
+    const sp = pick(zone.pool);
+    const level = randInt(15 + eliteDiff * 5, 25 + eliteDiff * 7);
+    team.push({ species_en: sp, level, stats: calculateStats({ species_en: sp, level, nature: 'hardy', potential: 4 }) });
+  }
+  const raidTrainer = {
+    ...trainer,
+    fr: `⚔ ${trainer.fr} (Champion)`,
+    en: `⚔ ${trainer.en} (Leader)`,
+    diff: eliteDiff,
+    reward: [trainer.reward[0] * 5, trainer.reward[1] * 5],
+    rep: trainer.rep * 3,
+  };
+
+  if (isAuto) {
+    // Auto-fight via agent power
+    const agentPower = state.agents.filter(a => a.assignedZone === zoneId)
+      .reduce((s, a) => s + getAgentCombatPower(a), 0);
+    let enemyPower = 0;
+    for (const t of team) enemyPower += (t.stats.atk + t.stats.def + t.stats.spd);
+    const win = agentPower * (0.8 + Math.random() * 0.4) >= enemyPower * (0.8 + Math.random() * 0.4);
+    if (win) {
+      const reward = Math.min(MAX_COMBAT_REWARD, randInt(raidTrainer.reward[0], raidTrainer.reward[1]));
+      zs.pendingIncome = (zs.pendingIncome || 0) + reward;
+      state.gang.reputation += raidTrainer.rep;
+      state.stats.totalMoneyEarned += reward;
+      state.stats.totalFights++;
+      state.stats.totalFightsWon++;
+      zs.combatsWon = (zs.combatsWon || 0) + 1;
+      zs.gymDefeated = true;
+      notify(`🏆 RAID AUTO — ${zone.fr} vaincu ! +${reward}₽`, 'gold');
+      addBattleLogEntry({ ts: Date.now(), zoneName: `[RAID] ${zone.fr}`, win: true,
+        reward, repGain: raidTrainer.rep, lines: [`Raid auto réussi contre ${trainerKey}`], trainerKey, isAgent: true });
+    } else {
+      state.stats.totalFights++;
+      notify(`❌ Raid auto échoué — ${zone.fr}`, 'error');
+    }
+    saveState(); updateTopBar();
+    return win;
+  }
+
+  // Manual raid → open combat popup
+  openCombatPopup(zoneId, { type: 'trainer', trainerKey, trainer: raidTrainer, team, isGymRaid: true });
+  return true;
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -6016,9 +6182,9 @@ function renderZoneSelector() {
   const el = document.getElementById('zoneSelector');
   if (!el) return;
 
-  // Séparation : gauche = terrain/spécial, droite = gym/combat
-  const zonesLeft  = ZONES.filter(z => z.type !== 'gym' && z.type !== 'gym-boss');
-  const zonesRight = ZONES.filter(z => z.type === 'gym' || z.type === 'gym-boss');
+  // Séparation : gauche = routes, droite = villes & lieux spéciaux
+  const zonesLeft  = ZONES.filter(z => z.type === 'route');
+  const zonesRight = ZONES.filter(z => z.type === 'city' || z.type === 'special');
 
   function buildTile(zone) {
     const unlocked = isZoneUnlocked(zone.id);
@@ -6030,7 +6196,7 @@ function renderZoneSelector() {
       : `background:var(--bg-panel);`;
     const zState = state.zones[zone.id] || {};
     const combats = zState.combatsWon || 0;
-    const gymTag = zone.type === 'gym' ? ' [GYM]' : zone.type === 'special' ? ' [SP]' : '';
+    const gymTag = zone.type === 'city' ? ' [VILLE]' : zone.type === 'special' ? ' [SP]' : '';
     const mastery = getZoneMastery(zone.id) || 0;
     const degraded = isZoneDegraded(zone.id);
 
@@ -6039,13 +6205,16 @@ function renderZoneSelector() {
       const income = zState.pendingIncome || 0;
       const incomeTier = income <= 0 ? 0 : income < 500 ? 1 : income < 2000 ? 2 : income < 5000 ? 3 : income < 15000 ? 4 : 5;
       const incomeHtml = incomeTier > 0 ? `<div class="zone-income-btn income-tier${incomeTier}" data-collect-zone="${zone.id}">₽</div>` : '';
-      const isGym = zone.type === 'gym' || zone.type === 'gym-boss';
+      const isCity = zone.type === 'city';
       const isFav = (state.favoriteZones || []).includes(zone.id);
       let displayName = name;
-      if (isGym) {
+      if (isCity) {
+        const raidReady = (state.zones[zone.id]?.combatsWon || 0) >= 10 && zone.gymLeader;
         displayName = zState.gymDefeated
-          ? `<span style="color:var(--red)">${name}</span>`
-          : `<span style="color:var(--text-dim)">${name}</span>`;
+          ? `<span style="color:var(--gold)">${name} ⚔</span>`
+          : raidReady
+            ? `<span style="color:var(--red)">${name} !</span>`
+            : `<span style="color:var(--text-dim)">${name}</span>`;
       }
       const poolPreview = zone.pool.slice(0, 5).map(en =>
         `<img src="${pokeSprite(en)}" style="width:16px;height:16px;image-rendering:pixelated;filter:drop-shadow(0 1px 3px rgba(0,0,0,1))" title="${SPECIES_BY_EN[en]?.fr || en}">`
@@ -6085,11 +6254,11 @@ function renderZoneSelector() {
   const html = `
     <div class="fog-split-layout">
       <div class="fog-col">
-        <div class="fog-col-label">— ZONES —</div>
+        <div class="fog-col-label">— ROUTES —</div>
         <div class="fog-map">${zonesLeft.map(buildTile).join('')}</div>
       </div>
       <div class="fog-col fog-col-combat">
-        <div class="fog-col-label">— ARÈNES —</div>
+        <div class="fog-col-label">— VILLES &amp; LIEUX —</div>
         <div class="fog-map">${zonesRight.map(buildTile).join('')}</div>
       </div>
     </div>`;
@@ -6280,8 +6449,8 @@ function buildZoneWindowEl(zoneId) {
   const combats = zState.combatsWon || 0;
   const captures = zState.captures || 0;
   const nextMastery = mastery < 3 ? (mastery < 2 ? 10 : 50) : null;
-  const progressText = zone.type === 'gym'
-    ? `Victoires: ${combats}${gymDefeated ? ' [V]' : ''}`
+  const progressText = zone.type === 'city'
+    ? `Combats: ${combats}${gymDefeated ? ' ✓GYM' : combats >= 10 && zone.gymLeader ? ' — RAID!' : ''}`
     : `Combats: ${combats}${nextMastery ? `/${nextMastery}` : ''} | Cap: ${captures}`;
 
   const bgStyle = (() => {
@@ -6315,7 +6484,23 @@ function buildZoneWindowEl(zoneId) {
           <span class="agent-cd-label" style="display:none;font-family:var(--font-pixel);font-size:7px;color:var(--red);background:rgba(0,0,0,.8);border-radius:2px;padding:1px 3px;white-space:nowrap;position:absolute;top:-16px;left:50%;transform:translateX(-50%)"></span>
         </div>
       `).join('')}
-      <div id="zpb-${zoneId}" style="position:absolute;top:4px;left:50%;transform:translateX(-50%);font-family:var(--font-pixel);font-size:7px;color:var(--text-dim);background:rgba(0,0,0,.55);border-radius:2px;padding:1px 5px;white-space:nowrap;z-index:2;pointer-events:none">${progressText}${zone.type === 'gym' ? ` — XP×${zone.xpBonus}` : ''}</div>
+      <div id="zpb-${zoneId}" style="position:absolute;top:4px;left:50%;transform:translateX(-50%);font-family:var(--font-pixel);font-size:7px;color:var(--text-dim);background:rgba(0,0,0,.55);border-radius:2px;padding:1px 5px;white-space:nowrap;z-index:2;pointer-events:none">${progressText}${zone.type === 'city' ? ` — XP×${zone.xpBonus}` : ''}</div>
+      ${zone.type === 'city' && zone.gymLeader && combats >= 10 ? (() => {
+        const lastRaid = zState.gymRaidLastFight || 0;
+        const raidCooldownMs = 5 * 60 * 1000;
+        const raidReady = Date.now() - lastRaid >= raidCooldownMs;
+        const cdSec = raidReady ? 0 : Math.ceil((raidCooldownMs - (Date.now() - lastRaid)) / 1000);
+        return `<button class="zone-gym-raid-btn" data-gym-raid="${zoneId}"
+          style="position:absolute;bottom:38px;left:50%;transform:translateX(-50%);
+          font-family:var(--font-pixel);font-size:7px;padding:3px 10px;
+          background:${raidReady ? 'rgba(180,20,20,.8)' : 'rgba(60,60,60,.8)'};
+          border:1px solid ${raidReady ? 'var(--red)' : 'var(--border)'};
+          border-radius:2px;color:${raidReady ? 'var(--text)' : 'var(--text-dim)'};
+          cursor:${raidReady ? 'pointer' : 'default'};white-space:nowrap;z-index:3"
+          ${raidReady ? '' : 'disabled'}>
+          ⚔ RAID ${gymDefeated ? '(re)' : ''}${raidReady ? '' : ` ${cdSec}s`}
+        </button>`;
+      })() : ''}
       ${state.gang.bossSprite && state.gang.bossZone === zoneId ? `<div class="zone-boss" data-boss-cd>
         <img src="${trainerSprite(state.gang.bossSprite)}" alt="Boss" onerror="this.src='${trainerSprite('acetrainer')}'">
         <span class="boss-cd-label" style="display:none;font-family:var(--font-pixel);font-size:7px;color:var(--red);background:rgba(0,0,0,.8);border-radius:2px;padding:1px 3px;white-space:nowrap;position:absolute;top:-16px;left:50%;transform:translateX(-50%)"></span>
@@ -6355,9 +6540,15 @@ function buildZoneWindowEl(zoneId) {
 
   win.querySelector('.zone-viewport')?.addEventListener('dblclick', (e) => {
     if (e.target.closest('.zone-spawn')) return;
+    if (e.target.closest('.zone-gym-raid-btn')) return;
     state.gang.bossZone = zoneId;
     saveState();
     renderZoneWindows();
+  });
+
+  win.querySelector(`[data-gym-raid="${zoneId}"]`)?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    triggerGymRaid(zoneId);
   });
 
   win.querySelector(`[data-zone-upgrade="${zoneId}"]`)?.addEventListener('dblclick', (e) => {
@@ -6390,8 +6581,8 @@ function patchZoneWindow(zoneId, win) {
   const combats = zState.combatsWon || 0;
   const captures = zState.captures || 0;
   const nextMastery = mastery < 3 ? (mastery < 2 ? 10 : 50) : null;
-  const progressText = zone.type === 'gym'
-    ? `Victoires: ${combats}${gymDefeated ? ' [V]' : ''}`
+  const progressText = zone.type === 'city'
+    ? `Combats: ${combats}${gymDefeated ? ' ✓GYM' : combats >= 10 && zone.gymLeader ? ' — RAID!' : ''}`
     : `Combats: ${combats}${nextMastery ? `/${nextMastery}` : ''} | Cap: ${captures}`;
 
   const boosts = [];
@@ -6436,7 +6627,7 @@ function patchZoneWindow(zoneId, win) {
 
   // Update progress bar
   const progressBar = win.querySelector(`#zpb-${zoneId}`);
-  if (progressBar) progressBar.textContent = `${progressText}${zone.type === 'gym' ? ` — XP×${zone.xpBonus}` : ''}`;
+  if (progressBar) progressBar.textContent = `${progressText}${zone.type === 'city' ? ` — XP×${zone.xpBonus}` : ''}`;
 
   // Agent overlays — remove + re-add (they're static overlays, not live spawns)
   viewport.querySelectorAll('.zone-agent').forEach(el => el.remove());
@@ -6673,6 +6864,51 @@ function renderGangBaseWindow() {
         : `<div style="font-size:8px;color:var(--text-dim);padding:2px 0 3px;opacity:.5">${state.lang === 'fr' ? 'Aucun incubateur — achetez-en au Marché' : 'No incubators — buy some at the Market'}</div>`}
     </div>
 
+    <!-- ── Jukebox ── -->
+    ${(() => {
+      const jukeboxTracks = [
+        { key: 'base',     icon: '🏠', label: 'Base' },
+        { key: 'forest',   icon: '🌿', label: 'Route' },
+        { key: 'cave',     icon: '⛏', label: 'Caverne' },
+        { key: 'city',     icon: '🏙', label: 'Ville' },
+        { key: 'sea',      icon: '🌊', label: 'Mer' },
+        { key: 'safari',   icon: '🦒', label: 'Safari' },
+        { key: 'lavender', icon: '💜', label: 'Lavanville' },
+        { key: 'tower',    icon: '👻', label: 'Tour' },
+        { key: 'mansion',  icon: '🕯', label: 'Manoir' },
+        { key: 'gym',      icon: '⚔', label: 'Arène' },
+        { key: 'rocket',   icon: '🚀', label: 'Rocket' },
+        { key: 'silph',    icon: '🔬', label: 'Sylphe' },
+        { key: 'elite4',   icon: '👑', label: 'Élite 4' },
+        { key: 'casino',   icon: '🎰', label: 'Casino' },
+      ];
+      // A track is unlocked if any zone using it is unlocked, or if 'base' (always)
+      const isTrackUnlocked = (key) => {
+        if (key === 'base') return true;
+        return ZONES.some(z => z.music === key && isZoneUnlocked(z.id));
+      };
+      const currentJuke = state.settings?.jukeboxTrack || null;
+      const tracksHtml = jukeboxTracks.map(t => {
+        const unlocked = isTrackUnlocked(t.key);
+        const active = currentJuke === t.key;
+        return `<div class="jukebox-track${active ? ' active' : ''}${unlocked ? '' : ' locked'}" data-jukebox-track="${t.key}" title="${t.label}${unlocked ? '' : ' — Verrou'}">
+          <span class="juke-icon">${unlocked ? t.icon : '🔒'}</span>
+          <span class="juke-label">${t.label}</span>
+        </div>`;
+      }).join('');
+      return `<div class="base-inv-section">
+        <div class="base-inv-label">🎵 JUKEBOX
+          <span style="font-size:7px;color:var(--text-dim);font-weight:normal;margin-left:4px">${currentJuke ? MUSIC_TRACKS[currentJuke]?.fr || currentJuke : 'AUTO'}</span>
+        </div>
+        <div class="base-jukebox">${tracksHtml}
+          <div class="jukebox-track${!currentJuke ? ' active' : ''}" data-jukebox-track="__auto__" title="Musique automatique selon la zone">
+            <span class="juke-icon">🔄</span>
+            <span class="juke-label">AUTO</span>
+          </div>
+        </div>
+      </div>`;
+    })()}
+
   </div>`;
 }
 
@@ -6711,6 +6947,7 @@ function bindGangBase(container) {
         state.activeBall = id;
         saveState();
         renderZoneWindows();
+        renderGangBasePanel();
         return;
       }
       if (id === 'rarecandy') { openRareCandyPicker(); return; }
@@ -6719,6 +6956,7 @@ function bindGangBase(container) {
           notify(`Boost activé — ${Math.ceil(boostRemaining(id))}s`, 'success');
         }
         renderZoneWindows();
+        renderGangBasePanel();
         return;
       }
     });
@@ -6737,6 +6975,24 @@ function bindGangBase(container) {
 
   // Export button
   container.querySelector('.base-export-btn')?.addEventListener('click', exportGangImage);
+
+  // Jukebox track selection
+  container.querySelectorAll('[data-jukebox-track]').forEach(el => {
+    el.addEventListener('click', () => {
+      const key = el.dataset.jukeboxTrack;
+      if (el.classList.contains('locked')) { notify('🔒 Débloquez cette zone pour accéder à cette musique', 'error'); return; }
+      if (key === '__auto__') {
+        state.settings.jukeboxTrack = null;
+        notify('🎵 Jukebox → Auto', 'success');
+      } else {
+        state.settings.jukeboxTrack = key;
+        notify(`🎵 ${MUSIC_TRACKS[key]?.fr || key}`, 'success');
+      }
+      saveState();
+      MusicPlayer.updateFromContext();
+      renderGangBasePanel();
+    });
+  });
 }
 
 // ── Codex — Prix & Spawns reference modal ────────────────────
@@ -7316,9 +7572,9 @@ function updateZoneTimers(zoneId) {
 
   let html = `
     <div style="padding:6px 8px;font-size:9px;font-family:var(--font-pixel)">
-      <div style="color:var(--text-dim);margin-bottom:4px">${zone.type === 'gym' ? 'ARENE' : 'PROGRESSION'}</div>
+      <div style="color:var(--text-dim);margin-bottom:4px">${zone.type === 'city' ? 'VILLE / ARÈNE' : 'PROGRESSION'}</div>
       <div style="margin-bottom:4px">Combats: ${combats}${nextMastery ? `/${nextMastery}` : ' [MAX]'}
-        ${zone.type !== 'gym' ? ` | Captures: ${captures}` : ''}
+        ${zone.type !== 'city' ? ` | Captures: ${captures}` : ''}
         ${zState.gymDefeated ? ' <span style="color:var(--gold)">[V]</span>' : ''}
       </div>
       ${nextMastery ? `<div style="background:var(--border);border-radius:2px;height:4px;margin-bottom:6px">
@@ -7352,10 +7608,10 @@ function updateZoneTimers(zoneId) {
     const freshCombats = zState.combatsWon || 0;
     const freshCaptures = zState.captures || 0;
     const freshNextMastery = mastery < 3 ? (mastery < 2 ? 10 : 50) : null;
-    const freshProgressText = zone.type === 'gym'
-      ? `Victoires: ${freshCombats}${zState.gymDefeated ? ' [V]' : ''}`
+    const freshProgressText = zone.type === 'city'
+      ? `Combats: ${freshCombats}${zState.gymDefeated ? ' ✓GYM' : freshCombats >= 10 && zone.gymLeader ? ' — RAID!' : ''}`
       : `Combats: ${freshCombats}${freshNextMastery ? `/${freshNextMastery}` : ''} | Cap: ${freshCaptures}`;
-    levelEl.innerHTML = freshProgressText + (zone.type === 'gym' ? ` <span style="color:var(--gold);font-size:8px">XP*${zone.xpBonus}</span>` : '');
+    levelEl.innerHTML = freshProgressText + (zone.type === 'city' ? ` <span style="color:var(--gold);font-size:8px">XP*${zone.xpBonus}</span>` : '');
   }
 
   // Also refresh slots bar
@@ -7626,7 +7882,7 @@ function animateCapture(zoneId, spawnObj, spawnEl) {
       if (caught) {
         if (isCritical) notify(`★ Capture critique ! +1 potentiel`, 'gold');
         if (caught.shiny) spawnEl.classList.add('shiny-flash');
-        playSE('capture', caught.shiny ? 0.9 : 0.6);
+        SFX.play('capture', caught.potential, caught.shiny);
         showCaptureBurst(viewport, targetX, targetY, caught.potential, caught.shiny);
         removeSpawn(zoneId, spawnObj.id);
         updateTopBar();
@@ -8832,14 +9088,26 @@ function renderEggsView(container) {
       const egg = state.eggs.find(e => e.id === btn.dataset.eggId);
       if (!egg || egg.scanned) return;
       if ((state.inventory.egg_scanner || 0) < 1) { notify('Aucun Scanneur d\'Oeuf disponible.', 'error'); return; }
-      state.inventory.egg_scanner--;
-      egg.scanned = true;
-      if (Math.random() < 0.8) {
+      // Roll d100: 1-89 = reveal (scanner survives), 90-99 = scanner détruit, 100 = oeuf détruit
+      const roll = Math.random() * 100;
+      if (roll < 89) {
         egg.revealedSpecies = egg.species_en;
-        notify(`🔬 Scan réussi ! L'oeuf contient un ${speciesName(egg.species_en)} !`, 'gold');
-      } else {
+        egg.scanned = true;
+        notify(`🔬 Scan réussi ! C'est un ${speciesName(egg.species_en)} !`, 'gold');
+      } else if (roll < 99) {
+        state.inventory.egg_scanner--;
+        egg.scanned = true;
         egg.revealedSpecies = null;
-        notify('🔬 Le scan est resté flou… Espèce inconnue.', 'info');
+        notify('🔬 Scanneur détruit dans l\'opération… Espèce inconnue.', 'error');
+      } else {
+        state.inventory.egg_scanner--;
+        const idx = state.eggs.indexOf(egg);
+        if (idx !== -1) state.eggs.splice(idx, 1);
+        notify('💥 L\'oeuf a été détruit par le scan défectueux !', 'error');
+        saveState();
+        const eggsEl = document.getElementById('eggsInPC');
+        if (eggsEl) renderEggsView(eggsEl);
+        return;
       }
       saveState();
       const eggsEl = document.getElementById('eggsInPC');
