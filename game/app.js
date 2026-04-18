@@ -1262,13 +1262,6 @@ const SHOP_ITEMS = [
   { id:'silph_keycard', qty:1, cost:50000, icon:'🔑', fr:'Badge Sylphe',     en:'Silph Keycard',   desc_fr:'Accès à Sylphe SARL',                   desc_en:'Access to Silph Co.' },
   { id:'boat_ticket',   qty:1, cost:15000, icon:'⚓', fr:'Ticket Bateau',    en:'Boat Ticket',     desc_fr:'Monte à bord du Bateau St. Anne',        desc_en:'Board the S.S. Anne' },
   { id:'egg_scanner', qty:1, cost:5000, icon:'🔬', fr:'Scanneur d\'Oeuf', en:'Egg Scanner', desc_fr:'89% révèle l\'espèce, 10% détruit l\'outil, 1% détruit l\'oeuf', desc_en:'89% reveals species, 10% destroys tool, 1% destroys egg' },
-  { id:'title_richissime', fr:'Titre "Richissime"', en:'Title "Richissime"', price:5000000, category:'cosmetic',
-    desc:'Débloquer le titre légendaire "Richissime". Ostentation maximale.',
-    onBuy: () => {
-      state.unlockedTitles = [...new Set([...(state.unlockedTitles||[]), 'richissime'])];
-      notify('💰 Titre "Richissime" débloqué !', 'gold');
-    }
-  },
 ];
 
 // ── Mystery Egg ───────────────────────────────────────────────
@@ -2302,7 +2295,7 @@ const SFX = (() => {
     osc.connect(gain);
     gain.connect(c.destination);
     osc.start();
-    osc.stop(c.currentTime + duration);
+    osc.stop(c.currentTime + duration + 0.05); // +50 ms buffer → élimine le click/scratch à l'arrêt
   }
   return {
     ballThrow() {
@@ -2730,6 +2723,7 @@ function showRarePopup(species_en, zoneId) {
 function showConfirm(message, onConfirm, onCancel = null, opts = {}) {
   const existing = document.getElementById('confirmModal');
   if (existing) existing.remove();
+  SFX.play('menuOpen');
 
   const modal = document.createElement('div');
   modal.id = 'confirmModal';
@@ -2750,9 +2744,9 @@ function showConfirm(message, onConfirm, onCancel = null, opts = {}) {
 
   document.body.appendChild(modal);
 
-  document.getElementById('confirmModalOk').addEventListener('click', () => { modal.remove(); onConfirm?.(); });
-  document.getElementById('confirmModalCancel').addEventListener('click', () => { modal.remove(); onCancel?.(); });
-  modal.addEventListener('click', e => { if (e.target === modal) { modal.remove(); onCancel?.(); } });
+  document.getElementById('confirmModalOk').addEventListener('click', () => { SFX.play('menuClose'); modal.remove(); onConfirm?.(); });
+  document.getElementById('confirmModalCancel').addEventListener('click', () => { SFX.play('menuClose'); modal.remove(); onCancel?.(); });
+  modal.addEventListener('click', e => { if (e.target === modal) { SFX.play('menuClose'); modal.remove(); onCancel?.(); } });
 }
 
 function showInfoModal(tabId) {
@@ -4974,6 +4968,7 @@ function getTrainerDialogue() {
 function notify(msg, type = '') {
   const container = document.getElementById('notifications');
   if (!container) return;
+  if (type === 'gold') SFX.play('notify');
   // Stack identical toasts instead of spamming duplicates
   const existing = [...container.querySelectorAll('.toast')].find(el =>
     el.dataset.notifyMsg === msg && el.dataset.notifyType === (type || '')
@@ -5819,14 +5814,14 @@ function renderCosmeticsPanel(container) {
         <div style="font-size:8px;color:var(--text-dim);margin-bottom:8px">Met automatiquement les oeufs en incubation dès qu'un incubateur est libre. Service permanent.</div>
         ${nurseOwned
           ? `<div style="font-family:var(--font-pixel);font-size:8px;color:var(--green)">✓ SERVICE ACTIF</div>`
-          : `<button id="btnBuyNurse" style="font-family:var(--font-pixel);font-size:8px;padding:6px 12px;background:var(--bg);border:1px solid var(--gold-dim);border-radius:var(--radius-sm);color:var(--gold);cursor:pointer">Embaucher — 50 000₽</button>`}
+          : `<button id="btnBuyNurse" style="font-family:var(--font-pixel);font-size:8px;padding:6px 12px;background:var(--bg);border:1px solid var(--gold-dim);border-radius:var(--radius-sm);color:var(--gold);cursor:pointer">Embaucher — 300 000₽</button>`}
       </div>
     </div>`;
   container.appendChild(nurseDiv);
   nurseDiv.querySelector('#btnBuyNurse')?.addEventListener('click', () => {
-    if (state.gang.money < 50000) { notify('Fonds insuffisants.', 'error'); SFX.play('error'); return; }
-    showConfirm('Embaucher l\'Infirmière Joëlle corrompue pour 50 000₽ ? (permanent)', () => {
-      state.gang.money -= 50000;
+    if (state.gang.money < 300000) { notify('Fonds insuffisants.', 'error'); SFX.play('error'); return; }
+    showConfirm('Embaucher l\'Infirmière Joëlle corrompue pour 300 000₽ ? (permanent)', () => {
+      state.gang.money -= 300000;
       state.purchases.autoIncubator = true;
       saveState(); updateTopBar();
       SFX.play('unlock');
@@ -5834,6 +5829,94 @@ function renderCosmeticsPanel(container) {
       tryAutoIncubate();
       renderCosmeticsPanel(container);
     }, null, { confirmLabel: 'Embaucher', cancelLabel: 'Annuler' });
+  });
+
+  // ── Achats spéciaux (Titres, Charme Chroma, Auto-récolte) ──────
+  const SPECIAL_PURCHASES = [
+    {
+      id: 'title_richissime',
+      icon: '💰', label: 'Titre "Richissime"',
+      desc: 'Débloque le titre légendaire. Ostentation maximale.',
+      cost: 5_000_000,
+      owned: () => !!state.purchases?.title_richissime || (state.unlockedTitles || []).includes('richissime'),
+      buy: () => {
+        state.purchases = state.purchases || {};
+        state.purchases.title_richissime = true;
+        state.unlockedTitles = [...new Set([...(state.unlockedTitles || []), 'richissime'])];
+        notify('💰 Titre "Richissime" débloqué !', 'gold');
+      },
+    },
+    {
+      id: 'title_doublerichissim',
+      icon: '💎', label: 'Titre "Double Richissime"',
+      desc: 'Débloque le titre ultime. Noblesse oblige.',
+      cost: 10_000_000,
+      owned: () => !!state.purchases?.title_doublerichissim || (state.unlockedTitles || []).includes('doublerichissim'),
+      buy: () => {
+        state.purchases = state.purchases || {};
+        state.purchases.title_doublerichissim = true;
+        state.unlockedTitles = [...new Set([...(state.unlockedTitles || []), 'doublerichissim'])];
+        notify('💎 Titre "Double Richissime" débloqué !', 'gold');
+      },
+    },
+    {
+      id: 'chromaCharm',
+      icon: '✨', label: 'Charme Chroma',
+      desc: 'Double le taux de Pokémon chromatiques. Permanent.',
+      cost: 5_000_000,
+      owned: () => !!state.purchases?.chromaCharm,
+      buy: () => {
+        state.purchases.chromaCharm = true;
+        notify('✨ Charme Chroma obtenu ! Taux shiny ×2', 'gold');
+      },
+    },
+    {
+      id: 'autoCollect',
+      icon: '🤖', label: 'Récolte automatique',
+      desc: 'Les collectes de zone se font sans combat. Permanent.',
+      cost: 100_000,
+      owned: () => !!state.purchases?.autoCollect,
+      buy: () => {
+        state.purchases.autoCollect = true;
+        notify('🤖 Récolte automatique activée !', 'gold');
+      },
+    },
+  ];
+
+  const specialDiv = document.createElement('div');
+  specialDiv.style.cssText = 'margin-top:24px';
+  specialDiv.innerHTML = `
+    <div style="font-family:var(--font-pixel);font-size:9px;color:var(--gold);margin-bottom:12px">🛒 ACHATS SPÉCIAUX</div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      ${SPECIAL_PURCHASES.map(sp => {
+        const owned = sp.owned();
+        return `<div style="background:var(--bg-card);border:1px solid ${owned ? 'var(--green)' : 'var(--border)'};border-radius:var(--radius-sm);padding:10px;display:flex;gap:12px;align-items:center">
+          <div style="font-size:24px;flex-shrink:0">${sp.icon}</div>
+          <div style="flex:1">
+            <div style="font-family:var(--font-pixel);font-size:9px;color:${owned ? 'var(--green)' : 'var(--text)'};margin-bottom:2px">${sp.label}</div>
+            <div style="font-size:8px;color:var(--text-dim)">${sp.desc}</div>
+          </div>
+          ${owned
+            ? `<div style="font-family:var(--font-pixel);font-size:8px;color:var(--green);white-space:nowrap">✓ ACTIF</div>`
+            : `<button class="btn-special-buy" data-sp-id="${sp.id}" style="font-family:var(--font-pixel);font-size:8px;padding:6px 10px;background:var(--bg);border:1px solid var(--gold-dim);border-radius:var(--radius-sm);color:var(--gold);cursor:pointer;white-space:nowrap">${sp.cost.toLocaleString()}₽</button>`}
+        </div>`;
+      }).join('')}
+    </div>`;
+  container.appendChild(specialDiv);
+
+  specialDiv.querySelectorAll('.btn-special-buy').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const sp = SPECIAL_PURCHASES.find(s => s.id === btn.dataset.spId);
+      if (!sp || sp.owned()) return;
+      if (state.gang.money < sp.cost) { notify('Fonds insuffisants.', 'error'); SFX.play('error'); return; }
+      showConfirm(`Acheter "${sp.label}" pour ${sp.cost.toLocaleString()}₽ ?`, () => {
+        state.gang.money -= sp.cost;
+        sp.buy();
+        saveState(); updateTopBar();
+        SFX.play('unlock');
+        renderCosmeticsPanel(container);
+      }, null, { confirmLabel: 'Acheter', cancelLabel: 'Annuler' });
+    });
   });
 }
 
@@ -6195,6 +6278,15 @@ function openCollectionModal(zoneId) {
   const items  = { ...zs.pendingItems };
   if (income === 0 && Object.keys(items).length === 0) return;
 
+  // Récolte automatique débloquée : pas de combat
+  if (state.purchases?.autoCollect) {
+    autoCollectZone(zoneId);
+    saveState(); updateTopBar();
+    notify(`🤖 +${income.toLocaleString()}₽ (auto-récolte)`, 'gold');
+    _updateZoneButtons();
+    return;
+  }
+
   const zoneAgents = state.agents.filter(a => a.assignedZone === zoneId);
   const agentIds   = zoneAgents.map(a => a.id);
 
@@ -6452,6 +6544,129 @@ function spawnCoinRain(win, amount) {
   }
 }
 
+// ── Récolte automatique (achetée dans Cosmétiques) ──────────────
+function autoCollectZone(zoneId) {
+  const zs = initZone(zoneId);
+  const income = zs.pendingIncome || 0;
+  const items = { ...zs.pendingItems };
+  if (income === 0 && Object.keys(items).length === 0) return 0;
+  state.gang.money += income;
+  checkMoneyMilestone();
+  zs.pendingIncome = 0;
+  for (const [id, qty] of Object.entries(items)) {
+    state.inventory[id] = (state.inventory[id] || 0) + qty;
+  }
+  zs.pendingItems = {};
+  return income;
+}
+
+// ── Tout récolter ────────────────────────────────────────────────
+function collectAllZones() {
+  const zones = [...openZones].filter(zid => (state.zones[zid]?.pendingIncome || 0) > 0);
+  if (zones.length === 0) { notify('Aucune récolte en attente.', ''); return; }
+
+  // Si auto-collect débloqué → récolte silencieuse instantanée
+  if (state.purchases?.autoCollect) {
+    let total = 0;
+    for (const zid of zones) total += autoCollectZone(zid);
+    saveState(); updateTopBar();
+    notify(`🤖 Récolte auto : +${total.toLocaleString()}₽`, 'gold');
+    _updateZoneButtons();
+    return;
+  }
+
+  // Sinon → combat puis affichage séquentiel
+  const modal = document.createElement('div');
+  modal.id = 'collectAllModal';
+  modal.style.cssText = 'position:fixed;inset:0;z-index:9300;background:rgba(0,0,0,.92);display:flex;align-items:center;justify-content:center;';
+
+  // Calcul combat global (pool de force combiné)
+  let playerPower = 0;
+  for (const pkId of state.gang.bossTeam) {
+    const p = state.pokemons.find(pk => pk.id === pkId);
+    if (p) playerPower += getPokemonPower(p);
+  }
+  for (const a of state.agents) {
+    if (zones.includes(a.assignedZone)) playerPower += getAgentCombatPower(a);
+  }
+  const totalIncome = zones.reduce((s, zid) => s + (state.zones[zid]?.pendingIncome || 0), 0);
+  const enemyBase = 800 + Math.floor(totalIncome / 200);
+  const win = (playerPower * (0.75 + Math.random() * 0.5)) >= enemyBase * (0.8 + Math.random() * 0.4);
+
+  // Mascotte centrale
+  const mascotKey = win ? 'meowth' : 'growlithe';
+  const mascotSrc = pokeSprite(mascotKey);
+  const collected = Math.round(totalIncome * (win ? 1.0 : 0.50));
+
+  // Résultat par zone (lignes)
+  const zoneRows = zones.map(zid => {
+    const zone = ZONE_BY_ID[zid];
+    const inc = state.zones[zid]?.pendingIncome || 0;
+    const got = Math.round(inc * (win ? 1.0 : 0.50));
+    return { zid, name: zone ? (state.lang === 'fr' ? zone.fr : zone.en) : zid, inc, got };
+  });
+
+  modal.innerHTML = `
+    <div style="background:var(--bg-panel);border:2px solid ${win ? 'var(--gold)' : 'var(--red)'};border-radius:var(--radius);padding:24px;max-width:480px;width:92%;display:flex;flex-direction:column;align-items:center;gap:14px;text-align:center">
+      <img src="${mascotSrc}" style="width:80px;height:80px;image-rendering:pixelated;${win ? '' : 'filter:grayscale(.5)'}">
+      <div style="font-family:var(--font-pixel);font-size:12px;color:${win ? 'var(--gold)' : 'var(--red)'}">${win ? '✓ Récolte réussie !' : '✗ Défaite — 50% récupérés'}</div>
+      <div id="collectAllRows" style="width:100%;display:flex;flex-direction:column;gap:4px;max-height:200px;overflow-y:auto">
+        ${zoneRows.map((r, i) => `<div id="collectRow_${i}" style="display:flex;justify-content:space-between;padding:4px 8px;border-bottom:1px solid var(--border);font-size:10px;opacity:.4">
+          <span style="color:var(--text-dim)">${r.name}</span>
+          <span id="collectRowAmt_${i}" style="color:var(--gold)">—</span>
+        </div>`).join('')}
+      </div>
+      <div style="font-family:var(--font-pixel);font-size:9px;color:var(--text-dim)">TOTAL</div>
+      <div style="font-family:var(--font-pixel);font-size:20px;color:var(--gold)" id="collectAllTotal">—</div>
+      <button id="collectAllClose" style="font-family:var(--font-pixel);font-size:9px;padding:8px 20px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-dim);cursor:pointer;opacity:0" disabled>Fermer</button>
+    </div>`;
+
+  document.body.appendChild(modal);
+
+  // Vider toutes les zones et créditer le bon montant (100% victoire, 50% défaite)
+  for (const row of zoneRows) {
+    const zs = initZone(row.zid);
+    for (const [id, qty] of Object.entries(zs.pendingItems || {})) {
+      state.inventory[id] = (state.inventory[id] || 0) + qty;
+    }
+    zs.pendingIncome = 0;
+    zs.pendingItems = {};
+  }
+  state.gang.money += collected;
+  checkMoneyMilestone();
+  if (!win) state.gang.reputation = Math.max(0, state.gang.reputation - 3);
+  else state.stats.totalFightsWon = (state.stats.totalFightsWon || 0) + 1;
+  saveState(); updateTopBar();
+
+  // Animate rows sequentially, then reveal total
+  let idx = 0;
+  function revealNext() {
+    if (idx < zoneRows.length) {
+      const row = document.getElementById(`collectRow_${idx}`);
+      const amt = document.getElementById(`collectRowAmt_${idx}`);
+      if (row) row.style.opacity = '1';
+      if (amt) { amt.textContent = '+' + zoneRows[idx].got.toLocaleString() + '₽'; SFX.play('coin'); }
+      idx++;
+      setTimeout(revealNext, 400);
+    } else {
+      // Reveal total
+      const totalEl = document.getElementById('collectAllTotal');
+      if (totalEl) totalEl.textContent = collected.toLocaleString() + '₽';
+      const closeBtn = document.getElementById('collectAllClose');
+      if (closeBtn) { closeBtn.style.opacity = '1'; closeBtn.disabled = false; }
+      setTimeout(() => spawnCoinRain(win, collected), 200);
+    }
+  }
+  setTimeout(revealNext, 300);
+
+  document.getElementById('collectAllClose').addEventListener('click', () => {
+    modal.remove();
+    _updateZoneButtons();
+  });
+  modal.addEventListener('click', e => { if (e.target === modal) { modal.remove(); _updateZoneButtons(); } });
+}
+
+
 // ════════════════════════════════════════════════════════════════
 // 14.  UI — ZONES TAB
 // ════════════════════════════════════════════════════════════════
@@ -6460,17 +6675,27 @@ function renderZonesTab() {
   renderGangBasePanel();
   renderZoneSelector();
   renderZoneWindows();
+  _bindZoneActionButtons();
+}
 
-  // ── "Fermer tout" button ─────────────────────────────────
+function _bindZoneActionButtons() {
+  // ── "Fermer tout" ──────────────────────────────────────────
   const btnCloseAll = document.getElementById('btnCloseAllZones');
-  if (btnCloseAll) {
-    btnCloseAll._bound = btnCloseAll._bound || (() => {
+  if (btnCloseAll && !btnCloseAll._bound) {
+    btnCloseAll._bound = true;
+    btnCloseAll.addEventListener('click', () => {
       [...openZones].forEach(zid => closeZoneWindow(zid));
     });
-    btnCloseAll.removeEventListener('click', btnCloseAll._bound);
-    btnCloseAll.addEventListener('click', btnCloseAll._bound);
-    btnCloseAll.style.display = openZones.size > 0 ? '' : 'none';
   }
+
+  // ── "Tout récolter" ────────────────────────────────────────
+  const btnCollectAll = document.getElementById('btnCollectAllZones');
+  if (btnCollectAll && !btnCollectAll._bound) {
+    btnCollectAll._bound = true;
+    btnCollectAll.addEventListener('click', collectAllZones);
+  }
+
+  _updateZoneButtons();
 }
 
 function renderZoneSelector() {
@@ -6597,9 +6822,34 @@ function renderZoneSelector() {
   });
 }
 
+// Mise à jour légère d'une tuile de zone sans re-render complet de la liste
+function _refreshZoneTile(zoneId) {
+  const tile = document.querySelector(`#zoneSelector [data-zone="${zoneId}"]`);
+  if (!tile) return;
+  const isOpen = openZones.has(zoneId);
+  tile.classList.toggle('fog-open', isOpen);
+  const statusEl = tile.querySelector('.fog-tile-status');
+  if (statusEl) {
+    const degraded = isZoneDegraded(zoneId);
+    statusEl.textContent = isOpen ? '[OUVERT]' : degraded ? '[COMBAT]' : '[ENTRER]';
+  }
+}
+
+// Met à jour la visibilité du bouton Fermer-tout + Tout-récolter
+function _updateZoneButtons() {
+  const btnClose = document.getElementById('btnCloseAllZones');
+  const btnCollect = document.getElementById('btnCollectAllZones');
+  const hasOpen = openZones.size > 0;
+  if (btnClose) btnClose.style.display = hasOpen ? '' : 'none';
+  if (btnCollect) {
+    const hasPending = hasOpen && [...openZones].some(zid => (state.zones[zid]?.pendingIncome || 0) > 0);
+    btnCollect.style.display = hasPending ? '' : 'none';
+  }
+}
+
 function openZoneWindow(zoneId) {
   // Guard : si déjà ouverte, ne rien faire (évite les timers orphelins)
-  if (openZones.has(zoneId)) { renderZonesTab(); return; }
+  if (openZones.has(zoneId)) { _refreshZoneTile(zoneId); return; }
   openZones.add(zoneId);
   // Persister l'ordre pour la musique et le rechargement
   if (!state.openZoneOrder) state.openZoneOrder = [];
@@ -6620,7 +6870,11 @@ function openZoneWindow(zoneId) {
     zoneSpawnTimers[zoneId] = setInterval(() => tickZoneSpawn(zoneId), interval);
   }
   MusicPlayer.updateFromContext();
-  renderZonesTab();
+  // Mise à jour ciblée : tuile + fenêtres + base — sans reconstruire tout le sélecteur
+  _refreshZoneTile(zoneId);
+  renderGangBasePanel();
+  renderZoneWindows();
+  _updateZoneButtons();
 }
 
 function closeZoneWindow(zoneId) {
@@ -6640,7 +6894,11 @@ function closeZoneWindow(zoneId) {
     delete zoneSpawns[zoneId];
   }
   MusicPlayer.updateFromContext();
-  renderZonesTab();
+  // Mise à jour ciblée : tuile + fenêtres + base — sans reconstruire tout le sélecteur
+  _refreshZoneTile(zoneId);
+  renderGangBasePanel();
+  renderZoneWindows();
+  _updateZoneButtons();
 }
 
 // Track headbar expanded state per zone
@@ -10460,7 +10718,19 @@ function renderMissionsTab() {
     );
   }
 
-  el.innerHTML = `<div style="padding:12px">${content}</div>`;
+  // ── Bouton "Tout réclamer" ──
+  const claimableMissions = MISSIONS.filter(m => isMissionComplete(m) && !isMissionClaimed(m));
+  const claimAllBtn = claimableMissions.length > 0
+    ? `<button id="btnClaimAllMissions" style="font-family:var(--font-pixel);font-size:9px;padding:7px 16px;background:var(--green);border:1px solid var(--green);border-radius:var(--radius-sm);color:var(--bg);cursor:pointer;margin-bottom:14px;animation:glow 1.5s ease-in-out infinite">✓ Tout réclamer (${claimableMissions.length})</button>`
+    : '';
+  el.innerHTML = `<div style="padding:12px">${claimAllBtn}${content}</div>`;
+  if (claimableMissions.length > 0) {
+    document.getElementById('btnClaimAllMissions')?.addEventListener('click', () => {
+      claimableMissions.forEach(m => claimMission(m));
+      saveState(); updateTopBar();
+      renderMissionsTab();
+    });
+  }
 
   // Claim buttons
   el.querySelectorAll('.btn-claim-mission').forEach(btn => {
@@ -10953,6 +11223,7 @@ function showBossSpriteRepairModal() {
 
 function initSettings() {
   document.getElementById('btnSettings')?.addEventListener('click', () => {
+    SFX.play('menuOpen');
     const modal = document.getElementById('settingsModal');
     if (modal) {
       // Sync values
@@ -11016,6 +11287,7 @@ function initSettings() {
     }
     saveState();
     detectLLM();
+    SFX.play('menuClose');
     document.getElementById('settingsModal')?.classList.remove('active');
     renderAll();
   }
@@ -11110,11 +11382,12 @@ function renderTrainingTab() {
     }
   }
 
-  // Pokemon not in room, not in team — filtered by search
+  // Pokemon not in room, not in team, not in pension — filtered by search
   const q = _trSearch.toLowerCase();
   const freeSlots = slots - tr.pokemon.length;
+  const pensionIds = new Set([state.pension?.slotA, state.pension?.slotB].filter(Boolean));
   const allCandidates = state.pokemons
-    .filter(p => !inRoom.has(p.id) && !teamIds.has(p.id) && p.level < 100)
+    .filter(p => !inRoom.has(p.id) && !teamIds.has(p.id) && !pensionIds.has(p.id) && p.level < 100)
     .sort((a, b) => getPokemonPower(b) - getPokemonPower(a));
   const candidates = q
     ? allCandidates.filter(p => speciesName(p.species_en).toLowerCase().includes(q) || p.species_en.includes(q))
@@ -11793,16 +12066,17 @@ function renderPensionView(container) {
       }).join('')
     : `<div style="color:var(--text-dim);font-size:9px;padding:8px">Aucun oeuf en attente</div>`;
 
-  // Pokemon picker (not in pension, not in team, not legendary)
+  // Pokemon picker (not in pension, not in team, not in training room, not legendary)
   const usedIds = new Set([p.slotA, p.slotB].filter(Boolean));
   const teamIds = new Set([...state.gang.bossTeam]);
   for (const a of state.agents) a.team.forEach(id => teamIds.add(id));
+  const trainingIds = new Set(state.trainingRoom?.pokemon || []);
 
   // Récupère la valeur de recherche courante (persistée entre re-renders)
   const pensionQ = (container.querySelector('#pensionSearchInput')?.value || '').toLowerCase();
 
   const allPensionCandidates = state.pokemons
-    .filter(pk => !usedIds.has(pk.id) && !teamIds.has(pk.id) && SPECIES_BY_EN[pk.species_en]?.rarity !== 'legendary')
+    .filter(pk => !usedIds.has(pk.id) && !teamIds.has(pk.id) && !trainingIds.has(pk.id) && SPECIES_BY_EN[pk.species_en]?.rarity !== 'legendary')
     .sort((a, b) => getPokemonPower(b) - getPokemonPower(a));
   const candidates = pensionQ
     ? allPensionCandidates.filter(pk => speciesName(pk.species_en).toLowerCase().includes(pensionQ) || pk.species_en.includes(pensionQ))
