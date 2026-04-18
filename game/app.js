@@ -351,7 +351,11 @@ const SECRET_CODES = {
   'LR8MD3S1': { key:'ct_maitre_dresseur',oneTime:true, label:'🏆 Titre',  exec: _mkTitleExec('maitre_dresseur') },
   'FJ4TC7R6': { key:'ct_triade_chroma',  oneTime:true, label:'🏆 Titre',  exec: _mkTitleExec('triade_chroma') },
   'BW5SH2G9': { key:'ct_seigneur_chroma',oneTime:true, label:'🏆 Titre',  exec: _mkTitleExec('seigneur_chroma') },
-  'YK3DC8R5': { key:'ct_dresseur_chroma',oneTime:true, label:'🏆 Titre',  exec: _mkTitleExec('dresseur_chroma') },
+  'YK3DC8R5': { key:'ct_dresseur_chroma',    oneTime:true, label:'🏆 Titre',  exec: _mkTitleExec('dresseur_chroma') },
+
+  // ── Titres exclusifs ────────────────────────────────���───────────────────────
+  'EP1C5AR7Y2': { key:'ct_early_backer',      oneTime:true, label:'🏆 Titre',  exec: _mkTitleExec('early_backer') },
+  'MC9X4Z2W7K': { key:'ct_maitre_chronicles', oneTime:true, label:'🏆 Titre',  exec: _mkTitleExec('maitre_chronicles') },
 };
 
 function checkSecretCode(input) {
@@ -3290,8 +3294,10 @@ const TITLES = [
   // Achetable en boutique
   { id:'richissime',  label:'Richissime',         category:'shop', shopPrice:5000000 },
   // Spéciaux (débloqués par quête/event)
-  { id:'glitcheur',   label:'Glitcheur',          category:'special' }, // possession de MissingNo
-  { id:'fondateur',   label:'Fondateur',          category:'special' }, // débloqué au début
+  { id:'glitcheur',         label:'Glitcheur',              category:'special' }, // possession de MissingNo
+  { id:'fondateur',         label:'Fondateur',              category:'special' }, // débloqué au début
+  { id:'early_backer',      label:'Vétéran de la Première Heure', category:'special' }, // code exclusif early players
+  { id:'maitre_chronicles', label:'Maître des Chronicles',  category:'special' }, // titre ultime GM
   // Pokédex (débloqués en complétant le Pokédex)
   { id:'professeur',      label:'Professeur',          category:'pokedex', dexType:'kanto' },     // 151 espèces Kanto
   { id:'maitre_dresseur', label:'Maître Dresseur',     category:'pokedex', dexType:'full' },      // toutes espèces non-cachées
