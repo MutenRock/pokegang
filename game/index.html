@@ -842,21 +842,21 @@
       transition: background .15s, border-color .15s;
       user-select: none;
       overflow: hidden;
-      order: 2; /* handle à droite du panel dans le flex row */
+      order: 1; /* handle à gauche, collé au bord */
     }
     #gangBaseHandle:hover { background: var(--bg-hover); border-color: var(--border-light); }
     #gangBaseDrawer.open #gangBaseHandle { border-color: var(--red); }
     #gangBasePanelSlide {
       width: 340px;
       background: var(--bg-panel);
-      border-right: 2px solid var(--border);
+      border-left: 2px solid var(--border);
       overflow-y: auto;
       pointer-events: auto;
-      transform: translateX(-100%);
+      transform: translateX(100%);
       transition: transform .22s cubic-bezier(.4,0,.2,1);
       display: flex;
       flex-direction: column;
-      order: 1; /* panel à gauche du handle */
+      order: 2; /* panel à droite du handle, se déploie vers la droite */
     }
     #gangBaseDrawer.open #gangBasePanelSlide {
       transform: translateX(0);
@@ -875,7 +875,7 @@
       transition: transform .22s;
       margin-top: auto;
     }
-    #gangBaseDrawer.open .gbd-arrow { transform: rotate(180deg); }
+    /* arrow direction handled dynamically in JS */
 
     /* ── Zone filter bar ──────────────────────────────────────── */
     #zoneFilterBar {
