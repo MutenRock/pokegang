@@ -51,7 +51,7 @@ const ZONES = [
     trainers:['swimmer','picnicker','youngster','lass'], eliteTrainer:'misty', investCost:5000,
     gymLeader:'misty', gymType:'water', xpBonus:1.5 },
   { id:'celadon_gym',   fr:'Céladopole',        en:'Celadon City',      rep:450, spawnRate:0.06, type:'city',
-    pool:['bellsprout','oddish','gloom','weepinbell','victreebel','vileplume','meowth','eevee'],
+    pool:['bellsprout','oddish','gloom','weepinbell','victreebel','vileplume','meowth','eevee','muk'],
     trainers:['lass','beauty','acetrainer'], eliteTrainer:'erika', investCost:8000,
     gymLeader:'erika', gymType:'grass', xpBonus:1.8 },
   { id:'fuchsia_gym',   fr:'Parmanie',          en:'Fuchsia City',      rep:650, spawnRate:0.06, type:'city',
