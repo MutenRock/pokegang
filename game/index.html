@@ -817,23 +817,10 @@
     .pc-view-btn:hover { color: var(--text); border-color: var(--border-light); }
     .pc-view-btn.active { background: var(--bg-hover); color: var(--gold); border-color: var(--gold-dim); }
 
-    /* ── Zones tab layout (split) ──────────────────────────────── */
-    #zonesLayout {
-      display: flex;
-      gap: 12px;
-      align-items: flex-start;
-    }
-    #zonesMainArea {
-      flex: 1;
-      min-width: 0;
-    }
+    /* ── Gang Base container in Zones tab ──────────────────────── */
     #gangBaseContainer {
-      width: 280px;
-      flex-shrink: 0;
-      position: sticky;
-      top: 0;
-      max-height: calc(100vh - 80px);
-      overflow-y: auto;
+      width: fit-content;
+      margin: 12px 0;
     }
 
     /* ── Zone filter bar ──────────────────────────────────────── */
@@ -2956,29 +2943,29 @@
 
       <!-- ── Zones ── -->
       <section id="tabZones" class="tab-pane active">
-        <div id="zonesLayout">
-          <!-- Zones : filter bar + selector + windows -->
-          <div id="zonesMainArea">
-            <div id="zoneFilterBar">
-              <div id="zoneFilterTabs">
-                <button class="zone-ftab active" data-filter="all">Tout</button>
-                <button class="zone-ftab" data-filter="fav">★ Favoris</button>
-                <button class="zone-ftab" data-filter="route">🗺 Routes</button>
-                <button class="zone-ftab" data-filter="city">🏙 Villes</button>
-                <button class="zone-ftab" data-filter="special">⭐ Spéciaux</button>
-              </div>
-              <div style="display:flex;gap:6px;margin-left:auto">
-                <button id="btnCollectAllZones" class="zones-close-all-btn" style="background:var(--gold-dark,#7a6000);border-color:var(--gold-dim);color:var(--gold);display:none">₽ Tout récolter</button>
-                <button id="btnCloseAllZones" class="zones-close-all-btn" style="display:none">✕ Fermer tout</button>
-              </div>
-            </div>
-            <div id="zoneSelector"></div>
-            <div id="zoneWindows" style="display:flex;flex-wrap:wrap;gap:12px;margin-top:12px;"></div>
+        <!-- Filter bar -->
+        <div id="zoneFilterBar">
+          <div id="zoneFilterTabs">
+            <button class="zone-ftab active" data-filter="all">Tout</button>
+            <button class="zone-ftab" data-filter="fav">★ Favoris</button>
+            <button class="zone-ftab" data-filter="route">🗺 Routes</button>
+            <button class="zone-ftab" data-filter="city">🏙 Villes</button>
+            <button class="zone-ftab" data-filter="special">⭐ Spéciaux</button>
           </div>
-
-          <!-- Gang Base panel (sticky right) -->
-          <div id="gangBaseContainer"></div>
+          <div style="display:flex;gap:6px;margin-left:auto">
+            <button id="btnCollectAllZones" class="zones-close-all-btn" style="background:var(--gold-dark,#7a6000);border-color:var(--gold-dim);color:var(--gold);display:none">₽ Tout récolter</button>
+            <button id="btnCloseAllZones" class="zones-close-all-btn" style="display:none">✕ Fermer tout</button>
+          </div>
         </div>
+
+        <!-- Zone selector (fog-map) -->
+        <div id="zoneSelector"></div>
+
+        <!-- Gang Base panel (under fog-map, before zone windows) -->
+        <div id="gangBaseContainer"></div>
+
+        <!-- Open zone windows -->
+        <div id="zoneWindows" style="display:flex;flex-wrap:wrap;gap:12px;margin-top:12px;"></div>
       </section>
 
       <!-- ── Bag + Market (merged) ── -->
