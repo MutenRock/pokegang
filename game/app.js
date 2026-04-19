@@ -10039,6 +10039,102 @@ function tryAutoIncubate() {
   if (changed) { saveState(); notify('💉 Joëlle a mis un oeuf en incubation !', 'success'); }
 }
 
+function hatchEgg(eggId) {
+  const egg = state.eggs.find(e => e.id === eggId);
+  if (!egg) return;
+
+  // Always hatch as the lowest evolution stage (Dodrio → Doduo, etc.)
+  const baseEn  = getBaseSpecies(egg.species_en);
+  const hatched = makePokemon(baseEn, 'pension', 'pokeball');
+  if (!hatched) { state.eggs = state.eggs.filter(e => e.id !== eggId); saveState(); renderPCTab(); return; }
+
+  hatched.level = 1; hatched.xp = 0;
+  hatched.potential = egg.potential;
+  hatched.shiny     = egg.shiny;
+  hatched.stats     = calculateStats(hatched);
+  hatched.history   = [{ type: 'hatched', ts: Date.now() }];
+
+  state.eggs = state.eggs.filter(e => e.id !== eggId);
+  state.pokemons.push(hatched);
+  state.stats.totalCaught++;
+  state.stats.eggsHatched = (state.stats.eggsHatched || 0) + 1;
+  if (!state.pokedex[baseEn]) {
+    state.pokedex[baseEn] = { seen: true, caught: true, shiny: egg.shiny, count: 1 };
+  } else {
+    state.pokedex[baseEn].caught = true;
+    state.pokedex[baseEn].count++;
+    if (egg.shiny) state.pokedex[baseEn].shiny = true;
+  }
+  saveState();
+
+  // ── Animation popup ─────────────────────────────────────────────
+  const eggUrl = ITEM_SPRITE_URLS.mysteryegg;
+  const pkUrl  = pokeSprite(baseEn, egg.shiny);
+  const name   = speciesName(baseEn);
+  const stars  = '★'.repeat(hatched.potential || 0);
+
+  const modal = document.createElement('div');
+  modal.id = 'hatchModal';
+  modal.style.cssText = 'position:fixed;inset:0;z-index:9400;background:rgba(0,0,0,.95);display:flex;align-items:center;justify-content:center;';
+  modal.innerHTML = `
+    <style>
+      @keyframes _eggWobble {
+        0%,100%{transform:rotate(0deg)}
+        20%{transform:rotate(-9deg)}
+        40%{transform:rotate(9deg)}
+        60%{transform:rotate(-5deg)}
+        80%{transform:rotate(5deg)}
+      }
+      @keyframes _eggCrack {
+        0%{transform:scale(1);opacity:1}
+        50%{transform:scale(1.2);opacity:.8}
+        100%{transform:scale(0) rotate(20deg);opacity:0}
+      }
+      @keyframes _pkReveal {
+        0%{transform:scale(0) translateY(16px);opacity:0}
+        65%{transform:scale(1.15) translateY(-4px);opacity:1}
+        100%{transform:scale(1) translateY(0);opacity:1}
+      }
+      #_hatchEgg { animation:_eggWobble .55s ease-in-out infinite; image-rendering:pixelated; }
+      #_hatchEgg.cracking { animation:_eggCrack .45s ease-in forwards; }
+      #_hatchPk { display:none; animation:_pkReveal .5s cubic-bezier(.17,.67,.37,1.3) forwards; image-rendering:pixelated; }
+      #_hatchPk.visible { display:block; }
+    </style>
+    <div style="background:var(--bg-panel);border:2px solid var(--gold);border-radius:var(--radius);padding:32px 28px;max-width:300px;width:90%;display:flex;flex-direction:column;align-items:center;gap:14px;text-align:center">
+      <div style="font-family:var(--font-pixel);font-size:10px;color:var(--gold);letter-spacing:.1em">✦ ÉCLOSION ✦</div>
+      <div style="position:relative;width:88px;height:88px;display:flex;align-items:center;justify-content:center">
+        <img id="_hatchEgg" src="${eggUrl}" style="width:64px;height:64px">
+        <img id="_hatchPk"  src="${pkUrl}"  style="width:88px;height:88px;position:absolute;inset:0;${egg.shiny ? 'filter:drop-shadow(0 0 8px gold)' : ''}">
+      </div>
+      <div id="_hatchInfo" style="opacity:0;transition:opacity .4s;display:flex;flex-direction:column;gap:6px">
+        <div style="font-family:var(--font-pixel);font-size:12px;${egg.shiny ? 'color:gold' : 'color:var(--text)'}">${egg.shiny ? '✨ SHINY !  ' : ''}${name}</div>
+        <div style="font-family:var(--font-pixel);font-size:9px;color:var(--gold)">Lv. 1 &nbsp; ${stars}</div>
+      </div>
+      <button id="_hatchClose" style="font-family:var(--font-pixel);font-size:8px;padding:6px 22px;background:var(--bg);border:1px solid var(--gold);border-radius:var(--radius-sm);color:var(--gold);cursor:pointer;opacity:0;pointer-events:none;transition:opacity .3s">OK !</button>
+    </div>`;
+  document.body.appendChild(modal);
+
+  // Wobble 2.4s → crack → reveal pokemon
+  setTimeout(() => document.getElementById('_hatchEgg')?.classList.add('cracking'), 2400);
+  setTimeout(() => {
+    const eggEl = document.getElementById('_hatchEgg');
+    const pkEl  = document.getElementById('_hatchPk');
+    const info  = document.getElementById('_hatchInfo');
+    const btn   = document.getElementById('_hatchClose');
+    if (eggEl) eggEl.style.display = 'none';
+    if (pkEl)  pkEl.classList.add('visible');
+    if (info)  info.style.opacity  = '1';
+    if (btn)   { btn.style.opacity = '1'; btn.style.pointerEvents = 'auto'; }
+    SFX.play?.('unlock');
+  }, 3000);
+
+  document.getElementById('_hatchClose').addEventListener('click', () => {
+    modal.remove();
+    updateTopBar();
+    renderPCTab();
+  });
+}
+
 function renderEggsView(container) {
   const eggs = state.eggs || [];
   const incubatorCount = state.inventory?.incubator || 0;
@@ -13458,9 +13554,10 @@ function pensionTick() {
   // Hatch only incubating eggs that are ready
   const ready = state.eggs.filter(e => e.incubating && e.hatchAt && e.hatchAt <= now);
   for (const egg of ready) {
-    const sp = SPECIES_BY_EN[egg.species_en];
+    const baseEn = getBaseSpecies(egg.species_en);
+    const sp = SPECIES_BY_EN[baseEn];
     if (!sp) continue;
-    const hatched = makePokemon(egg.species_en, 'pension', 'pokeball');
+    const hatched = makePokemon(baseEn, 'pension', 'pokeball');
     if (hatched) {
       hatched.level = 1;
       hatched.xp = 0;
@@ -13471,14 +13568,14 @@ function pensionTick() {
       state.pokemons.push(hatched);
       state.stats.totalCaught++;
       state.stats.eggsHatched = (state.stats.eggsHatched || 0) + 1;
-      if (!state.pokedex[egg.species_en]) {
-        state.pokedex[egg.species_en] = { seen: true, caught: true, shiny: egg.shiny, count: 1 };
+      if (!state.pokedex[baseEn]) {
+        state.pokedex[baseEn] = { seen: true, caught: true, shiny: egg.shiny, count: 1 };
       } else {
-        state.pokedex[egg.species_en].caught = true;
-        state.pokedex[egg.species_en].count++;
-        if (egg.shiny) state.pokedex[egg.species_en].shiny = true;
+        state.pokedex[baseEn].caught = true;
+        state.pokedex[baseEn].count++;
+        if (egg.shiny) state.pokedex[baseEn].shiny = true;
       }
-      notify(`L\'oeuf a eclore ! ${egg.shiny ? '[SHINY] ' : ''}${speciesName(egg.species_en)} Lv.1 ${'*'.repeat(egg.potential)} rejoint le PC.`, 'gold');
+      notify(`L\'oeuf a eclore ! ${egg.shiny ? '[SHINY] ' : ''}${speciesName(baseEn)} Lv.1 ${'*'.repeat(egg.potential)} rejoint le PC.`, 'gold');
     }
     state.eggs = state.eggs.filter(e => e.id !== egg.id);
     saveState();
