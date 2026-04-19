@@ -48,9 +48,11 @@ pokeforge.patch
 external/
 .claude/settings.local.json
 
-# Supabase — config.js contient des valeurs vides, est commité (pas de clés)
-# Pour un vrai env local avec clés Supabase, utilise game/config.local.js (gitignored)
+# Supabase — config.js avec vraies clés doit rester local, utilise config.local.js
+# config.js (valeurs vides) peut rester commité ; config.local.js (vraies clés) = gitignored
 game/config.local.js
+# Si un jour tu mets de vraies clés dans config.js, décommente la ligne suivante :
+# game/config.js
 .claude/worktrees/agent-a1b6fc0d/
 .claude/settings.local.json
 .claude/settings.local.json
