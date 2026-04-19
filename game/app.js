@@ -6646,14 +6646,31 @@ function renderZoneSelector() {
       const repDiff = zone.rep > state.gang.reputation ? zone.rep - state.gang.reputation : 0;
       const needsItem = zone.unlockItem && !state.purchases?.[zone.unlockItem];
       const itemDef = needsItem ? SHOP_ITEMS.find(s => s.id === zone.unlockItem) : null;
-      const lockHint = needsItem
-        ? (state.lang === 'fr' ? (itemDef?.fr || zone.unlockItem) : (itemDef?.en || zone.unlockItem))
-        : `Rep +${repDiff}`;
+      const isWingPermit = needsItem && (zone.unlockItem === 'tourbillon_permit' || zone.unlockItem === 'carillon_permit');
+      let lockHint, lockSub;
+      if (isWingPermit) {
+        const wingId   = zone.unlockItem === 'tourbillon_permit' ? 'silver_wing' : 'rainbow_wing';
+        const wingName = zone.unlockItem === 'tourbillon_permit' ? "Argent'Aile" : "Arcenci'Aile";
+        const have     = state.inventory?.[wingId] || 0;
+        const pct      = Math.min(100, Math.round(have / 50 * 100));
+        lockHint = `${wingName}`;
+        lockSub  = `<div style="height:3px;background:rgba(255,255,255,0.15);border-radius:2px;margin:3px 0;overflow:hidden">
+                      <div style="height:100%;width:${pct}%;background:var(--gold);border-radius:2px"></div>
+                    </div>
+                    <div style="font-size:8px;color:var(--gold)">${have}/50</div>`;
+      } else if (needsItem) {
+        lockHint = state.lang === 'fr' ? (itemDef?.fr || zone.unlockItem) : (itemDef?.en || zone.unlockItem);
+        lockSub  = '';
+      } else {
+        lockHint = `Rep +${repDiff}`;
+        lockSub  = '';
+      }
       return `<div class="fog-tile locked">
         <div class="fog-tile-overlay fog"></div>
         <div class="fog-tile-content">
-          <div class="fog-tile-name">???</div>
+          <div class="fog-tile-name" style="letter-spacing:2px;color:rgba(255,255,255,0.3)">?????</div>
           <div class="fog-tile-stats" style="${needsItem ? 'color:var(--gold)' : ''}">${lockHint}</div>
+          ${lockSub}
         </div>
       </div>`;
     }
@@ -8846,7 +8863,8 @@ function renderBarterPanel() {
     </button>
   </div>`;
 
-  panel.innerHTML = toggleBtn + recipes.map((r, i) => {
+  // ── Recettes d'items classiques ────────────────────────────────
+  const recipesHtml = recipes.map((r, i) => {
     const [giveId, giveQty, getId, getQty, label] = r;
     const owned = state.inventory?.[giveId] || 0;
     const canAfford = owned >= giveQty;
@@ -8857,6 +8875,39 @@ function renderBarterPanel() {
       <button data-barter="${i}" style="font-family:var(--font-pixel);font-size:7px;padding:3px 8px;background:${canAfford ? 'var(--bg-hover)' : 'var(--bg)'};border:1px solid ${canAfford ? 'var(--gold-dim)' : 'var(--border)'};border-radius:var(--radius-sm);color:${canAfford ? 'var(--gold)' : 'var(--text-dim)'};cursor:${canAfford ? 'pointer' : 'default'}" ${canAfford ? '' : 'disabled'}>Troquer</button>
     </div>`;
   }).join('');
+
+  // ── Section déblocage zones via ailes ──────────────────────────
+  const WING_PERMITS = [
+    { permitId:'tourbillon_permit', wingId:'silver_wing', wingName:"Argent'Aile",  wingQty:50,
+      zoneName:'Îles Tourbillon', icon:'🌊', legendary:'Lugia' },
+    { permitId:'carillon_permit',   wingId:'rainbow_wing', wingName:"Arcenci'Aile", wingQty:50,
+      zoneName:'Tour Carillon',   icon:'🔔', legendary:'Ho-Oh' },
+  ];
+  const wingZonesHtml = `
+    <div style="padding:8px 4px 4px;border-top:2px solid var(--border);margin-top:2px">
+      <div style="font-family:var(--font-pixel);font-size:8px;color:var(--gold);margin-bottom:6px;letter-spacing:1px">— ZONES LÉGENDAIRES —</div>
+      ${WING_PERMITS.map(wp => {
+        const have = state.inventory?.[wp.wingId] || 0;
+        const alreadyOwned = !!state.purchases?.[wp.permitId];
+        const canBuy = !alreadyOwned && have >= wp.wingQty;
+        const pct = Math.min(100, Math.round(have / wp.wingQty * 100));
+        const progressColor = alreadyOwned ? 'var(--green)' : have >= wp.wingQty ? 'var(--gold)' : 'var(--red)';
+        return `<div style="display:flex;align-items:center;gap:10px;padding:8px 4px;border-bottom:1px solid var(--border);opacity:${alreadyOwned ? 0.6 : 1}">
+          ${itemSprite(wp.wingId)}
+          <div style="flex:1">
+            <div style="font-size:9px;color:var(--text)">${wp.wingQty}× ${wp.wingName} → ${wp.icon} ${wp.zoneName}</div>
+            <div style="font-size:8px;color:var(--text-dim);margin-top:2px">Légendaire : ${wp.legendary}</div>
+            <div style="height:4px;background:var(--border);border-radius:2px;margin-top:4px;overflow:hidden">
+              <div style="height:100%;width:${alreadyOwned ? 100 : pct}%;background:${progressColor};border-radius:2px;transition:width .3s"></div>
+            </div>
+            <div style="font-size:8px;color:${progressColor};margin-top:2px">${alreadyOwned ? '✓ Zone débloquée' : `${have} / ${wp.wingQty} ${wp.wingName}`}</div>
+          </div>
+          <button data-wing-permit="${wp.permitId}" style="font-family:var(--font-pixel);font-size:7px;padding:3px 8px;background:${canBuy ? 'var(--bg-hover)' : 'var(--bg)'};border:1px solid ${canBuy ? 'var(--gold-dim)' : 'var(--border)'};border-radius:var(--radius-sm);color:${alreadyOwned ? 'var(--green)' : canBuy ? 'var(--gold)' : 'var(--text-dim)'};cursor:${canBuy ? 'pointer' : 'default'}" ${canBuy ? '' : 'disabled'}>${alreadyOwned ? 'Acquis' : 'Échanger'}</button>
+        </div>`;
+      }).join('')}
+    </div>`;
+
+  panel.innerHTML = toggleBtn + recipesHtml + wingZonesHtml;
 
   document.getElementById('btnBarterMbToggle')?.addEventListener('click', () => {
     _barterMbReverse = !_barterMbReverse;
@@ -8872,6 +8923,20 @@ function renderBarterPanel() {
       saveState(); updateTopBar(); SFX.play('buy');
       notify(`Troc effectué !`, 'success');
       renderBarterPanel();
+    });
+  });
+
+  panel.querySelectorAll('[data-wing-permit]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const permitId = btn.dataset.wingPermit;
+      const itemDef = SHOP_ITEMS.find(s => s.id === permitId);
+      if (!itemDef) return;
+      if (buyItem(itemDef)) {
+        SFX.play('buy');
+        renderBarterPanel();
+        renderShopPanel();
+        if (activeTab === 'tabZones') renderZonesTab();
+      }
     });
   });
 }
