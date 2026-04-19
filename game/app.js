@@ -7505,7 +7505,7 @@ function renderGangBaseDrawer() {
       <img src="${boostUrl}" style="width:18px;height:18px">
       <span style="font-size:6px;color:var(--gold-dim)">${boostSecs}s</span>
     </div>` : ''}
-    <div class="gbd-arrow">${gangBaseDrawerOpen ? '▶' : '◀'}</div>
+    <div class="gbd-arrow">${gangBaseDrawerOpen ? '◀' : '▶'}</div>
   `;
 
   if (!handle._drawerBound) {
