@@ -6835,6 +6835,7 @@ function openCollectionModal(zoneId) {
     autoCollectZone(zoneId);
     saveState(); updateTopBar();
     notify(`🤖 +${income.toLocaleString()}₽ (auto-récolte)`, 'gold');
+    _refreshZoneIncomeTile(zoneId);
     _updateZoneButtons();
     return;
   }
@@ -7123,6 +7124,7 @@ function collectAllZones() {
     for (const zid of zones) total += autoCollectZone(zid);
     saveState(); updateTopBar();
     notify(`🤖 Récolte auto : +${total.toLocaleString()}₽`, 'gold');
+    zones.forEach(zid => _refreshZoneIncomeTile(zid));
     _updateZoneButtons();
     return;
   }
@@ -7213,9 +7215,16 @@ function collectAllZones() {
 
   document.getElementById('collectAllClose').addEventListener('click', () => {
     modal.remove();
+    zoneRows.forEach(r => _refreshZoneIncomeTile(r.zid));
     _updateZoneButtons();
   });
-  modal.addEventListener('click', e => { if (e.target === modal) { modal.remove(); _updateZoneButtons(); } });
+  modal.addEventListener('click', e => {
+    if (e.target === modal) {
+      modal.remove();
+      zoneRows.forEach(r => _refreshZoneIncomeTile(r.zid));
+      _updateZoneButtons();
+    }
+  });
 }
 
 
@@ -7391,6 +7400,29 @@ function _refreshZoneTile(zoneId) {
   if (statusEl) {
     const degraded = isZoneDegraded(zoneId);
     statusEl.textContent = isOpen ? '[OUVERT]' : degraded ? '[COMBAT]' : '[ENTRER]';
+  }
+  _refreshZoneIncomeTile(zoneId);
+}
+
+// Met à jour uniquement le bouton ₽ d'une fog-tile après une récolte
+function _refreshZoneIncomeTile(zoneId) {
+  const tile = document.querySelector(`#zoneSelector [data-zone="${zoneId}"]`);
+  if (!tile) return;
+  const income = state.zones?.[zoneId]?.pendingIncome || 0;
+  const incomeTier = income <= 0 ? 0 : income < 500 ? 1 : income < 2000 ? 2 : income < 5000 ? 3 : income < 15000 ? 4 : 5;
+  const existing = tile.querySelector('.zone-income-btn');
+  if (incomeTier === 0) {
+    existing?.remove();
+  } else if (existing) {
+    existing.className = `zone-income-btn income-tier${incomeTier}`;
+  } else {
+    const btn = document.createElement('div');
+    btn.className = `zone-income-btn income-tier${incomeTier}`;
+    btn.dataset.collectZone = zoneId;
+    btn.textContent = '₽';
+    btn.addEventListener('click', e => { e.stopPropagation(); openCollectionModal(zoneId); });
+    const content = tile.querySelector('.fog-tile-content');
+    if (content) content.appendChild(btn);
   }
 }
 
