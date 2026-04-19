@@ -5604,7 +5604,6 @@ function triggerGymRaid(zoneId, isAuto) {
 // ════════════════════════════════════════════════════════════════
 
 let activeTab = 'tabZones';
-let gangBaseDrawerOpen = false;
 let zoneFilter = 'all'; // 'all' | 'fav' | 'route' | 'city' | 'special'
 
 function hintLink(label, tabId) {
@@ -5877,7 +5876,6 @@ function renderAll() {
   updateTopBar();
   renderHint(activeTab);
   renderActiveTab();
-  renderGangBaseDrawer();
 }
 
 function renderActiveTab() {
@@ -7465,65 +7463,6 @@ function closeZoneWindow(zoneId) {
 // Track headbar expanded state per zone
 const headbarExpanded = {};
 
-function renderGangBaseDrawer() {
-  const drawer = document.getElementById('gangBaseDrawer');
-  const handle = document.getElementById('gangBaseHandle');
-  if (!drawer || !handle) return;
-
-  // Toggle open/close
-  drawer.classList.toggle('open', gangBaseDrawerOpen);
-
-  // Active ball icon for handle
-  const ball = state.activeBall || 'pokeball';
-  const ballQty = state.inventory?.[ball] || 0;
-  const ballUrl = getItemSprite?.(ball) || '';
-
-  // Active boost for handle
-  const BOOST_IDS = ['lure','superlure','incense','rarescope','aura'];
-  const activeBoost = BOOST_IDS.find(b => isBoostActive(b));
-  const boostSecs = activeBoost ? Math.ceil(boostRemaining(activeBoost)) : 0;
-  const boostUrl = activeBoost ? (getItemSprite?.(activeBoost) || '') : '';
-
-  // Money compact
-  const money = state.gang.money;
-  const moneyStr = money >= 1_000_000 ? (money/1_000_000).toFixed(1)+'M'
-                 : money >= 1_000     ? Math.floor(money/1_000)+'k'
-                 : String(money);
-
-  handle.innerHTML = `
-    <img src="${trainerSprite(state.gang.bossSprite || 'rocketgrunt')}"
-         style="width:28px;height:28px;border-radius:2px"
-         onerror="this.style.display='none'">
-    <div class="gbd-handle-item" style="font-size:6px;color:var(--gold)">
-      <span>₽</span><span>${moneyStr}</span>
-    </div>
-    ${ballUrl ? `<div class="gbd-handle-item" title="${ball} ×${ballQty}">
-      <img src="${ballUrl}" style="width:20px;height:20px">
-      <span style="font-size:6px;color:var(--text-dim)">×${ballQty}</span>
-    </div>` : ''}
-    ${activeBoost && boostUrl ? `<div class="gbd-handle-item" title="${activeBoost} ${boostSecs}s">
-      <img src="${boostUrl}" style="width:18px;height:18px">
-      <span style="font-size:6px;color:var(--gold-dim)">${boostSecs}s</span>
-    </div>` : ''}
-    <div class="gbd-arrow">${gangBaseDrawerOpen ? '◀' : '▶'}</div>
-  `;
-
-  if (!handle._drawerBound) {
-    handle._drawerBound = true;
-    handle.addEventListener('click', () => {
-      gangBaseDrawerOpen = !gangBaseDrawerOpen;
-      renderGangBaseDrawer();
-    });
-    // Click outside to close
-    document.addEventListener('click', e => {
-      if (gangBaseDrawerOpen && !document.getElementById('gangBaseDrawer')?.contains(e.target)) {
-        gangBaseDrawerOpen = false;
-        renderGangBaseDrawer();
-      }
-    }, true);
-  }
-}
-
 function renderGangBasePanel() {
   const gangContainer = document.getElementById('gangBaseContainer');
   if (!gangContainer) return;
@@ -7537,7 +7476,6 @@ function renderGangBasePanel() {
     gangContainer.innerHTML = gangHtml;
   }
   bindGangBase(gangContainer);
-  renderGangBaseDrawer();
 }
 
 function renderZoneWindows() {

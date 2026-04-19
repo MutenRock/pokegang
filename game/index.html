@@ -817,65 +817,24 @@
     .pc-view-btn:hover { color: var(--text); border-color: var(--border-light); }
     .pc-view-btn.active { background: var(--bg-hover); color: var(--gold); border-color: var(--gold-dim); }
 
-    /* ── Gang Base Drawer ─────────────────────────────────────── */
-    #gangBaseDrawer {
-      position: fixed;
-      top: 0; left: 0; bottom: 0;
-      z-index: 500;
+    /* ── Zones tab layout (split) ──────────────────────────────── */
+    #zonesLayout {
       display: flex;
-      flex-direction: row;
-      align-items: stretch;
-      pointer-events: none;
+      gap: 12px;
+      align-items: flex-start;
     }
-    #gangBaseHandle {
-      width: 36px;
-      background: var(--bg-panel);
-      border-right: 2px solid var(--border);
-      border-radius: 0 8px 8px 0;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 10px 3px;
-      gap: 7px;
-      cursor: pointer;
-      pointer-events: auto;
-      transition: background .15s, border-color .15s;
-      user-select: none;
-      overflow: hidden;
-      order: 1; /* handle à gauche, collé au bord */
+    #zonesMainArea {
+      flex: 1;
+      min-width: 0;
     }
-    #gangBaseHandle:hover { background: var(--bg-hover); border-color: var(--border-light); }
-    #gangBaseDrawer.open #gangBaseHandle { border-color: var(--red); }
-    #gangBasePanelSlide {
-      width: 340px;
-      background: var(--bg-panel);
-      border-left: 2px solid var(--border);
+    #gangBaseContainer {
+      width: 280px;
+      flex-shrink: 0;
+      position: sticky;
+      top: 0;
+      max-height: calc(100vh - 80px);
       overflow-y: auto;
-      pointer-events: auto;
-      transform: translateX(100%);
-      transition: transform .22s cubic-bezier(.4,0,.2,1);
-      display: flex;
-      flex-direction: column;
-      order: 2; /* panel à droite du handle, se déploie vers la droite */
     }
-    #gangBaseDrawer.open #gangBasePanelSlide {
-      transform: translateX(0);
-      border-color: var(--red);
-    }
-    .gbd-handle-item {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 1px;
-      font-family: var(--font-pixel);
-    }
-    .gbd-arrow {
-      font-size: 10px;
-      color: var(--text-dim);
-      transition: transform .22s;
-      margin-top: auto;
-    }
-    /* arrow direction handled dynamically in JS */
 
     /* ── Zone filter bar ──────────────────────────────────────── */
     #zoneFilterBar {
@@ -904,11 +863,7 @@
     .zone-ftab:hover { border-color: var(--border-light); color: var(--text); }
     .zone-ftab.active { border-color: var(--red); color: var(--gold); background: var(--bg-hover); }
 
-    /* Zone grid now takes full width */
     #zoneSelector { width: 100%; }
-    .fog-split-layout { display: block; }
-    .fog-col, .fog-col-combat { width: 100%; }
-    /* Remove zone windows max-height */
     #zoneWindows { max-height: none !important; }
 
     /* ── Fog-of-War Zone Map ─────────────────────────────────────── */
@@ -3001,26 +2956,29 @@
 
       <!-- ── Zones ── -->
       <section id="tabZones" class="tab-pane active">
-        <!-- Filter bar -->
-        <div id="zoneFilterBar">
-          <div id="zoneFilterTabs">
-            <button class="zone-ftab active" data-filter="all">Tout</button>
-            <button class="zone-ftab" data-filter="fav">★ Favoris</button>
-            <button class="zone-ftab" data-filter="route">🗺 Routes</button>
-            <button class="zone-ftab" data-filter="city">🏙 Villes</button>
-            <button class="zone-ftab" data-filter="special">⭐ Spéciaux</button>
+        <div id="zonesLayout">
+          <!-- Zones : filter bar + selector + windows -->
+          <div id="zonesMainArea">
+            <div id="zoneFilterBar">
+              <div id="zoneFilterTabs">
+                <button class="zone-ftab active" data-filter="all">Tout</button>
+                <button class="zone-ftab" data-filter="fav">★ Favoris</button>
+                <button class="zone-ftab" data-filter="route">🗺 Routes</button>
+                <button class="zone-ftab" data-filter="city">🏙 Villes</button>
+                <button class="zone-ftab" data-filter="special">⭐ Spéciaux</button>
+              </div>
+              <div style="display:flex;gap:6px;margin-left:auto">
+                <button id="btnCollectAllZones" class="zones-close-all-btn" style="background:var(--gold-dark,#7a6000);border-color:var(--gold-dim);color:var(--gold);display:none">₽ Tout récolter</button>
+                <button id="btnCloseAllZones" class="zones-close-all-btn" style="display:none">✕ Fermer tout</button>
+              </div>
+            </div>
+            <div id="zoneSelector"></div>
+            <div id="zoneWindows" style="display:flex;flex-wrap:wrap;gap:12px;margin-top:12px;"></div>
           </div>
-          <div style="display:flex;gap:6px;margin-left:auto">
-            <button id="btnCollectAllZones" class="zones-close-all-btn" style="background:var(--gold-dark,#7a6000);border-color:var(--gold-dim);color:var(--gold);display:none">₽ Tout récolter</button>
-            <button id="btnCloseAllZones" class="zones-close-all-btn" style="display:none">✕ Fermer tout</button>
-          </div>
+
+          <!-- Gang Base panel (sticky right) -->
+          <div id="gangBaseContainer"></div>
         </div>
-
-        <!-- Zone selector (full width) -->
-        <div id="zoneSelector"></div>
-
-        <!-- Open zone windows (full width) -->
-        <div id="zoneWindows" style="display:flex;flex-wrap:wrap;gap:12px;margin-top:12px;"></div>
       </section>
 
       <!-- ── Bag + Market (merged) ── -->
@@ -3199,18 +3157,6 @@
         <button class="btn-start" id="btnStartGame">Commencer</button>
       </div>
 
-    </div>
-  </div>
-
-  <!-- ═══ Gang Base Drawer (fixed right side, all tabs) ═══ -->
-  <div id="gangBaseDrawer">
-    <div id="gangBaseHandle" title="Déployer la Base">
-      <!-- filled by renderGangBaseDrawer() -->
-    </div>
-    <div id="gangBasePanelSlide">
-      <div id="gangBaseContainer">
-        <!-- filled by renderGangBasePanel() -->
-      </div>
     </div>
   </div>
 
