@@ -32,10 +32,10 @@ const ZONES = [
     pool:['voltorb','electrode','magnemite','magneton','electabuzz','pikachu','raichu','zapdos'],
     trainers:['scientist','supernerd'], eliteTrainer:'ltsurge', investCost:20000 },
   { id:'seafoam_islands',fr:'Îles Écume',       en:'Seafoam Islands',   rep:800, spawnRate:0.06, type:'route',
-    pool:['tentacool','shellder','staryu','seel','dewgong','horsea','seadra','lapras','articuno','psyduck','goldeen','jynx','lugia'],
+    pool:['tentacool','shellder','staryu','seel','dewgong','horsea','seadra','lapras','articuno','psyduck','goldeen','jynx'],
     trainers:['swimmer','acetrainer'], eliteTrainer:'lorelei', investCost:22000 },
   { id:'victory_road',  fr:'Route Victoire',    en:'Victory Road',      rep:950, spawnRate:0.04, type:'route',
-    pool:['machoke','geodude','graveler','onix','marowak','golbat','dragonair','gyarados','moltres','ho-oh'],
+    pool:['machoke','geodude','graveler','onix','marowak','golbat','dragonair','gyarados','moltres'],
     trainers:['acetrainer','blackbelt'], eliteTrainer:'lance', investCost:35000 },
   { id:'unknown_cave',  fr:'Grotte Inconnue',   en:'Cerulean Cave',     rep:1100,spawnRate:0.03, type:'route',
     pool:['mewtwo','ditto','kadabra','alakazam','electrode','rhydon','chansey','wigglytuff'],
@@ -142,6 +142,17 @@ const ZONES = [
     ],
     trainers:['channeler','psychic'], eliteTrainer:'agatha', investCost:12000,
     ghostZone: true },
+
+  // ══ ZONES GEN 2 — Légendaires (débloquables avec ailes) ══
+  { id:'tourbillon',    fr:'Îles Tourbillon',   en:'Whirl Islands',     rep:900, spawnRate:0.04, type:'route',
+    pool:['lugia','politoed','slowking','kingdra','tentacruel','dewgong','lapras','seadra','starmie','tentacool','golduck','psyduck'],
+    trainers:['swimmer','acetrainer'], eliteTrainer:'lorelei', investCost:45000,
+    unlockItem:'tourbillon_permit' },
+
+  { id:'tour_carillon', fr:'Tour Carillon',      en:'Bell Tower',        rep:950, spawnRate:0.04, type:'special',
+    pool:['ho-oh','espeon','umbreon','blissey','crobat','bellossom','clefable','wigglytuff','chansey','snorlax','pichu','cleffa'],
+    trainers:['acetrainer','psychic'], eliteTrainer:'lance', investCost:45000,
+    unlockItem:'carillon_permit' },
 ];
 
 // ── Special Events ────────────────────────────────────────────
@@ -426,4 +437,7 @@ const ZONE_MUSIC_MAP = {
   safari_zone:      'safari',
   celadon_casino:   'casino',
   silph_co:         'silph',
+  // Zones Gen 2 légendaires
+  tourbillon:       'sea',
+  tour_carillon:    'elite4',
 };
