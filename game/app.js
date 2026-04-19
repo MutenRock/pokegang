@@ -5824,7 +5824,7 @@ function updateTopBar() {
   const repEl = document.getElementById('repDisplay');
   if (repEl) repEl.innerHTML = `<span>⭐</span> ${state.gang.reputation.toLocaleString()}`;
   const pkCountEl = document.getElementById('pokemonCountDisplay');
-  if (pkCountEl) pkCountEl.innerHTML = `<span>🎯</span> ${state.pokemons.length.toLocaleString()}`;
+  if (pkCountEl) pkCountEl.innerHTML = `<img src="${ITEM_SPRITE_URLS.pokeball}" style="width:20px;height:20px;image-rendering:pixelated" onerror="this.style.display='none'"> ${state.pokemons.length.toLocaleString()}`;
 
   // ── Ball assist silencieux (early-game) ───────────────────
   checkBallAssist();
