@@ -766,6 +766,15 @@ const SHOP_ITEMS = [
   { id:'silph_keycard', qty:1, cost:50000, icon:'🔑', fr:'Badge Sylphe',     en:'Silph Keycard',   desc_fr:'Accès à Sylphe SARL',                   desc_en:'Access to Silph Co.' },
   { id:'boat_ticket',   qty:1, cost:15000, icon:'⚓', fr:'Ticket Bateau',    en:'Boat Ticket',     desc_fr:'Monte à bord du Bateau St. Anne',        desc_en:'Board the S.S. Anne' },
   { id:'egg_scanner', qty:1, cost:5000, icon:'🔬', fr:'Scanneur d\'Oeuf', en:'Egg Scanner', desc_fr:'89% révèle l\'espèce, 10% détruit l\'outil, 1% détruit l\'oeuf', desc_en:'89% reveals species, 10% destroys tool, 1% destroys egg' },
+  // ── Zones légendaires Gen 2 (débloquables avec ailes) ──
+  { id:'tourbillon_permit', qty:1, cost:0, wingCost:{ item:'silver_wing', qty:50 }, icon:'🌊',
+    fr:'Permis Tourbillon', en:'Whirlpool Permit',
+    desc_fr:'50× Argent\'Aile requis → Îles Tourbillon (Lugia)',
+    desc_en:'50× Silver Wing required → Whirl Islands (Lugia)' },
+  { id:'carillon_permit',   qty:1, cost:0, wingCost:{ item:'rainbow_wing', qty:50 }, icon:'🔔',
+    fr:'Permis Carillon',   en:'Bell Tower Permit',
+    desc_fr:'50× Arcenci\'Aile requis → Tour Carillon (Ho-Oh)',
+    desc_en:'50× Rainbow Wing required → Bell Tower (Ho-Oh)' },
 ];
 
 // ── Mystery Egg ───────────────────────────────────────────────
@@ -1331,6 +1340,50 @@ function migrate(saved) {
     const resolvedPension = new Set([merged.pension.slotA, merged.pension.slotB].filter(Boolean));
     merged.trainingRoom.pokemon = (merged.trainingRoom.pokemon || []).filter(id => !teamSet.has(id) && !resolvedPension.has(id));
   }
+  // ── Migration Gen 2 : convertir les Pokémon Gen 2 en ailes ────
+  // Les Pokémon Gen 2 ne spawnent plus dans les zones normales.
+  // Si un joueur en a dans son PC, on les convertit en ailes.
+  const GEN2_SPECIES = new Set([
+    'pichu','cleffa','igglybuff','smoochum','elekid','magby','tyrogue',
+    'crobat','bellossom','politoed','slowking','steelix','scizor',
+    'espeon','umbreon','kingdra','blissey','lugia','ho-oh',
+  ]);
+  const gen2Found = (merged.pokemons || []).filter(pk => GEN2_SPECIES.has(pk.species_en));
+  if (gen2Found.length > 0) {
+    merged.pokemons = merged.pokemons.filter(pk => !GEN2_SPECIES.has(pk.species_en));
+    merged.gang.bossTeam = (merged.gang.bossTeam || []).filter(id => !gen2Found.some(p => p.id === id));
+    merged.inventory = merged.inventory || {};
+    for (const pk of gen2Found) {
+      if (pk.species_en === 'lugia')  merged.inventory.silver_wing  = (merged.inventory.silver_wing  || 0) + 2;
+      else if (pk.species_en === 'ho-oh') merged.inventory.rainbow_wing = (merged.inventory.rainbow_wing || 0) + 2;
+      else                            merged.inventory.silver_wing  = (merged.inventory.silver_wing  || 0) + 1;
+    }
+    merged._gen2MigrationCount = gen2Found.length;
+  }
+
+  // ── Migration limites : valeurs hors-limites → MissingNo reward ─
+  const LIMITS = { incubator: 5 };
+  let limitViolation = false;
+  for (const [item, max] of Object.entries(LIMITS)) {
+    if ((merged.inventory[item] || 0) > max) {
+      merged.inventory[item] = max;
+      limitViolation = true;
+    }
+  }
+  // Pokémon avec potential > 5 ou level > 100
+  for (const pk of merged.pokemons || []) {
+    if ((pk.potential || 1) > 5) { pk.potential = 5; limitViolation = true; }
+    if ((pk.level || 1) > 100)   { pk.level = 100; limitViolation = true; }
+  }
+  if (limitViolation && !(merged.pokemons || []).some(p => p.species_en === 'missingno')) {
+    const reward = { id: uid(), species_en:'missingno', species_fr:'MissingNo', dex:0,
+      level:1, xp:0, potential:1, shiny:false, history:[{ type:'migration_reward', ts:Date.now() }],
+      moves:['Morphing','Psyko','Métronome','Surf'] };
+    merged.pokemons = merged.pokemons || [];
+    merged.pokemons.push(reward);
+    merged._limitViolationReward = true;
+  }
+
   // Toujours stamper la version schéma courante
   merged._schemaVersion = SAVE_SCHEMA_VERSION;
   return merged;
@@ -1948,6 +2001,8 @@ const ITEM_SPRITE_URLS = {
   silph_keycard:'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/silph-scope.png',
   boat_ticket:  'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/ss-ticket.png',
   pokecoin:     'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/amulet-coin.png',
+  silver_wing:  'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/silver-wing.png',
+  rainbow_wing: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/rainbow-wing.png',
 };
 function itemSprite(id) {
   const url = ITEM_SPRITE_URLS[id];
@@ -4548,6 +4603,31 @@ function buyItem(itemDef) {
     state.inventory.incubator = (state.inventory.incubator || 0) + 1;
     notify(`Incubateur obtenu ! Total: ${state.inventory.incubator}`, 'gold');
     saveState();
+    return true;
+  }
+
+  // ── Permis ailes (coût en items, pas en ₽) ───────────────────
+  const WING_PERMIT_ITEMS = new Set(['tourbillon_permit','carillon_permit']);
+  if (WING_PERMIT_ITEMS.has(itemDef.id)) {
+    if (state.purchases[itemDef.id]) {
+      notify(state.lang === 'fr' ? 'Déjà possédé !' : 'Already owned!');
+      return false;
+    }
+    const wc = itemDef.wingCost;
+    const have = state.inventory[wc.item] || 0;
+    if (have < wc.qty) {
+      const itemName = wc.item === 'silver_wing' ? 'Argent\'Aile' : 'Arcenci\'Aile';
+      notify(`Il te faut ${wc.qty}× ${itemName} (tu en as ${have}).`, 'error');
+      return false;
+    }
+    state.inventory[wc.item] -= wc.qty;
+    state.purchases[itemDef.id] = true;
+    const zone = ZONES.find(z => z.unlockItem === itemDef.id);
+    const zLabel = zone ? (state.lang === 'fr' ? zone.fr : zone.en) : '';
+    const pName  = state.lang === 'fr' ? itemDef.fr : itemDef.en;
+    notify(`${pName} obtenu !${zLabel ? ' → ' + zLabel + ' accessible' : ''}`, 'gold');
+    saveState();
+    renderZonesTab?.();
     return true;
   }
 
@@ -8022,6 +8102,23 @@ function tickZoneSpawn(zoneId) {
 
   renderSpawnInWindow(zoneId, spawnObj);
   updateZoneTimers(zoneId);
+
+  // ── Wing drop passif (zone au max, mastery ≥ 3) ─────────────
+  _tryWingDrop(zoneId);
+}
+
+// Chance de drop d'aile sur Îles Écume (silver_wing) et Route Victoire (rainbow_wing)
+function _tryWingDrop(zoneId) {
+  const WING_ZONES = { seafoam_islands: 'silver_wing', victory_road: 'rainbow_wing' };
+  const wingId = WING_ZONES[zoneId];
+  if (!wingId) return;
+  const zs = state.zones?.[zoneId];
+  if (!zs || (zs.mastery || 0) < 3) return; // zone doit être au moins niveau 3
+  if (Math.random() > 0.05) return; // 5% par spawn
+  const qty = Math.random() < 0.15 ? 3 : 1; // 15% chance d'obtenir 3
+  zs.pendingItems = zs.pendingItems || {};
+  zs.pendingItems[wingId] = (zs.pendingItems[wingId] || 0) + qty;
+  saveState();
 }
 
 function renderSpawnInWindow(zoneId, spawnObj) {
@@ -8886,8 +8983,9 @@ function renderShopPanel() {
   const panel = document.querySelector('#shopPanel .shop-list');
   if (!panel) return;
 
-  const ZONE_UNLOCK_ITEM_IDS = new Set(['map_pallet','casino_ticket','silph_keycard','boat_ticket']);
-  const ONE_OFF_IDS = new Set(['mysteryegg','incubator','translator','map_pallet','casino_ticket','silph_keycard','boat_ticket']);
+  const ZONE_UNLOCK_ITEM_IDS = new Set(['map_pallet','casino_ticket','silph_keycard','boat_ticket','tourbillon_permit','carillon_permit']);
+  const ONE_OFF_IDS = new Set(['mysteryegg','incubator','translator','map_pallet','casino_ticket','silph_keycard','boat_ticket','tourbillon_permit','carillon_permit']);
+  const WING_PERMIT_IDS = new Set(['tourbillon_permit','carillon_permit']);
 
   // ── Multiplier toolbar ─────────────────────────────────────────
   const multBar = [1,5,10].map(m =>
@@ -8916,17 +9014,28 @@ function renderShopPanel() {
     const desc = item.desc_fr
       ? (state.lang === 'fr' ? item.desc_fr : item.desc_en)
       : `×${totalQty}`;
+    const isWingPermit = WING_PERMIT_IDS.has(item.id);
+    const wingHave = isWingPermit ? (state.inventory[item.wingCost?.item] || 0) : 0;
+    const wingName = isWingPermit
+      ? (item.wingCost?.item === 'silver_wing' ? "Argent'Aile" : "Arcenci'Aile")
+      : '';
     const extraInfo = item.id === 'mysteryegg'
       ? `<div style="font-size:9px;color:var(--text-dim)">Achat #${(state.purchases?.mysteryEggCount||0)+1} — 45min éclosion</div>`
       : item.id === 'incubator'
         ? `<div style="font-size:10px;color:var(--text-dim)">Possédés: ${owned}/10${incubatorMaxed ? ' <span style="color:var(--red)">MAX</span>' : ''}</div>`
-        : isUnlockItem
-          ? `<div style="font-size:10px;color:${alreadyOwned?'var(--green)':'var(--text-dim)'}"> ${alreadyOwned ? '✓ Possédé' : 'Débloque une zone'}</div>`
-          : `<div style="font-size:10px;color:var(--text-dim)">Stock: ${owned}${!isOneOff && mult>1 ? ` (+${totalQty})` : ''}</div>`;
-    const btnDisabled = alreadyOwned || incubatorMaxed;
-    const btnLabel = btnDisabled
+        : isWingPermit
+          ? `<div style="font-size:10px;color:${alreadyOwned?'var(--green)':wingHave>=(item.wingCost?.qty||50)?'var(--gold)':'var(--red)'}">
+              ${alreadyOwned ? '✓ Possédé' : `${wingName} : ${wingHave}/${item.wingCost?.qty||50}`}
+             </div>`
+          : isUnlockItem
+            ? `<div style="font-size:10px;color:${alreadyOwned?'var(--green)':'var(--text-dim)'}"> ${alreadyOwned ? '✓ Possédé' : 'Débloque une zone'}</div>`
+            : `<div style="font-size:10px;color:var(--text-dim)">Stock: ${owned}${!isOneOff && mult>1 ? ` (+${totalQty})` : ''}</div>`;
+    const btnDisabled = alreadyOwned || incubatorMaxed || (isWingPermit && wingHave < (item.wingCost?.qty || 50));
+    const btnLabel = (alreadyOwned || incubatorMaxed)
       ? (incubatorMaxed ? 'MAX' : 'Acquis')
-      : `${totalCost.toLocaleString()}₽${mult>1&&!isOneOff ? ` ×${mult}` : ''}`;
+      : isWingPermit
+        ? `${item.wingCost?.qty||50}× ${wingName}`
+        : `${totalCost.toLocaleString()}₽${mult>1&&!isOneOff ? ` ×${mult}` : ''}`;
     return `<div style="display:flex;align-items:center;gap:8px;padding:8px 4px;border-bottom:1px solid var(--border);opacity:${btnDisabled?'0.6':'1'}">
       ${itemSprite(item.id)}
       <div style="flex:1">
@@ -13687,6 +13796,24 @@ function boot() {
   // ── Banner de migration si save convertie ────────────────────────────────
   if (_migrationResult) {
     setTimeout(() => showMigrationBanner(_migrationResult), 1200);
+  }
+
+  // ── Notification migration Gen 2 ─────────────────────────────
+  if (state._gen2MigrationCount) {
+    const n = state._gen2MigrationCount;
+    setTimeout(() => notify(
+      `🌟 ${n} Pokémon Gen 2 convertis en Argent'Aile / Arcenci'Aile (nouvelles zones dédiées !)`
+    , 'gold'), 1500);
+    delete state._gen2MigrationCount;
+    saveState();
+  }
+  // ── Notification limite dépassée → MissingNo reward ──────────
+  if (state._limitViolationReward) {
+    setTimeout(() => notify(
+      '⚠️ Valeurs hors-limites détectées et corrigées — MissingNo Lv.1 ajouté au PC !'
+    , 'gold'), 2000);
+    delete state._limitViolationReward;
+    saveState();
   }
 
   // Init tab navigation
