@@ -306,13 +306,10 @@
     .zone-cat-buttons { display: flex; flex-wrap: wrap; gap: 4px; }
 
     #zoneWindows {
-      display: flex;
-      flex-wrap: wrap;
+      display: grid;
+      grid-template-columns: repeat(2, 380px);
       gap: 12px;
       align-items: flex-start;
-      max-height: 600px;
-      overflow-y: auto;
-      padding-bottom: 4px;
     }
 
     .zone-window {
@@ -817,10 +814,16 @@
     .pc-view-btn:hover { color: var(--text); border-color: var(--border-light); }
     .pc-view-btn.active { background: var(--bg-hover); color: var(--gold); border-color: var(--gold-dim); }
 
-    /* ── Gang Base container in Zones tab ──────────────────────── */
-    #gangBaseContainer {
-      width: fit-content;
+    /* ── Zones top area : Gang Base + 2×2 zone windows ─────────── */
+    #zonesTopArea {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
       margin: 12px 0;
+    }
+    #gangBaseContainer {
+      flex-shrink: 0;
+      width: fit-content;
     }
 
     /* ── Zone filter bar ──────────────────────────────────────── */
@@ -2961,11 +2964,11 @@
         <!-- Zone selector (fog-map) -->
         <div id="zoneSelector"></div>
 
-        <!-- Gang Base panel (under fog-map, before zone windows) -->
-        <div id="gangBaseContainer"></div>
-
-        <!-- Open zone windows -->
-        <div id="zoneWindows" style="display:flex;flex-wrap:wrap;gap:12px;margin-top:12px;"></div>
+        <!-- Gang Base + 2×2 zone windows side by side -->
+        <div id="zonesTopArea">
+          <div id="gangBaseContainer"></div>
+          <div id="zoneWindows"></div>
+        </div>
       </section>
 
       <!-- ── Bag + Market (merged) ── -->
