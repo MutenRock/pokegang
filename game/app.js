@@ -1341,28 +1341,26 @@ function migrate(saved) {
     merged.trainingRoom.pokemon = (merged.trainingRoom.pokemon || []).filter(id => !teamSet.has(id) && !resolvedPension.has(id));
   }
   // ── Migration Gen 2 : convertir les Pokémon Gen 2 en ailes ────
-  // Les Pokémon Gen 2 ne spawnent plus dans les zones normales.
+  // Lugia et Ho-Oh ne spawnent plus dans les zones normales (zones dédiées désormais).
   // Si un joueur en a dans son PC, on les convertit en ailes.
-  const GEN2_SPECIES = new Set([
-    'pichu','cleffa','igglybuff','smoochum','elekid','magby','tyrogue',
-    'crobat','bellossom','politoed','slowking','steelix','scizor',
-    'espeon','umbreon','kingdra','blissey','lugia','ho-oh',
-  ]);
-  const gen2Found = (merged.pokemons || []).filter(pk => GEN2_SPECIES.has(pk.species_en));
-  if (gen2Found.length > 0) {
-    merged.pokemons = merged.pokemons.filter(pk => !GEN2_SPECIES.has(pk.species_en));
-    merged.gang.bossTeam = (merged.gang.bossTeam || []).filter(id => !gen2Found.some(p => p.id === id));
+  // Les évolutions Gen 2 (crobat, steelix, scizor, espeon, etc.) sont conservées :
+  // elles restent obtenables par évolution et ne doivent PAS être effacées.
+  const LEGENDARY_CONVERT = new Set(['lugia', 'ho-oh']);
+  const legendaryFound = (merged.pokemons || []).filter(pk => LEGENDARY_CONVERT.has(pk.species_en));
+  if (legendaryFound.length > 0) {
+    merged.pokemons = merged.pokemons.filter(pk => !LEGENDARY_CONVERT.has(pk.species_en));
+    merged.gang.bossTeam = (merged.gang.bossTeam || []).filter(id => !legendaryFound.some(p => p.id === id));
     merged.inventory = merged.inventory || {};
-    for (const pk of gen2Found) {
-      if (pk.species_en === 'lugia')  merged.inventory.silver_wing  = (merged.inventory.silver_wing  || 0) + 2;
-      else if (pk.species_en === 'ho-oh') merged.inventory.rainbow_wing = (merged.inventory.rainbow_wing || 0) + 2;
-      else                            merged.inventory.silver_wing  = (merged.inventory.silver_wing  || 0) + 1;
+    for (const pk of legendaryFound) {
+      if (pk.species_en === 'lugia') merged.inventory.silver_wing  = (merged.inventory.silver_wing  || 0) + 2;
+      else                           merged.inventory.rainbow_wing = (merged.inventory.rainbow_wing || 0) + 2;
     }
-    merged._gen2MigrationCount = gen2Found.length;
+    merged._gen2MigrationCount = legendaryFound.length;
   }
 
   // ── Migration limites : valeurs hors-limites → MissingNo reward ─
-  const LIMITS = { incubator: 5 };
+  // Limite incubateur = 10 (cohérent avec le shop qui bloque à owned >= 10)
+  const LIMITS = { incubator: 10 };
   let limitViolation = false;
   for (const [item, max] of Object.entries(LIMITS)) {
     if ((merged.inventory[item] || 0) > max) {
@@ -13867,7 +13865,7 @@ function boot() {
   if (state._gen2MigrationCount) {
     const n = state._gen2MigrationCount;
     setTimeout(() => notify(
-      `🌟 ${n} Pokémon Gen 2 convertis en Argent'Aile / Arcenci'Aile (nouvelles zones dédiées !)`
+      `🌟 ${n} légendaire${n > 1 ? 's' : ''} (Lugia / Ho-Oh) converti${n > 1 ? 's' : ''} en ailes — débloque les nouvelles zones dédiées !`
     , 'gold'), 1500);
     delete state._gen2MigrationCount;
     saveState();
