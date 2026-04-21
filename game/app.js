@@ -987,15 +987,15 @@ const DEFAULT_STATE = {
     titleD: null,
   },
   inventory: {
-    pokeball: 20,
+    pokeball: 50,
     greatball: 0,
     ultraball: 0,
     duskball: 0,
     lure: 0,
     superlure: 0,
     potion: 0,
-    incense: 0,
-    rarescope: 0,
+    incense: 2,
+    rarescope: 1,
     aura: 0,
     evostone: 0,
     rarecandy: 0,
@@ -3731,7 +3731,7 @@ function _processZoneUnlockQueue() {
 
 // ════════════════════════════════════════════════════════════════
 //  7b. MISSIONS MODULE
-// ════════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════f════════
 
 function getMissionStat(statKey) {
   if (statKey === '_reputation') return state.gang.reputation;

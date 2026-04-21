@@ -73,7 +73,7 @@ const ZONES = [
 
   // ══ LIEUX SPÉCIAUX (hybride : captures + events, investissement possible) ══
   { id:'safari_zone',   fr:'Parc Safari',       en:'Safari Zone',       rep:500, spawnRate:0.07, type:'special',
-    pool:['kangaskhan','tauros','scyther','pinsir','nidoran-f','nidoran-m','chansey','dratini','exeggcute','weepinbell','victreebel','vileplume','venonat','venomoth','mr-mime','hypno'],
+    pool:['kangaskhan','doduo','tauros','scyther','pinsir','nidoran-f','nidoran-m','chansey','dratini','exeggcute','weepinbell','victreebel','vileplume','venonat','venomoth','mr-mime','hypno'],
     // rarePool: ~10% chance instead of regular pool — all currently uncapturable Pokemon
     rarePool:[
       // Ultra-rare (starters, fossils, Eevee) — w:1
@@ -93,7 +93,7 @@ const ZONES = [
       {en:'exeggutor',w:3},{en:'starmie',w:3},{en:'pidgeotto',w:3},
       // Common evolutions / base forms — w:5
       {en:'ekans',w:5},{en:'nidorina',w:5},{en:'nidorino',w:5},{en:'mankey',w:5},
-      {en:'poliwag',w:5},{en:'doduo',w:5},{en:'drowzee',w:5},{en:'krabby',w:5},
+      {en:'poliwag',w:5},{en:'doduo',w:10},{en:'drowzee',w:5},{en:'krabby',w:5},
       {en:'slowpoke',w:5},{en:'fearow',w:5},{en:'raticate',w:5},
       // Very common in safari — w:6
       {en:'magikarp',w:6},{en:'parasect',w:4},{en:'persian',w:4},{en:'golduck',w:4},
@@ -383,7 +383,7 @@ const CHEST_LOOT = [
   { weight:2,  type:'item',     itemId:'evostone', qty:1,         fr:'Pierre Évolution',en:'Evolution Stone'},
   { weight:2,  type:'item',     itemId:'rarecandy',qty:1,         fr:'Super Bonbon',   en:'Rare Candy'     },
   { weight:1,  type:'masterball',                                  fr:'Master Ball !',  en:'Master Ball!'   },
-  { weight:2,  type:'event',                                       fr:'Événement !',    en:'Event!'         },
+  { weight:5,  type:'event',                                       fr:'Événement !',    en:'Event!'         },
 ];
 
 // Gang Base — special zone (no spawns, management only)
