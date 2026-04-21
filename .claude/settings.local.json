@@ -120,7 +120,12 @@
       "Bash(node --check C:/Users/pierr/Documents/GitHub/pokeforge/game/app.js)",
       "Bash(git stash *)",
       "Bash(node -e ' *)",
-      "Bash(git remote *)"
+      "Bash(git remote *)",
+      "Bash(GIT_EDITOR=true git rebase --continue)",
+      "Bash(git rebase *)",
+      "Bash(git reset *)",
+      "Bash(python3 -)",
+      "Bash(grep -n \"^const POKEMON_GEN1\\\\|^];\\\\s*$\\\\|^const SPECIES_BY_EN\\\\|^const ZONES\\\\b\\\\|^const ZONE_BY_ID\\\\|^const EVOLUTIONS\\\\b\\\\|^const BALLS\\\\b\\\\|^const TITLES\\\\b\" \"C:\\\\Users\\\\pierr\\\\Documents\\\\GitHub\\\\pokeforge\\\\game\\\\app.js\")"
     ]
   }
 }
