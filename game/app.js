@@ -4,502 +4,41 @@
 
 'use strict';
 
+import './modules/secretCodes.js';
+
+import { POKEDEX_DESC } from './data/pokedex-desc.js';
+import { ZONE_BGS, COSMETIC_BGS } from './data/zones-visuals-data.js';
+import { MISSIONS, HOURLY_QUEST_POOL } from './data/missions-data.js';
+import { TRAINER_TYPES } from './data/trainers-data.js';
+import { getDexDesc, buildSpeciesNameMaps } from './data/dex-helpers.js';
+import { BALLS, SHOP_ITEMS, MYSTERY_EGG_BASE_COST, MYSTERY_EGG_POOL, MYSTERY_EGG_HATCH_MS, POTENTIAL_MULT, BASE_PRICE, getMysteryEggCost as computeMysteryEggCost } from './data/economy-data.js';
+import { NATURES, NATURE_KEYS, BOSS_SPRITES, AGENT_NAMES_M, AGENT_NAMES_F, AGENT_SPRITES, AGENT_PERSONALITIES, TITLE_REQUIREMENTS, TITLE_BONUSES } from './data/game-config-data.js';
+import { I18N } from './data/i18n-data.js';
+import { ZONE_BG_URL, GYM_ORDER } from './data/zones-config-data.js';
+import { HOURLY_QUEST_REROLL_COST, BOOST_DURATIONS } from './data/gameplay-config-data.js';
+import { SPECIAL_TRAINER_KEYS, MAX_COMBAT_REWARD } from './data/combat-config-data.js';
+import { FALLBACK_TRAINER_SVG, FALLBACK_POKEMON_SVG, BALL_SPRITES, ITEM_SPRITE_URLS, CHEST_SPRITE_URL } from './data/assets-data.js';
+import { TRANSLATOR_PHRASES_FR } from './data/flavor-data.js';
+
 // ════════════════════════════════════════════════════════════════
 //  1.  CONFIG & CONSTANTS
 // ════════════════════════════════════════════════════════════════
 
-// → Moved to data/species-data.js
+// Secret code logic moved to modules/secretCodes.js
+// Exposes _mkTitleExec, SECRET_CODES, checkSecretCode and showRewardChoicePopup on globalThis.
 
-// ── Secret codes ───────────────────────────────────────────
-// Helper : génère la fonction exec pour un code qui débloque un titre
-// (TITLES et state sont accédés au moment de l'appel, pas de la définition)
-const _mkTitleExec = (titleId) => (claim) => {
-  if (!state.unlockedTitles) state.unlockedTitles = [];
-  if (state.unlockedTitles.includes(titleId)) {
-    notify('Ce titre est déjà débloqué !', 'error'); return;
-  }
-  const t = TITLES.find(x => x.id === titleId);
-  state.unlockedTitles.push(titleId);
-  // Sync avec purchases (pour les titres achetables en boutique)
-  state.purchases = state.purchases || {};
-  state.purchases[`title_${titleId}`] = true;
-  claim(); saveState();
-  notify(`🏆 Titre débloqué : "${t?.label || titleId}" !`, 'gold');
-  if (typeof renderGangTab    === 'function' && activeTab === 'tabGang')      renderGangTab();
-  if (typeof renderCosmeticsTab === 'function' && activeTab === 'tabCosmetics') renderCosmeticsTab();
-};
+// Pokédex descriptions moved to data/pokedex-desc.js
 
-const SECRET_CODES = {
-  'MERCIDAVOIRJOUEMONJEU': {
-    key: 'code_missingno',
-    cooldownMs: 60 * 60 * 1000,
-    label: '👾 MissingNo',
-    exec: (claim) => {
-      const existing = state.pokemons.find(p => p.species_en === 'missingno');
-      if (existing) { notify('Tu possèdes déjà MissingNo !', 'error'); return; }
-      const p = makePokemon('missingno', 'secret', 'pokeball');
-      p.potential = 5; p.level = 1; p.shiny = Math.random() < 0.5; p.noSell = true;
-      state.pokemons.push(p);
-      if (!state.pokedex['missingno']) state.pokedex['missingno'] = {};
-      state.pokedex['missingno'].caught = true; state.pokedex['missingno'].count = 1;
-      claim();
-      saveState();
-      notify('👾 MissingNo a rejoint ton PC ! Le tissu du jeu tremble…', 'gold');
-      _pcLastRenderKey = ''; renderPokemonGrid(true);
-    }
-  },
-  'POKEGANGSTARTER': {
-    key: 'code_starter',
-    oneTime: true,
-    label: '🌟 Starter surprise',
-    exec: (claim) => {
-      const starters = ['bulbasaur','charmander','squirtle'];
-      const choices = starters.map(sp => {
-        const shiny = Math.random() < 0.5;
-        const spDef = POKEMON_GEN1.find(s => s.en === sp);
-        return {
-          emoji: `<img src="${pokeSprite(sp, shiny)}" style="width:56px;height:56px;image-rendering:pixelated${shiny ? ';filter:drop-shadow(0 0 6px gold)' : ''}">`,
-          label: (shiny ? '✨ ' : '') + (spDef?.fr || sp),
-          sublabel: 'Lv.1',
-          onPick: () => {
-            const p = makePokemon(sp, 'reward', 'pokeball');
-            p.level = 1; p.shiny = shiny; p.potential = Math.random() < 0.2 ? 2 : 1;
-            state.pokemons.push(p);
-            claim(); saveState();
-            notify(`🎁 ${spDef?.fr || sp}${shiny ? ' ✨' : ''} a rejoint ton PC !`, 'gold');
-            _pcLastRenderKey = ''; renderPokemonGrid(true);
-          }
-        };
-      });
-      showRewardChoicePopup('🎁 Choisis ton Starter !', 'Une seule chance — choisit bien.', choices);
-    }
-  },
-  'POKEGANGBALLS': {
-    key: 'code_balls',
-    cooldownMs: 24 * 60 * 60 * 1000,
-    label: '🎯 Pack de Balls',
-    exec: (claim) => {
-      const packs = [
-        { emoji: '🔴', label: '6× Poké Ball', sublabel: 'Bon départ', items: {pokeball:6} },
-        { emoji: '🔵', label: '3× Super Ball', sublabel: 'Efficacité +', items: {greatball:3} },
-        { emoji: '🟡', label: '1× Hyper Ball', sublabel: 'Pour les rares', items: {ultraball:1} },
-      ];
-      const choices = packs.map(pack => ({
-        emoji: pack.emoji,
-        label: pack.label,
-        sublabel: pack.sublabel,
-        onPick: () => {
-          for (const [k, v] of Object.entries(pack.items)) state.inventory[k] = (state.inventory[k] || 0) + v;
-          claim(); saveState(); updateTopBar();
-          notify(`🎁 ${pack.label} ajouté à ton inventaire !`, 'success');
-        }
-      }));
-      showRewardChoicePopup('🎯 Choisis ton pack de Balls !', 'Recharger dans 24h.', choices);
-    }
-  },
-  'POKEGANGPIKACHU': {
-    key: 'code_pikachu',
-    oneTime: true,
-    label: '⚡ Pikachu spécial',
-    exec: (claim) => {
-      const shiny = Math.random() < 0.5;
-      const choices = [
-        { sp:'pikachu', bonus: 'ATK ×2', atk: 2 },
-        { sp:'pikachu', bonus: 'VIT ×2', spd: 2 },
-        { sp:'pikachu', bonus: 'Potentiel ★★★', pot: 3 },
-      ].map(opt => ({
-        emoji: `<img src="${pokeSprite(opt.sp, shiny)}" style="width:56px;height:56px;image-rendering:pixelated${shiny ? ';filter:drop-shadow(0 0 6px gold)' : ''}">`,
-        label: (shiny ? '✨ ' : '') + 'Pikachu',
-        sublabel: opt.bonus,
-        onPick: () => {
-          const p = makePokemon('pikachu', 'reward', 'pokeball');
-          p.level = 1; p.shiny = shiny;
-          if (opt.atk) p.atk = Math.round((p.atk || 10) * opt.atk);
-          if (opt.spd) p.spd = Math.round((p.spd || 10) * opt.spd);
-          if (opt.pot) p.potential = opt.pot;
-          state.pokemons.push(p);
-          claim(); saveState();
-          notify(`⚡ Pikachu${shiny ? ' ✨' : ''} — ${opt.bonus} — a rejoint ton PC !`, 'gold');
-          _pcLastRenderKey = ''; renderPokemonGrid(true);
-        }
-      }));
-      showRewardChoicePopup('⚡ Choisis ton Pikachu !', 'Chaque version est unique.', choices);
-    }
-  },
+// Dex helper logic moved to data/dex-helpers.js
 
-  // ── Codes titres (oneTime, distribués manuellement) ────────────────────────
-  'R4PK2W7':  { key:'ct_apprenti',       oneTime:true, label:'🏆 Titre',  exec: _mkTitleExec('apprenti') },
-  'B9XM3C6':  { key:'ct_chasseur',       oneTime:true, label:'🏆 Titre',  exec: _mkTitleExec('chasseur') },
-  'T7GA5N2':  { key:'ct_agent',          oneTime:true, label:'🏆 Titre',  exec: _mkTitleExec('agent') },
-  'Z3CP8K1':  { key:'ct_capo',           oneTime:true, label:'🏆 Titre',  exec: _mkTitleExec('capo') },
-  'W6LT4M9':  { key:'ct_lieutenant',     oneTime:true, label:'🏆 Titre',  exec: _mkTitleExec('lieutenant') },
-  'Q2BA7D5':  { key:'ct_boss_adj',       oneTime:true, label:'🏆 Titre',  exec: _mkTitleExec('boss_adj') },
-  'K8BO3S4':  { key:'ct_boss',           oneTime:true, label:'🏆 Titre',  exec: _mkTitleExec('boss') },
-  'Y5BR9N6':  { key:'ct_baron',          oneTime:true, label:'🏆 Titre',  exec: _mkTitleExec('baron') },
-  'V1PR4N8':  { key:'ct_parrain',        oneTime:true, label:'🏆 Titre',  exec: _mkTitleExec('parrain') },
-  'J9LD6G3':  { key:'ct_legende',        oneTime:true, label:'🏆 Titre',  exec: _mkTitleExec('legende') },
-  'X4IT7C2':  { key:'ct_intouchable',    oneTime:true, label:'🏆 Titre',  exec: _mkTitleExec('intouchable') },
-  'S6PY2M8':  { key:'ct_pyromane',       oneTime:true, label:'🏆 Titre',  exec: _mkTitleExec('pyromane') },
-  'BF3SU7R5': { key:'ct_surfeur',        oneTime:true, label:'🏆 Titre',  exec: _mkTitleExec('surfeur') },
-  'CW9BT4S1': { key:'ct_botaniste',      oneTime:true, label:'🏆 Titre',  exec: _mkTitleExec('botaniste') },
-  'DQ7EL3C6': { key:'ct_electricien',    oneTime:true, label:'🏆 Titre',  exec: _mkTitleExec('electricien') },
-  'HN4PS8Y2': { key:'ct_psy',            oneTime:true, label:'🏆 Titre',  exec: _mkTitleExec('psy') },
-  'MK2SP6T9': { key:'ct_spectre',        oneTime:true, label:'🏆 Titre',  exec: _mkTitleExec('spectre') },
-  'RJ5DL1N7': { key:'ct_dragon_lord',    oneTime:true, label:'🏆 Titre',  exec: _mkTitleExec('dragon_lord') },
-  'AZ8VN3M4': { key:'ct_venimeux',       oneTime:true, label:'🏆 Titre',  exec: _mkTitleExec('venimeux') },
-  'PF6CB9T3': { key:'ct_combattant',     oneTime:true, label:'🏆 Titre',  exec: _mkTitleExec('combattant') },
-  'GT4CL7R2': { key:'ct_collectionneur', oneTime:true, label:'🏆 Titre',  exec: _mkTitleExec('collectionneur') },
-  'XB1GV5D8': { key:'ct_grand_vendeur',  oneTime:true, label:'🏆 Titre',  exec: _mkTitleExec('grand_vendeur') },
-  'WC9GU3R6': { key:'ct_guerrier',       oneTime:true, label:'🏆 Titre',  exec: _mkTitleExec('guerrier') },
-  'QM7CS4Y5': { key:'ct_chasseur_shiny', oneTime:true, label:'🏆 Titre',  exec: _mkTitleExec('chasseur_shiny') },
-  'ZH3RI8S2': { key:'ct_richissime',     oneTime:true, label:'🏆 Titre',  exec: _mkTitleExec('richissime') },
-  'NK6GL9T4': { key:'ct_glitcheur',      oneTime:true, label:'🏆 Titre',  exec: _mkTitleExec('glitcheur') },
-  'VD2PR5F8': { key:'ct_professeur',     oneTime:true, label:'🏆 Titre',  exec: _mkTitleExec('professeur') },
-  'LR8MD3S1': { key:'ct_maitre_dresseur',oneTime:true, label:'🏆 Titre',  exec: _mkTitleExec('maitre_dresseur') },
-  'FJ4TC7R6': { key:'ct_triade_chroma',  oneTime:true, label:'🏆 Titre',  exec: _mkTitleExec('triade_chroma') },
-  'BW5SH2G9': { key:'ct_seigneur_chroma',oneTime:true, label:'🏆 Titre',  exec: _mkTitleExec('seigneur_chroma') },
-  'YK3DC8R5': { key:'ct_dresseur_chroma',    oneTime:true, label:'🏆 Titre',  exec: _mkTitleExec('dresseur_chroma') },
+// FR→EN / EN→FR name maps moved to data/dex-helpers.js
+const { FR_TO_EN, EN_TO_FR } = buildSpeciesNameMaps(POKEMON_GEN1);
 
-  // ── Titres exclusifs ────────────────────────────────���───────────────────────
-  'EP1C5AR7Y2': { key:'ct_early_backer',      oneTime:true, label:'🏆 Titre',  exec: _mkTitleExec('early_backer') },
-  'MC9X4Z2W7K': { key:'ct_maitre_chronicles', oneTime:true, label:'🏆 Titre',  exec: _mkTitleExec('maitre_chronicles') },
-};
+// Nature config moved to data/game-config-data.js
 
-function checkSecretCode(input) {
-  const code = input.trim().toUpperCase();
-  const def = SECRET_CODES[code];
-  if (!def) return false;
+// Zone visuals/config moved to data/zones-visuals-data.js and data/zones-config-data.js
 
-  const now = Date.now();
-  const lastUsed = state.claimedCodes?.[def.key];
-
-  if (def.cooldownMs) {
-    if (lastUsed && now - lastUsed < def.cooldownMs) {
-      const remaining = Math.ceil((def.cooldownMs - (now - lastUsed)) / 60000);
-      notify(`Code en recharge — ${remaining} min restante${remaining > 1 ? 's' : ''}.`, 'error');
-      return true;
-    }
-  } else if (def.oneTime && lastUsed) {
-    notify('Ce code a déjà été utilisé.', 'error');
-    return true;
-  }
-
-  def.exec(() => {
-    state.claimedCodes = state.claimedCodes || {};
-    state.claimedCodes[def.key] = def.cooldownMs ? now : true;
-  });
-  return true;
-}
-
-// ── Reward choice popup ─────────────────────────────────────
-// choices = array of { label, sublabel, emoji, onPick: () => void }
-function showRewardChoicePopup(title, subtitle, choices) {
-  const overlay = document.createElement('div');
-  overlay.style.cssText = 'position:fixed;inset:0;z-index:9800;background:rgba(0,0,0,.92);display:flex;align-items:center;justify-content:center;padding:16px';
-
-  const cardsHtml = choices.map((c, i) => `
-    <div class="reward-choice-card" data-choice="${i}" style="cursor:pointer;background:var(--bg-panel);border:2px solid var(--border);border-radius:var(--radius);padding:16px 12px;display:flex;flex-direction:column;align-items:center;gap:8px;min-width:120px;max-width:160px;flex:1;transition:border-color .15s,transform .15s">
-      <div style="font-size:40px;line-height:1">${c.emoji}</div>
-      <div style="font-family:var(--font-pixel);font-size:9px;color:var(--text);text-align:center;line-height:1.4">${c.label}</div>
-      ${c.sublabel ? `<div style="font-size:9px;color:var(--text-dim);text-align:center">${c.sublabel}</div>` : ''}
-      <button style="margin-top:4px;font-family:var(--font-pixel);font-size:8px;padding:6px 12px;background:var(--red-dark);border:1px solid var(--red);border-radius:var(--radius-sm);color:var(--text);cursor:pointer">Choisir</button>
-    </div>`).join('');
-
-  overlay.innerHTML = `
-    <div style="background:var(--bg-panel);border:2px solid var(--gold);border-radius:var(--radius);padding:24px;max-width:560px;width:100%;display:flex;flex-direction:column;gap:16px">
-      <div style="font-family:var(--font-pixel);font-size:12px;color:var(--gold);text-align:center">${title}</div>
-      ${subtitle ? `<div style="font-size:10px;color:var(--text-dim);text-align:center">${subtitle}</div>` : ''}
-      <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">${cardsHtml}</div>
-    </div>`;
-
-  document.body.appendChild(overlay);
-
-  overlay.querySelectorAll('.reward-choice-card').forEach(card => {
-    card.addEventListener('mouseenter', () => { card.style.borderColor = 'var(--gold)'; card.style.transform = 'translateY(-3px)'; });
-    card.addEventListener('mouseleave', () => { card.style.borderColor = 'var(--border)'; card.style.transform = ''; });
-    card.addEventListener('click', () => {
-      const idx = parseInt(card.dataset.choice);
-      overlay.remove();
-      choices[idx].onPick();
-    });
-  });
-}
-
-// Short Pokédex descriptions (FR)
-const POKEDEX_DESC = {
-  bulbasaur:'Une étrange graine plantée sur son dos à la naissance. Elle grandit avec lui.',
-  ivysaur:'Quand le bulbe de son dos gonfle, il annonce la prochaine floraison.',
-  venusaur:'La grande fleur de son dos absorbe les rayons du soleil pour transformer l\'énergie.',
-  charmander:'La flamme de sa queue indique son état de santé. Elle brille fort quand il est en forme.',
-  charmeleon:'Ses flammes s\'intensifient lors des combats. Il devient féroce et incontrôlable.',
-  charizard:'Crache des flammes si chaudes qu\'elles font fondre tout ce qu\'elles touchent.',
-  squirtle:'Ses écailles rondes amortissent les chocs. Il se rétracte dans sa carapace pour attaquer.',
-  wartortle:'Sa queue touffue est un symbole de longévité. Il nage très rapidement.',
-  blastoise:'Ses canons à eau perforent même les plaques d\'acier. Il peut projeter de l\'eau à grande distance.',
-  caterpie:'Mange les feuilles avec voracité. Dégage une odeur terrible de ses antennes.',
-  metapod:'Enveloppé dans un cocon dur. Il se prépare à évoluer en durcissant sa carapace.',
-  butterfree:'Ses écailles ailées dispersent un poison paralysant au moindre contact.',
-  weedle:'A une pointe venimeuse sur la tête. Mâche les feuilles avec ses fortes mâchoires.',
-  kakuna:'Presque incapable de bouger, il attend calmement son évolution.',
-  beedrill:'Très territorial. Attaque en essaim avec ses dards venimeux sans pitié.',
-  pidgey:'Très doux et facile à capturer. Aime s\'enterrer dans le sable pour se camoufler.',
-  pidgeotto:'Ses serres puissantes n\'ont aucun mal à transporter une proie.',
-  pidgeot:'Peut atteindre Mach 2 en plein vol pour attraper ses proies.',
-  rattata:'Ses dents acérées rongent tout. Il se reproduit très rapidement.',
-  raticate:'Capable de ronger n\'importe quoi avec ses dents. Court à grande vitesse.',
-  spearow:'Très bruyant et territorial. Pourchasse tout intrus dans son domaine.',
-  fearow:'Son long bec lui permet de chasser des proies enfouies dans le sol.',
-  ekans:'Avale ses proies en entier. S\'enroule sur lui-même lorsqu\'il se repose.',
-  arbok:'Paralyse ses ennemis avec le dessin effrayant sur son ventre.',
-  pikachu:'Stocke l\'électricité dans ses joues. Une prise de courant en cas de danger.',
-  raichu:'Sa queue sert de paratonnerre. Peut foudroyer un éléphant.',
-  sandshrew:'Se roule en boule pour se défendre. Son corps est recouvert d\'écailles épaisses.',
-  sandslash:'Ses griffes acérées percent tous les sols. Expert en coups de griffe rapides.',
-  'nidoran-f':'Ses cornes frontales contiennent un venin puissant pour repousser les prédateurs.',
-  nidorina:'En groupe pour se protéger, elle utilise ses cornes seulement pour la défense.',
-  nidoqueen:'Solide comme un roc, elle protège ses petits avec une force impressionnante.',
-  'nidoran-m':'Sa corne frontale libère un venin. Plus la corne est grande, plus le poison est fort.',
-  nidorino:'Son venin est de plus en plus fort. Très agressif à l\'approche de ses rivaux.',
-  nidoking:'Son corps est aussi résistant que de l\'acier. Il charge sans retenue.',
-  clefairy:'On dit que voir un groupe de Melofée danser au clair de lune porte bonheur.',
-  clefable:'Ses grandes oreilles captent les sons les plus faibles de l\'univers.',
-  vulpix:'A la naissance, il n\'a qu\'une queue qui se divise en six en grandissant.',
-  ninetales:'On dit qu\'il vit mille ans. Toucher ses queues attire une terrible malédiction.',
-  jigglypuff:'Ses grands yeux hypnotisent et son chant endort tous ceux qui l\'écoutent.',
-  wigglytuff:'Sa fourrure douce et élastique peut s\'étirer indéfiniment sans se déchirer.',
-  zubat:'Sans yeux, il se déplace grâce aux ultrasons. Évite la lumière du jour.',
-  golbat:'Son sang est si épais qu\'après un repas copieux, il ne peut plus voler.',
-  oddish:'S\'enterre le jour pour absorber les nutriments du sol. Marche la nuit.',
-  gloom:'Son nectar nauséabond attire certains insectes malgré son odeur terrible.',
-  vileplume:'Ses pétales géants dégagent du pollen toxique. Provoque des allergies sévères.',
-  paras:'Les champignons sur son dos contrôlent son comportement à leur avantage.',
-  parasect:'Les champignons ont totalement pris le contrôle. Le Pokémon est devenu leur hôte.',
-  venonat:'Ses grands yeux voient dans l\'obscurité. Il se nourrit d\'insectes la nuit.',
-  venomoth:'Les écailles de ses ailes libèrent des poisons selon leur couleur.',
-  diglett:'Vit presque entièrement sous terre. Personne n\'a jamais vu son corps entier.',
-  dugtrio:'Trois Taupiqueur liés. Leurs mouvements coordonnés créent des tremblements.',
-  meowth:'Collectionne les objets brillants. Ses griffes rétractiles lui permettent de marcher sans bruit.',
-  persian:'Symbole d\'élégance, il change d\'humeur sans prévenir et attaque violemment.',
-  psyduck:'Souffre de maux de tête constants. Ses pouvoirs psy se libèrent à son insu.',
-  golduck:'Nage à grande vitesse dans les rivières. Très intelligent et mystérieux.',
-  mankey:'S\'énerve pour un rien. Une fois en colère, personne ne peut le calmer.',
-  primeape:'Sa fureur ne s\'arrête jamais, même si son ennemi s\'enfuit.',
-  growlithe:'Fidèle et protecteur. Défend son territoire avec courage contre tout intrus.',
-  arcanine:'Sa vitesse est légendaire. Courait 10 000 km en une journée selon les anciens.',
-  poliwag:'Sa peau fine laisse voir ses organes internes à travers sa spirale.',
-  poliwhirl:'Sa spirale tourbillonnante peut hypnotiser quiconque la regarde trop longtemps.',
-  poliwrath:'Nage sans effort dans les courants les plus violents grâce à ses muscles.',
-  abra:'Dort 18h par jour. Se téléporte instinctivement en cas de danger.',
-  kadabra:'Sa cuillère amplifie ses ondes psychiques. Cause des maux de tête autour de lui.',
-  alakazam:'Son QI dépasse 5000. Mémorise tout ce qu\'il a vécu depuis sa naissance.',
-  machop:'Entraîne ses muscles en soulevant des Onix. Très fier de sa force.',
-  machoke:'Sa ceinture régule sa puissance surhumaine pour éviter d\'accidentellement blesser les autres.',
-  machamp:'Frappe avec ses quatre bras en même temps. Peut déplacer des montagnes.',
-  bellsprout:'Son corps flexible lui permet d\'esquiver les attaques facilement.',
-  weepinbell:'Avale les proies avec son grand corps en forme de cloche. Très acide.',
-  victreebel:'Attire les proies avec son parfum doux, puis les dissout dans son acide.',
-  tentacool:'95% d\'eau. Flotte avec les courants. Son venin provoque des douleurs intenses.',
-  tentacruel:'Ses 80 tentacules capturent les proies et les entraînent sous l\'eau.',
-  geodude:'Très commun dans les zones rocailleuses. Roule sur les intrus quand il est énervé.',
-  graveler:'Dévale les pentes à grande vitesse en ignorant tout sur son passage.',
-  golem:'Après avoir mué, il roule dans les montagnes en laissant des traces profondes.',
-  ponyta:'Ses sabots endurcis supportent la chaleur de ses flammes. Court à 240 km/h.',
-  rapidash:'Galope à 240 km/h et charge ses ennemis avec sa corne enflammée.',
-  slowpoke:'Pêche avec sa queue en attendant les poissons. Insensible à la douleur.',
-  slowbro:'Un Rochantes mord sa queue et lui transmet une intelligence surprenante.',
-  magnemite:'Génère son propre champ magnétique. Flotte grâce à ce champ électrique.',
-  magneton:'Fusion de trois Magnéti. Augmente la force du champ magnétique et le danger électrique.',
-  farfetchd:'Porte toujours un poireau en guise d\'arme. Rarissime à l\'état sauvage.',
-  doduo:'Ses deux têtes pensent différemment. L\'une dort pendant que l\'autre veille.',
-  dodrio:'Ses trois têtes courent en coordination. Court à 60 km/h malgré son corps.',
-  seel:'Adore le froid et les régions polaires. Son crâne dur brise la glace.',
-  dewgong:'Dort sur les banquises. Ses nageoires lui permettent de nager à grande vitesse.',
-  grimer:'Né de la pollution. Dévore les déchets et les égouts sans problème.',
-  muk:'Son corps toxique détruit tout ce qu\'il touche. Son odeur est insupportable.',
-  shellder:'Sa coquille est plus dure que le diamant. Il se ferme en un centième de seconde.',
-  cloyster:'Sa coquille intérieure est encore plus dure. Personne n\'a pu l\'ouvrir de force.',
-  gastly:'90% de gaz toxique. Peut étouffer un éléphant en quelques secondes.',
-  haunter:'Ses mains fantômes peuvent causer un arrêt cardiaque par simple contact.',
-  gengar:'Se cache dans l\'ombre et baisse la température autour de lui de 10 degrés.',
-  onix:'Creuse des tunnels à 80 km/h. Son corps de pierre magmatique est extrêmement dur.',
-  drowzee:'Mange les rêves des dormeurs. Préfère les rêves heureux des enfants.',
-  hypno:'Hypnotise les proies avec son pendule et mange leurs rêves.',
-  krabby:'Ses pinces sont puissantes mais cassent facilement. Il les régénère rapidement.',
-  kingler:'Sa pince gauche est surpuissante mais trop lourde pour être utilisée longtemps.',
-  voltorb:'Ressemble à une Poké Ball. Explose à la moindre surprise ou menace.',
-  electrode:'Explose sans raison. Plus il stocke d\'énergie, plus il est instable et dangereux.',
-  exeggcute:'Ces graines se rassemblent en groupe. Communiquent par télépathie.',
-  exeggutor:'Chaque tête pense indépendamment. Les têtes qui tombent deviennent de nouveaux Noadkoko.',
-  cubone:'Porte le crâne de sa mère disparue. Pleure chaque nuit à la pleine lune.',
-  marowak:'Maîtrise son os comme une arme redoutable. Sa tristesse s\'est transformée en force.',
-  hitmonlee:'Ses jambes extensibles frappent en spirale. Il peut se relever même après KO.',
-  hitmonchan:'Ses poings sont plus rapides que la lumière. Il s\'entraîne sans jamais s\'arrêter.',
-  lickitung:'Sa langue de 2 mètres touche à tout. Sa salive dissout les choses en secondes.',
-  koffing:'Son corps est rempli de gaz toxiques. Flotte grâce à la légèreté de ces gaz.',
-  weezing:'Deux corps de gaz fusionnés. Le gaz qu\'il expulse empoisonne tout l\'environnement.',
-  rhyhorn:'Charge en avant sans regarder. Tellement épais qu\'il ne ressent pas la douleur.',
-  rhydon:'Sa corne perce n\'importe quoi. Résiste aux volcans et aux courants électriques.',
-  chansey:'Porte un œuf nutritif dans sa poche. Très rare et porteur de bonheur.',
-  tangela:'Son corps est entouré de lianes bleues. Personne n\'a jamais vu son vrai corps.',
-  kangaskhan:'Élève son petit dans sa poche ventrale. Extrêmement protectrice et dangereuse.',
-  horsea:'Se tient aux coraux avec sa queue pour ne pas être emporté par le courant.',
-  seadra:'Sa nageoire dorsale empoisonne. Les pêcheurs la craignent.',
-  goldeen:'Nage à contre-courant grâce à ses nageoires. Sa corne est redoutable.',
-  seaking:'En automne, les mâles rivalisent de couleurs pour attirer les femelles.',
-  staryu:'Son cœur rouge brille intensément la nuit. Il peut régénérer ses membres.',
-  starmie:'Son centre mystérieux émet toutes les couleurs. On pense qu\'il vient de l\'espace.',
-  'mr-mime':'Mime si bien les obstacles qu\'il les rend réels. Ne pas déranger sa performance.',
-  scyther:'Ses lames sont plus tranchantes que des épées. Se déplace à la vitesse de l\'éclair.',
-  jynx:'Danse et chante de façon hypnotique. Ses paroles sont encore incomprises.',
-  electabuzz:'Provoque des pannes de courant. Les centrales électriques lui servent de repas.',
-  magmar:'Son corps est recouvert de flammes. Vit près des volcans actifs.',
-  pinsir:'Ses cornes broient tout. Même les arbres ne lui résistent pas.',
-  tauros:'Une fois qu\'il charge, il ne s\'arrête plus. Il cherche toujours quelqu\'un à combattre.',
-  magikarp:'Considéré comme le Pokémon le plus inutile. Cache pourtant un potentiel incroyable.',
-  gyarados:'Sa transformation déclenche une fureur légendaire. Dévaste tout sur son passage.',
-  lapras:'Transporte les voyageurs sur son dos avec douceur. Espèce menacée d\'extinction.',
-  ditto:'Copie parfaitement n\'importe quel être vivant. Ses cellules se réarrangent totalement.',
-  eevee:'Son ADN instable lui permet d\'évoluer en de nombreuses formes selon son environnement.',
-  vaporeon:'Ses cellules ressemblent à de l\'eau. Il peut se fondre dans l\'eau à volonté.',
-  jolteon:'Ses poils sont comme des aiguilles électriques. Accumule l\'électricité statique.',
-  flareon:'Stocke l\'énergie thermique dans son sac à feu. Sa température atteint 1700°C.',
-  porygon:'Premier Pokémon créé entièrement par ordinateur. Peut se déplacer dans le cyberespace.',
-  omanyte:'Pokémon fossile reconstitué. Vivait dans les océans anciens.',
-  omastar:'Son énorme coquille le ralentit mais protège son corps fragile.',
-  kabuto:'Fossile de 300 millions d\'années. Ses yeux rouge sang voient dans l\'obscurité.',
-  kabutops:'Ses bras en faucille tranchent la proie et aspirent sa sève.',
-  aerodactyl:'Reconstitué depuis de l\'ADN ancien. Pousse des cris stridents en vol.',
-  snorlax:'Mange 400 kg de nourriture par jour puis dort immédiatement. Rien ne le réveille.',
-  articuno:'L\'air autour de lui se transforme en cristaux de glace. Annonce les tempêtes.',
-  zapdos:'Né de la foudre. Plus il est frappé par les éclairs, plus il devient puissant.',
-  moltres:'Ses ailes en feu annoncent le printemps. Guérit ses blessures en se baignant dans la lave.',
-  dratini:'Longtemps considéré comme une légende. Vit sous l\'eau pendant des siècles.',
-  dragonair:'Le cristal sur son corps lui permet de contrôler le temps et la pluie.',
-  dragonite:'Vole à 2100 km/h et tourne autour du globe en 16h. Guide les naufragés.',
-  mewtwo:'Créé par manipulation génétique. Le Pokémon le plus puissant jamais créé.',
-  mew:'Contient le code génétique de tous les Pokémon. Seuls quelques chanceux l\'ont vu.',
-  missingno:'Entité glitch de la Région de Kanto. Son existence est une anomalie dans le tissu du jeu.',
-  // Bébés
-  pichu:'Encore jeune pour maîtriser son électricité. Il peut se choquer lui-même.',
-  cleffa:'Aux nuits étoilées, des groupes de Mélo dansent autour de leur chef.',
-  igglybuff:'Son corps est si élastique qu\'il rebondit partout. Adore chanter.',
-  smoochum:'Cherche à reconnaître les choses avec ses lèvres. Très curieux.',
-  elekid:'Tourne les bras pour générer de l\'électricité. Son corps crépite.',
-  magby:'Exhale des flammes à 600 °C. Indice d\'activité d\'un volcan.',
-  tyrogue:'Bagarreur-né. Son évolution dépend de son entraînement.',
-  // Évos Gen 2 de Gen 1
-  crobat:'Vole silencieusement dans le noir total grâce à ses quatre ailes.',
-  bellossom:'Quand le soleil brille, ses pétales s\'ouvrent et il danse.',
-  politoed:'Grâce à ses doigts recourbés, il gouverne les Ptitard comme un roi.',
-  slowking:'A développé des capacités intellectuelles extrêmes suite à la piqûre de Ramoloss.',
-  steelix:'Son corps s\'est endurci en métal après des années sous la Terre.',
-  scizor:'Ses pinces imitent des têtes pour intimider l\'adversaire.',
-  espeon:'Utilise son pelage fin pour sentir les courants d\'air et prédire l\'avenir.',
-  umbreon:'Ses anneaux brillent la nuit. Sécrète une sueur toxique quand menacé.',
-  kingdra:'Vit dans les profondeurs de l\'océan. Son souffle crée des tsunamis.',
-  blissey:'Son oeuf nourrit quiconque le mange et apporte le bonheur.',
-  // Légendaires Gen 2
-  lugia:'Gardien des mers. Son battement d\'ailes peut déclencher des tempêtes de 40 jours.',
-  'ho-oh':'Le phénix arc-en-ciel. Quiconque le voit est promis à un bonheur éternel.',
-};
-
-function getDexDesc(species_en) {
-  if (POKEDEX_DESC[species_en]) return POKEDEX_DESC[species_en];
-  const sp = SPECIES_BY_EN[species_en];
-  if (!sp) return '???';
-  const typeDesc = { Fire:'Type Feu, maîtrise les flammes.', Water:'Type Eau, vit dans les milieux aquatiques.', Grass:'Type Plante, absorbe l\'énergie solaire.', Electric:'Type Électrik, génère des charges électriques.', Psychic:'Type Psy, possède des pouvoirs mentaux.', Ice:'Type Glace, résiste aux températures extrêmes.', Dragon:'Type Dragon, une force hors du commun.', Normal:'Type Normal, polyvalent et répandu.', Fighting:'Type Combat, maîtrise les arts martiaux.', Poison:'Type Poison, sécrète des toxines dangereuses.', Ground:'Type Sol, creuse et se déplace sous terre.', Flying:'Type Vol, plane sur les courants d\'air.', Bug:'Type Insecte, pullule dans la végétation.', Rock:'Type Roche, son corps est aussi dur que la pierre.', Ghost:'Type Spectre, insaisissable et mystérieux.', };
-  return typeDesc[sp.types[0]] || 'Un Pokémon aux capacités encore peu connues.';
-}
-
-// FR→EN / EN→FR name maps
-const FR_TO_EN = {};
-const EN_TO_FR = {};
-POKEMON_GEN1.forEach(s => {
-  FR_TO_EN[s.fr.toLowerCase()] = s.en;
-  EN_TO_FR[s.en] = s.fr;
-});
-
-// ── Natures (10) ─────────────────────────────────────────────
-const NATURES = {
-  hardy:   { fr:'Hardi',    en:'Hardy',   atk:1,   def:1,   spd:1   },
-  brave:   { fr:'Brave',    en:'Brave',   atk:1.1, def:1,   spd:0.9 },
-  timid:   { fr:'Timide',   en:'Timid',   atk:0.9, def:1,   spd:1.1 },
-  bold:    { fr:'Assuré',   en:'Bold',    atk:0.9, def:1.1, spd:1   },
-  jolly:   { fr:'Jovial',   en:'Jolly',   atk:1,   def:0.9, spd:1.1 },
-  adamant: { fr:'Rigide',   en:'Adamant', atk:1.1, def:1,   spd:0.9 },
-  calm:    { fr:'Calme',    en:'Calm',    atk:1,   def:1.1, spd:0.9 },
-  modest:  { fr:'Modeste',  en:'Modest',  atk:0.9, def:1,   spd:1.1 },
-  careful: { fr:'Prudent',  en:'Careful', atk:1,   def:1.1, spd:0.9 },
-  naive:   { fr:'Naïf',     en:'Naive',   atk:1,   def:0.9, spd:1.1 },
-};
-const NATURE_KEYS = Object.keys(NATURES);
-
-// ── Zones ────────────────────────────────────────────────────
-// Showdown background sprites
-const ZONE_BG_URL = (name) => `https://play.pokemonshowdown.com/sprites/gen5-back/${name}.png`;
-// Zone backgrounds — Showdown image URL (confirmed working) + gradient fallback
-// Background-image uses multi-layer: image on top, gradient underneath as fallback
-const SD_BG = 'https://play.pokemonshowdown.com/fx/bg-';
-const ZONE_BGS = {
-  // ── Routes & nature ──────────────────────────────────────────
-  route1:           { url:`${SD_BG}meadow.png`,         fb:'#1a3a0a,#0d2008' },
-  viridian_forest:  { url:`${SD_BG}forest.png`,         fb:'#0a2a08,#041504' },
-  route22:          { url:`${SD_BG}meadow.png`,          fb:'#1a2808,#101a04' },
-  pallet_garden:    { url:`${SD_BG}meadow.png`,          fb:'#0a2a04,#061802' },
-  // ── Cavernes ─────────────────────────────────────────────────
-  mt_moon:          { url:`${SD_BG}mountain.png`,       fb:'#12123a,#07073a' },
-  diglett_cave:     { url:`${SD_BG}mountain.png`,        fb:'#2a1204,#180a02' },
-  rock_tunnel:      { url:`${SD_BG}mountain.png`,        fb:'#1a1410,#0a0a08' },
-  victory_road:     { url:`${SD_BG}mountain.png`,       fb:'#2a1208,#180a06' },
-  unknown_cave:     { url:`${SD_BG}mountain.png`,        fb:'#100820,#080012' },
-  // ── Zones urbaines ───────────────────────────────────────────
-  power_plant:      { url:`${SD_BG}city.png`,           fb:'#2a2008,#1a1400' },
-  silph_co:         { url:`${SD_BG}city.png`,             fb:'#08101a,#040810' },
-  // ── Zones spectrales / sombres ────────────────────────────────
-  pokemon_tower:    { url:`${SD_BG}city.png`,            fb:'#0d0020,#06000f' },
-  lavender_town:    { url:`${SD_BG}city.png`,            fb:'#160030,#0a0020' },
-  pokemon_mansion:  { url:`${SD_BG}city.png`,            fb:'#200408,#140204' },
-  // ── Mer / côte ────────────────────────────────────────────────
-  seafoam_islands:  { url:`${SD_BG}deepsea.png`,        fb:'#082a3a,#041a2a' },
-  ss_anne:          { url:`${SD_BG}beach.png`,           fb:'#082038,#041428' },
-  // ── Montagne alta ────────────────────────────────────────────
-  mt_silver:        { url:`${SD_BG}mountain.png`,        fb:'#0a0a20,#040414' },
-  // ── Arènes ───────────────────────────────────────────────────
-  pewter_gym:       { url:`${SD_BG}mountain.png`,        fb:'#2a1a08,#1a0e04' },
-  cerulean_gym:     { url:`${SD_BG}beach.png`,           fb:'#081a3a,#041228' },
-  celadon_gym:      { url:`${SD_BG}forest.png`,          fb:'#0a2a08,#042008' },
-  fuchsia_gym:      { url:`${SD_BG}river.png`,           fb:'#280828,#180418' },
-  saffron_gym:      { url:`${SD_BG}city.png`,            fb:'#181830,#0c0c22' },
-  cinnabar_gym:     { url:`${SD_BG}desert.png`,          fb:'#3a0808,#280404' },
-  indigo_plateau:   { url:`${SD_BG}mountain.png`,        fb:'#1a1a2a,#0c0c1c' },
-  // ── Lieux spéciaux ───────────────────────────────────────────
-  safari_zone:      { url:`${SD_BG}meadow.png`,          fb:'#082008,#041204' },
-  celadon_casino:   { url:`${SD_BG}city.png`,            fb:'#1a0030,#100020' },
-};
-
-// Cosmetic backgrounds purchasable for the game screen
-const COSMETIC_BGS = {
-  // ── Fonds d'écran photo (CDN Showdown) ───────────────────────
-  meadow:        { fr:'Prairie',       cost:5000,  url:`${SD_BG}meadow.png`,   type:'image' },
-  forest:        { fr:'Forêt',         cost:8000,  url:`${SD_BG}forest.png`,   type:'image' },
-  mountain:      { fr:'Montagne',      cost:10000, url:`${SD_BG}mountain.png`, type:'image' },
-  beach:         { fr:'Plage',         cost:8000,  url:`${SD_BG}beach.png`,    type:'image' },
-  river:         { fr:'Rivière',       cost:6000,  url:`${SD_BG}river.png`,    type:'image' },
-  city:          { fr:'Ville',         cost:12000, url:`${SD_BG}city.png`,     type:'image' },
-  desert:        { fr:'Désert',        cost:10000, url:`${SD_BG}desert.png`,   type:'image' },
-  deepsea:       { fr:'Fond Marin',    cost:20000, url:`${SD_BG}deepsea.png`,  type:'image' },
-  // ── Thèmes couleur (dégradés CSS) ────────────────────────────
-  theme_red:     { fr:'Rouge Sang',    cost:2000,  gradient:'linear-gradient(145deg,#160000 0%,#2e0808 50%,#0a0000 100%)', type:'gradient' },
-  theme_blue:    { fr:'Bleu Glacé',    cost:2000,  gradient:'linear-gradient(145deg,#000c1a 0%,#081a30 50%,#000810 100%)', type:'gradient' },
-  theme_purple:  { fr:'Nuit Violette', cost:2000,  gradient:'linear-gradient(145deg,#0c0018 0%,#1a0830 50%,#060010 100%)', type:'gradient' },
-  theme_green:   { fr:'Vert Toxik',    cost:2000,  gradient:'linear-gradient(145deg,#001400 0%,#0a2010 50%,#000a00 100%)', type:'gradient' },
-  theme_gold:    { fr:'Doré',          cost:4000,  gradient:'linear-gradient(145deg,#1a1000 0%,#2e2000 50%,#0a0800 100%)', type:'gradient' },
-  theme_sunset:  { fr:'Coucher Soleil',cost:4000,  gradient:'linear-gradient(145deg,#1a0800 0%,#2e1000 40%,#180016 100%)', type:'gradient' },
-  theme_midnight:{ fr:'Minuit',        cost:3000,  gradient:'linear-gradient(145deg,#020204 0%,#060610 50%,#000004 100%)', type:'gradient' },
-};
-
-// Sequential gym unlock order
-const GYM_ORDER = ['pewter_gym','cerulean_gym','celadon_gym','fuchsia_gym','saffron_gym','cinnabar_gym','indigo_plateau'];
+// Gym unlock order moved to data/zones-config-data.js
 
 // → Moved to data/zones-data.js
 // Applique le mapping aux objets de zone
@@ -507,432 +46,19 @@ Object.entries(ZONE_MUSIC_MAP).forEach(([id, track]) => {
   if (ZONE_BY_ID[id]) ZONE_BY_ID[id].music = track;
 });
 
-// ── Missions System ──────────────────────────────────────────
-const MISSIONS = [
-  // --- Daily missions ---
-  { id:'catch_5',       type:'daily', fr:'Attraper 5 Pokémon',         en:'Catch 5 Pokémon',
-    stat:'totalCaught',  target:5,  reward:{ money:500 },  icon:'🎯' },
-  { id:'catch_20',      type:'daily', fr:'Attraper 20 Pokémon',        en:'Catch 20 Pokémon',
-    stat:'totalCaught',  target:20, reward:{ money:2000 }, icon:'🎯' },
-  { id:'win_3_fights',  type:'daily', fr:'Gagner 3 combats',           en:'Win 3 fights',
-    stat:'totalFightsWon',target:3, reward:{ money:1000, rep:5 }, icon:'⚔️' },
-  { id:'win_10_fights', type:'daily', fr:'Gagner 10 combats',          en:'Win 10 fights',
-    stat:'totalFightsWon',target:10,reward:{ money:3000, rep:10 },icon:'⚔️' },
-  { id:'earn_5000',     type:'daily', fr:'Gagner 5 000₽',              en:'Earn 5,000₽',
-    stat:'totalMoneyEarned',target:5000, reward:{ money:1500 },   icon:'💰' },
-  { id:'open_3_chests', type:'daily', fr:'Ouvrir 3 coffres',           en:'Open 3 chests',
-    stat:'chestsOpened', target:3,  reward:{ money:800 },  icon:'📦' },
-  { id:'sell_5',        type:'daily', fr:'Vendre 5 Pokémon',           en:'Sell 5 Pokémon',
-    stat:'totalSold',    target:5,  reward:{ money:1000 }, icon:'💱' },
-  // --- Weekly missions ---
-  { id:'catch_100',     type:'weekly',fr:'Attraper 100 Pokémon',       en:'Catch 100 Pokémon',
-    stat:'totalCaught',  target:100,reward:{ money:10000, rep:20 },icon:'🏅' },
-  { id:'win_50_fights', type:'weekly',fr:'Gagner 50 combats',          en:'Win 50 fights',
-    stat:'totalFightsWon',target:50,reward:{ money:15000, rep:30 },icon:'🏅' },
-  { id:'earn_50000',    type:'weekly',fr:'Gagner 50 000₽',             en:'Earn 50,000₽',
-    stat:'totalMoneyEarned',target:50000,reward:{money:10000,rep:15},icon:'🏅'},
-  { id:'open_20_chests',type:'weekly',fr:'Ouvrir 20 coffres',          en:'Open 20 chests',
-    stat:'chestsOpened', target:20, reward:{ money:5000 }, icon:'🏅' },
-  { id:'catch_shiny',   type:'weekly',fr:'Capturer un Shiny',          en:'Catch a Shiny',
-    stat:'shinyCaught',  target:1,  reward:{ money:8000, rep:10 }, icon:'✨' },
-  { id:'defeat_10_rockets',type:'weekly',fr:'Vaincre 10 Rockets',      en:'Defeat 10 Rockets',
-    stat:'rocketDefeated',target:10,reward:{ money:8000, rep:25 }, icon:'🚀' },
-  { id:'complete_events',type:'weekly',fr:'Compléter 5 événements',    en:'Complete 5 events',
-    stat:'eventsCompleted',target:5,reward:{ money:5000, rep:15 }, icon:'🎪' },
-  // --- Story missions (one-time, permanent) ---
-  { id:'story_first_catch',type:'story',fr:'Premier Pokémon !',        en:'First Pokémon!',
-    stat:'totalCaught',  target:1,  reward:{ money:500 },  icon:'📜',
-    desc_fr:'Capturez votre tout premier Pokémon.',
-    desc_en:'Catch your very first Pokémon.' },
-  { id:'story_10_catch', type:'story',fr:'Collectionneur Débutant',    en:'Beginner Collector',
-    stat:'totalCaught',  target:10, reward:{ money:2000, rep:5 }, icon:'📜',
-    desc_fr:'Remplissez votre PC avec 10 Pokémon.',
-    desc_en:'Fill your PC with 10 Pokémon.' },
-  { id:'story_50_catch', type:'story',fr:'Dresseur Confirmé',          en:'Seasoned Trainer',
-    stat:'totalCaught',  target:50, reward:{ money:5000, rep:15 },icon:'📜',
-    desc_fr:'50 Pokémon capturés ! Le Prof. Chen est impressionné.',
-    desc_en:'50 Pokémon caught! Prof. Oak is impressed.' },
-  { id:'story_first_fight',type:'story',fr:'Premier Combat',           en:'First Fight',
-    stat:'totalFightsWon',target:1, reward:{ money:500 },  icon:'📜',
-    desc_fr:'Remportez votre premier combat de dresseur.',
-    desc_en:'Win your first trainer battle.' },
-  { id:'story_beat_10',  type:'story',fr:'Combattant Aguerri',         en:'Seasoned Fighter',
-    stat:'totalFightsWon',target:10,reward:{ money:3000, rep:10 },icon:'📜',
-    desc_fr:'10 victoires ! Votre gang se fait respecter.',
-    desc_en:'10 victories! Your gang earns respect.' },
-  { id:'story_beat_50',  type:'story',fr:'Terreur de Kanto',           en:'Terror of Kanto',
-    stat:'totalFightsWon',target:50,reward:{ money:10000,rep:25 },icon:'📜',
-    desc_fr:'50 dresseurs vaincus. Les gens commencent à avoir peur.',
-    desc_en:'50 trainers defeated. People start to fear you.' },
-  { id:'story_rep_25',   type:'story',fr:'Notoriété Locale',           en:'Local Notoriety',
-    stat:'_reputation',  target:25, reward:{ money:2000 }, icon:'📜',
-    desc_fr:'Votre gang a une réputation de 25. Les gens parlent de vous.',
-    desc_en:'Your gang has 25 reputation. People talk about you.' },
-  { id:'story_rep_50',   type:'story',fr:'Gang Redouté',               en:'Feared Gang',
-    stat:'_reputation',  target:50, reward:{ money:5000 }, icon:'📜',
-    desc_fr:'Réputation 50 ! Même la Team Rocket surveille vos mouvements.',
-    desc_en:'50 reputation! Even Team Rocket monitors your movements.' },
-  { id:'story_rep_100',  type:'story',fr:'Maîtres de Kanto',           en:'Masters of Kanto',
-    stat:'_reputation',  target:100,reward:{ money:20000 },icon:'📜',
-    desc_fr:'Réputation 100 ! Votre gang est légendaire dans tout Kanto.',
-    desc_en:'100 reputation! Your gang is legendary across Kanto.' },
-  { id:'story_first_shiny',type:'story',fr:'Première Étoile',          en:'First Star',
-    stat:'shinyCaught',  target:1,  reward:{ money:5000, rep:10 },icon:'📜',
-    desc_fr:'Vous avez capturé un Pokémon Shiny ! Incroyable !',
-    desc_en:'You caught a Shiny Pokémon! Incredible!' },
-  { id:'story_rocket_5', type:'story',fr:'Anti-Rocket',                en:'Anti-Rocket',
-    stat:'rocketDefeated',target:5, reward:{ money:5000, rep:15 },icon:'📜',
-    desc_fr:'5 Sbires Rocket vaincus. Ils ne vous oublieront pas.',
-    desc_en:'5 Rocket Grunts defeated. They won\'t forget you.' },
-  { id:'story_rocket_25',type:'story',fr:'Fléau de la Team Rocket',    en:'Rocket\'s Bane',
-    stat:'rocketDefeated',target:25,reward:{ money:15000,rep:30 },icon:'📜',
-    desc_fr:'25 Rockets mis hors d\'état de nuire. Giovanni est furieux.',
-    desc_en:'25 Rockets put out of commission. Giovanni is furious.' },
-  { id:'story_agent_recruit',type:'story',fr:'Premier Recrue',         en:'First Recruit',
-    stat:'_agentCount',  target:1,  reward:{ money:1000 }, icon:'📜',
-    desc_fr:'Votre premier agent a rejoint le gang !',
-    desc_en:'Your first agent joined the gang!' },
-  { id:'story_agent_5',  type:'story',fr:'Organisation Criminelle',    en:'Criminal Organization',
-    stat:'_agentCount',  target:5,  reward:{ money:10000,rep:20 },icon:'📜',
-    desc_fr:'5 agents ! Votre gang est une vraie organisation.',
-    desc_en:'5 agents! Your gang is a real organization.' },
-  { id:'story_pokedex_50',type:'story',fr:'Semi Pokédex',              en:'Half Pokédex',
-    stat:'_pokedexCaught',target:50,reward:{ money:15000,rep:25 },icon:'📜',
-    desc_fr:'50 espèces capturées. Le Prof. Chen est fier.',
-    desc_en:'50 species caught. Prof. Oak is proud.' },
-  { id:'story_pokedex_100',type:'story',fr:'Maître du Pokédex',        en:'Pokédex Master',
-    stat:'_pokedexCaught',target:100,reward:{money:50000,rep:50},icon:'📜',
-    desc_fr:'100 espèces ! Vous approchez de la complétion !',
-    desc_en:'100 species! You\'re nearing completion!' },
-  { id:'story_pokedex_151',type:'story',fr:'Légende Vivante',          en:'Living Legend',
-    stat:'_pokedexCaught',target:151,reward:{money:100000,rep:100},icon:'👑',
-    desc_fr:'151 espèces capturées. Vous êtes un MAÎTRE Pokémon !',
-    desc_en:'151 species caught. You are a Pokémon MASTER!' },
-  { id:'story_pokedex_full', type:'story', fr:'Encyclopédie Vivante', en:'Living Encyclopedia',
-    stat:'_dexFullCaught', target:170,
-    reward:{ money:250000, rep:200 }, icon:'🌟',
-    desc_fr:'Pokédex complet — toutes les espèces de Kanto et de la génération suivante !',
-    desc_en:'Complete Pokédex — every species from Kanto and beyond!' },
-  { id:'story_chroma_starters', type:'story', fr:'Triade Chromatique', en:'Chromatic Triad',
-    stat:'_shinyStarterCount', target:3,
-    reward:{ money:500000, rep:150 }, icon:'✨',
-    desc_fr:'Posséder les 3 starters de Kanto en version chromatique.',
-    desc_en:'Own all 3 Kanto starters in their shiny form.' },
-  { id:'story_chroma_legends', type:'story', fr:'Seigneur Chromatique', en:'Shiny Lord',
-    stat:'_shinyLegendaryCount', target:7,
-    reward:{ money:1000000, rep:300 }, icon:'✨',
-    desc_fr:'Obtenir tous les légendaires en version chromatique. Une prouesse sans précédent.',
-    desc_en:'Obtain every legendary in shiny form. An unprecedented feat.' },
-  { id:'story_chroma_dex', type:'story', fr:'Dresseur Chromatique', en:'Shiny Trainer',
-    stat:'_shinyDexCount', target:170,
-    reward:{ money:2000000, rep:500 }, icon:'✨',
-    desc_fr:'Pokédex chromatique complet — un shiny de chaque espèce !',
-    desc_en:'Full shiny Pokédex — one shiny of every species!' },
-  // ── Missions Lore ──
-  { id:'story_starters_pallet', type:'story', fr:'Starters de Pallet', en:'Pallet Starters',
-    stat:'_starterCount', target:3, reward:{ money:30000, rep:30 }, icon:'★',
-    desc_fr:'Posséder les 3 Starters de départ (Bulbizarre, Salamèche, Carapuce) dans votre PC.',
-    desc_en:'Own all 3 starter Pokémon (Bulbasaur, Charmander, Squirtle) in your PC.' },
-  { id:'story_fossils_kanto', type:'story', fr:'Fossiles de Kanto', en:'Kanto Fossils',
-    stat:'_fossilCount', target:3, reward:{ money:40000, rep:35 }, icon:'★',
-    desc_fr:'Capturer Amonita, Kabuto et Aérodactyl — les 3 fossiles légendaires de Kanto.',
-    desc_en:'Capture Omanyte, Kabuto, and Aerodactyl — the 3 legendary fossils of Kanto.' },
-  { id:'story_hatch_10', type:'story', fr:'Collection de Léo', en:'Bill\'s Collection',
-    stat:'eggsHatched', target:10, reward:{ money:20000, rep:20 }, icon:'★',
-    desc_fr:'Faire éclore 10 oeufs au total. Léo serait ravi de votre collection !',
-    desc_en:'Hatch 10 eggs in total. Bill would be thrilled by your collection!' },
-  { id:'story_beat_blue_50', type:'story', fr:'Rivalité Éternelle', en:'Eternal Rivalry',
-    stat:'blueDefeated', target:50, reward:{ money:50000, rep:40 }, icon:'★',
-    desc_fr:'Vaincre Blue 50 fois. "Tu es encore trop faible !"',
-    desc_en:'Defeat Blue 50 times. "You\'re still too weak!"' },
-  { id:'story_explorer', type:'story', fr:'Guide de Terrain', en:'Field Guide',
-    stat:'_zonesWithCapture', target:15, reward:{ money:25000, rep:25 }, icon:'★',
-    desc_fr:'Capturer au moins 1 Pokémon dans 15 zones différentes. Explorer tout Kanto !',
-    desc_en:'Catch at least 1 Pokémon in 15 different zones. Explore all of Kanto!' },
-];
+// Mission data moved to data/missions-data.js
+// Hourly quest reroll cost moved to data/gameplay-config-data.js
 
-// ── Quêtes horaires (pool aléatoire 3 medium + 2 hard, reset 1h) ──
-const HOURLY_QUEST_POOL = [
-  // MEDIUM
-  { id:'hq_catch3',   diff:'medium', fr:'Attraper 3 Pokémon',    icon:'🎯', stat:'totalCaught',      target:3,   reward:{ money:600,  rep:3  } },
-  { id:'hq_catch6',   diff:'medium', fr:'Attraper 6 Pokémon',    icon:'🎯', stat:'totalCaught',      target:6,   reward:{ money:1000, rep:4  } },
-  { id:'hq_win2',     diff:'medium', fr:'Gagner 2 combats',      icon:'⚔',  stat:'totalFightsWon',   target:2,   reward:{ money:700,  rep:4  } },
-  { id:'hq_win4',     diff:'medium', fr:'Gagner 4 combats',      icon:'⚔',  stat:'totalFightsWon',   target:4,   reward:{ money:1200, rep:5  } },
-  { id:'hq_earn800',  diff:'medium', fr:'Gagner 800₽',           icon:'💰', stat:'totalMoneyEarned', target:800, reward:{ money:600,  rep:2  } },
-  { id:'hq_earn2000', diff:'medium', fr:'Gagner 2 000₽',         icon:'💰', stat:'totalMoneyEarned', target:2000,reward:{ money:1000, rep:4  } },
-  { id:'hq_chest1',   diff:'medium', fr:'Ouvrir 1 coffre',       icon:'📦', stat:'chestsOpened',     target:1,   reward:{ money:500,  rep:2  } },
-  { id:'hq_sold3',    diff:'medium', fr:'Vendre 3 Pokémon',      icon:'💱', stat:'totalSold',        target:3,   reward:{ money:800,  rep:2  } },
-  { id:'hq_event1',   diff:'medium', fr:'Compléter 1 événement', icon:'🎪', stat:'eventsCompleted',  target:1,   reward:{ money:700,  rep:3  } },
-  // HARD
-  { id:'hq_catch15',  diff:'hard',   fr:'Attraper 15 Pokémon',   icon:'🎯', stat:'totalCaught',      target:15,  reward:{ money:3500, rep:12 } },
-  { id:'hq_catch25',  diff:'hard',   fr:'Attraper 25 Pokémon',   icon:'🎯', stat:'totalCaught',      target:25,  reward:{ money:5000, rep:16 } },
-  { id:'hq_win8',     diff:'hard',   fr:'Gagner 8 combats',      icon:'⚔',  stat:'totalFightsWon',   target:8,   reward:{ money:4000, rep:14 } },
-  { id:'hq_win12',    diff:'hard',   fr:'Gagner 12 combats',     icon:'⚔',  stat:'totalFightsWon',   target:12,  reward:{ money:6000, rep:18 } },
-  { id:'hq_earn6000', diff:'hard',   fr:'Gagner 6 000₽',         icon:'💰', stat:'totalMoneyEarned', target:6000,reward:{ money:3000, rep:10 } },
-  { id:'hq_rocket3',  diff:'hard',   fr:'Vaincre 3 Rocket',      icon:'🚀', stat:'rocketDefeated',   target:3,   reward:{ money:4500, rep:20 } },
-  { id:'hq_shiny',    diff:'hard',   fr:'Capturer un Shiny',     icon:'✨', stat:'shinyCaught',      target:1,   reward:{ money:9000, rep:30 } },
-  { id:'hq_chest5',   diff:'hard',   fr:'Ouvrir 5 coffres',      icon:'📦', stat:'chestsOpened',     target:5,   reward:{ money:3000, rep:12 } },
-];
-const HOURLY_QUEST_REROLL_COST = 500; // ₽
+// Trainer/combat config moved to data/trainers-data.js and data/combat-config-data.js
 
-// ── Trainers ──────────────────────────────────────────────────
-const TRAINER_TYPES = {
-  // Basic trainers
-  youngster:    { fr:'Gamin',        en:'Youngster',    sprite:'youngster',    diff:1, reward:[10,30],    rep:1  },
-  lass:         { fr:'Fillette',     en:'Lass',         sprite:'lass',         diff:1, reward:[10,30],    rep:1  },
-  bugcatcher:   { fr:'Chasseur',     en:'Bug Catcher',  sprite:'bugcatcher',   diff:1, reward:[10,30],    rep:1  },
-  camper:       { fr:'Campeur',      en:'Camper',       sprite:'camper',       diff:1, reward:[15,40],    rep:1  },
-  picnicker:    { fr:'Pique-niqueuse',en:'Picnicker',   sprite:'picnicker',    diff:1, reward:[15,40],    rep:1  },
-  fisherman:    { fr:'Pêcheur',      en:'Fisherman',    sprite:'fisherman',    diff:1, reward:[20,50],    rep:2  },
-  // Mid-tier trainers
-  hiker:        { fr:'Montagnard',   en:'Hiker',        sprite:'hiker',        diff:2, reward:[25,75],    rep:3  },
-  swimmer:      { fr:'Nageur',       en:'Swimmer',      sprite:'swimmer',      diff:2, reward:[25,75],    rep:3  },
-  psychic:      { fr:'Médium',       en:'Psychic',      sprite:'psychic',      diff:2, reward:[25,75],    rep:3  },
-  gentleman:    { fr:'Gentleman',    en:'Gentleman',    sprite:'gentleman',    diff:2, reward:[30,90],    rep:3  },
-  beauty:       { fr:'Canon',        en:'Beauty',       sprite:'beauty',       diff:2, reward:[30,90],    rep:3  },
-  sailor:       { fr:'Marin',        en:'Sailor',       sprite:'sailor',       diff:2, reward:[25,80],    rep:3  },
-  blackbelt:    { fr:'Karatéka',     en:'Black Belt',   sprite:'blackbelt',    diff:2, reward:[30,85],    rep:3  },
-  supernerd:    { fr:'Intello',      en:'Super Nerd',   sprite:'supernerd',    diff:2, reward:[25,75],    rep:3  },
-  // High-tier trainers
-  acetrainer:   { fr:'Topdresseur',  en:'Ace Trainer',  sprite:'acetrainer',   diff:3, reward:[50,150],   rep:5  },
-  scientist:    { fr:'Scientifique', en:'Scientist',    sprite:'scientist',    diff:3, reward:[50,150],   rep:5  },
-  channeler:    { fr:'Mystimana',    en:'Channeler',    sprite:'channeler',    diff:3, reward:[40,125],   rep:5  },
-  juggler:      { fr:'Jongleur',     en:'Juggler',      sprite:'juggler',      diff:3, reward:[50,140],   rep:5  },
-  // Team Rocket
-  rocketgrunt:  { fr:'Sbire Rocket', en:'Rocket Grunt', sprite:'rocketgrunt',  diff:4, reward:[100,300],  rep:10 },
-  rocketgruntf: { fr:'Sbire Rocket', en:'Rocket Grunt', sprite:'rocketgruntf', diff:4, reward:[100,300],  rep:10 },
-  archer:       { fr:'Archer',       en:'Archer',       sprite:'archer',       diff:4, reward:[150,400],  rep:12 },
-  ariana:       { fr:'Ariane',       en:'Ariana',       sprite:'ariana',       diff:4, reward:[150,400],  rep:12 },
-  proton:       { fr:'Lambda',       en:'Proton',       sprite:'proton',       diff:4, reward:[150,400],  rep:12 },
-  giovanni:     { fr:'Giovanni',     en:'Giovanni',     sprite:'giovanni',     diff:5, reward:[2500,5000], rep:25},
-  // Gym Leaders
-  brock:        { fr:'Pierre',       en:'Brock',        sprite:'brock',        diff:3, reward:[1000,2000],rep:15 },
-  misty:        { fr:'Ondine',       en:'Misty',        sprite:'misty',        diff:3, reward:[1000,2500],rep:15 },
-  ltsurge:      { fr:'Maj. Bob',     en:'Lt. Surge',    sprite:'ltsurge',      diff:4, reward:[1500,3000],rep:18 },
-  erika:        { fr:'Érika',        en:'Erika',        sprite:'erika',        diff:4, reward:[1500,3000],rep:18 },
-  koga:         { fr:'Koga',         en:'Koga',         sprite:'koga',         diff:4, reward:[2000,4000],rep:20 },
-  sabrina:      { fr:'Morgane',      en:'Sabrina',      sprite:'sabrina',      diff:5, reward:[2500,5000], rep:22},
-  blaine:       { fr:'Auguste',      en:'Blaine',       sprite:'blaine',       diff:5, reward:[2500,5000], rep:22},
-  // Elite Four & Champion
-  lorelei:        { fr:'Olga',           en:'Lorelei',        sprite:'lorelei',        diff:6, reward:[4000,7500],  rep:30},
-  bruno:          { fr:'Aldo',           en:'Bruno',          sprite:'bruno',          diff:6, reward:[4000,7500],  rep:30},
-  agatha:         { fr:'Agatha',         en:'Agatha',         sprite:'agatha',         diff:6, reward:[4000,7500],  rep:30},
-  lance:          { fr:'Peter',          en:'Lance',          sprite:'lance',          diff:7, reward:[5000,10000], rep:40},
-  blue:           { fr:'Blue',           en:'Blue',           sprite:'blue',           diff:7, reward:[6000,12500], rep:50},
-  red:            { fr:'Red',            en:'Red',            sprite:'red',            diff:8, reward:[7500,15000], rep:60},
-  // Rangers Pokémon (forces de l'ordre, pokémon puissants : Tauros, Scarabrute, etc.)
-  pokemonranger:  { fr:'Ranger Pokémon', en:'Pokémon Ranger', sprite:'pokemonranger',  diff:4, reward:[125,350],   rep:10},
-  pokemonrangerf: { fr:'Ranger Pokémon', en:'Pokémon Ranger', sprite:'pokemonrangerf', diff:4, reward:[125,350],   rep:10},
-  // Police (Arcanin, Caninos — zones Rocket)
-  policeman:      { fr:'Policier',       en:'Policeman',      sprite:'policeman',      diff:4, reward:[150,400],   rep:12},
-};
-
-// Trainers qui donnent +10 rep (gym leaders, Elite 4, personnages d'histoire)
-const SPECIAL_TRAINER_KEYS = new Set([
-  'brock','misty','ltsurge','erika','koga','sabrina','blaine',  // arènes
-  'lorelei','bruno','agatha','lance',                             // Conseil des 4
-  'blue','red','oak','giovanni',                                  // personnages d'histoire
-]);
-
-const MAX_COMBAT_REWARD = 5000;
-
-// ── Items & Balls ─────────────────────────────────────────────
-const BALLS = {
-  pokeball:   { fr:'Poké Ball',  en:'Poké Ball',  cost:200,  potential:[40,30,20,8,2]  },
-  greatball:  { fr:'Super Ball', en:'Great Ball',  cost:600,  potential:[15,30,30,18,7] },
-  ultraball:  { fr:'Hyper Ball', en:'Ultra Ball',  cost:2000, potential:[5,15,30,30,20] },
-  duskball:   { fr:'Sombre Ball',en:'Dusk Ball',   cost:1500, potential:[20,20,20,20,20]},
-  masterball: { fr:'Master Ball',en:'Master Ball', cost:99999,potential:[0,0,0,10,90]  },
-};
-
-const SHOP_ITEMS = [
-  { id:'pokeball',  qty:10, cost:2000,  icon:'PB'  },
-  { id:'greatball', qty:10, cost:6000,  icon:'GB'  },
-  { id:'ultraball', qty:5,  cost:10000, icon:'UB'  },
-  { id:'duskball',  qty:5,  cost:7500,  icon:'DB'  },
-  { id:'lure',      qty:1,  cost:500,   icon:'LR',  fr:'Leurre',       en:'Lure',            desc_fr:'x2 spawns 60s',         desc_en:'x2 spawns 60s' },
-  { id:'superlure', qty:1,  cost:2000,  icon:'SL',  fr:'Super Leurre', en:'Super Lure',      desc_fr:'x3 spawns 60s',         desc_en:'x3 spawns 60s' },
-  { id:'incense',   qty:1,  cost:1500,  icon:'IN',  fr:'Encens Chance',en:'Lucky Incense',   desc_fr:'*+1 potentiel 90s',     desc_en:'*+1 potential 90s' },
-  { id:'rarescope', qty:1,  cost:3000,  icon:'SC',  fr:'Rarioscope',   en:'Rare Scope',      desc_fr:'Spawns rares x3 90s',   desc_en:'Rare spawns x3 90s' },
-  { id:'aura',      qty:1,  cost:5000,  icon:'AU',  fr:'Aura Shiny',   en:'Shiny Aura',      desc_fr:'Shiny x5 90s',          desc_en:'Shiny x5 90s' },
-  { id:'evostone',  qty:1,  cost:5000,  icon:'EV',  fr:'Pierre Evol.', en:'Evo Stone',       desc_fr:'Evoluer un Pokemon',    desc_en:'Evolve a Pokemon' },
-  { id:'rarecandy', qty:1,  cost:3000,  icon:'RC',  fr:'Super Bonbon', en:'Rare Candy',      desc_fr:'+1 niveau',             desc_en:'+1 level' },
-  { id:'translator',qty:1,  cost:1000000,icon:'TR', fr:'Traducteur Pokemon', en:'Pokemon Translator', desc_fr:'Comprend ce que disent les Pokemon en combat', desc_en:'Understand pokemon speech in combat' },
-  { id:'mysteryegg', qty:1, cost:0, icon:'EG', fr:'Oeuf Mystère', en:'Mystery Egg', desc_fr:'Contient un Pokemon introuvable — Prix croissant', desc_en:'Contains an uncatchable Pokemon — Scaling price' },
-  { id:'incubator',  qty:1, cost:15000, icon:'INC', fr:'Incubateur', en:'Incubator', desc_fr:'Eclot un oeuf (reutilisable) — 1 a la fois', desc_en:'Hatches an egg (reusable) — 1 at a time' },
-  // ── Zone unlock items ──
-  { id:'map_pallet',    qty:1, cost:5000,  icon:'🗺', fr:'Carte de Pallet',  en:'Pallet Map',      desc_fr:'Débloque le Jardin de Pallet',          desc_en:'Unlocks Pallet Garden' },
-  { id:'casino_ticket', qty:1, cost:20000, icon:'🎰', fr:'Ticket Casino',    en:'Casino Ticket',   desc_fr:'Accès au Casino de Céladopole',         desc_en:'Access to Celadon Casino' },
-  { id:'silph_keycard', qty:1, cost:50000, icon:'🔑', fr:'Badge Sylphe',     en:'Silph Keycard',   desc_fr:'Accès à Sylphe SARL',                   desc_en:'Access to Silph Co.' },
-  { id:'boat_ticket',   qty:1, cost:15000, icon:'⚓', fr:'Ticket Bateau',    en:'Boat Ticket',     desc_fr:'Monte à bord du Bateau St. Anne',        desc_en:'Board the S.S. Anne' },
-  { id:'egg_scanner', qty:1, cost:5000, icon:'🔬', fr:'Scanneur d\'Oeuf', en:'Egg Scanner', desc_fr:'89% révèle l\'espèce, 10% détruit l\'outil, 1% détruit l\'oeuf', desc_en:'89% reveals species, 10% destroys tool, 1% destroys egg' },
-  // ── Zones légendaires Gen 2 (débloquables avec ailes) ──
-  { id:'tourbillon_permit', qty:1, cost:0, wingCost:{ item:'silver_wing', qty:50 }, icon:'🌊',
-    fr:'Permis Tourbillon', en:'Whirlpool Permit',
-    desc_fr:'50× Argent\'Aile requis → Îles Tourbillon (Lugia)',
-    desc_en:'50× Silver Wing required → Whirl Islands (Lugia)' },
-  { id:'carillon_permit',   qty:1, cost:0, wingCost:{ item:'rainbow_wing', qty:50 }, icon:'🔔',
-    fr:'Permis Carillon',   en:'Bell Tower Permit',
-    desc_fr:'50× Arcenci\'Aile requis → Tour Carillon (Ho-Oh)',
-    desc_en:'50× Rainbow Wing required → Bell Tower (Ho-Oh)' },
-];
-
-// ── Mystery Egg ───────────────────────────────────────────────
-const MYSTERY_EGG_BASE_COST = 50000;
+// Economy/shop config moved to data/economy-data.js
 function getMysteryEggCost() {
-  const n = state?.purchases?.mysteryEggCount || 0;
-  return MYSTERY_EGG_BASE_COST + n * 1000; // +1 000₽ par achat
+  return computeMysteryEggCost(state);
 }
-// Weighted pool: {en, w} — higher w = more likely
-const MYSTERY_EGG_POOL = [
-  // Starters base (w:3)
-  {en:'bulbasaur',w:3},{en:'charmander',w:3},{en:'squirtle',w:3},
-  // Eevee + evolutions (w:3 / w:2)
-  {en:'eevee',w:3},{en:'vaporeon',w:2},{en:'jolteon',w:2},
-  // Fossils base forms (w:3)
-  {en:'omanyte',w:3},{en:'kabuto',w:3},
-  // Stage 2 starters (w:2)
-  {en:'ivysaur',w:2},{en:'charmeleon',w:2},{en:'wartortle',w:2},
-  // Rare singles (w:2)
-  {en:'hitmonlee',w:2},{en:'hitmonchan',w:2},{en:'lickitung',w:2},{en:'farfetchd',w:2},
-  // Fossil evolutions (w:2)
-  {en:'omastar',w:2},{en:'kabutops',w:2},{en:'aerodactyl',w:2},
-  // Final starters (w:1 — ultra rare)
-  {en:'venusaur',w:1},{en:'charizard',w:1},{en:'blastoise',w:1},
-];
-const MYSTERY_EGG_HATCH_MS = 45 * 60 * 1000; // 45 min
 
-// ── Potential multipliers (for market price) ─────────────────
-const POTENTIAL_MULT = [0.5, 1, 2, 5, 15]; // index 0=★1 .. 4=★5
+// Game config moved to data/game-config-data.js
 
-// ── Base prices by rarity ─────────────────────────────────────
-const BASE_PRICE = { common:100, uncommon:250, rare:600, very_rare:1500, legendary:5000 };
-
-// ── Boss sprites to pick from ─────────────────────────────────
-const BOSS_SPRITES = [
-  // Kanto Gym Leaders
-  'brock','misty','ltsurge','erika','koga','sabrina','blaine','giovanni',
-  // Kanto Elite Four + Rivals
-  'lorelei','bruno','agatha','lance','blue','red','silver','oak',
-  // Team Rocket
-  'archer','ariana','proton','scientist','rocketexecutive','teamrocket',
-  // Johto Gym Leaders
-  'falkner','bugsy','whitney','morty','chuck','jasmine','pryce','clair',
-  // Johto Elite Four
-  'will','karen',
-  // Hoenn Gym Leaders
-  'roxanne','brawly','wattson','flannery','norman','winona','tate','liza','juan',
-  // Hoenn Elite Four + Champion
-  'sidney','phoebe','glacia','drake','steven','wallace',
-  // Sinnoh Gym Leaders
-  'roark','gardenia','maylene','fantina','byron','candice','volkner',
-  // Sinnoh Elite Four + Champion
-  'aaron','bertha','flint','lucian','cynthia',
-  // Unova
-  'n','ghetsis','iris','drayden','cheren','bianca','colress',
-];
-
-// ── Agent name pools ──────────────────────────────────────────
-const AGENT_NAMES_M = ['Marco','Léo','Jin','Viktor','Dante','Axel','Zane','Kai','Nero','Blaze','Rex','Ash','Saul','Ren','Hugo'];
-const AGENT_NAMES_F = ['Mira','Luna','Jade','Nova','Aria','Ivy','Nyx','Zara','Kira','Elsa','Rosa','Saki','Lena','Yuki','Tess'];
-const AGENT_SPRITES = [
-  // Team Rocket
-  'rocketgrunt','rocketgruntf','scientist','archer','ariana','proton',
-  // Common trainers
-  'camper','picnicker','acetrainer','acetrainerf',
-  'youngster','lass','bugcatcher','hiker','fisherman','beauty','blackbelt',
-  'swimmer','swimmerf','psychic','psychicf','gentleman','gambler',
-  'juggler','burglar','channeler','birdkeeper','cueball','tamer','rocker',
-  // Kanto/Johto misc
-  'cooltrainer','cooltrainerf','pokefan','pokefanf',
-  // Forces de l'ordre
-  'pokemonranger','pokemonrangerf','policeman',
-];
-const AGENT_PERSONALITIES = ['loyal','nervous','reckless','calm','cunning','lazy','fierce','quiet','greedy','brave','curious','stubborn'];
-
-const TITLE_REQUIREMENTS = {
-  lieutenant: { level: 50, combatsWon: 25 },
-  captain:    { level: 75, combatsWon: 200 },
-};
-const TITLE_BONUSES = { grunt: 0, lieutenant: 0.15, captain: 0.30 };
-
-// ── I18N ──────────────────────────────────────────────────────
-const I18N = {
-  // Tabs
-  gang_tab:      { fr:'💀 Gang',     en:'💀 Gang'     },
-  agents_tab:    { fr:'👥 Agents',   en:'👥 Agents'   },
-  zones_tab:     { fr:'🗺️ Zones',   en:'🗺️ Zones'   },
-  bag_tab:       { fr:'🎒 Sac',      en:'🎒 Bag'      },
-  market_tab:    { fr:'💰 Marché',   en:'💰 Market'   },
-  pc_tab:        { fr:'💻 PC',       en:'💻 PC'       },
-  pokedex_tab:   { fr:'📖 Pokédex',  en:'📖 Pokédex'  },
-  // Gang
-  boss:          { fr:'Boss',        en:'Boss'        },
-  reputation:    { fr:'Réputation',  en:'Reputation'  },
-  agents:        { fr:'Agents',      en:'Agents'      },
-  no_agents:     { fr:'Aucun agent recruté', en:'No agents recruited' },
-  recruit_agent: { fr:'Recruter',    en:'Recruit'     },
-  promote:       { fr:'Promouvoir',  en:'Promote'     },
-  // Zone
-  mastery:       { fr:'Maîtrise',    en:'Mastery'     },
-  fights_won:    { fr:'Combats gagnés', en:'Fights won' },
-  locked:        { fr:'🔒 Verrouillé (rep {rep})', en:'🔒 Locked (rep {rep})' },
-  open_zone:     { fr:'Ouvrir',      en:'Open'        },
-  close_zone:    { fr:'Fermer',      en:'Close'       },
-  zone_mastered: { fr:'Zone maîtrisée !', en:'Zone mastered!' },
-  // Capture
-  catch_success: { fr:'{name} capturé !', en:'{name} caught!' },
-  catch_shiny:   { fr:'✨ {name} SHINY capturé !', en:'✨ SHINY {name} caught!' },
-  no_balls:      { fr:'Plus de {ball} !', en:'No {ball} left!' },
-  // Combat
-  combat_win:    { fr:'Victoire ! +{money}₽ +{rep} rep', en:'Victory! +{money}₽ +{rep} rep' },
-  combat_lose:   { fr:'Défaite...', en:'Defeat...' },
-  combat_title:  { fr:'Combat',     en:'Combat'     },
-  // Market
-  sell:          { fr:'Vendre',      en:'Sell'        },
-  buy:           { fr:'Acheter',     en:'Buy'         },
-  sold:          { fr:'Vendu {n} Pokémon pour {price}₽', en:'Sold {n} Pokémon for {price}₽' },
-  bought:        { fr:'{item} acheté !', en:'{item} purchased!' },
-  not_enough:    { fr:'Pas assez de ₽', en:'Not enough ₽' },
-  // PC
-  level:         { fr:'Niv.',        en:'Lv.'         },
-  nature:        { fr:'Nature',      en:'Nature'      },
-  potential:     { fr:'Potentiel',   en:'Potential'    },
-  moves:         { fr:'Capacités',   en:'Moves'       },
-  zone_caught:   { fr:'Zone',        en:'Zone'        },
-  assign:        { fr:'Assigner',    en:'Assign'      },
-  release:       { fr:'Relâcher',    en:'Release'     },
-  // Agent
-  agent_catch:   { fr:'{agent} a capturé {pokemon} !', en:'{agent} caught {pokemon}!' },
-  agent_win:     { fr:'{agent} a vaincu un dresseur !', en:'{agent} defeated a trainer!' },
-  agent_lose:    { fr:'{agent} a perdu un combat...', en:'{agent} lost a fight...' },
-  agent_promo:   { fr:'{agent} promu {title} !', en:'{agent} promoted to {title}!' },
-  // Stats
-  total_caught:  { fr:'Capturés',    en:'Caught'      },
-  total_sold:    { fr:'Vendus',      en:'Sold'        },
-  total_fights:  { fr:'Combats',     en:'Fights'      },
-  total_money:   { fr:'₽ gagnés',    en:'₽ earned'    },
-  shiny_caught:  { fr:'Shinies',     en:'Shinies'     },
-  // Settings
-  settings:      { fr:'Paramètres',  en:'Settings'    },
-  language:      { fr:'Langue',      en:'Language'    },
-  save_export:   { fr:'Exporter',    en:'Export'      },
-  save_import:   { fr:'Importer',    en:'Import'      },
-  reset_all:     { fr:'Tout effacer',en:'Reset all'   },
-  reset_confirm: { fr:'Vraiment tout supprimer ?', en:'Really delete everything?' },
-  // Intro
-  intro_title:   { fr:'PokéForge',   en:'PokéForge'   },
-  intro_sub:     { fr:'Crée ton gang. Conquiers Kanto.', en:'Build your gang. Conquer Kanto.' },
-  boss_name:     { fr:'Nom du Boss', en:'Boss Name'   },
-  gang_name:     { fr:'Nom du Gang', en:'Gang Name'   },
-  avatar:        { fr:'Avatar',      en:'Avatar'      },
-  start_game:    { fr:'Commencer',   en:'Start'       },
-  // LLM
-  llm_connected: { fr:'LLM connecté', en:'LLM connected' },
-  llm_off:       { fr:'LLM hors-ligne', en:'LLM offline' },
-  // Misc
-  pokedex_progress:{ fr:'{caught}/{total} capturés', en:'{caught}/{total} caught' },
-};
+// I18N dictionary moved to data/i18n-data.js
 
 function t(key, vars = {}) {
   const entry = I18N[key];
@@ -1803,9 +929,7 @@ function trainerSprite(name) {
   return `https://play.pokemonshowdown.com/sprites/trainers/${fixed}.png`;
 }
 
-// SVG placeholder fallbacks (inline data URIs — no network dependency)
-const FALLBACK_TRAINER_SVG = `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%231a1a1a'/%3E%3Ccircle cx='32' cy='20' r='10' fill='%23444'/%3E%3Cellipse cx='32' cy='50' rx='16' ry='14' fill='%23444'/%3E%3Ctext x='32' y='62' text-anchor='middle' font-size='8' fill='%23666'%3E%3F%3F%3C/text%3E%3C/svg%3E`;
-const FALLBACK_POKEMON_SVG = `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%231a1a1a'/%3E%3Cellipse cx='32' cy='36' rx='20' ry='18' fill='%23333'/%3E%3Ccircle cx='32' cy='18' r='10' fill='%23333'/%3E%3Ctext x='32' y='62' text-anchor='middle' font-size='8' fill='%23555'%3E%3F%3C/text%3E%3C/svg%3E`;
+// Asset fallbacks moved to data/assets-data.js
 
 // Safe image helpers — with automatic fallback on load error
 function safeTrainerImg(name, { style = '', cls = '' } = {}) {
@@ -1947,14 +1071,7 @@ function boostRemaining(boostId) {
   const exp = state.activeBoosts[boostId] || 0;
   return Math.max(0, Math.ceil((exp - Date.now()) / 1000));
 }
-// Boost durations in ms per item type
-const BOOST_DURATIONS = {
-  incense:   90000,
-  rarescope: 90000,
-  aura:      90000,
-  lure:      60000,
-  superlure: 60000,
-};
+// Boost durations moved to data/gameplay-config-data.js
 
 function activateBoost(boostId) {
   if ((state.inventory[boostId] || 0) <= 0) return false;
@@ -1967,41 +1084,7 @@ function activateBoost(boostId) {
   return true;
 }
 
-// Ball sprites — Showdown primary, PokeAPI fallback
-const BALL_SPRITES = {
-  pokeball:  'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-ball.png',
-  greatball: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/great-ball.png',
-  ultraball: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/ultra-ball.png',
-  duskball:  'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/dusk-ball.png',
-};
-
-// Item sprites — PokeAPI (renommé ITEM_SPRITE_URLS pour éviter collision avec loaders.js)
-const ITEM_SPRITE_URLS = {
-  pokeball:   'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-ball.png',
-  greatball:  'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/great-ball.png',
-  ultraball:  'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/ultra-ball.png',
-  duskball:   'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/dusk-ball.png',
-  masterball: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/master-ball.png',
-  lure:       'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/honey.png',
-  superlure:  'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/lure-ball.png',
-  potion:     'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/potion.png',
-  incense:    'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/luck-incense.png',
-  rarescope:  'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/scope-lens.png',
-  aura:       'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/shiny-stone.png',
-  evostone:   'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/fire-stone.png',
-  rarecandy:  'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/rare-candy.png',
-  chestBoost: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/big-nugget.png',
-  translator: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-flute.png',
-  mysteryegg: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/oval-stone.png',
-  incubator:    'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/oval-stone.png',
-  map_pallet:   'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/town-map.png',
-  casino_ticket:'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/coin-case.png',
-  silph_keycard:'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/silph-scope.png',
-  boat_ticket:  'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/ss-ticket.png',
-  pokecoin:     'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/amulet-coin.png',
-  silver_wing:  'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/silver-wing.png',
-  rainbow_wing: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/rainbow-wing.png',
-};
+// Item and ball sprite URLs moved to data/assets-data.js
 function itemSprite(id) {
   const url = ITEM_SPRITE_URLS[id];
   return url
@@ -2009,24 +1092,13 @@ function itemSprite(id) {
     : `<span style="font-family:var(--font-pixel);font-size:8px;color:var(--text-dim)">${id.toUpperCase().slice(0,3)}</span>`;
 }
 
-// Translator Pokemon
-const TRANSLATOR_PHRASES_FR = [
-  'Je vais te montrer ma vraie puissance !',
-  'Je suis le meilleur du quartier.',
-  'Tu ferais mieux de reculer.',
-  'Mon dresseur m\'a bien prepare.',
-  'Je n\'ai pas peur de toi !',
-  'On va voir ce que tu vaux.',
-  'Je combats pour mon equipe.',
-  'Tu ne passeras pas !',
-];
+// Translator flavor text moved to data/flavor-data.js
 
 // PC sub-view state
 let pcView = 'grid'; // 'grid' | 'lab'
 let _pcLastRenderKey = ''; // tracks last filter/sort/page combo to avoid unnecessary rebuilds
 
-// Chest sprite URL
-const CHEST_SPRITE_URL = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/rare-candy.png';
+// Chest sprite URL moved to data/assets-data.js
 
 // ── SFX Engine (Web Audio API) ────────────────────────────────
 const SFX = (() => {
@@ -6546,7 +5618,6 @@ function collectAllZones() {
   });
 }
 
-
 // ════════════════════════════════════════════════════════════════
 // 14.  UI — ZONES TAB
 // ════════════════════════════════════════════════════════════════
@@ -7354,7 +6425,6 @@ function renderGangBaseWindow() {
         ? `<div class="base-inc-slots">${incSlotsHtml}</div>`
         : `<div style="font-size:8px;color:var(--text-dim);padding:2px 0 3px;opacity:.5">${state.lang === 'fr' ? 'Aucun incubateur — achetez-en au Marché' : 'No incubators — buy some at the Market'}</div>`}
     </div>
-
 
   </div>`;
 }
@@ -9038,7 +8108,6 @@ function renderQuestPanel() {
     });
   });
 }
-
 
 let shopMultiplier = 1; // ×1, ×5, ×10
 
