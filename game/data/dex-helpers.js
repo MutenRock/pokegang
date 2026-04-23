@@ -27,14 +27,14 @@ function getDexDesc(species_en, speciesByEn = globalThis.SPECIES_BY_EN) {
   return TYPE_DESC_FR[sp.types?.[0]] || 'Un Pokémon aux capacités encore peu connues.';
 }
 
-function buildSpeciesNameMaps(speciesList = []) {
+function buildSpeciesNameMaps(speciesList) {
   const FR_TO_EN = {};
   const EN_TO_FR = {};
-  for (const s of speciesList || []) {
+  (speciesList || []).forEach(s => {
     FR_TO_EN[s.fr.toLowerCase()] = s.en;
     EN_TO_FR[s.en] = s.fr;
-  }
+  });
   return { FR_TO_EN, EN_TO_FR };
 }
 
-export { TYPE_DESC_FR, getDexDesc, buildSpeciesNameMaps };
+export { getDexDesc, buildSpeciesNameMaps };
