@@ -1,7 +1,9 @@
-/* Zone visual data extracted from app.js */
+/* Zone config constants extracted from app.js */
 
+const ZONE_BG_URL = (name) => `https://play.pokemonshowdown.com/sprites/gen5-back/${name}.png`;
+// Zone backgrounds — Showdown image URL (confirmed working) + gradient fallback
+// Background-image uses multi-layer: image on top, gradient underneath as fallback
 const SD_BG = 'https://play.pokemonshowdown.com/fx/bg-';
-
 const ZONE_BGS = {
   // ── Routes & nature ──────────────────────────────────────────
   route1:           { url:`${SD_BG}meadow.png`,         fb:'#1a3a0a,#0d2008' },
@@ -60,4 +62,7 @@ const COSMETIC_BGS = {
   theme_midnight:{ fr:'Minuit',        cost:3000,  gradient:'linear-gradient(145deg,#020204 0%,#060610 50%,#000004 100%)', type:'gradient' },
 };
 
-export { ZONE_BGS, COSMETIC_BGS };
+// Sequential gym unlock order
+const GYM_ORDER = ['pewter_gym','cerulean_gym','celadon_gym','fuchsia_gym','saffron_gym','cinnabar_gym','indigo_plateau'];
+
+export { ZONE_BG_URL, GYM_ORDER };

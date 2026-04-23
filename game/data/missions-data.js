@@ -1,4 +1,4 @@
-/* Extracted from app.js */
+/* Mission data extracted from app.js */
 
 const MISSIONS = [
   // --- Daily missions ---

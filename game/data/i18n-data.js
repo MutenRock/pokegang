@@ -1,4 +1,4 @@
-/* Extracted i18n data from app.js */
+/* I18N dictionary extracted from app.js */
 
 const I18N = {
   // Tabs

@@ -1,4 +1,4 @@
-/* Extracted game config data from app.js */
+/* Game config constants extracted from app.js */
 
 const NATURES = {
   hardy:   { fr:'Hardi',    en:'Hardy',   atk:1,   def:1,   spd:1   },
@@ -14,6 +14,7 @@ const NATURES = {
 };
 const NATURE_KEYS = Object.keys(NATURES);
 
+// ── Boss sprites to pick from ─────────────────────────────────
 const BOSS_SPRITES = [
   // Kanto Gym Leaders
   'brock','misty','ltsurge','erika','koga','sabrina','blaine','giovanni',
@@ -61,14 +62,4 @@ const TITLE_REQUIREMENTS = {
 };
 const TITLE_BONUSES = { grunt: 0, lieutenant: 0.15, captain: 0.30 };
 
-export {
-  NATURES,
-  NATURE_KEYS,
-  BOSS_SPRITES,
-  AGENT_NAMES_M,
-  AGENT_NAMES_F,
-  AGENT_SPRITES,
-  AGENT_PERSONALITIES,
-  TITLE_REQUIREMENTS,
-  TITLE_BONUSES,
-};
+export { NATURES, NATURE_KEYS, BOSS_SPRITES, AGENT_NAMES_M, AGENT_NAMES_F, AGENT_SPRITES, AGENT_PERSONALITIES, TITLE_REQUIREMENTS, TITLE_BONUSES };

@@ -1,4 +1,4 @@
-/* Extracted from app.js */
+/* Pokédex descriptions extracted from app.js */
 
 const POKEDEX_DESC = {
   bulbasaur:'Une étrange graine plantée sur son dos à la naissance. Elle grandit avec lui.',

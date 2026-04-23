@@ -4,15 +4,6 @@
 
 'use strict';
 
-import { POKEDEX_DESC } from './data/pokedex-desc.js';
-import { ZONE_BGS, COSMETIC_BGS } from './data/zones-visuals-data.js';
-import { MISSIONS, HOURLY_QUEST_POOL } from './data/missions-data.js';
-import { TRAINER_TYPES } from './data/trainers-data.js';
-import { getDexDesc, buildSpeciesNameMaps } from './data/dex-helpers.js';
-import { BALLS, SHOP_ITEMS, MYSTERY_EGG_BASE_COST, MYSTERY_EGG_POOL, MYSTERY_EGG_HATCH_MS, POTENTIAL_MULT, BASE_PRICE, getMysteryEggCost as computeMysteryEggCost } from './data/economy-data.js';
-import { NATURES, NATURE_KEYS, BOSS_SPRITES, AGENT_NAMES_M, AGENT_NAMES_F, AGENT_SPRITES, AGENT_PERSONALITIES, TITLE_REQUIREMENTS, TITLE_BONUSES } from './data/game-config-data.js';
-import { I18N } from './data/i18n-data.js';
-
 // ════════════════════════════════════════════════════════════════
 //  1.  CONFIG & CONSTANTS
 // ════════════════════════════════════════════════════════════════
@@ -234,24 +225,16 @@ function showRewardChoicePopup(title, subtitle, choices) {
   });
 }
 
-// Short Pokédex descriptions (FR)
 // Pokédex descriptions moved to data/pokedex-desc.js
 
-// Dex helpers moved to data/dex-helpers.js
+// Dex helper logic moved to data/dex-helpers.js
 const { FR_TO_EN, EN_TO_FR } = buildSpeciesNameMaps(POKEMON_GEN1);
 
-// Nature config moved to data/game-config-data.js
 
-// ── Zones ────────────────────────────────────────────────────
-// Showdown background sprites
-const ZONE_BG_URL = (name) => `https://play.pokemonshowdown.com/sprites/gen5-back/${name}.png`;
-// Zone backgrounds — Showdown image URL (confirmed working) + gradient fallback
-// Background-image uses multi-layer: image on top, gradient underneath as fallback
-const SD_BG = 'https://play.pokemonshowdown.com/fx/bg-';
+// Game config constants moved to data/game-config-data.js
+
+// Zone config moved to data/zones-config-data.js
 // Zone and cosmetic background data moved to data/zones-visuals-data.js
-
-// Sequential gym unlock order
-const GYM_ORDER = ['pewter_gym','cerulean_gym','celadon_gym','fuchsia_gym','saffron_gym','cinnabar_gym','indigo_plateau'];
 
 // → Moved to data/zones-data.js
 // Applique le mapping aux objets de zone
@@ -259,29 +242,20 @@ Object.entries(ZONE_MUSIC_MAP).forEach(([id, track]) => {
   if (ZONE_BY_ID[id]) ZONE_BY_ID[id].music = track;
 });
 
-// ── Missions System ──────────────────────────────────────────
 // Mission and hourly quest data moved to data/missions-data.js
 
-const HOURLY_QUEST_REROLL_COST = 500; // ₽
+// Gameplay config moved to data/gameplay-config-data.js
 
-// ── Trainers ──────────────────────────────────────────────────
 // Trainer type data moved to data/trainers-data.js
 
-// Trainers qui donnent +10 rep (gym leaders, Elite 4, personnages d'histoire)
-const SPECIAL_TRAINER_KEYS = new Set([
-  'brock','misty','ltsurge','erika','koga','sabrina','blaine',  // arènes
-  'lorelei','bruno','agatha','lance',                             // Conseil des 4
-  'blue','red','oak','giovanni',                                  // personnages d'histoire
-]);
+// Combat config moved to data/combat-config-data.js
 
-const MAX_COMBAT_REWARD = 5000;
-
-// Economy/shop data moved to data/economy-data.js
+// Economy and shop data moved to data/economy-data.js
 function getMysteryEggCost() {
   return computeMysteryEggCost(state);
 }
 
-// Boss/agent/title config moved to data/game-config-data.js
+// Game config constants moved to data/game-config-data.js
 
 // I18N dictionary moved to data/i18n-data.js
 
@@ -1154,10 +1128,7 @@ function trainerSprite(name) {
   return `https://play.pokemonshowdown.com/sprites/trainers/${fixed}.png`;
 }
 
-// SVG placeholder fallbacks (inline data URIs — no network dependency)
-const FALLBACK_TRAINER_SVG = `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%231a1a1a'/%3E%3Ccircle cx='32' cy='20' r='10' fill='%23444'/%3E%3Cellipse cx='32' cy='50' rx='16' ry='14' fill='%23444'/%3E%3Ctext x='32' y='62' text-anchor='middle' font-size='8' fill='%23666'%3E%3F%3F%3C/text%3E%3C/svg%3E`;
-const FALLBACK_POKEMON_SVG = `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%231a1a1a'/%3E%3Cellipse cx='32' cy='36' rx='20' ry='18' fill='%23333'/%3E%3Ccircle cx='32' cy='18' r='10' fill='%23333'/%3E%3Ctext x='32' y='62' text-anchor='middle' font-size='8' fill='%23555'%3E%3F%3C/text%3E%3C/svg%3E`;
-
+// Asset fallback URLs moved to data/assets-data.js
 // Safe image helpers — with automatic fallback on load error
 function safeTrainerImg(name, { style = '', cls = '' } = {}) {
   const src = trainerSprite(name);
@@ -1298,15 +1269,7 @@ function boostRemaining(boostId) {
   const exp = state.activeBoosts[boostId] || 0;
   return Math.max(0, Math.ceil((exp - Date.now()) / 1000));
 }
-// Boost durations in ms per item type
-const BOOST_DURATIONS = {
-  incense:   90000,
-  rarescope: 90000,
-  aura:      90000,
-  lure:      60000,
-  superlure: 60000,
-};
-
+// Gameplay config moved to data/gameplay-config-data.js
 function activateBoost(boostId) {
   if ((state.inventory[boostId] || 0) <= 0) return false;
   state.inventory[boostId]--;
@@ -1318,41 +1281,7 @@ function activateBoost(boostId) {
   return true;
 }
 
-// Ball sprites — Showdown primary, PokeAPI fallback
-const BALL_SPRITES = {
-  pokeball:  'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-ball.png',
-  greatball: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/great-ball.png',
-  ultraball: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/ultra-ball.png',
-  duskball:  'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/dusk-ball.png',
-};
-
-// Item sprites — PokeAPI (renommé ITEM_SPRITE_URLS pour éviter collision avec loaders.js)
-const ITEM_SPRITE_URLS = {
-  pokeball:   'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-ball.png',
-  greatball:  'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/great-ball.png',
-  ultraball:  'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/ultra-ball.png',
-  duskball:   'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/dusk-ball.png',
-  masterball: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/master-ball.png',
-  lure:       'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/honey.png',
-  superlure:  'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/lure-ball.png',
-  potion:     'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/potion.png',
-  incense:    'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/luck-incense.png',
-  rarescope:  'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/scope-lens.png',
-  aura:       'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/shiny-stone.png',
-  evostone:   'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/fire-stone.png',
-  rarecandy:  'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/rare-candy.png',
-  chestBoost: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/big-nugget.png',
-  translator: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-flute.png',
-  mysteryegg: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/oval-stone.png',
-  incubator:    'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/oval-stone.png',
-  map_pallet:   'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/town-map.png',
-  casino_ticket:'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/coin-case.png',
-  silph_keycard:'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/silph-scope.png',
-  boat_ticket:  'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/ss-ticket.png',
-  pokecoin:     'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/amulet-coin.png',
-  silver_wing:  'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/silver-wing.png',
-  rainbow_wing: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/rainbow-wing.png',
-};
+// Asset sprite URLs moved to data/assets-data.js
 function itemSprite(id) {
   const url = ITEM_SPRITE_URLS[id];
   return url
@@ -1360,24 +1289,13 @@ function itemSprite(id) {
     : `<span style="font-family:var(--font-pixel);font-size:8px;color:var(--text-dim)">${id.toUpperCase().slice(0,3)}</span>`;
 }
 
-// Translator Pokemon
-const TRANSLATOR_PHRASES_FR = [
-  'Je vais te montrer ma vraie puissance !',
-  'Je suis le meilleur du quartier.',
-  'Tu ferais mieux de reculer.',
-  'Mon dresseur m\'a bien prepare.',
-  'Je n\'ai pas peur de toi !',
-  'On va voir ce que tu vaux.',
-  'Je combats pour mon equipe.',
-  'Tu ne passeras pas !',
-];
+// Flavor text moved to data/flavor-data.js
 
 // PC sub-view state
 let pcView = 'grid'; // 'grid' | 'lab'
 let _pcLastRenderKey = ''; // tracks last filter/sort/page combo to avoid unnecessary rebuilds
 
-// Chest sprite URL
-const CHEST_SPRITE_URL = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/rare-candy.png';
+// Asset data moved to data/assets-data.js
 
 // ── SFX Engine (Web Audio API) ────────────────────────────────
 const SFX = (() => {

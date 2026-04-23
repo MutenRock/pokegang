@@ -1,4 +1,4 @@
-/* Extracted from app.js */
+/* Trainer data extracted from app.js */
 
 const TRAINER_TYPES = {
   // Basic trainers
