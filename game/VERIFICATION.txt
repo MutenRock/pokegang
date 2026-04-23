@@ -1,0 +1,1 @@
+Verified and removed previously modularized constants/helpers from app.js: getDexDesc, FR_TO_EN, EN_TO_FR, NATURES, NATURE_KEYS, BALLS, SHOP_ITEMS, mystery egg constants, POTENTIAL_MULT, BASE_PRICE, BOSS/AGENT/TITLE config, I18N.

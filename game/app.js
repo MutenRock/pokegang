@@ -8,6 +8,10 @@ import { POKEDEX_DESC } from './data/pokedex-desc.js';
 import { ZONE_BGS, COSMETIC_BGS } from './data/zones-visuals-data.js';
 import { MISSIONS, HOURLY_QUEST_POOL } from './data/missions-data.js';
 import { TRAINER_TYPES } from './data/trainers-data.js';
+import { getDexDesc, buildSpeciesNameMaps } from './data/dex-helpers.js';
+import { BALLS, SHOP_ITEMS, MYSTERY_EGG_BASE_COST, MYSTERY_EGG_POOL, MYSTERY_EGG_HATCH_MS, POTENTIAL_MULT, BASE_PRICE, getMysteryEggCost as computeMysteryEggCost } from './data/economy-data.js';
+import { NATURES, NATURE_KEYS, BOSS_SPRITES, AGENT_NAMES_M, AGENT_NAMES_F, AGENT_SPRITES, AGENT_PERSONALITIES, TITLE_REQUIREMENTS, TITLE_BONUSES } from './data/game-config-data.js';
+import { I18N } from './data/i18n-data.js';
 
 // ════════════════════════════════════════════════════════════════
 //  1.  CONFIG & CONSTANTS
@@ -233,36 +237,10 @@ function showRewardChoicePopup(title, subtitle, choices) {
 // Short Pokédex descriptions (FR)
 // Pokédex descriptions moved to data/pokedex-desc.js
 
-function getDexDesc(species_en) {
-  if (POKEDEX_DESC[species_en]) return POKEDEX_DESC[species_en];
-  const sp = SPECIES_BY_EN[species_en];
-  if (!sp) return '???';
-  const typeDesc = { Fire:'Type Feu, maîtrise les flammes.', Water:'Type Eau, vit dans les milieux aquatiques.', Grass:'Type Plante, absorbe l\'énergie solaire.', Electric:'Type Électrik, génère des charges électriques.', Psychic:'Type Psy, possède des pouvoirs mentaux.', Ice:'Type Glace, résiste aux températures extrêmes.', Dragon:'Type Dragon, une force hors du commun.', Normal:'Type Normal, polyvalent et répandu.', Fighting:'Type Combat, maîtrise les arts martiaux.', Poison:'Type Poison, sécrète des toxines dangereuses.', Ground:'Type Sol, creuse et se déplace sous terre.', Flying:'Type Vol, plane sur les courants d\'air.', Bug:'Type Insecte, pullule dans la végétation.', Rock:'Type Roche, son corps est aussi dur que la pierre.', Ghost:'Type Spectre, insaisissable et mystérieux.', };
-  return typeDesc[sp.types[0]] || 'Un Pokémon aux capacités encore peu connues.';
-}
+// Dex helpers moved to data/dex-helpers.js
+const { FR_TO_EN, EN_TO_FR } = buildSpeciesNameMaps(POKEMON_GEN1);
 
-// FR→EN / EN→FR name maps
-const FR_TO_EN = {};
-const EN_TO_FR = {};
-POKEMON_GEN1.forEach(s => {
-  FR_TO_EN[s.fr.toLowerCase()] = s.en;
-  EN_TO_FR[s.en] = s.fr;
-});
-
-// ── Natures (10) ─────────────────────────────────────────────
-const NATURES = {
-  hardy:   { fr:'Hardi',    en:'Hardy',   atk:1,   def:1,   spd:1   },
-  brave:   { fr:'Brave',    en:'Brave',   atk:1.1, def:1,   spd:0.9 },
-  timid:   { fr:'Timide',   en:'Timid',   atk:0.9, def:1,   spd:1.1 },
-  bold:    { fr:'Assuré',   en:'Bold',    atk:0.9, def:1.1, spd:1   },
-  jolly:   { fr:'Jovial',   en:'Jolly',   atk:1,   def:0.9, spd:1.1 },
-  adamant: { fr:'Rigide',   en:'Adamant', atk:1.1, def:1,   spd:0.9 },
-  calm:    { fr:'Calme',    en:'Calm',    atk:1,   def:1.1, spd:0.9 },
-  modest:  { fr:'Modeste',  en:'Modest',  atk:0.9, def:1,   spd:1.1 },
-  careful: { fr:'Prudent',  en:'Careful', atk:1,   def:1.1, spd:0.9 },
-  naive:   { fr:'Naïf',     en:'Naive',   atk:1,   def:0.9, spd:1.1 },
-};
-const NATURE_KEYS = Object.keys(NATURES);
+// Nature config moved to data/game-config-data.js
 
 // ── Zones ────────────────────────────────────────────────────
 // Showdown background sprites
@@ -298,203 +276,14 @@ const SPECIAL_TRAINER_KEYS = new Set([
 
 const MAX_COMBAT_REWARD = 5000;
 
-// ── Items & Balls ─────────────────────────────────────────────
-const BALLS = {
-  pokeball:   { fr:'Poké Ball',  en:'Poké Ball',  cost:200,  potential:[40,30,20,8,2]  },
-  greatball:  { fr:'Super Ball', en:'Great Ball',  cost:600,  potential:[15,30,30,18,7] },
-  ultraball:  { fr:'Hyper Ball', en:'Ultra Ball',  cost:2000, potential:[5,15,30,30,20] },
-  duskball:   { fr:'Sombre Ball',en:'Dusk Ball',   cost:1500, potential:[20,20,20,20,20]},
-  masterball: { fr:'Master Ball',en:'Master Ball', cost:99999,potential:[0,0,0,10,90]  },
-};
-
-const SHOP_ITEMS = [
-  { id:'pokeball',  qty:10, cost:2000,  icon:'PB'  },
-  { id:'greatball', qty:10, cost:6000,  icon:'GB'  },
-  { id:'ultraball', qty:5,  cost:10000, icon:'UB'  },
-  { id:'duskball',  qty:5,  cost:7500,  icon:'DB'  },
-  { id:'lure',      qty:1,  cost:500,   icon:'LR',  fr:'Leurre',       en:'Lure',            desc_fr:'x2 spawns 60s',         desc_en:'x2 spawns 60s' },
-  { id:'superlure', qty:1,  cost:2000,  icon:'SL',  fr:'Super Leurre', en:'Super Lure',      desc_fr:'x3 spawns 60s',         desc_en:'x3 spawns 60s' },
-  { id:'incense',   qty:1,  cost:1500,  icon:'IN',  fr:'Encens Chance',en:'Lucky Incense',   desc_fr:'*+1 potentiel 90s',     desc_en:'*+1 potential 90s' },
-  { id:'rarescope', qty:1,  cost:3000,  icon:'SC',  fr:'Rarioscope',   en:'Rare Scope',      desc_fr:'Spawns rares x3 90s',   desc_en:'Rare spawns x3 90s' },
-  { id:'aura',      qty:1,  cost:5000,  icon:'AU',  fr:'Aura Shiny',   en:'Shiny Aura',      desc_fr:'Shiny x5 90s',          desc_en:'Shiny x5 90s' },
-  { id:'evostone',  qty:1,  cost:5000,  icon:'EV',  fr:'Pierre Evol.', en:'Evo Stone',       desc_fr:'Evoluer un Pokemon',    desc_en:'Evolve a Pokemon' },
-  { id:'rarecandy', qty:1,  cost:3000,  icon:'RC',  fr:'Super Bonbon', en:'Rare Candy',      desc_fr:'+1 niveau',             desc_en:'+1 level' },
-  { id:'translator',qty:1,  cost:1000000,icon:'TR', fr:'Traducteur Pokemon', en:'Pokemon Translator', desc_fr:'Comprend ce que disent les Pokemon en combat', desc_en:'Understand pokemon speech in combat' },
-  { id:'mysteryegg', qty:1, cost:0, icon:'EG', fr:'Oeuf Mystère', en:'Mystery Egg', desc_fr:'Contient un Pokemon introuvable — Prix croissant', desc_en:'Contains an uncatchable Pokemon — Scaling price' },
-  { id:'incubator',  qty:1, cost:15000, icon:'INC', fr:'Incubateur', en:'Incubator', desc_fr:'Eclot un oeuf (reutilisable) — 1 a la fois', desc_en:'Hatches an egg (reusable) — 1 at a time' },
-  // ── Zone unlock items ──
-  { id:'map_pallet',    qty:1, cost:5000,  icon:'🗺', fr:'Carte de Pallet',  en:'Pallet Map',      desc_fr:'Débloque le Jardin de Pallet',          desc_en:'Unlocks Pallet Garden' },
-  { id:'casino_ticket', qty:1, cost:20000, icon:'🎰', fr:'Ticket Casino',    en:'Casino Ticket',   desc_fr:'Accès au Casino de Céladopole',         desc_en:'Access to Celadon Casino' },
-  { id:'silph_keycard', qty:1, cost:50000, icon:'🔑', fr:'Badge Sylphe',     en:'Silph Keycard',   desc_fr:'Accès à Sylphe SARL',                   desc_en:'Access to Silph Co.' },
-  { id:'boat_ticket',   qty:1, cost:15000, icon:'⚓', fr:'Ticket Bateau',    en:'Boat Ticket',     desc_fr:'Monte à bord du Bateau St. Anne',        desc_en:'Board the S.S. Anne' },
-  { id:'egg_scanner', qty:1, cost:5000, icon:'🔬', fr:'Scanneur d\'Oeuf', en:'Egg Scanner', desc_fr:'89% révèle l\'espèce, 10% détruit l\'outil, 1% détruit l\'oeuf', desc_en:'89% reveals species, 10% destroys tool, 1% destroys egg' },
-  // ── Zones légendaires Gen 2 (débloquables avec ailes) ──
-  { id:'tourbillon_permit', qty:1, cost:0, wingCost:{ item:'silver_wing', qty:50 }, icon:'🌊',
-    fr:'Permis Tourbillon', en:'Whirlpool Permit',
-    desc_fr:'50× Argent\'Aile requis → Îles Tourbillon (Lugia)',
-    desc_en:'50× Silver Wing required → Whirl Islands (Lugia)' },
-  { id:'carillon_permit',   qty:1, cost:0, wingCost:{ item:'rainbow_wing', qty:50 }, icon:'🔔',
-    fr:'Permis Carillon',   en:'Bell Tower Permit',
-    desc_fr:'50× Arcenci\'Aile requis → Tour Carillon (Ho-Oh)',
-    desc_en:'50× Rainbow Wing required → Bell Tower (Ho-Oh)' },
-];
-
-// ── Mystery Egg ───────────────────────────────────────────────
-const MYSTERY_EGG_BASE_COST = 50000;
+// Economy/shop data moved to data/economy-data.js
 function getMysteryEggCost() {
-  const n = state?.purchases?.mysteryEggCount || 0;
-  return MYSTERY_EGG_BASE_COST + n * 1000; // +1 000₽ par achat
+  return computeMysteryEggCost(state);
 }
-// Weighted pool: {en, w} — higher w = more likely
-const MYSTERY_EGG_POOL = [
-  // Starters base (w:3)
-  {en:'bulbasaur',w:3},{en:'charmander',w:3},{en:'squirtle',w:3},
-  // Eevee + evolutions (w:3 / w:2)
-  {en:'eevee',w:3},{en:'vaporeon',w:2},{en:'jolteon',w:2},
-  // Fossils base forms (w:3)
-  {en:'omanyte',w:3},{en:'kabuto',w:3},
-  // Stage 2 starters (w:2)
-  {en:'ivysaur',w:2},{en:'charmeleon',w:2},{en:'wartortle',w:2},
-  // Rare singles (w:2)
-  {en:'hitmonlee',w:2},{en:'hitmonchan',w:2},{en:'lickitung',w:2},{en:'farfetchd',w:2},
-  // Fossil evolutions (w:2)
-  {en:'omastar',w:2},{en:'kabutops',w:2},{en:'aerodactyl',w:2},
-  // Final starters (w:1 — ultra rare)
-  {en:'venusaur',w:1},{en:'charizard',w:1},{en:'blastoise',w:1},
-];
-const MYSTERY_EGG_HATCH_MS = 45 * 60 * 1000; // 45 min
 
-// ── Potential multipliers (for market price) ─────────────────
-const POTENTIAL_MULT = [0.5, 1, 2, 5, 15]; // index 0=★1 .. 4=★5
+// Boss/agent/title config moved to data/game-config-data.js
 
-// ── Base prices by rarity ─────────────────────────────────────
-const BASE_PRICE = { common:100, uncommon:250, rare:600, very_rare:1500, legendary:5000 };
-
-// ── Boss sprites to pick from ─────────────────────────────────
-const BOSS_SPRITES = [
-  // Kanto Gym Leaders
-  'brock','misty','ltsurge','erika','koga','sabrina','blaine','giovanni',
-  // Kanto Elite Four + Rivals
-  'lorelei','bruno','agatha','lance','blue','red','silver','oak',
-  // Team Rocket
-  'archer','ariana','proton','scientist','rocketexecutive','teamrocket',
-  // Johto Gym Leaders
-  'falkner','bugsy','whitney','morty','chuck','jasmine','pryce','clair',
-  // Johto Elite Four
-  'will','karen',
-  // Hoenn Gym Leaders
-  'roxanne','brawly','wattson','flannery','norman','winona','tate','liza','juan',
-  // Hoenn Elite Four + Champion
-  'sidney','phoebe','glacia','drake','steven','wallace',
-  // Sinnoh Gym Leaders
-  'roark','gardenia','maylene','fantina','byron','candice','volkner',
-  // Sinnoh Elite Four + Champion
-  'aaron','bertha','flint','lucian','cynthia',
-  // Unova
-  'n','ghetsis','iris','drayden','cheren','bianca','colress',
-];
-
-// ── Agent name pools ──────────────────────────────────────────
-const AGENT_NAMES_M = ['Marco','Léo','Jin','Viktor','Dante','Axel','Zane','Kai','Nero','Blaze','Rex','Ash','Saul','Ren','Hugo'];
-const AGENT_NAMES_F = ['Mira','Luna','Jade','Nova','Aria','Ivy','Nyx','Zara','Kira','Elsa','Rosa','Saki','Lena','Yuki','Tess'];
-const AGENT_SPRITES = [
-  // Team Rocket
-  'rocketgrunt','rocketgruntf','scientist','archer','ariana','proton',
-  // Common trainers
-  'camper','picnicker','acetrainer','acetrainerf',
-  'youngster','lass','bugcatcher','hiker','fisherman','beauty','blackbelt',
-  'swimmer','swimmerf','psychic','psychicf','gentleman','gambler',
-  'juggler','burglar','channeler','birdkeeper','cueball','tamer','rocker',
-  // Kanto/Johto misc
-  'cooltrainer','cooltrainerf','pokefan','pokefanf',
-  // Forces de l'ordre
-  'pokemonranger','pokemonrangerf','policeman',
-];
-const AGENT_PERSONALITIES = ['loyal','nervous','reckless','calm','cunning','lazy','fierce','quiet','greedy','brave','curious','stubborn'];
-
-const TITLE_REQUIREMENTS = {
-  lieutenant: { level: 50, combatsWon: 25 },
-  captain:    { level: 75, combatsWon: 200 },
-};
-const TITLE_BONUSES = { grunt: 0, lieutenant: 0.15, captain: 0.30 };
-
-// ── I18N ──────────────────────────────────────────────────────
-const I18N = {
-  // Tabs
-  gang_tab:      { fr:'💀 Gang',     en:'💀 Gang'     },
-  agents_tab:    { fr:'👥 Agents',   en:'👥 Agents'   },
-  zones_tab:     { fr:'🗺️ Zones',   en:'🗺️ Zones'   },
-  bag_tab:       { fr:'🎒 Sac',      en:'🎒 Bag'      },
-  market_tab:    { fr:'💰 Marché',   en:'💰 Market'   },
-  pc_tab:        { fr:'💻 PC',       en:'💻 PC'       },
-  pokedex_tab:   { fr:'📖 Pokédex',  en:'📖 Pokédex'  },
-  // Gang
-  boss:          { fr:'Boss',        en:'Boss'        },
-  reputation:    { fr:'Réputation',  en:'Reputation'  },
-  agents:        { fr:'Agents',      en:'Agents'      },
-  no_agents:     { fr:'Aucun agent recruté', en:'No agents recruited' },
-  recruit_agent: { fr:'Recruter',    en:'Recruit'     },
-  promote:       { fr:'Promouvoir',  en:'Promote'     },
-  // Zone
-  mastery:       { fr:'Maîtrise',    en:'Mastery'     },
-  fights_won:    { fr:'Combats gagnés', en:'Fights won' },
-  locked:        { fr:'🔒 Verrouillé (rep {rep})', en:'🔒 Locked (rep {rep})' },
-  open_zone:     { fr:'Ouvrir',      en:'Open'        },
-  close_zone:    { fr:'Fermer',      en:'Close'       },
-  zone_mastered: { fr:'Zone maîtrisée !', en:'Zone mastered!' },
-  // Capture
-  catch_success: { fr:'{name} capturé !', en:'{name} caught!' },
-  catch_shiny:   { fr:'✨ {name} SHINY capturé !', en:'✨ SHINY {name} caught!' },
-  no_balls:      { fr:'Plus de {ball} !', en:'No {ball} left!' },
-  // Combat
-  combat_win:    { fr:'Victoire ! +{money}₽ +{rep} rep', en:'Victory! +{money}₽ +{rep} rep' },
-  combat_lose:   { fr:'Défaite...', en:'Defeat...' },
-  combat_title:  { fr:'Combat',     en:'Combat'     },
-  // Market
-  sell:          { fr:'Vendre',      en:'Sell'        },
-  buy:           { fr:'Acheter',     en:'Buy'         },
-  sold:          { fr:'Vendu {n} Pokémon pour {price}₽', en:'Sold {n} Pokémon for {price}₽' },
-  bought:        { fr:'{item} acheté !', en:'{item} purchased!' },
-  not_enough:    { fr:'Pas assez de ₽', en:'Not enough ₽' },
-  // PC
-  level:         { fr:'Niv.',        en:'Lv.'         },
-  nature:        { fr:'Nature',      en:'Nature'      },
-  potential:     { fr:'Potentiel',   en:'Potential'    },
-  moves:         { fr:'Capacités',   en:'Moves'       },
-  zone_caught:   { fr:'Zone',        en:'Zone'        },
-  assign:        { fr:'Assigner',    en:'Assign'      },
-  release:       { fr:'Relâcher',    en:'Release'     },
-  // Agent
-  agent_catch:   { fr:'{agent} a capturé {pokemon} !', en:'{agent} caught {pokemon}!' },
-  agent_win:     { fr:'{agent} a vaincu un dresseur !', en:'{agent} defeated a trainer!' },
-  agent_lose:    { fr:'{agent} a perdu un combat...', en:'{agent} lost a fight...' },
-  agent_promo:   { fr:'{agent} promu {title} !', en:'{agent} promoted to {title}!' },
-  // Stats
-  total_caught:  { fr:'Capturés',    en:'Caught'      },
-  total_sold:    { fr:'Vendus',      en:'Sold'        },
-  total_fights:  { fr:'Combats',     en:'Fights'      },
-  total_money:   { fr:'₽ gagnés',    en:'₽ earned'    },
-  shiny_caught:  { fr:'Shinies',     en:'Shinies'     },
-  // Settings
-  settings:      { fr:'Paramètres',  en:'Settings'    },
-  language:      { fr:'Langue',      en:'Language'    },
-  save_export:   { fr:'Exporter',    en:'Export'      },
-  save_import:   { fr:'Importer',    en:'Import'      },
-  reset_all:     { fr:'Tout effacer',en:'Reset all'   },
-  reset_confirm: { fr:'Vraiment tout supprimer ?', en:'Really delete everything?' },
-  // Intro
-  intro_title:   { fr:'PokéForge',   en:'PokéForge'   },
-  intro_sub:     { fr:'Crée ton gang. Conquiers Kanto.', en:'Build your gang. Conquer Kanto.' },
-  boss_name:     { fr:'Nom du Boss', en:'Boss Name'   },
-  gang_name:     { fr:'Nom du Gang', en:'Gang Name'   },
-  avatar:        { fr:'Avatar',      en:'Avatar'      },
-  start_game:    { fr:'Commencer',   en:'Start'       },
-  // LLM
-  llm_connected: { fr:'LLM connecté', en:'LLM connected' },
-  llm_off:       { fr:'LLM hors-ligne', en:'LLM offline' },
-  // Misc
-  pokedex_progress:{ fr:'{caught}/{total} capturés', en:'{caught}/{total} caught' },
-};
+// I18N dictionary moved to data/i18n-data.js
 
 function t(key, vars = {}) {
   const entry = I18N[key];
