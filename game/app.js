@@ -27,11 +27,6 @@ import { TRANSLATOR_PHRASES_FR } from './data/flavor-data.js';
 // Secret code logic moved to modules/secretCodes.js
 // Exposes _mkTitleExec, SECRET_CODES, checkSecretCode and showRewardChoicePopup on globalThis.
 
-ces[idx].onPick();
-    });
-  });
-}
-
 // Pokédex descriptions moved to data/pokedex-desc.js
 
 // Dex helper logic moved to data/dex-helpers.js
