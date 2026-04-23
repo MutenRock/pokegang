@@ -1,4 +1,9 @@
-/* Extracted from app.js. Requires `SD_BG` to exist in app.js before usage. */
+/* Extracted from app.js.
+ * Note: ES modules have their own scope, so shared constants used here
+ * must be defined in this module too.
+ */
+
+const SD_BG = 'https://play.pokemonshowdown.com/fx/bg-';
 
 const ZONE_BGS = {
   // ── Routes & nature ──────────────────────────────────────────
