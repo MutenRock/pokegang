@@ -1,4 +1,4 @@
-/* Mission definitions and hourly quest pool. Extracted from app.js for progressive refactoring. */
+/* Extracted from app.js */
 
 const MISSIONS = [
   // --- Daily missions ---
