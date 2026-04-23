@@ -5,7 +5,7 @@ import { POKEDEX_DESC } from './pokedex-desc.js';
 const TYPE_DESC_FR = {
   Fire:'Type Feu, maîtrise les flammes.',
   Water:'Type Eau, vit dans les milieux aquatiques.',
-  Grass:'Type Plante, absorbe l'énergie solaire.',
+  Grass:'Type Plante, absorbe l\'énergie solaire.',
   Electric:'Type Électrik, génère des charges électriques.',
   Psychic:'Type Psy, possède des pouvoirs mentaux.',
   Ice:'Type Glace, résiste aux températures extrêmes.',
@@ -14,7 +14,7 @@ const TYPE_DESC_FR = {
   Fighting:'Type Combat, maîtrise les arts martiaux.',
   Poison:'Type Poison, sécrète des toxines dangereuses.',
   Ground:'Type Sol, creuse et se déplace sous terre.',
-  Flying:'Type Vol, plane sur les courants d'air.',
+  Flying:'Type Vol, plane sur les courants d\'air.',
   Bug:'Type Insecte, pullule dans la végétation.',
   Rock:'Type Roche, son corps est aussi dur que la pierre.',
   Ghost:'Type Spectre, insaisissable et mystérieux.',
