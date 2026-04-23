@@ -143,6 +143,7 @@ const MISSIONS = [
     desc_en:'Catch at least 1 Pokémon in 15 different zones. Explore all of Kanto!' },
 ];
 
+// ── Quêtes horaires (pool aléatoire 3 medium + 2 hard, reset 1h) ──
 const HOURLY_QUEST_POOL = [
   // MEDIUM
   { id:'hq_catch3',   diff:'medium', fr:'Attraper 3 Pokémon',    icon:'🎯', stat:'totalCaught',      target:3,   reward:{ money:600,  rep:3  } },
