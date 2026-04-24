@@ -5,11 +5,6 @@
 'use strict';
 
 import './modules/secretCodes.js';
-import './modules/systems/llm.js';
-import './modules/systems/missions.js';
-import './modules/systems/market.js';
-import './modules/systems/agent.js';
-import './modules/systems/sessionObjectives.js';
 
 import { POKEDEX_DESC } from './data/pokedex-desc.js';
 import { ZONE_BGS, COSMETIC_BGS } from './data/zones-visuals-data.js';
@@ -24,9 +19,6 @@ import { HOURLY_QUEST_REROLL_COST, BOOST_DURATIONS } from './data/gameplay-confi
 import { SPECIAL_TRAINER_KEYS, MAX_COMBAT_REWARD } from './data/combat-config-data.js';
 import { FALLBACK_TRAINER_SVG, FALLBACK_POKEMON_SVG, BALL_SPRITES, ITEM_SPRITE_URLS, CHEST_SPRITE_URL } from './data/assets-data.js';
 import { TRANSLATOR_PHRASES_FR } from './data/flavor-data.js';
-import { APP_VERSION, GAME_VERSION, SAVE_KEYS as BASE_SAVE_KEYS, LEGACY_SAVE_KEYS as BASE_LEGACY_SAVE_KEYS, SAVE_SCHEMA_VERSION as BASE_SAVE_SCHEMA_VERSION, DEFAULT_STATE as BASE_DEFAULT_STATE } from './state/defaultState.js';
-import { migrateSave } from './state/migrateSave.js';
-import { createStore } from './state/store.js';
 
 // ════════════════════════════════════════════════════════════════
 //  1.  CONFIG & CONSTANTS
@@ -82,60 +74,231 @@ function t(key, vars = {}) {
 //  2.  STATE MANAGEMENT
 // ════════════════════════════════════════════════════════════════
 
-// ── State modules extracted ─────────────────────────────────────
-const DEFAULT_STATE = BASE_DEFAULT_STATE;
-const SAVE_KEYS = BASE_SAVE_KEYS;
-const LEGACY_SAVE_KEYS = BASE_LEGACY_SAVE_KEYS;
-const SAVE_SCHEMA_VERSION = BASE_SAVE_SCHEMA_VERSION;
+// ── App version — bump on every deploy to force client reload ──
+const APP_VERSION = '2.2.0';
+const GAME_VERSION = 'v0.0 — pre-alpha';
 
-let _migrationResult = null;
+const SAVE_KEYS = ['pokeforge.v6', 'pokeforge.v6.s2', 'pokeforge.v6.s3'];
+let activeSaveSlot = Math.min(2, parseInt(localStorage.getItem('pokeforge.activeSlot') || '0'));
+let SAVE_KEY = SAVE_KEYS[activeSaveSlot];
 
-const store = createStore({
-  localStorageRef: window.localStorage,
-  initialState: structuredClone(DEFAULT_STATE),
-  notify: (...args) => notify(...args),
-  speciesByEn: typeof SPECIES_BY_EN !== 'undefined' ? SPECIES_BY_EN : {},
-  uid,
-  cloudSave: () => {
-    if (_supabase && supaSession) return supaCloudSave();
-    return null;
+// ── Versionnage du schéma de save ────────────────────────────────────────────
+// Incrémenter à chaque ajout de champ majeur pour déclencher le banner migration.
+const SAVE_SCHEMA_VERSION = 7;
+
+// Anciennes clés localStorage (versions antérieures à v6)
+const LEGACY_SAVE_KEYS = ['pokeforge.v5', 'pokeforge.v4', 'pokeforge.v3', 'pokeforge.v2', 'pokeforge.v1', 'pokeforge'];
+
+// Résultat de migration exposé au boot pour afficher le banner
+let _migrationResult = null; // null | { from: string, fields: string[] }
+
+const DEFAULT_STATE = {
+  version: '6.0.0',
+  _schemaVersion: SAVE_SCHEMA_VERSION,
+  lang: 'fr',
+  gang: {
+    name: 'Team ???',
+    bossName: 'Boss',
+    bossSprite: '',
+    bossZone: null, // the zone the boss is currently in
+    bossTeam: [], // array of up to 3 pokemon IDs for boss combat
+    showcase: [null, null, null],
+    reputation: 0,
+    money: 5000,
+    initialized: false,
+    titleA: 'recrue',
+    titleB: null,
+    titleLiaison: '',
+    titleC: null,
+    titleD: null,
   },
-  onAfterLoad: (_nextState, migrationResult) => {
-    _migrationResult = migrationResult || null;
+  inventory: {
+    pokeball: 50,
+    greatball: 0,
+    ultraball: 0,
+    duskball: 0,
+    lure: 0,
+    superlure: 0,
+    potion: 0,
+    incense: 2,
+    rarescope: 1,
+    aura: 0,
+    evostone: 0,
+    rarecandy: 0,
+    masterball: 0,
+    incubator: 0,
+    egg_scanner: 0,
   },
-});
+  activeBall: 'pokeball',
+  activeBoosts: {
+    incense:   0, // timestamp when expires (0 = inactive)
+    rarescope: 0,
+    aura:      0,
+    lure:      0,
+    superlure: 0,
+    chestBoost:0,
+  },
+  pokemons: [],
+  agents: [],
+  zones: {},
+  pokedex: {},
+  activeEvents: {}, // zoneId -> { eventId, expiresAt, data }
+  missions: {
+    completed: [],
+    daily:  { reset: 0, progress: {}, claimed: [] },
+    weekly: { reset: 0, progress: {}, claimed: [] },
+    hourly: { reset: 0, slots: [], baseline: {}, claimed: [] },
+  },
+  stats: {
+    totalCaught: 0,
+    totalSold: 0,
+    totalFights: 0,
+    totalFightsWon: 0,
+    totalMoneyEarned: 0,
+    totalMoneySpent: 0,
+    shinyCaught: 0,
+    rocketDefeated: 0,
+    chestsOpened: 0,
+    eventsCompleted: 0,
+    eggsHatched: 0,
+    blueDefeated: 0,
+  },
+  settings: {
+    llmEnabled: false,
+    llmProvider: 'none',
+    llmUrl: 'http://localhost:11434',
+    llmModel: 'llama3',
+    llmApiKey: '',
+    sfxEnabled: true,
+    musicVol: 50,
+    uiScale: 100,
+    musicEnabled: false,
+    sfxVol: 80,
+    zoneScale: 100,
+    lightTheme: false,
+    lowSpec: false,
+    sfxIndividual: {},
+    autoCombat: true,
+    discoveryMode: true,
+    autoBuyBall: null,  // null | 'pokeball' | 'greatball' | 'ultraball'
+    classicSprites: false, // true = Showdown Gen 5 animés, false = sprites JSON (FireRed/LeafGreen)
+  },
+  log: [],
+  marketSales: {}, // { [species_en]: { count, lastSale } } — supply/demand
+  favorites: [],   // array of pokemon IDs marked as favorite
+  trainingRoom: {
+    pokemon: [],      // up to 6 pokemon IDs training here
+    log: [],          // recent training events
+    level: 1,         // room upgrade level
+    lastFight: null,  // timestamp du dernier combat d'entraînement
+  },
+  _savedAt: 0,       // timestamp de la dernière sauvegarde
+  cosmetics: {
+    gameBg: null,       // CSS gradient/color for game background
+    bossBg: null,       // CSS for boss panel background
+    unlockedBgs: [],    // IDs of unlocked cosmetic backgrounds
+  },
+  lab: {
+    trackedSpecies: [], // espèces suivies dans le tracker du labo
+  },
+  purchases: {
+    translator: false,
+    cosmeticsPanel: false, // 50 000₽ — débloque l'onglet Cosmétiques
+    autoIncubator: false,  // 50 000₽ — Infirmière Joëlle corrompue (auto-incubation)
+    chromaCharm: false,    // Gagné à 10 000 000₽ — taux shiny ×2
+  },
+  pension: {
+    slotA: null,    // pokemon ID
+    slotB: null,    // pokemon ID
+    eggAt: null,    // timestamp when next egg generates
+  },
+  eggs: [],         // [{ id, species_en, hatchAt, potential, shiny }]
+  playtime: 0,      // secondes de jeu total
+  sessionStart: 0,  // timestamp début session
+  openZoneOrder: [],
+  favoriteZones: [], // zones ouvertes automatiquement au chargement
+  claimedCodes: {},
+  discoveryProgress: {
+    marketUnlocked: false,
+    pokedexUnlocked: false,
+    missionsUnlocked: false,
+    agentsUnlocked: false,
+    battleLogUnlocked: false,
+    cosmeticsUnlocked: false,
+  },
+  behaviourLogs: {
+    firstCombatAt: 0,
+    firstCaptureAt: 0,
+    firstPurchaseAt: 0,
+    firstAgentAt: 0,
+    firstMissionAt: 0,
+    tabViewCounts: {},
+  },
+};
 
-let state = store.getState();
-let activeSaveSlot = store.getActiveSaveSlot();
-let SAVE_KEY = store.getSaveKey();
-globalThis.state = state;
+let state = structuredClone(DEFAULT_STATE);
 
-store.subscribe((nextState) => {
-  state = nextState;
-  globalThis.state = nextState;
-});
+let _supaLastSaveAt = 0;
+const SUPA_SAVE_THROTTLE_MS = 30_000; // max 1 cloud save / 30s
 
-function syncStoreRefs() {
-  activeSaveSlot = store.getActiveSaveSlot();
-  SAVE_KEY = store.getSaveKey();
-  state = store.getState();
-}
+const MAX_HISTORY = 30; // cap des entrées d'historique par Pokémon (anti-QuotaExceeded)
 
-function migrate(saved) {
-  return migrateSave(saved, {
-    DEFAULT_STATE,
-    SAVE_SCHEMA_VERSION,
-    SPECIES_BY_EN: typeof SPECIES_BY_EN !== 'undefined' ? SPECIES_BY_EN : {},
-    uid,
-    now: () => Date.now(),
-  });
+// ── Sérialisation slim des pokémons ──────────────────────────────────────────
+// On ne touche PAS les objets en mémoire : on crée un clone allégé pour la save.
+// Champs supprimés : dérivables au runtime (species_fr, dex) + valeurs par défaut
+// (assignedTo=null, cooldown=0, homesick=false, favorite=false, xp=0).
+// Gain moyen : ~35% sur la section pokemons soit ~20-25% sur la save totale.
+function slimPokemon(p) {
+  const s = { ...p };
+  // Dérivable depuis species_en via SPECIES_BY_EN
+  delete s.species_fr;
+  delete s.dex;
+  // Valeurs par défaut — omises pour gagner de la place
+  if (s.assignedTo === null)  delete s.assignedTo;
+  if (s.cooldown   === 0)     delete s.cooldown;
+  if (s.homesick   === false) delete s.homesick;
+  if (s.favorite   === false) delete s.favorite;
+  if (s.xp         === 0)     delete s.xp;
+  // History : cap + suppression si vide
+  if (s.history && s.history.length > MAX_HISTORY) s.history = s.history.slice(-MAX_HISTORY);
+  if (!s.history || s.history.length === 0) delete s.history;
+  return s;
 }
 
 function saveState() {
-  syncStoreRefs();
-  const ok = store.save();
-  syncStoreRefs();
-  return ok;
+  if (!state.marketSales) state.marketSales = {}; // guard: toujours initialisé
+
+  // Playtime accumulation
+  if (state.sessionStart) {
+    state.playtime = (state.playtime || 0) + Math.floor((Date.now() - state.sessionStart) / 1000);
+    state.sessionStart = Date.now();
+  }
+
+  state._savedAt = Date.now();
+
+  // Sérialisation slim : les objets en mémoire restent intacts
+  const payload = { ...state, pokemons: state.pokemons.map(slimPokemon) };
+  const data = JSON.stringify(payload);
+
+  try {
+    localStorage.setItem(SAVE_KEY, data);
+  } catch (e) {
+    if (e.name === 'QuotaExceededError') {
+      notify('⚠ Save trop volumineuse — historiques supprimés', 'error');
+      // Fallback : retirer tous les historiques
+      const emergency = JSON.parse(data);
+      for (const p of emergency.pokemons) delete p.history;
+      try { localStorage.setItem(SAVE_KEY, JSON.stringify(emergency)); } catch {}
+    }
+  }
+  // Cloud sync : throttlé, non-bloquant
+  if (_supabase && supaSession) {
+    const now = Date.now();
+    if (now - _supaLastSaveAt >= SUPA_SAVE_THROTTLE_MS) {
+      _supaLastSaveAt = now;
+      supaCloudSave();
+    }
+  }
 }
 
 function formatPlaytime(seconds) {
@@ -145,13 +308,213 @@ function formatPlaytime(seconds) {
 }
 
 function loadState() {
-  const loaded = store.load();
-  syncStoreRefs();
-  return loaded;
+  let raw = localStorage.getItem(SAVE_KEY);
+  let legacyKey = null;
+
+  // ── Détection save legacy (clés anciennes) ────────────────────────────────
+  if (!raw) {
+    for (const key of LEGACY_SAVE_KEYS) {
+      const legacy = localStorage.getItem(key);
+      if (legacy) { raw = legacy; legacyKey = key; break; }
+    }
+  }
+
+  if (!raw) return null;
+  try {
+    const saved = JSON.parse(raw);
+    const fromVersion = saved._schemaVersion ?? saved.version ?? 'inconnue';
+    const needsMigration = legacyKey || (saved._schemaVersion !== SAVE_SCHEMA_VERSION);
+
+    const migrated = migrate(saved);
+
+    if (needsMigration) {
+      // Lister les champs qui ont été ajoutés (présents dans DEFAULT_STATE mais absents du raw)
+      const addedFields = [];
+      if (!saved.behaviourLogs)       addedFields.push('Logs comportementaux');
+      if (saved.discoveryProgress?.agentsUnlocked === undefined)
+                                       addedFields.push('Progression découverte étendue');
+      if (saved.settings?.classicSprites === undefined) addedFields.push('Option sprites');
+      if (!saved.eggs)                addedFields.push('Système d\'œufs');
+      if (!saved.pension)             addedFields.push('Pension');
+      if (!saved.trainingRoom)        addedFields.push('Salle d\'entraînement');
+      if (!saved.missions)            addedFields.push('Missions');
+      if (!saved.cosmetics)           addedFields.push('Cosmétiques');
+
+      _migrationResult = {
+        from: legacyKey ? `clé ${legacyKey}` : `schéma v${fromVersion}`,
+        toLegacyKey: legacyKey,
+        fields: addedFields,
+      };
+
+      // Si c'était une clé legacy, migrer dans la clé v6 et nettoyer l'ancienne
+      if (legacyKey) {
+        try { localStorage.removeItem(legacyKey); } catch {}
+      }
+    }
+
+    // Stamper le schéma courant dans la save migrée
+    migrated._schemaVersion = SAVE_SCHEMA_VERSION;
+    return migrated;
+  } catch (e) {
+    console.error('[PokéForge] Erreur loadState() — save corrompue ou illisible :', e);
+    return null;
+  }
+}
+
+function migrate(saved) {
+  if (!saved.version) saved.version = '6.0.0';
+  const merged = { ...structuredClone(DEFAULT_STATE), ...saved };
+  merged.gang = { ...structuredClone(DEFAULT_STATE.gang), ...saved.gang };
+  merged.inventory = { ...structuredClone(DEFAULT_STATE.inventory), ...saved.inventory };
+  merged.stats = { ...structuredClone(DEFAULT_STATE.stats), ...saved.stats };
+  merged.settings = { ...structuredClone(DEFAULT_STATE.settings), ...saved.settings };
+  // Migration: discoveryProgress — merge avec valeurs par défaut complètes
+  merged.discoveryProgress = { ...structuredClone(DEFAULT_STATE.discoveryProgress), ...(saved.discoveryProgress || {}) };
+  if (!merged.behaviourLogs) merged.behaviourLogs = { firstCombatAt:0, firstCaptureAt:0, firstPurchaseAt:0, firstAgentAt:0, firstMissionAt:0, tabViewCounts:{} };
+  if (!merged.behaviourLogs.tabViewCounts) merged.behaviourLogs.tabViewCounts = {};
+  // Nouveau joueur → découverte ON ; joueur existant sans ce champ → OFF (déjà habitué)
+  if (merged.settings.discoveryMode === undefined) merged.settings.discoveryMode = false;
+  if (merged.settings.autoBuyBall === undefined) merged.settings.autoBuyBall = null;
+  if (merged.settings.classicSprites === undefined) merged.settings.classicSprites = false;
+  merged.activeBoosts = { ...structuredClone(DEFAULT_STATE.activeBoosts), ...(saved.activeBoosts || {}) };
+  merged.activeEvents = saved.activeEvents || {};
+  // Migration: bossTeam
+  if (!merged.gang.bossTeam) merged.gang.bossTeam = [];
+  if (!merged.gang.showcase) merged.gang.showcase = [null, null, null];
+  // Migration: titles
+  if (!merged.unlockedTitles) merged.unlockedTitles = ['recrue', 'fondateur'];
+  if (!merged.gang.titleA) merged.gang.titleA = 'recrue';
+  if (merged.gang.titleB === undefined) merged.gang.titleB = null;
+  if (merged.gang.titleLiaison === undefined) merged.gang.titleLiaison = '';
+  if (merged.gang.titleC === undefined) merged.gang.titleC = null;
+  if (merged.gang.titleD === undefined) merged.gang.titleD = null;
+  // Migration: marketSales + favorites
+  if (!merged.marketSales) merged.marketSales = {};
+  if (!merged.favorites) merged.favorites = [];
+  // Migration: agent notifyCaptures
+  for (const agent of (merged.agents || [])) {
+    if (agent.notifyCaptures === undefined) agent.notifyCaptures = true;
+  }
+  // Migration: pokemon history + favorite
+  for (const p of (merged.pokemons || [])) {
+    // Restituer les champs omis par slimPokemon()
+    const sp = SPECIES_BY_EN[p.species_en];
+    if (!p.species_fr)             p.species_fr  = sp?.fr  || p.species_en;
+    if (p.dex === undefined)       p.dex         = sp?.dex ?? 0;
+    if (p.assignedTo === undefined) p.assignedTo = null;
+    if (p.cooldown   === undefined) p.cooldown   = 0;
+    if (p.homesick   === undefined) p.homesick   = false;
+    if (p.favorite   === undefined) p.favorite   = false;
+    if (p.xp         === undefined) p.xp         = 0;
+    if (!p.history)                p.history     = [];
+  }
+  // Migration: missions
+  if (!merged.missions) {
+    merged.missions = structuredClone(DEFAULT_STATE.missions);
+  }
+  if (!merged.missions.daily) merged.missions.daily = { reset: 0, progress: {}, claimed: [] };
+  if (!merged.missions.weekly) merged.missions.weekly = { reset: 0, progress: {}, claimed: [] };
+  if (!merged.missions.completed) merged.missions.completed = [];
+  if (!merged.missions.hourly) merged.missions.hourly = { reset: 0, slots: [], baseline: {}, claimed: [] };
+  // Migration: trainingRoom + cosmetics + purchases
+  if (!merged.trainingRoom) merged.trainingRoom = structuredClone(DEFAULT_STATE.trainingRoom);
+  merged.trainingRoom = { ...structuredClone(DEFAULT_STATE.trainingRoom), ...merged.trainingRoom };
+  if (!merged.cosmetics) merged.cosmetics = { gameBg: null, bossBg: null, unlockedBgs: [] };
+  if (!merged.lab) merged.lab = { trackedSpecies: [] };
+  if (!merged.lab.trackedSpecies) merged.lab.trackedSpecies = [];
+  if (!merged.purchases) merged.purchases = { translator: false, mysteryEggCount: 0 };
+  if (merged.purchases.mysteryEggCount === undefined) merged.purchases.mysteryEggCount = 0;
+  if (merged.purchases.cosmeticsPanel === undefined) merged.purchases.cosmeticsPanel = false;
+  if (merged.purchases.autoIncubator === undefined) merged.purchases.autoIncubator = false;
+  if (merged.purchases.chromaCharm === undefined) merged.purchases.chromaCharm = false;
+  if (!merged.favoriteZones) merged.favoriteZones = [];
+  if (merged.settings.uiScale === undefined) merged.settings.uiScale = 100;
+  if (merged.settings.musicVol === undefined) merged.settings.musicVol = 50;
+  if (merged.settings.sfxVol === undefined)   merged.settings.sfxVol   = 80;
+  if (merged.settings.zoneScale === undefined) merged.settings.zoneScale = 100;
+  if (merged.settings.lightTheme === undefined) merged.settings.lightTheme = false;
+  if (merged.settings.lowSpec === undefined)   merged.settings.lowSpec  = false;
+  if (!merged.settings.sfxIndividual)          merged.settings.sfxIndividual = {};
+  if (!merged.pension) merged.pension = { slotA: null, slotB: null, eggAt: null };
+  if (!merged.eggs) merged.eggs = [];
+  // Migration: eggs need incubating flag; auto-hatching eggs get paused
+  for (const egg of merged.eggs) {
+    if (egg.incubating === undefined) {
+      egg.incubating = false;
+      egg.hatchAt = null; // require manual incubation
+    }
+    if (!egg.rarity) egg.rarity = SPECIES_BY_EN[egg.species_en]?.rarity || 'common';
+  }
+  if (!merged.inventory.incubator) merged.inventory.incubator = 0;
+  // Migration: agent perkLevels / pendingPerk
+  for (const agent of (merged.agents || [])) {
+    if (!agent.perkLevels) agent.perkLevels = [];
+    if (agent.pendingPerk === undefined) agent.pendingPerk = false;
+  }
+  // Migration: homesick flag for imported pokemon
+  merged.pokemons.forEach(p => { if (p.homesick === undefined) p.homesick = false; });
+  // Clean up stale training room IDs (deleted pokemon)
+  const allIds = new Set((merged.pokemons || []).map(p => p.id));
+  merged.trainingRoom.pokemon = (merged.trainingRoom.pokemon || []).filter(id => allIds.has(id));
+  // Résoudre les conflits d'affectation : priorité équipe > pension > formation
+  {
+    const teamSet = new Set(merged.gang.bossTeam || []);
+    // Pension : retirer si aussi en équipe
+    if (merged.pension.slotA && teamSet.has(merged.pension.slotA)) merged.pension.slotA = null;
+    if (merged.pension.slotB && teamSet.has(merged.pension.slotB)) merged.pension.slotB = null;
+    // Formation : retirer si en équipe ou en pension
+    const resolvedPension = new Set([merged.pension.slotA, merged.pension.slotB].filter(Boolean));
+    merged.trainingRoom.pokemon = (merged.trainingRoom.pokemon || []).filter(id => !teamSet.has(id) && !resolvedPension.has(id));
+  }
+  // ── Migration Gen 2 : convertir les Pokémon Gen 2 en ailes ────
+  // Lugia et Ho-Oh ne spawnent plus dans les zones normales (zones dédiées désormais).
+  // Si un joueur en a dans son PC, on les convertit en ailes.
+  // Les évolutions Gen 2 (crobat, steelix, scizor, espeon, etc.) sont conservées :
+  // elles restent obtenables par évolution et ne doivent PAS être effacées.
+  const LEGENDARY_CONVERT = new Set(['lugia', 'ho-oh']);
+  const legendaryFound = (merged.pokemons || []).filter(pk => LEGENDARY_CONVERT.has(pk.species_en));
+  if (legendaryFound.length > 0) {
+    merged.pokemons = merged.pokemons.filter(pk => !LEGENDARY_CONVERT.has(pk.species_en));
+    merged.gang.bossTeam = (merged.gang.bossTeam || []).filter(id => !legendaryFound.some(p => p.id === id));
+    merged.inventory = merged.inventory || {};
+    for (const pk of legendaryFound) {
+      if (pk.species_en === 'lugia') merged.inventory.silver_wing  = (merged.inventory.silver_wing  || 0) + 2;
+      else                           merged.inventory.rainbow_wing = (merged.inventory.rainbow_wing || 0) + 2;
+    }
+    merged._gen2MigrationCount = legendaryFound.length;
+  }
+
+  // ── Migration limites : valeurs hors-limites → MissingNo reward ─
+  // Limite incubateur = 10 (cohérent avec le shop qui bloque à owned >= 10)
+  const LIMITS = { incubator: 10 };
+  let limitViolation = false;
+  for (const [item, max] of Object.entries(LIMITS)) {
+    if ((merged.inventory[item] || 0) > max) {
+      merged.inventory[item] = max;
+      limitViolation = true;
+    }
+  }
+  // Pokémon avec potential > 5 ou level > 100
+  for (const pk of merged.pokemons || []) {
+    if ((pk.potential || 1) > 5) { pk.potential = 5; limitViolation = true; }
+    if ((pk.level || 1) > 100)   { pk.level = 100; limitViolation = true; }
+  }
+  if (limitViolation && !(merged.pokemons || []).some(p => p.species_en === 'missingno')) {
+    const reward = { id: uid(), species_en:'missingno', species_fr:'MissingNo', dex:0,
+      level:1, xp:0, potential:1, shiny:false, history:[{ type:'migration_reward', ts:Date.now() }],
+      moves:['Morphing','Psyko','Métronome','Surf'] };
+    merged.pokemons = merged.pokemons || [];
+    merged.pokemons.push(reward);
+    merged._limitViolationReward = true;
+  }
+
+  // Toujours stamper la version schéma courante
+  merged._schemaVersion = SAVE_SCHEMA_VERSION;
+  return merged;
 }
 
 function exportSave() {
-  const blob = new Blob([store.exportSave(true)], { type: 'application/json' });
+  const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -166,10 +529,9 @@ function importSave(file) {
     try {
       const raw = JSON.parse(e.target.result);
       if (!raw || typeof raw !== 'object' || (!raw.gang && !raw.pokemons)) {
-        notify('Import échoué — fichier invalide ou non-reconnu.', 'error');
-        return;
+        notify('Import échoué — fichier invalide ou non-reconnu.', 'error'); return;
       }
-      openImportPreviewModal(raw, store);
+      openImportPreviewModal(raw);
     } catch {
       notify('Import échoué — fichier JSON invalide.', 'error');
     }
@@ -178,36 +540,39 @@ function importSave(file) {
 }
 
 // ── Modal de prévisualisation + conversion d'import ──────────────────────────
-function openImportPreviewModal(raw, store) {
+function openImportPreviewModal(raw) {
   const overlay = document.createElement('div');
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px';
 
+  // ── Analyse de la save importée ──────────────────────────────────────────
   const schemaVer   = raw._schemaVersion ?? raw.version ?? '?';
   const isLegacy    = !raw.eggs || !raw.pension || !raw.trainingRoom;
-  const gangName    = raw.gang?.name ?? '—';
+  const isVeryOld   = !raw.gang || !raw.pokemons;
+  const gangName    = raw.gang?.name    ?? '—';
   const bossName    = raw.gang?.bossName ?? '—';
   const reputation  = (raw.gang?.reputation ?? 0).toLocaleString();
   const money       = (raw.gang?.money ?? 0).toLocaleString();
-  const pokeCount   = (raw.pokemons || []).length;
-  const agentCount  = (raw.agents || []).length;
+  const pokeCount   = (raw.pokemons  || []).length;
+  const agentCount  = (raw.agents    || []).length;
   const dexCaught   = Object.values(raw.pokedex || {}).filter(e => e.caught).length;
   const shinyCount  = Object.values(raw.pokedex || {}).filter(e => e.shiny).length;
   const savedAt     = raw._savedAt ? new Date(raw._savedAt).toLocaleString('fr-FR') : '—';
-  const playtime    = raw.playtime ? formatPlaytime(raw.playtime) : '—';
+  const playtime    = raw.playtime  ? formatPlaytime(raw.playtime) : '—';
 
+  // ── Liste des champs qui seront ajoutés/migrés ───────────────────────────
   const migrations = [];
-if (!raw.eggs) migrations.push("Systeme d'oeufs");
-if (!raw.pension) migrations.push("Pension");
-if (!raw.trainingRoom) migrations.push("Salle d'entrainement");
-if (!raw.missions) migrations.push("Missions");
-if (!raw.cosmetics) migrations.push("Cosmetiques");
-if (!raw.unlockedTitles) migrations.push("Titres debloques");
-if (raw.gang?.titleC === undefined) migrations.push("Slots de titres (x4)");
-if (!raw.behaviourLogs) migrations.push("Logs comportementaux");
-if (!raw.lab) migrations.push("Laboratoire");
-if (!raw.purchases) migrations.push("Achats speciaux");
-if (!raw.eggs && !raw.inventory?.incubator) migrations.push("Inventaire incubateurs");
-if (raw.settings?.uiScale === undefined) migrations.push("Parametres UI avances");
+  if (!raw.eggs)             migrations.push('Système d\'œufs');
+  if (!raw.pension)          migrations.push('Pension');
+  if (!raw.trainingRoom)     migrations.push('Salle d\'entraînement');
+  if (!raw.missions)         migrations.push('Missions');
+  if (!raw.cosmetics)        migrations.push('Cosmétiques');
+  if (!raw.unlockedTitles)   migrations.push('Titres débloqués');
+  if (raw.gang?.titleC === undefined) migrations.push('Slots de titres (×4)');
+  if (!raw.behaviourLogs)    migrations.push('Logs comportementaux');
+  if (!raw.lab)              migrations.push('Laboratoire');
+  if (!raw.purchases)        migrations.push('Achats spéciaux');
+  if (!raw.eggs && !raw.inventory?.incubator) migrations.push('Inventaire incubateurs');
+  if (raw.settings?.uiScale === undefined) migrations.push('Paramètres UI avancés');
 
   const migHtml = migrations.length
     ? migrations.map(m => `<div style="display:flex;gap:6px;align-items:center;font-size:8px;color:var(--text-dim)"><span style="color:var(--green)">✓</span>${m}</div>`).join('')
@@ -219,12 +584,15 @@ if (raw.settings?.uiScale === undefined) migrations.push("Parametres UI avances"
 
   overlay.innerHTML = `
     <div style="background:var(--bg-panel);border:2px solid var(--gold-dim);border-radius:var(--radius);padding:24px;max-width:620px;width:100%;max-height:90vh;overflow-y:auto;display:flex;flex-direction:column;gap:16px">
+
       <div style="display:flex;justify-content:space-between;align-items:center">
         <div style="font-family:var(--font-pixel);font-size:11px;color:var(--gold)">📥 Importer une Save</div>
         <button id="btnImportClose" style="background:none;border:none;color:var(--text-dim);font-size:18px;cursor:pointer">✕</button>
       </div>
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+
+        <!-- Infos save importée -->
         <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;display:flex;flex-direction:column;gap:8px">
           <div style="display:flex;justify-content:space-between;align-items:center">
             <div style="font-family:var(--font-pixel);font-size:8px;color:var(--text-dim)">SAVE IMPORTÉE</div>
@@ -245,14 +613,16 @@ if (raw.settings?.uiScale === undefined) migrations.push("Parametres UI avances"
           </div>
         </div>
 
+        <!-- Champs à migrer -->
         <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;display:flex;flex-direction:column;gap:6px">
           <div style="font-family:var(--font-pixel);font-size:8px;color:var(--text-dim);margin-bottom:4px">MIGRATION AUTOMATIQUE</div>
           ${migHtml}
         </div>
       </div>
 
+      <!-- Avertissement écrasement -->
       <div style="background:rgba(204,51,51,.08);border:1px solid rgba(204,51,51,.3);border-radius:var(--radius-sm);padding:10px;font-size:9px;color:var(--text-dim)">
-        ⚠ <b style="color:var(--red)">Import complet</b> : remplacera définitivement la save active (slot ${store.getActiveSaveSlot() + 1}).
+        ⚠ <b style="color:var(--red)">Import complet</b> : remplacera définitivement la save active (slot ${activeSaveSlot + 1}).
         Exporte d'abord ta save actuelle si tu veux la conserver.
       </div>
 
@@ -277,7 +647,7 @@ if (raw.settings?.uiScale === undefined) migrations.push("Parametres UI avances"
   document.body.appendChild(overlay);
   overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
 
-  overlay.querySelector('#btnImportClose')?.addEventListener('click', () => overlay.remove());
+  overlay.querySelector('#btnImportClose')?.addEventListener('click',  () => overlay.remove());
   overlay.querySelector('#btnImportCancel')?.addEventListener('click', () => overlay.remove());
 
   overlay.querySelector('#btnImportBackupFirst')?.addEventListener('click', () => {
@@ -287,22 +657,14 @@ if (raw.settings?.uiScale === undefined) migrations.push("Parametres UI avances"
   });
 
   overlay.querySelector('#btnImportFull')?.addEventListener('click', () => {
-    const slot = store.getActiveSaveSlot() + 1;
-
     showConfirm(
-      `Remplacer la save du slot ${slot} par la save importée de "${gangName}" ?`,
+      `Remplacer la save du slot ${activeSaveSlot + 1} par la save importée de "${gangName}" ?`,
       () => {
         try {
-          const importedState = store.importSaveObject(raw, {
-            emit: false,
-            autoSave: true,
-          });
-
-          state = importedState;
-          syncStoreRefs();
+          state = migrate(raw);
+          saveState();
           overlay.remove();
           renderAll();
-
           notify(`✅ Save de "${gangName}" importée et convertie au format actuel.`, 'success');
         } catch (err) {
           notify('Erreur lors de la conversion — save non-importée.', 'error');
@@ -316,11 +678,11 @@ if (raw.settings?.uiScale === undefined) migrations.push("Parametres UI avances"
 
   overlay.querySelector('#btnImportHeritage')?.addEventListener('click', () => {
     overlay.remove();
-    openLegacyImportModal(raw, store);
+    openLegacyImportModal(raw);
   });
 }
 
-function openLegacyImportModal(legacyData, store) {
+function openLegacyImportModal(legacyData) {
   const overlay = document.createElement('div');
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px';
 
@@ -369,6 +731,7 @@ function openLegacyImportModal(legacyData, store) {
 
   document.body.appendChild(overlay);
 
+  // Limit pokemon checkboxes to 2
   overlay.querySelectorAll('input[name="legacyPoke"]').forEach(cb => {
     cb.addEventListener('change', () => {
       const checked = [...overlay.querySelectorAll('input[name="legacyPoke"]:checked')];
@@ -385,38 +748,36 @@ function openLegacyImportModal(legacyData, store) {
     const pokeIds = [...overlay.querySelectorAll('input[name="legacyPoke"]:checked')].map(cb => cb.value);
 
     if (pokeIds.length !== 2) {
-      notify('Sélectionne exactement 2 Pokémon.');
-      return;
+      notify('Sélectionne exactement 2 Pokémon.'); return;
     }
 
+    // Build fresh state
     const fresh = structuredClone(DEFAULT_STATE);
+    // Transfer gang basics from legacy
     fresh.gang.name = legacyData.gang?.name || 'La Gang';
     fresh.gang.bossName = legacyData.gang?.bossName || 'Boss';
     fresh.gang.bossSprite = legacyData.gang?.bossSprite || 'rocketgrunt';
 
+    // Transfer chosen agent
     if (agentId) {
       const agent = agents.find(a => a.id === agentId);
       if (agent) {
-        agent.team = [];
+        agent.team = []; // reset team
         agent.pendingPerk = false;
         fresh.agents = [agent];
       }
     }
 
+    // Transfer chosen pokemon to pension
     const chosenPokes = pokeIds.map(id => pokemons.find(p => p.id === id)).filter(Boolean);
     chosenPokes.forEach(p => { p.homesick = true; });
     fresh.pokemons = chosenPokes;
     if (chosenPokes[0]) fresh.pension.slotA = chosenPokes[0].id;
     if (chosenPokes[1]) fresh.pension.slotB = chosenPokes[1].id;
-    fresh.pension.eggAt = Date.now() + 60000;
+    fresh.pension.eggAt = Date.now() + 60000; // first egg in 1 minute
 
-    const importedState = store.importSaveObject(fresh, {
-      emit: false,
-      autoSave: true,
-    });
-
-    state = importedState;
-    syncStoreRefs();
+    state = migrate(fresh);
+    saveState();
     overlay.remove();
     renderAll();
     notify('Nouvelle partie héritée commencée ! Les Pokémon sont à la Pension.', 'gold');
@@ -589,7 +950,147 @@ function pokemonDisplayName(p) {
   return p.nick || speciesName(p.species_en);
 }
 
-// ── Session/objectives module extracted → game/modules/systems/sessionObjectives.js ──
+// ════════════════════════════════════════════════════════════════
+// SESSION TRACKING  (30-min idle = nouvelle session)
+// ════════════════════════════════════════════════════════════════
+const SESSION_KEY     = 'pg_session_baseline';
+const SESSION_IDLE_MS = 30 * 60 * 1000;
+let _sessionBaseline  = null;
+
+function initSession() {
+  const now = Date.now();
+  const raw = localStorage.getItem(SESSION_KEY);
+  if (raw) {
+    try {
+      const saved = JSON.parse(raw);
+      if (now - saved.ts < SESSION_IDLE_MS) {
+        _sessionBaseline = saved;
+        // Migration : anciens saves de session sans caught/sold
+        if (_sessionBaseline.caughtAtStart === undefined) _sessionBaseline.caughtAtStart = state.stats.totalCaught || 0;
+        if (_sessionBaseline.soldAtStart   === undefined) _sessionBaseline.soldAtStart   = state.stats.totalSold   || 0;
+        return; // session en cours — on la continue
+      }
+    } catch {}
+  }
+  // Nouvelle session
+  _sessionBaseline = {
+    ts:           now,
+    money:        state.gang.money,
+    rep:          state.gang.reputation,
+    pokemon:      state.pokemons.length,
+    shinies:      state.stats.shinyCaught    || 0,
+    fights:       state.stats.totalFightsWon || 0,
+    caughtAtStart: state.stats.totalCaught   || 0,
+    soldAtStart:   state.stats.totalSold     || 0,
+  };
+  localStorage.setItem(SESSION_KEY, JSON.stringify(_sessionBaseline));
+}
+
+function _saveSessionActivity() {
+  if (_sessionBaseline) {
+    _sessionBaseline.ts = Date.now();
+    localStorage.setItem(SESSION_KEY, JSON.stringify(_sessionBaseline));
+  }
+}
+
+function getSessionDelta() {
+  if (!_sessionBaseline) return null;
+  const dMoney  = state.gang.money            - _sessionBaseline.money;
+  const dRep    = state.gang.reputation       - _sessionBaseline.rep;
+  const dCaught = (state.stats.totalCaught   || 0) - (_sessionBaseline.caughtAtStart || 0);
+  const dSold   = (state.stats.totalSold     || 0) - (_sessionBaseline.soldAtStart   || 0);
+  const dShiny  = (state.stats.shinyCaught   || 0) - (_sessionBaseline.shinies       || 0);
+  const dFights = (state.stats.totalFightsWon|| 0) - (_sessionBaseline.fights        || 0);
+
+  const parts = [];
+  const fmtPos = (v, icon) => {
+    if (v <= 0) return null;
+    const color = 'var(--green-dim,#4a8)';
+    return `<span style="color:${color}">+${Math.abs(v) >= 1000 ? v.toLocaleString() : v} ${icon}</span>`;
+  };
+  const fmtAny = (v, icon) => {
+    if (v === 0) return null;
+    const sign  = v > 0 ? '+' : '';
+    const color = v > 0 ? 'var(--green-dim,#4a8)' : 'var(--red)';
+    return `<span style="color:${color}">${sign}${Math.abs(v) >= 1000 ? v.toLocaleString() : v} ${icon}</span>`;
+  };
+
+  if (dMoney  !== 0) parts.push(fmtAny(dMoney,  '₽'));
+  if (dCaught  > 0)  parts.push(fmtPos(dCaught, '🎯'));
+  if (dSold    > 0)  parts.push(`<span style="color:var(--text-dim)">-${dSold} 💱</span>`);
+  if (dRep    !== 0) parts.push(fmtAny(dRep,    '⭐'));
+  if (dShiny   > 0)  parts.push(fmtPos(dShiny,  '✨'));
+  if (dFights  > 0)  parts.push(fmtPos(dFights, '⚔'));
+  return parts.filter(Boolean).join(' · ');
+}
+
+// ════════════════════════════════════════════════════════════════
+// NEXT OBJECTIVE
+// ════════════════════════════════════════════════════════════════
+function getNextObjective() {
+  const pc     = state.pokemons.length;
+  const team   = state.gang.bossTeam.length;
+  const agents = state.agents.length;
+  const money  = state.gang.money;
+  const rep    = state.gang.reputation;
+  const zones  = openZones ? openZones.size : 0;
+  const dex    = Object.values(state.pokedex).filter(e => e.caught).length;
+
+  if (!state.gang.initialized)
+    return { text: '👋 Crée ton Gang pour commencer', tab: null };
+  if (pc === 0)
+    return { text: '⚡ Capture ton premier Pokémon', detail: '→ Zones', tab: 'tabZones' };
+  if (team === 0)
+    return { text: '⚔ Place un Pokémon dans ton équipe Boss', detail: '→ PC', tab: 'tabPC' };
+  if (team < 3)
+    return { text: `⚔ Complète ton équipe Boss`, detail: `${team}/3`, tab: 'tabPC' };
+  if (agents === 0) {
+    const cost = typeof getAgentRecruitCost === 'function' ? getAgentRecruitCost() : 10000;
+    const progress = money >= cost ? 'Prêt !' : `₽${money.toLocaleString()}/${cost.toLocaleString()}`;
+    return { text: '👤 Recrute ton premier agent', detail: progress, tab: 'tabPC' };
+  }
+  // Zone suivante verrouillée
+  const nextLocked = ZONES ? ZONES.find(z => !isZoneUnlocked(z.id)) : null;
+  if (nextLocked) {
+    const req = nextLocked.repRequired || 0;
+    if (req > 0)
+      return { text: `🗺 Débloquer ${nextLocked.fr}`, detail: `Rép. ${rep}/${req}`, tab: 'tabZones' };
+  }
+  if (agents < 3)
+    return { text: `👥 Avoir ${agents+1} agents`, detail: `${agents}/3`, tab: 'tabAgents' };
+  if (dex < 151)
+    return { text: `📖 Pokédex ${dex}/151`, detail: `${151 - dex} espèces manquantes`, tab: 'tabPokedex' };
+  return { text: '🏆 Pokédex complet — Tu domines Kanto !', detail: null, tab: null };
+}
+
+// ── Boost helpers ─────────────────────────────────────────────
+function isBoostActive(boostId) {
+  return (state.activeBoosts[boostId] || 0) > Date.now();
+}
+function boostRemaining(boostId) {
+  const exp = state.activeBoosts[boostId] || 0;
+  return Math.max(0, Math.ceil((exp - Date.now()) / 1000));
+}
+// Boost durations moved to data/gameplay-config-data.js
+
+function activateBoost(boostId) {
+  if ((state.inventory[boostId] || 0) <= 0) return false;
+  state.inventory[boostId]--;
+  const duration = BOOST_DURATIONS[boostId] || 90000;
+  // Cumulate: extend from current expiry if already active, else from now
+  const base = Math.max(Date.now(), state.activeBoosts[boostId] || 0);
+  state.activeBoosts[boostId] = base + duration;
+  saveState();
+  return true;
+}
+
+// Item and ball sprite URLs moved to data/assets-data.js
+function itemSprite(id) {
+  const url = ITEM_SPRITE_URLS[id];
+  return url
+    ? `<img src="${url}" style="width:28px;height:28px;image-rendering:pixelated" onerror="this.style.display='none'">`
+    : `<span style="font-family:var(--font-pixel);font-size:8px;color:var(--text-dim)">${id.toUpperCase().slice(0,3)}</span>`;
+}
 
 // Translator flavor text moved to data/flavor-data.js
 
@@ -1272,7 +1773,6 @@ function evolvePokemon(pokemon, targetEN) {
   // Update pokedex
   if (!state.pokedex[sp.en]) {
     state.pokedex[sp.en] = { seen: true, caught: true, shiny: pokemon.shiny, count: 1 };
-    state.stats.dexCaught = (state.stats.dexCaught || 0) + 1;
   } else {
     state.pokedex[sp.en].caught = true;
     state.pokedex[sp.en].count++;
@@ -1967,7 +2467,6 @@ function rollChestLoot(zoneId, passive = false) {
           const stars = '★'.repeat(pokemon.potential);
           if (!state.pokedex[pokemon.species_en]) {
             state.pokedex[pokemon.species_en] = { seen: true, caught: true, shiny: pokemon.shiny, count: 1 };
-            state.stats.dexCaught = (state.stats.dexCaught || 0) + 1;
           } else {
             state.pokedex[pokemon.species_en].caught = true;
             state.pokedex[pokemon.species_en].count++;
@@ -2134,7 +2633,6 @@ function tryCapture(zoneId, speciesEN, bonusPotential = 0) {
   // Pokedex
   if (!state.pokedex[pokemon.species_en]) {
     state.pokedex[pokemon.species_en] = { seen: true, caught: true, shiny: pokemon.shiny, count: 1 };
-    state.stats.dexCaught = (state.stats.dexCaught || 0) + 1;
   } else {
     state.pokedex[pokemon.species_en].caught = true;
     state.pokedex[pokemon.species_en].count++;
@@ -2303,13 +2801,1010 @@ function _processZoneUnlockQueue() {
   popup.classList.add('show');
 }
 
-// ── Missions module extracted → game/modules/systems/missions.js ─
+// ════════════════════════════════════════════════════════════════
+//  7b. MISSIONS MODULE
+// ════════════════════════════════════════════════════════f════════
 
-// ── Agent module extracted → game/modules/systems/agent.js ───────
+function getMissionStat(statKey) {
+  if (statKey === '_reputation') return state.gang.reputation;
+  if (statKey === '_agentCount') return state.agents.length;
+  if (statKey === '_pokedexCaught') {
+    return Object.values(state.pokedex).filter(e => e.caught).length;
+  }
+  if (statKey === '_starterCount') {
+    const starters = ['bulbasaur', 'charmander', 'squirtle'];
+    return starters.filter(s => state.pokemons.some(p => p.species_en === s)).length;
+  }
+  if (statKey === '_fossilCount') {
+    const fossils = ['omanyte', 'kabuto', 'aerodactyl'];
+    return fossils.filter(s => state.pokemons.some(p => p.species_en === s)).length;
+  }
+  if (statKey === '_zonesWithCapture') {
+    return Object.values(state.zones).filter(z => (z.captures || 0) > 0).length;
+  }
+  if (statKey === '_dexKantoCaught') {
+    return POKEMON_GEN1.filter(s => !s.hidden && s.dex >= 1 && s.dex <= 151 && state.pokedex[s.en]?.caught).length;
+  }
+  if (statKey === '_dexFullCaught') {
+    return POKEMON_GEN1.filter(s => !s.hidden && state.pokedex[s.en]?.caught).length;
+  }
+  if (statKey === '_shinyDexCount') {
+    return POKEMON_GEN1.filter(s => !s.hidden && state.pokedex[s.en]?.shiny).length;
+  }
+  if (statKey === '_shinyStarterCount') {
+    return ['bulbasaur','charmander','squirtle'].filter(s => state.pokedex[s]?.shiny).length;
+  }
+  if (statKey === '_shinyLegendaryCount') {
+    return POKEMON_GEN1.filter(s => s.rarity === 'legendary' && !s.hidden && state.pokedex[s.en]?.shiny).length;
+  }
+  return state.stats[statKey] || 0;
+}
 
-// ── Market module extracted → game/modules/systems/market.js ────
+function initMissions() {
+  if (!state.missions) {
+    state.missions = { completed: [], daily: { reset: 0, progress: {}, claimed: [] }, weekly: { reset: 0, progress: {}, claimed: [] } };
+  }
+  // Reset daily/weekly if expired
+  const now = Date.now();
+  const DAY = 86400000;
+  const WEEK = 604800000;
+  if (now - state.missions.daily.reset >= DAY) {
+    // Snapshot current stats as baseline
+    const baseline = {};
+    for (const m of MISSIONS.filter(m => m.type === 'daily')) {
+      baseline[m.stat] = getMissionStat(m.stat);
+    }
+    state.missions.daily = { reset: now, progress: baseline, claimed: [] };
+  }
+  if (now - state.missions.weekly.reset >= WEEK) {
+    const baseline = {};
+    for (const m of MISSIONS.filter(m => m.type === 'weekly')) {
+      baseline[m.stat] = getMissionStat(m.stat);
+    }
+    state.missions.weekly = { reset: now, progress: baseline, claimed: [] };
+  }
+}
 
-// ── LLM module extracted → game/modules/systems/llm.js ──────────
+// ── Hourly quests ─────────────────────────────────────────────
+const HOUR_MS = 3600000;
+
+function initHourlyQuests() {
+  if (!state.missions.hourly) state.missions.hourly = { reset: 0, slots: [], baseline: {}, claimed: [] };
+  const h = state.missions.hourly;
+  if (Date.now() - h.reset >= HOUR_MS) {
+    // Draw 3 medium + 2 hard from pool (no duplicates)
+    const medium = HOURLY_QUEST_POOL.filter(q => q.diff === 'medium');
+    const hard   = HOURLY_QUEST_POOL.filter(q => q.diff === 'hard');
+    const pickRand = (arr, n) => {
+      const shuffled = [...arr].sort(() => Math.random() - 0.5);
+      return shuffled.slice(0, n).map(q => q.id);
+    };
+    const slots = [...pickRand(medium, 3), ...pickRand(hard, 2)];
+    const baseline = {};
+    for (const qId of slots) {
+      const q = HOURLY_QUEST_POOL.find(x => x.id === qId);
+      if (q) baseline[q.stat] = (baseline[q.stat] === undefined) ? getMissionStat(q.stat) : baseline[q.stat];
+    }
+    state.missions.hourly = { reset: Date.now(), slots, baseline, claimed: [] };
+    saveState();
+  }
+}
+
+function getHourlyQuest(slotIdx) {
+  const id = state.missions.hourly?.slots?.[slotIdx];
+  return id ? HOURLY_QUEST_POOL.find(q => q.id === id) : null;
+}
+
+function getHourlyProgress(q) {
+  const baseline = state.missions.hourly.baseline?.[q.stat] || 0;
+  return Math.min(getMissionStat(q.stat) - baseline, q.target);
+}
+
+function isHourlyComplete(q)  { return getHourlyProgress(q) >= q.target; }
+function isHourlyClaimed(idx) { return (state.missions.hourly.claimed || []).includes(idx); }
+
+function claimHourlyQuest(idx) {
+  const q = getHourlyQuest(idx);
+  if (!q || !isHourlyComplete(q) || isHourlyClaimed(idx)) return;
+  if (!state.missions.hourly.claimed) state.missions.hourly.claimed = [];
+  state.missions.hourly.claimed.push(idx);
+  if (q.reward.money) { state.gang.money += q.reward.money; state.stats.totalMoneyEarned += q.reward.money; }
+  if (q.reward.rep)   { const prev = state.gang.reputation; state.gang.reputation += q.reward.rep; checkForNewlyUnlockedZones(prev); }
+  notify(`✓ Quête : ${q.fr} — +${q.reward.money?.toLocaleString() || 0}₽${q.reward.rep ? ' +'+q.reward.rep+' rep' : ''}`, 'gold');
+  SFX.play('coin')
+  saveState();
+}
+
+function rerollHourlyQuest(idx) {
+  if (state.gang.money < HOURLY_QUEST_REROLL_COST) { notify(`Pokédollars insuffisants (${HOURLY_QUEST_REROLL_COST}₽ req)`); return; }
+  const h = state.missions.hourly;
+  if (!h || isHourlyClaimed(idx)) return;
+  const current = getHourlyQuest(idx);
+  if (!current) return;
+  state.gang.money -= HOURLY_QUEST_REROLL_COST;
+  // Pick a different quest of same difficulty
+  const pool = HOURLY_QUEST_POOL.filter(q => q.diff === current.diff && q.id !== current.id && !h.slots.includes(q.id));
+  if (pool.length === 0) { notify('Aucune quête disponible pour le reroll'); state.gang.money += HOURLY_QUEST_REROLL_COST; return; }
+  const newQ = pool[Math.floor(Math.random() * pool.length)];
+  h.slots[idx] = newQ.id;
+  if (h.baseline[newQ.stat] === undefined) h.baseline[newQ.stat] = getMissionStat(newQ.stat);
+  saveState();
+  notify(`Reroll : ${newQ.fr}`, 'success');
+}
+
+function getMissionProgress(mission) {
+  const current = getMissionStat(mission.stat);
+  if (mission.type === 'story') {
+    return Math.min(current, mission.target);
+  }
+  const period = mission.type === 'daily' ? state.missions.daily : state.missions.weekly;
+  const baseline = period.progress[mission.stat] || 0;
+  return Math.min(current - baseline, mission.target);
+}
+
+function isMissionComplete(mission) {
+  return getMissionProgress(mission) >= mission.target;
+}
+
+function isMissionClaimed(mission) {
+  if (mission.type === 'story') return state.missions.completed.includes(mission.id);
+  const period = mission.type === 'daily' ? state.missions.daily : state.missions.weekly;
+  return period.claimed.includes(mission.id);
+}
+
+function claimMission(mission) {
+  if (!isMissionComplete(mission) || isMissionClaimed(mission)) return;
+  // Grant rewards
+  if (mission.reward.money) {
+    state.gang.money += mission.reward.money;
+    state.stats.totalMoneyEarned += mission.reward.money;
+  }
+  if (mission.reward.rep) {
+    state.gang.reputation += mission.reward.rep;
+  }
+  // Mark as claimed
+  if (mission.type === 'story') {
+    state.missions.completed.push(mission.id);
+  } else {
+    const period = mission.type === 'daily' ? state.missions.daily : state.missions.weekly;
+    period.claimed.push(mission.id);
+  }
+  const name = state.lang === 'fr' ? mission.fr : mission.en;
+  notify(`${mission.icon} ${name} — ${state.lang === 'fr' ? 'Récompense récupérée !' : 'Reward claimed!'}`, 'gold');
+  saveState();
+  updateTopBar();
+}
+
+// ════════════════════════════════════════════════════════════════
+//  8.  AGENT MODULE
+// ════════════════════════════════════════════════════════════════
+
+// Exponential cost scaling: 5k → 20k → 80k → 320k → 1.28M → …
+function getAgentRecruitCost() {
+  const n = state.agents.length;
+  const base = Math.round(5000 * Math.pow(4, n));
+  // Au-dessus de 1M : palier linéaire = N millions (N = nb agents actuels)
+  return base > 1_000_000 ? n * 1_000_000 : base;
+}
+
+function rollNewAgent() {
+  const isFemale = Math.random() < 0.5;
+  const name = pick(isFemale ? AGENT_NAMES_F : AGENT_NAMES_M);
+  const sprite = pick(AGENT_SPRITES);
+  const personality = [];
+  const pool = [...AGENT_PERSONALITIES];
+  for (let i = 0; i < 2; i++) {
+    const idx = Math.floor(Math.random() * pool.length);
+    personality.push(pool.splice(idx, 1)[0]);
+  }
+  return {
+    id: `ag-${uid()}`,
+    name,
+    sprite: trainerSprite(sprite),
+    spriteKey: sprite,
+    title: 'grunt',
+    level: 1,
+    xp: 0,
+    combatsWon: 0,
+    stats: {
+      capture: randInt(3, 18),
+      combat: randInt(3, 18),
+      luck: randInt(1, 12),
+    },
+    personality,
+    team: [],
+    assignedZone: null,
+    notifyCaptures: true,
+    perkLevels: [],
+    pendingPerk: false,
+  };
+}
+
+function recruitAgent(agentData) {
+  state.agents.push(agentData);
+  addLog(t('recruit_agent') + ': ' + agentData.name);
+  // Behavioural log — premier agent recruté
+  if (!state.behaviourLogs) state.behaviourLogs = {};
+  if (!state.behaviourLogs.firstAgentAt) state.behaviourLogs.firstAgentAt = Date.now();
+  saveState();
+}
+
+function openAgentRecruitModal(onAfterRecruit) {
+  const cost = getAgentRecruitCost();
+  if (state.gang.money < cost) {
+    notify(state.lang === 'fr' ? 'Pas assez d\'argent !' : 'Not enough money!');
+    SFX.play('error')
+    return;
+  }
+
+  const candidates = [rollNewAgent(), rollNewAgent(), rollNewAgent()];
+
+  const TITLE_FR = { grunt:'Grunt', soldier:'Soldat', lieutenant:'Lieutenant', captain:'Capitaine', commander:'Commandant' };
+  function statBar(val, max = 20) {
+    const pct = Math.round(Math.min(val / max, 1) * 100);
+    return `<div style="height:4px;background:var(--bg);border-radius:2px;width:80px;overflow:hidden"><div style="height:100%;width:${pct}%;background:var(--gold)"></div></div>`;
+  }
+
+  const cardsHtml = candidates.map((ag, i) => `
+    <div class="recruit-card" data-idx="${i}" style="
+      flex:1;min-width:140px;max-width:190px;
+      background:var(--bg-card);border:1px solid var(--border);
+      border-radius:var(--radius);padding:12px 10px;
+      display:flex;flex-direction:column;align-items:center;gap:8px;
+      cursor:pointer;transition:border-color .15s,box-shadow .15s">
+      <img src="${ag.sprite}" style="width:48px;height:48px;image-rendering:pixelated">
+      <div style="font-family:var(--font-pixel);font-size:10px;color:var(--text);text-align:center">${ag.name}</div>
+      <div style="font-size:8px;color:var(--text-dim)">${ag.personality.map(p => p.fr || p).join(' · ')}</div>
+      <div style="display:flex;flex-direction:column;gap:4px;width:100%;margin-top:2px">
+        <div style="display:flex;justify-content:space-between;align-items:center;font-family:var(--font-pixel);font-size:7px;color:var(--text-dim)">
+          <span>ATK</span>${statBar(ag.stats.combat)}
+          <span style="color:var(--text)">${ag.stats.combat}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;font-family:var(--font-pixel);font-size:7px;color:var(--text-dim)">
+          <span>CAP</span>${statBar(ag.stats.capture)}
+          <span style="color:var(--text)">${ag.stats.capture}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;font-family:var(--font-pixel);font-size:7px;color:var(--text-dim)">
+          <span>LCK</span>${statBar(ag.stats.luck, 12)}
+          <span style="color:var(--text)">${ag.stats.luck}</span>
+        </div>
+      </div>
+      <button class="recruit-pick-btn" data-idx="${i}" style="
+        margin-top:4px;font-family:var(--font-pixel);font-size:8px;
+        padding:5px 14px;background:var(--bg);border:1px solid var(--gold-dim);
+        border-radius:var(--radius-sm);color:var(--gold);cursor:pointer;width:100%">
+        Recruter
+      </button>
+    </div>`).join('');
+
+  const modal = document.createElement('div');
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.75);display:flex;align-items:center;justify-content:center;z-index:9999';
+  modal.innerHTML = `
+    <div style="background:var(--bg-panel);border:2px solid var(--gold-dim);border-radius:var(--radius);padding:20px;max-width:640px;width:96%;display:flex;flex-direction:column;gap:14px">
+      <div style="font-family:var(--font-pixel);font-size:11px;color:var(--gold);text-align:center">
+        ★ RECRUTEMENT — Choisissez un candidat
+      </div>
+      <div style="font-size:8px;color:var(--text-dim);text-align:center;font-family:var(--font-pixel)">
+        Coût : ${cost.toLocaleString()}₽ — Trois candidats disponibles
+      </div>
+      <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">${cardsHtml}</div>
+      <div style="text-align:center">
+        <button id="recruitCancelBtn" style="font-family:var(--font-pixel);font-size:8px;padding:6px 16px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-dim);cursor:pointer">Annuler</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+
+  // Hover highlight
+  modal.querySelectorAll('.recruit-card').forEach(card => {
+    card.addEventListener('mouseenter', () => { card.style.borderColor = 'var(--gold-dim)'; card.style.boxShadow = '0 0 10px rgba(255,204,90,.2)'; });
+    card.addEventListener('mouseleave', () => { card.style.borderColor = 'var(--border)'; card.style.boxShadow = ''; });
+  });
+
+  // Pick
+  modal.querySelectorAll('.recruit-pick-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx = parseInt(btn.dataset.idx);
+      state.gang.money -= cost;
+      recruitAgent(candidates[idx]);
+      notify(`${state.lang === 'fr' ? 'Recruté' : 'Recruited'}: ${candidates[idx].name}!`, 'gold');
+      updateTopBar();
+      modal.remove();
+      onAfterRecruit?.();
+    });
+  });
+
+  document.getElementById('recruitCancelBtn').addEventListener('click', () => modal.remove());
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+}
+
+function assignAgentToZone(agentId, zoneId) {
+  const agent = state.agents.find(a => a.id === agentId);
+  if (!agent) return;
+  // Remove from old zone
+  if (agent.assignedZone) {
+    const oldZ = state.zones[agent.assignedZone];
+    if (oldZ) {
+      oldZ.assignedAgents = oldZ.assignedAgents.filter(id => id !== agentId);
+    }
+  }
+  agent.assignedZone = zoneId;
+  if (zoneId) {
+    const z = initZone(zoneId);
+    const maxSlots = z.slots || 1;
+    if (!z.assignedAgents.includes(agentId)) {
+      if (z.assignedAgents.length < maxSlots) {
+        z.assignedAgents.push(agentId);
+      } else {
+        // Zone pleine — désassigner l'agent sans l'ajouter
+        agent.assignedZone = null;
+        notify(`Zone pleine (${maxSlots} slot${maxSlots > 1 ? 's' : ''}). Améliore la zone pour +1 agent.`, 'error');
+        saveState();
+        return;
+      }
+    }
+  }
+  saveState();
+}
+
+function grantAgentXP(agent, amount) {
+  agent.xp += amount;
+  const needed = agent.level * 30;
+  while (agent.xp >= needed && agent.level < 100) {
+    agent.xp -= needed;
+    agent.level++;
+    if (agent.level % 5 === 0) {
+      agent.pendingPerk = true;
+      notify(`${agent.name} a gagne un perk ! (Lv.${agent.level})`, 'gold');
+    }
+  }
+  checkPromotion(agent);
+}
+
+function checkPromotion(agent) {
+  if (agent.title === 'grunt' &&
+      agent.level >= TITLE_REQUIREMENTS.lieutenant.level &&
+      agent.combatsWon >= TITLE_REQUIREMENTS.lieutenant.combatsWon) {
+    agent.title = 'lieutenant';
+    notify(t('agent_promo', { agent: agent.name, title: 'Lieutenant' }), 'gold');
+    addLog(t('agent_promo', { agent: agent.name, title: 'Lieutenant' }));
+  }
+  if (agent.title === 'lieutenant' &&
+      agent.level >= TITLE_REQUIREMENTS.captain.level &&
+      agent.combatsWon >= TITLE_REQUIREMENTS.captain.combatsWon) {
+    agent.title = 'captain';
+    notify(t('agent_promo', { agent: agent.name, title: 'Captain' }), 'gold');
+    addLog(t('agent_promo', { agent: agent.name, title: 'Captain' }));
+  }
+}
+
+function getAgentCombatPower(agent) {
+  const bonus = 1 + (TITLE_BONUSES[agent.title] || 0);
+  let teamPower = 0;
+  for (const pkId of agent.team) {
+    const p = state.pokemons.find(pk => pk.id === pkId);
+    if (p) teamPower += getPokemonPower(p);
+  }
+  return Math.round((agent.stats.combat * 10 + teamPower) * bonus);
+}
+
+// ── Passive agent tick (background, no open window needed) ───────
+// Runs every ~10s and simulates agent activity for closed zones
+function passiveAgentTick() {
+  if (!state.settings.autoCombat) return;
+  let changed = false;
+  const now = Date.now();
+
+  for (const agent of state.agents) {
+    if (!agent.assignedZone) continue;
+    const zoneId = agent.assignedZone;
+    // Skip zones already handled by the visual tick this frame
+    if (openZones.has(zoneId)) continue;
+
+    const zone = ZONE_BY_ID[zoneId];
+    if (!zone || zone.spawnRate === 0) continue;
+
+    // Chance to act this tick (proportional to agent capture stat)
+    const actChance = 0.4 + agent.stats.capture / 100;
+    if (Math.random() > actChance) continue;
+
+    // Roll what would spawn
+    const entry = spawnInZone(zoneId);
+    if (!entry) continue;
+
+    if (entry.type === 'pokemon') {
+      // Agent captures silently
+      const ball = 'pokeball';
+      if ((state.inventory[ball] || 0) <= 0) continue;
+      const pokemon = makePokemon(entry.species_en, zoneId, ball);
+      if (!pokemon) continue;
+      // Crit de capture : basé sur la stat CAP de l'agent
+      const agentCritChance = (agent.stats.capture || 0) / 100;
+      if (Math.random() < agentCritChance) {
+        pokemon.potential = Math.min(5, (pokemon.potential || 1) + 1);
+        if (agent.notifyCaptures) notify(`★ ${agent.name} — Capture critique ! ★`, 'gold');
+      }
+      state.inventory[ball]--;
+      state.pokemons.push(pokemon);
+      state.stats.totalCaught++;
+      if (!state.pokedex[pokemon.species_en]) {
+        state.pokedex[pokemon.species_en] = { seen: true, caught: true, shiny: pokemon.shiny, count: 1 };
+      } else {
+        state.pokedex[pokemon.species_en].caught = true;
+        state.pokedex[pokemon.species_en].count++;
+        if (pokemon.shiny) state.pokedex[pokemon.species_en].shiny = true;
+      }
+      if (pokemon.shiny) state.stats.shinyCaught++;
+      grantAgentXP(agent, 5);
+      const name = speciesName(pokemon.species_en);
+      const stars = '★'.repeat(pokemon.potential);
+      if (agent.notifyCaptures) {
+        notify(`👤 ${agent.name} → ${name} ${stars}${pokemon.shiny ? ' ✨' : ''}`, pokemon.shiny ? 'gold' : 'success');
+      }
+      addLog(t('agent_catch', { agent: agent.name, pokemon: name }));
+      changed = true;
+
+    } else if (entry.type === 'trainer' || entry.type === 'raid') {
+      // Agent auto-fights (raids are tougher — need zone group power)
+      const agentPower = entry.type === 'raid'
+        ? state.agents.filter(a => a.assignedZone === zoneId).reduce((s, a) => s + getAgentCombatPower(a), 0)
+        : getAgentCombatPower(agent);
+      let enemyPower = 0;
+      for (const t of entry.team) enemyPower += (t.stats.atk + t.stats.def + t.stats.spd);
+      const pRoll = agentPower * (0.8 + Math.random() * 0.4);
+      const eRoll = enemyPower * (0.8 + Math.random() * 0.4);
+      const win = pRoll >= eRoll;
+      if (win) {
+        const reward = Math.min(MAX_COMBAT_REWARD, randInt(entry.trainer.reward[0], entry.trainer.reward[1]));
+        const repGain = getCombatRepGain(entry.trainerKey || entry.trainer?.sprite, true);
+        // Accumulate in zone instead of direct payment
+        const zs = initZone(zoneId);
+        zs.pendingIncome = (zs.pendingIncome || 0) + reward;
+        state.stats.totalMoneyEarned += reward;
+        state.gang.reputation += repGain;
+        state.stats.totalFights++;
+        state.stats.totalFightsWon++;
+        agent.combatsWon = (agent.combatsWon || 0) + 1;
+        if (entry.trainerKey === 'rocketgrunt' || entry.trainerKey === 'rocketgruntf' || entry.trainerKey === 'giovanni') {
+          state.stats.rocketDefeated++;
+        }
+        if (entry.trainerKey === 'blue') {
+          state.stats.blueDefeated = (state.stats.blueDefeated || 0) + 1;
+        }
+        const xpEach = Math.round((10 + entry.trainer.diff * 5) * 0.75);
+        grantAgentXP(agent, xpEach);
+        for (const pkId of agent.team) {
+          const p = state.pokemons.find(pk => pk.id === pkId);
+          if (p) levelUpPokemon(p, xpEach);
+        }
+        // Zone combats counter
+        zs.combatsWon = (zs.combatsWon || 0) + 1;
+        if (agent.notifyCaptures) {
+          notify(`[WIN] ${agent.name} +${reward}P`, 'success');
+        }
+        addLog(t('agent_win', { agent: agent.name }));
+        addBattleLogEntry({
+          ts: Date.now(),
+          zoneName: `[Agent] ${agent.name} — ${ZONE_BY_ID[zoneId]?.fr || zoneId}`,
+          win: true,
+          reward: reward,
+          repGain: repGain,
+          lines: [`${agent.name} a battu un dresseur. +${reward}₽ +${repGain}rep`],
+          trainerKey: entry.trainerKey,
+          isAgent: true,
+        });
+      } else {
+        state.stats.totalFights++;
+        state.gang.reputation = Math.max(0, state.gang.reputation - 5);
+        if (agent.notifyCaptures) notify(`[KO] ${agent.name} defaite...`);
+        addLog(t('agent_lose', { agent: agent.name }));
+        addBattleLogEntry({
+          ts: Date.now(),
+          zoneName: `[Agent] ${agent.name} — ${ZONE_BY_ID[zoneId]?.fr || zoneId}`,
+          win: false,
+          reward: 0,
+          repGain: 0,
+          lines: [`${agent.name} a perdu un combat.`],
+          trainerKey: entry.trainerKey,
+          isAgent: true,
+        });
+      }
+      changed = true;
+
+    } else if (entry.type === 'chest') {
+      state.stats.chestsOpened = (state.stats.chestsOpened || 0) + 1;
+      const loot = rollChestLoot(zoneId, true);
+      if (agent.notifyCaptures) notify(`📦 ${agent.name} — ${loot.msg}`, loot.type);
+      changed = true;
+    }
+  }
+
+  // Auto gym raid: for each city zone with gymLeader, if cooldown passed + agent assigned + 1 manual win
+  const raidCooldownMs = 5 * 60 * 1000;
+  const checkedRaidZones = new Set();
+  for (const agent of state.agents) {
+    if (!agent.assignedZone) continue;
+    const zid = agent.assignedZone;
+    if (checkedRaidZones.has(zid)) continue;
+    if (openZones.has(zid)) continue;
+    const raidZone = ZONE_BY_ID[zid];
+    if (!raidZone || raidZone.type !== 'city' || !raidZone.gymLeader) continue;
+    const rzs = state.zones[zid];
+    if (!rzs || !rzs.gymDefeated) continue; // need at least 1 manual win
+    if ((rzs.combatsWon || 0) < 10) continue;
+    if (Date.now() - (rzs.gymRaidLastFight || 0) < raidCooldownMs) continue;
+    checkedRaidZones.add(zid);
+    if (triggerGymRaid(zid, true)) changed = true;
+  }
+
+  if (changed) {
+    saveState();
+    updateTopBar();
+    // Agent capture: only refresh grid (not full rebuild) to avoid resetting pcSelectedId / view state
+    if (activeTab === 'tabPC') {
+      if (pcView === 'grid') renderPokemonGrid();
+      else if (pcView === 'eggs') { const el = document.getElementById('eggsInPC'); if (el) renderEggsView(el); }
+      // Update eggs button count
+      const eggsBtn = document.getElementById('pcBtnEggs');
+      if (eggsBtn) eggsBtn.textContent = `[OEUFS${state.eggs.length ? ` (${state.eggs.length})` : ''}]`;
+    }
+    if (activeTab === 'tabGang') renderGangTab();
+  }
+}
+
+// Agent automation tick — agents interact with VISIBLE spawns in zone windows
+function agentTick() {
+  if (!state.settings.autoCombat) return; // auto-combat off = agents idle
+  const zoneDone = new Set(); // track zones already processed this tick
+  for (const agent of state.agents) {
+    if (!agent.assignedZone) continue;
+    const zoneId = agent.assignedZone;
+    if (!openZones.has(zoneId)) continue; // only act in open zone windows
+    const spawns = zoneSpawns[zoneId];
+    if (!spawns || spawns.length === 0) continue;
+    if (zoneDone.has(zoneId)) continue; // one action per zone per tick
+    // Chance to act this tick based on agent capture stat (higher = more active)
+    const actChance = 0.5 + agent.stats.capture / 60;
+    if (Math.random() > actChance) continue;
+
+    // Priority: raids > trainers > pokemon > chests
+    const trainerSpawn = spawns.find(s => (s.type === 'trainer' || s.type === 'raid') && !s._agentClaimed);
+    const pokemonSpawn = spawns.find(s => s.type === 'pokemon' && !s._agentClaimed && !s.playerCatching);
+    const chestSpawn = spawns.find(s => s.type === 'chest' && !s._agentClaimed);
+
+    if (trainerSpawn) {
+      // Mark claimed so other agents don't try
+      trainerSpawn._agentClaimed = true;
+      zoneDone.add(zoneId);
+      // Open combat popup with auto-execute
+      agentAutoCombat(zoneId, trainerSpawn, agent);
+    } else if (pokemonSpawn) {
+      pokemonSpawn._agentClaimed = true;
+      zoneDone.add(zoneId);
+      // Agent throws ball at visible pokemon spawn
+      agentCaptureVisibleSpawn(agent, zoneId, pokemonSpawn);
+    } else if (chestSpawn) {
+      chestSpawn._agentClaimed = true;
+      zoneDone.add(zoneId);
+      // Agent opens chest
+      agentOpenChest(agent, zoneId, chestSpawn);
+    }
+  }
+}
+
+// Agent captures a visible pokemon spawn with ball throw animation
+function agentCaptureVisibleSpawn(agent, zoneId, spawnObj) {
+  const win = document.getElementById(`zw-${zoneId}`);
+  if (!win) return;
+  const viewport = win.querySelector('.zone-viewport');
+  if (!viewport) return;
+  const spawnEl = viewport.querySelector(`[data-spawn-id="${spawnObj.id}"]`);
+  if (!spawnEl) return;
+
+  // Skip if player is already capturing this spawn
+  if (spawnObj.playerCatching) return;
+
+  // Mark as catching to prevent player clicks
+  spawnEl.classList.add('catching');
+
+  // Find agent sprite position in zone
+  const agentEls = viewport.querySelectorAll('.zone-agent');
+  let agentEl = null;
+  for (const el of agentEls) {
+    const label = el.querySelector('.agent-label');
+    if (label && label.textContent === agent.name) { agentEl = el; break; }
+  }
+  let startX = 40, startY = 150;
+  if (agentEl) {
+    const r = agentEl.getBoundingClientRect();
+    const wr = viewport.getBoundingClientRect();
+    startX = r.left - wr.left + r.width / 2;
+    startY = r.top - wr.top;
+  }
+  const targetX = parseInt(spawnEl.style.left) + 28;
+  const targetY = parseInt(spawnEl.style.top) + 28;
+
+  // Ball projectile
+  const ball = document.createElement('div');
+  ball.className = 'ball-projectile';
+  ball.innerHTML = `<img src="${BALL_SPRITES.pokeball}">`;
+  ball.style.left = startX + 'px';
+  ball.style.top = startY + 'px';
+  viewport.appendChild(ball);
+
+  SFX.play('ballThrow')
+  requestAnimationFrame(() => {
+    ball.style.transition = 'left .35s ease-out, top .35s ease-in';
+    ball.style.left = targetX + 'px';
+    ball.style.top = targetY + 'px';
+  });
+
+  setTimeout(() => {
+    ball.remove();
+    // Try capture using tryCapture (uses balls from inventory)
+    const caught = tryCapture(zoneId, spawnObj.species_en);
+    if (caught) {
+      // Luck reroll for agents
+      if (agent.stats.luck > 8 && caught.potential < 3 && Math.random() < 0.3) {
+        caught.potential = randInt(3, 5);
+        caught.stats = calculateStats(caught);
+      }
+      showCaptureBurst(viewport, targetX, targetY, caught.potential, caught.shiny);
+      grantAgentXP(agent, 2);
+      if (agent.notifyCaptures !== false) {
+        notify(t('agent_catch', { agent: agent.name, pokemon: speciesName(spawnObj.species_en) }), 'success');
+      }
+      addLog(t('agent_catch', { agent: agent.name, pokemon: speciesName(spawnObj.species_en) }));
+      removeSpawn(zoneId, spawnObj.id);
+      updateTopBar();
+      updateZoneTimers(zoneId);
+    } else {
+      // No balls left — release spawn
+      spawnEl.classList.remove('catching');
+      spawnObj._agentClaimed = false;
+    }
+  }, 380);
+}
+
+// Agent auto-fights a trainer — opens inline combat and auto-executes
+function agentAutoCombat(zoneId, spawnObj, agent) {
+  // Don't start if a combat is already running
+  if (currentCombat) return;
+  // Open combat popup (same as player click)
+  openCombatPopup(zoneId, spawnObj);
+  // Auto-execute after a brief delay so the player can see it
+  setTimeout(() => {
+    if (!currentCombat) return;
+    executeCombat();
+    // Auto-close after showing result
+    setTimeout(() => {
+      const arena = document.getElementById('battleArena');
+      if (arena && arena.classList.contains('active')) {
+        closeCombatPopup();
+        removeSpawn(zoneId, spawnObj.id);
+        updateTopBar();
+        if (activeTab === 'tabGang') renderGangTab();
+      }
+    }, 1500);
+  }, 800);
+}
+
+// Agent opens a chest
+function agentOpenChest(agent, zoneId, spawnObj) {
+  state.stats.chestsOpened = (state.stats.chestsOpened || 0) + 1;
+  const loot = rollChestLoot(zoneId);
+  notify(`${agent.name}: ${loot.msg}`, loot.type);
+  grantAgentXP(agent, 1);
+  SFX.play('chest');
+  removeSpawn(zoneId, spawnObj.id);
+  updateTopBar();
+  updateZoneTimers(zoneId);
+  saveState();
+}
+
+// (Agent capture animation is now handled by agentCaptureVisibleSpawn above)
+
+// ════════════════════════════════════════════════════════════════
+//  9.  MARKET MODULE
+// ════════════════════════════════════════════════════════════════
+
+function calculatePrice(pokemon) {
+  const sp = SPECIES_BY_EN[pokemon.species_en];
+  if (!sp) return 50;
+  const base = BASE_PRICE[sp.rarity] || 100;
+  const potMult = POTENTIAL_MULT[pokemon.potential - 1] || 1;
+  const shinyMult = pokemon.shiny ? 10 : 1;
+  const nat = NATURES[pokemon.nature];
+  const natMult = nat ? (nat.atk + nat.def + nat.spd) / 3 : 1;
+  return Math.round(base * potMult * shinyMult * natMult);
+}
+
+// Returns the supply pressure as a percentage (0 = normal, 60 = max saturation)
+function getMarketSaturation(species_en) {
+  const sales = state.marketSales[species_en];
+  if (!sales) return 0;
+  return Math.min(60, sales.count * 8);
+}
+
+// Decay market sales over time (called on load + periodically)
+function decayMarketSales() {
+  const now = Date.now();
+  const DECAY_PER_HOUR = 1; // lose 1 sale unit per hour
+  for (const species of Object.keys(state.marketSales)) {
+    const s = state.marketSales[species];
+    const hoursElapsed = (now - s.lastSale) / 3600000;
+    const decay = Math.floor(hoursElapsed * DECAY_PER_HOUR);
+    if (decay > 0) {
+      s.count = Math.max(0, s.count - decay);
+      s.lastSale = now;
+      if (s.count === 0) delete state.marketSales[species];
+    }
+  }
+}
+
+function removePokemonFromAllAssignments(pkId) {
+  // Équipe Boss
+  state.gang.bossTeam = state.gang.bossTeam.filter(id => id !== pkId);
+  // Formation
+  if (state.trainingRoom) state.trainingRoom.pokemon = (state.trainingRoom.pokemon || []).filter(id => id !== pkId);
+  // Pension
+  if (state.pension) {
+    if (state.pension.slotA === pkId) { state.pension.slotA = null; state.pension.eggAt = null; }
+    if (state.pension.slotB === pkId) { state.pension.slotB = null; state.pension.eggAt = null; }
+  }
+}
+
+function sellPokemon(pokemonIds, _shinyConfirmed = false) {
+  // Block noSell pokemon (ex: MissingNo)
+  const noSellBlocked = pokemonIds.filter(id => {
+    const p = state.pokemons.find(pk => pk.id === id);
+    if (!p) return false;
+    const species = POKEMON_GEN1.find(s => s.en === p.species_en);
+    return species?.noSell === true;
+  });
+  if (noSellBlocked.length > 0) {
+    notify('Ce Pokémon ne peut pas être vendu.', 'error');
+    pokemonIds = pokemonIds.filter(id => !noSellBlocked.includes(id));
+    if (pokemonIds.length === 0) return;
+  }
+  // Filter out homesick pokemon — they cannot be sold
+  const homesickBlocked = pokemonIds.filter(id => {
+    const p = state.pokemons.find(pk => pk.id === id);
+    return p && p.homesick;
+  });
+  if (homesickBlocked.length > 0) {
+    notify('Ce Pokémon souffre du mal du pays et ne peut pas être vendu.', 'error');
+    pokemonIds = pokemonIds.filter(id => !homesickBlocked.includes(id));
+    if (pokemonIds.length === 0) return;
+  }
+  // Block pension pokémon
+  const pensionSet = new Set([state.pension?.slotA, state.pension?.slotB].filter(Boolean));
+  const pensionBlocked = pokemonIds.filter(id => pensionSet.has(id));
+  if (pensionBlocked.length > 0) {
+    notify('Les Pokémon en pension ne peuvent pas être vendus.', 'error');
+    pokemonIds = pokemonIds.filter(id => !pensionSet.has(id));
+    if (pokemonIds.length === 0) return;
+  }
+  // Block training pokémon
+  const trainingSet = new Set(state.trainingRoom?.pokemon || []);
+  const trainingBlocked = pokemonIds.filter(id => trainingSet.has(id));
+  if (trainingBlocked.length > 0) {
+    notify('Les Pokémon en formation ne peuvent pas être vendus.', 'error');
+    pokemonIds = pokemonIds.filter(id => !trainingSet.has(id));
+    if (pokemonIds.length === 0) return;
+  }
+  // Shiny confirmation
+  if (!_shinyConfirmed) {
+    const shinyIds = pokemonIds.filter(id => state.pokemons.find(p => p.id === id)?.shiny);
+    if (shinyIds.length > 0) {
+      const names = shinyIds.map(id => speciesName(state.pokemons.find(p => p.id === id)?.species_en)).join(', ');
+      const modal = document.createElement('div');
+      modal.style.cssText = 'position:fixed;inset:0;z-index:9500;background:rgba(0,0,0,.88);display:flex;align-items:center;justify-content:center';
+      modal.innerHTML = `<div style="background:var(--bg-panel);border:2px solid var(--gold);border-radius:var(--radius);padding:20px;max-width:360px;width:92%;display:flex;flex-direction:column;gap:14px">
+        <div style="font-family:var(--font-pixel);font-size:10px;color:var(--gold)">⚠ Vente de Chromatique</div>
+        <div style="font-size:11px;color:var(--text)">Tu t'apprêtes à vendre <b style="color:#ffcc5a">${shinyIds.length} Pokémon Shiny</b> :<br><span style="font-size:9px;color:#aaa">${names}</span></div>
+        <div style="font-size:9px;color:var(--text-dim)">Cette action est irréversible.</div>
+        <div style="display:flex;gap:8px;justify-content:flex-end">
+          <button id="shinyCancel" style="font-family:var(--font-pixel);font-size:9px;padding:8px 14px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-dim);cursor:pointer">Annuler</button>
+          <button id="shinyConfirm" style="font-family:var(--font-pixel);font-size:9px;padding:8px 14px;background:var(--bg);border:1px solid var(--gold);border-radius:var(--radius-sm);color:var(--gold);cursor:pointer">Vendre quand même</button>
+        </div>
+      </div>`;
+      document.body.appendChild(modal);
+      modal.querySelector('#shinyCancel').addEventListener('click', () => modal.remove());
+      modal.querySelector('#shinyConfirm').addEventListener('click', () => { modal.remove(); sellPokemon(pokemonIds, true); });
+      return;
+    }
+  }
+
+  let total = 0;
+  const toRemove = new Set(pokemonIds);
+  // Unassign from agents/boss
+  for (const agent of state.agents) {
+    agent.team = agent.team.filter(id => !toRemove.has(id));
+  }
+  state.gang.bossTeam = state.gang.bossTeam.filter(id => !toRemove.has(id));
+  // Remove from favorites
+  state.favorites = state.favorites.filter(id => !toRemove.has(id));
+
+  for (const id of pokemonIds) {
+    const idx = state.pokemons.findIndex(p => p.id === id);
+    if (idx === -1) continue;
+    const p = state.pokemons[idx];
+    const soldPrice = calculatePrice(p);
+    total += soldPrice;
+    state.pokemons.splice(idx, 1);
+    state.stats.totalSold++;
+    // Track most expensive sale
+    if (!state.stats.mostExpensiveSold || soldPrice > (state.stats.mostExpensiveSold.price || 0)) {
+      state.stats.mostExpensiveSold = { name: speciesName(p.species_en), price: soldPrice };
+    }
+  }
+  state.gang.money += total;
+  state.stats.totalMoneyEarned += total;
+  notify(t('sold', { n: pokemonIds.length, price: total }), 'gold');
+  addLog(t('sold', { n: pokemonIds.length, price: total }));
+  SFX.play('sell');
+  saveState();
+  return total;
+}
+
+const BOOST_ITEMS = new Set(['incense', 'rarescope', 'aura', 'lure', 'superlure']);
+
+function buyItem(itemDef) {
+  const actualCost = itemDef.id === 'mysteryegg' ? getMysteryEggCost() : itemDef.cost;
+  if (state.gang.money < actualCost) {
+    notify(t('not_enough'));
+    SFX.play('error')
+    return false;
+  }
+  state.gang.money -= actualCost;
+  state.stats.totalMoneySpent += actualCost;
+  // Behavioural log — premier achat
+  if (!state.behaviourLogs) state.behaviourLogs = {};
+  if (!state.behaviourLogs.firstPurchaseAt) state.behaviourLogs.firstPurchaseAt = Date.now();
+
+  if (itemDef.id === 'translator') {
+    state.purchases.translator = true;
+    notify('Traducteur Pokemon obtenu !', 'gold');
+    saveState();
+    return true;
+  }
+
+  if (itemDef.id === 'incubator') {
+    state.inventory.incubator = (state.inventory.incubator || 0) + 1;
+    notify(`Incubateur obtenu ! Total: ${state.inventory.incubator}`, 'gold');
+    saveState();
+    return true;
+  }
+
+  // ── Permis ailes (coût en items, pas en ₽) ───────────────────
+  const WING_PERMIT_ITEMS = new Set(['tourbillon_permit','carillon_permit']);
+  if (WING_PERMIT_ITEMS.has(itemDef.id)) {
+    if (state.purchases[itemDef.id]) {
+      notify(state.lang === 'fr' ? 'Déjà possédé !' : 'Already owned!');
+      return false;
+    }
+    const wc = itemDef.wingCost;
+    const have = state.inventory[wc.item] || 0;
+    if (have < wc.qty) {
+      const itemName = wc.item === 'silver_wing' ? 'Argent\'Aile' : 'Arcenci\'Aile';
+      notify(`Il te faut ${wc.qty}× ${itemName} (tu en as ${have}).`, 'error');
+      return false;
+    }
+    state.inventory[wc.item] -= wc.qty;
+    state.purchases[itemDef.id] = true;
+    const zone = ZONES.find(z => z.unlockItem === itemDef.id);
+    const zLabel = zone ? (state.lang === 'fr' ? zone.fr : zone.en) : '';
+    const pName  = state.lang === 'fr' ? itemDef.fr : itemDef.en;
+    notify(`${pName} obtenu !${zLabel ? ' → ' + zLabel + ' accessible' : ''}`, 'gold');
+    saveState();
+    renderZonesTab?.();
+    return true;
+  }
+
+  const ZONE_UNLOCK_ITEMS = new Set(['map_pallet','casino_ticket','silph_keycard','boat_ticket']);
+  if (ZONE_UNLOCK_ITEMS.has(itemDef.id)) {
+    if (state.purchases[itemDef.id]) {
+      notify(state.lang === 'fr' ? 'Déjà possédé !' : 'Already owned!');
+      state.gang.money += actualCost; // refund
+      state.stats.totalMoneySpent -= actualCost;
+      return false;
+    }
+    state.purchases[itemDef.id] = true;
+    const zoneName = ZONES.find(z => z.unlockItem === itemDef.id);
+    const name = state.lang === 'fr' ? (itemDef.fr || itemDef.id) : (itemDef.en || itemDef.id);
+    const zLabel = zoneName ? (state.lang === 'fr' ? zoneName.fr : zoneName.en) : '';
+    notify(`${name} obtenu !${zLabel ? ' → ' + zLabel + ' accessible' : ''}`, 'gold');
+    saveState();
+    renderZonesTab?.();
+    return true;
+  }
+
+  if (itemDef.id === 'mysteryegg') {
+    const species_en = weightedPick(MYSTERY_EGG_POOL);
+    const sp = SPECIES_BY_EN[species_en];
+    const potential = Math.random() < 0.1 ? 3 : Math.random() < 0.4 ? 2 : 1;
+    const shiny = Math.random() < 0.02;
+    state.eggs.push({ id: uid(), species_en, hatchAt: null, incubating: false, potential, shiny, mystery: true });
+    state.purchases.mysteryEggCount = (state.purchases.mysteryEggCount || 0) + 1;
+    tryAutoIncubate();
+    notify(`🥚 Un œuf mystérieux est apparu… On se demande ce qu'il contient !`, 'gold');
+    saveState();
+    return true;
+  }
+
+  // All consumables go to inventory — player activates manually from the Zone bag bar
+  state.inventory[itemDef.id] = (state.inventory[itemDef.id] || 0) + itemDef.qty;
+  const _itemName = state.lang === 'fr' ? (itemDef.fr || BALLS[itemDef.id]?.fr || itemDef.id) : (itemDef.en || BALLS[itemDef.id]?.en || itemDef.id);
+  notify(`${itemDef.qty}× ${_itemName} → sac`, 'success');
+  SFX.play('buy');
+  playSE('buy', 0.5);
+  saveState();
+  return true;
+}
+
+// ════════════════════════════════════════════════════════════════
+// 10.  LLM MODULE
+// ════════════════════════════════════════════════════════════════
+
+async function detectLLM() {
+  if (state.settings.llmProvider === 'none') {
+    state.settings.llmEnabled = false;
+    return;
+  }
+  if (state.settings.llmProvider === 'local') {
+    try {
+      const res = await fetch(`${state.settings.llmUrl}/api/tags`, { signal: AbortSignal.timeout(2000) });
+      if (res.ok) {
+        state.settings.llmEnabled = true;
+        addLog(t('llm_connected'));
+        return;
+      }
+    } catch { /* ignore */ }
+  }
+  if ((state.settings.llmProvider === 'openai' || state.settings.llmProvider === 'anthropic') && state.settings.llmApiKey) {
+    state.settings.llmEnabled = true;
+    addLog(t('llm_connected'));
+    return;
+  }
+  state.settings.llmEnabled = false;
+}
+
+const FALLBACK_DIALOGUES = {
+  fr: [
+    'Prépare-toi à avoir des problèmes !',
+    'Et fais-le double !',
+    'Tu oses défier notre gang ?',
+    'Tes Pokémon ne font pas le poids !',
+    'La Team Rocket va t\'écraser !',
+    'Tu n\'as aucune chance contre nous !',
+    'Ton gang est une blague !',
+    'Je vais te montrer la vraie puissance !',
+    'Quoi ? Tu veux te battre ? Très bien !',
+    'Je suis un dresseur ! J\'affronte tout ceux que je croise !',
+    'Hé ! Ne me sous-estime pas !',
+    'Les insectes sont les meilleurs Pokémon !',
+    'Je me suis entraîné dur pour ce moment !',
+    'Tu as l\'air fort... intéressant !',
+    'Mon Pokémon est le plus fort de la route !',
+    'Tu vas regretter d\'être venu ici !',
+    'J\'ai perdu mon chemin... mais je vais te battre !',
+    'Je suis imbattable ! Enfin je crois...',
+  ],
+  en: [
+    'Prepare for trouble!',
+    'And make it double!',
+    'You dare challenge our gang?',
+    'Your Pokémon don\'t stand a chance!',
+    'Team Rocket will crush you!',
+    'You have no chance against us!',
+    'Your gang is a joke!',
+    'I\'ll show you real power!',
+  ],
+};
+
+function getTrainerDialogue() {
+  return pick(FALLBACK_DIALOGUES[state.lang] || FALLBACK_DIALOGUES.fr);
+}
 
 // ════════════════════════════════════════════════════════════════
 // 11.  UI — NOTIFICATIONS
@@ -2879,11 +4374,14 @@ function openSaveSlotModal() {
 }
 
 function saveToSlot(slotIdx) {
+  // If switching slot: save current first
   const prev = activeSaveSlot;
   state._savedAt = Date.now();
   localStorage.setItem(SAVE_KEYS[prev], JSON.stringify(state));
-  store.setActiveSaveSlot(slotIdx);
-  syncStoreRefs();
+  // Now copy to target slot
+  activeSaveSlot = slotIdx;
+  SAVE_KEY = SAVE_KEYS[slotIdx];
+  localStorage.setItem('pokeforge.activeSlot', String(slotIdx));
   saveState();
   notify(`Sauvegarde Slot ${slotIdx + 1}`, 'success');
 }
@@ -2892,10 +4390,10 @@ function loadSlot(slotIdx) {
   const raw = localStorage.getItem(SAVE_KEYS[slotIdx]);
   if (!raw) { notify('Slot vide.'); return; }
   try {
-    store.setActiveSaveSlot(slotIdx);
-    const loaded = store.load();
-    if (!loaded) throw new Error('Load failed');
-    syncStoreRefs();
+    state = migrate(JSON.parse(raw));
+    activeSaveSlot = slotIdx;
+    SAVE_KEY = SAVE_KEYS[slotIdx];
+    localStorage.setItem('pokeforge.activeSlot', String(slotIdx));
     renderAll();
     notify(`Slot ${slotIdx + 1} charge !`, 'success');
   } catch { notify('Erreur de chargement.'); }
@@ -7044,7 +8542,6 @@ function hatchEgg(eggId) {
   state.stats.eggsHatched = (state.stats.eggsHatched || 0) + 1;
   if (!state.pokedex[baseEn]) {
     state.pokedex[baseEn] = { seen: true, caught: true, shiny: egg.shiny, count: 1 };
-    state.stats.dexCaught = (state.stats.dexCaught || 0) + 1;
   } else {
     state.pokedex[baseEn].caught = true;
     state.pokedex[baseEn].count++;
@@ -9213,23 +10710,34 @@ function showIntro() {
         const d = new Date(preview.ts);
         const dateStr = preview.ts ? d.toLocaleDateString('fr-FR', { day:'2-digit', month:'2-digit', year:'2-digit' }) : '—';
         const teamSpritesHtml = (preview.teamSprites || []).map(sp =>
-          `<img src="${pokeSprite(sp)}" style="width:28px;height:28px;image-rendering:pixelated" onerror="this.style.display='none'">`
+          `<img class="isc-mini" src="${pokeSprite(sp)}" alt="${sp}" onerror="this.style.display='none'">`
         ).join('');
         const agentSpritesHtml = (preview.agentSprites || []).map(url =>
-          `<img src="${url}" style="width:24px;height:24px;image-rendering:pixelated" onerror="this.style.display='none'">`
+          `<img class="isc-mini" src="${url}" alt="" onerror="this.style.display='none'">`
         ).join('');
         return `<div class="intro-slot-card has-data" data-slot="${i}">
           <div class="isc-left">
             <div class="isc-slot-label">SLOT ${i+1}</div>
-            ${preview.bossSprite ? `<img src="${trainerSprite(preview.bossSprite)}" style="width:52px;height:52px;image-rendering:pixelated" onerror="this.style.display='none'">` : '<div style="width:52px;height:52px;background:var(--bg);border-radius:4px;opacity:.3"></div>'}
+            <div class="isc-boss-wrap">
+              ${preview.bossSprite ? `<img src="${trainerSprite(preview.bossSprite)}" style="width:52px;height:52px;image-rendering:pixelated" onerror="this.style.display='none'">` : '<div style="width:52px;height:52px;background:var(--bg);border-radius:4px;opacity:.3"></div>'}
+              <span class="isc-boss-badge"><img src="https://lab.sterenna.fr/PG/pokegang_logo/pokegang_logo_little.png" alt=""></span>
+            </div>
           </div>
           <div class="isc-info">
             <div class="isc-gang-name">${preview.name}</div>
-            <div class="isc-boss-name">Boss : ${preview.bossName || '—'}</div>
+            <div class="isc-boss-name">Boss : ${preview.bossName || '—'} · ${preview.agentCount || 0} agent${(preview.agentCount || 0) > 1 ? 's' : ''}</div>
             <div class="isc-meta">${preview.pokemon} Pkm · ₽${(preview.money||0).toLocaleString()} · ⭐${preview.rep}</div>
             <div class="isc-date">${dateStr}${preview.playtime ? ' · ' + formatPlaytime(preview.playtime) : ''}</div>
-            <div class="isc-team" style="display:flex;gap:3px;margin-top:4px;flex-wrap:wrap">${teamSpritesHtml}</div>
-            ${agentSpritesHtml ? `<div class="isc-agents" style="display:flex;gap:3px;margin-top:2px;opacity:.6">${agentSpritesHtml}</div>` : ''}
+            <div class="isc-sprites-row">
+              <div class="isc-sprites-group">
+                <span class="isc-sprites-label">Équipe</span>
+                ${teamSpritesHtml || '<span style="font-size:8px;color:#555">—</span>'}
+              </div>
+              ${agentSpritesHtml ? `<div class="isc-sprites-group" style="opacity:.72">
+                <span class="isc-sprites-label">Agents</span>
+                ${agentSpritesHtml}
+              </div>` : ''}
+            </div>
           </div>
           <div class="isc-actions">
             <button class="isc-btn isc-play" data-slot="${i}" title="Jouer">▶</button>
@@ -9286,11 +10794,40 @@ function showIntro() {
         if (idx !== undefined && !isNaN(idx)) {
           selectedSlotIdx = idx;
           renderSlots();
+          openNewGameModal(idx);
         }
       });
     });
   };
   renderSlots();
+
+  const newGameModal = document.getElementById('newGameModal');
+  const newGameSelectedSlotLabel = document.getElementById('newGameSelectedSlotLabel');
+  const closeNewGameModal = () => {
+    if (!newGameModal) return;
+    newGameModal.classList.remove('active');
+    newGameModal.setAttribute('aria-hidden', 'true');
+  };
+  const openNewGameModal = (slotIdx) => {
+    selectedSlotIdx = slotIdx;
+    renderSlots();
+    if (newGameSelectedSlotLabel) newGameSelectedSlotLabel.textContent = `Slot sélectionné : ${slotIdx + 1}`;
+    if (newGameModal) {
+      newGameModal.classList.add('active');
+      newGameModal.setAttribute('aria-hidden', 'false');
+    }
+    document.getElementById('inputBossName').value = '';
+    document.getElementById('inputGangName').value = '';
+    picker?.querySelectorAll('.sprite-option').forEach(o => o.classList.remove('selected'));
+    picker?.querySelector('.sprite-option')?.classList.add('selected');
+    document.getElementById('inputBossName')?.focus();
+  };
+
+  document.getElementById('btnCloseNewGameModal')?.addEventListener('click', closeNewGameModal);
+  document.querySelectorAll('[data-close-new-game]').forEach(el => el.addEventListener('click', closeNewGameModal));
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && newGameModal?.classList.contains('active')) closeNewGameModal();
+  });
 
   // ── Hub repair button ─────────────────────────────────────────
   document.getElementById('btnHubRepairSlot')?.addEventListener('click', () => openHubSlotRepairModal());
@@ -9345,6 +10882,7 @@ function showIntro() {
     state.gang.bossSprite = selectedSprite;
     state.gang.initialized = true;
     saveToSlot(selectedSlotIdx);
+    closeNewGameModal();
     stopShowcase();
     overlay.classList.remove('active');
     renderAll();
@@ -10555,7 +12093,6 @@ function pensionTick() {
       state.stats.eggsHatched = (state.stats.eggsHatched || 0) + 1;
       if (!state.pokedex[baseEn]) {
         state.pokedex[baseEn] = { seen: true, caught: true, shiny: egg.shiny, count: 1 };
-        state.stats.dexCaught = (state.stats.dexCaught || 0) + 1;
       } else {
         state.pokedex[baseEn].caught = true;
         state.pokedex[baseEn].count++;
@@ -10983,8 +12520,8 @@ async function supaCheckCloudLoad() {
     showConfirm(
       `Une sauvegarde cloud plus récente existe (${fmt}).<br>Charger la sauvegarde cloud ? <span style="color:var(--text-dim);font-size:11px">(La save locale sera remplacée)</span>`,
       () => {
-        state = store.importSaveObject(data.state, { emit: false, autoSave: true });
-        syncStoreRefs();
+        state = migrate(data.state);
+        saveState();
         renderAll();
         notify('Sauvegarde cloud chargée !', 'success');
       },
@@ -11020,24 +12557,18 @@ async function supaForceCloudLoad() {
 
 async function supaUpdateLeaderboard() {
   if (!_supabase || !supaSession) return;
-  const s           = state.stats || {};
-  const dexCount    = s.dexCaught || 0;
-  const pokemonCount = (state.pokemons || []).length;
+  const shinyCount  = (state.pokemons || []).filter(p => p.shiny).length;
+  const dexCount    = Object.values(state.pokedex || {}).filter(v => v > 0).length;
   await _supabase.from('players').upsert({
-    user_id:            supaSession.user.id,
-    gang_name:          state.gang.name       || 'Team ???',
-    boss_name:          state.gang.bossName   || 'Boss',
-    reputation:         state.gang.reputation || 0,
-    money:              state.gang.money       || 0,
-    total_caught:       s.totalCaught          || 0,
-    total_sold:         s.totalSold            || 0,
-    shiny_count:        s.shinyCaught          || 0,
-    pokedex_count:      dexCount,
-    pokemon_count:      pokemonCount,
-    total_fights_won:   s.totalFightsWon       || 0,
-    eggs_hatched:       s.eggsHatched          || 0,
-    events_completed:   s.eventsCompleted      || 0,
-    updated_at:         new Date().toISOString(),
+    user_id:       supaSession.user.id,
+    gang_name:     state.gang.name     || 'Team ???',
+    boss_name:     state.gang.bossName || 'Boss',
+    reputation:    state.gang.reputation  || 0,
+    total_caught:  state.stats?.caught    || 0,
+    total_sold:    state.stats?.sold      || 0,
+    shiny_count:   shinyCount,
+    pokedex_count: dexCount,
+    updated_at:    new Date().toISOString(),
   });
 }
 
@@ -11432,7 +12963,6 @@ function boot() {
   const saved = loadState();
   if (saved) {
     state = saved;
-    globalThis.state = state;
   }
   state.sessionStart = Date.now();
 
@@ -11675,82 +13205,5 @@ function boot() {
   // Start game loop
   startGameLoop();
 }
-
-// ── Expose app.js internals for extracted system modules ─────────
-// These globals are read inside functions (not at module init time),
-// so they're always resolved after app.js finishes evaluation.
-Object.assign(globalThis, {
-  // Utility functions
-  t,
-  pick,
-  weightedPick,
-  uid,
-  randInt,
-  addLog,
-  speciesName,
-  playSE,
-  getMysteryEggCost,
-  trainerSprite,
-  // UI + State helpers
-  notify,
-  saveState,
-  checkForNewlyUnlockedZones,
-  updateTopBar,
-  tryAutoIncubate,
-  renderZonesTab,
-  renderGangTab,
-  renderAgentsTab,
-  renderPokemonGrid,
-  renderEggsView,
-  // Audio
-  SFX,
-  // Zone state
-  openZones,
-  zoneSpawns,
-  zoneSpawnTimers,
-  initZone,
-  // UI state
-  get activeTab() { return activeTab; },
-  get pcView() { return pcView; },
-  get currentCombat() { return currentCombat; },
-  // Combat/zone helpers (exposed for agent module)
-  spawnInZone,
-  makePokemon,
-  tryCapture,
-  rollChestLoot,
-  removeSpawn,
-  showCaptureBurst,
-  updateZoneTimers,
-  openCombatPopup,
-  executeCombat,
-  closeCombatPopup,
-  triggerGymRaid,
-  addBattleLogEntry,
-  getCombatRepGain,
-  levelUpPokemon,
-  calculateStats,
-  getPokemonPower,
-  isZoneUnlocked,
-  // Imported constants (module-scoped, not accessible as globals otherwise)
-  MISSIONS,
-  HOURLY_QUEST_POOL,
-  HOURLY_QUEST_REROLL_COST,
-  BASE_PRICE,
-  POTENTIAL_MULT,
-  NATURES,
-  BALLS,
-  MYSTERY_EGG_POOL,
-  // Agent/config constants
-  TITLE_REQUIREMENTS,
-  TITLE_BONUSES,
-  MAX_COMBAT_REWARD,
-  BALL_SPRITES,
-  ITEM_SPRITE_URLS,
-  BOOST_DURATIONS,
-  AGENT_NAMES_M,
-  AGENT_NAMES_F,
-  AGENT_SPRITES,
-  AGENT_PERSONALITIES,
-});
 
 window.addEventListener('DOMContentLoaded', boot);
