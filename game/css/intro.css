@@ -92,6 +92,7 @@
       align-items: center;
       gap: 16px;
       animation: sceneIn .4s ease;
+      background: rgba(0, 0, 0, 0.35);
     }
     @keyframes sceneIn {
       from { opacity: 0; transform: translateY(8px); }
@@ -294,16 +295,17 @@
     #introOverlay .intro-field input:focus { outline: none; border-color: var(--red); }
 
     #introOverlay .sprite-picker {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-      justify-content: center;
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 6px;
       margin-bottom: 20px;
+      max-height: 240px;
+      overflow-y: auto;
+      padding: 4px 2px;
     }
 
     #introOverlay .sprite-option {
-      width: 56px;
-      height: 56px;
+      aspect-ratio: 1;
       background: var(--bg);
       border: 2px solid var(--border);
       border-radius: var(--radius-sm);
@@ -311,11 +313,18 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      transition: border-color .2s;
+      transition: border-color .15s, background .15s;
     }
-    #introOverlay .sprite-option:hover { border-color: var(--border-light); }
-    #introOverlay .sprite-option.selected { border-color: var(--gold); box-shadow: 0 0 10px var(--red-glow); }
-    #introOverlay .sprite-option img { width: 44px; height: 44px; }
+    #introOverlay .sprite-option:hover {
+      border-color: var(--border-light);
+      background: var(--bg-hover);
+    }
+    #introOverlay .sprite-option.selected {
+      border-color: var(--gold);
+      background: rgba(200,160,40,.12);
+      box-shadow: 0 0 8px var(--red-glow);
+    }
+    #introOverlay .sprite-option img { width: 40px; height: 40px; }
 
     #introOverlay .btn-start {
       font-family: var(--font-pixel);

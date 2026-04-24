@@ -542,7 +542,7 @@ function importSave(file) {
 // ── Modal de prévisualisation + conversion d'import ──────────────────────────
 function openImportPreviewModal(raw) {
   const overlay = document.createElement('div');
-  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:20000;display:flex;align-items:center;justify-content:center;padding:16px';
 
   // ── Analyse de la save importée ──────────────────────────────────────────
   const schemaVer   = raw._schemaVersion ?? raw.version ?? '?';
@@ -3469,6 +3469,11 @@ function agentCaptureVisibleSpawn(agent, zoneId, spawnObj) {
 function agentAutoCombat(zoneId, spawnObj, agent) {
   // Don't start if a combat is already running
   if (currentCombat) return;
+  // Show VS badge on the spawn element
+  const _win = document.getElementById(`zw-${zoneId}`);
+  const _vp  = _win?.querySelector('.zone-viewport');
+  const _el  = _vp?.querySelector(`[data-spawn-id="${spawnObj.id}"]`);
+  if (_el) _addVSBadge(_el);
   // Open combat popup (same as player click)
   openCombatPopup(zoneId, spawnObj);
   // Auto-execute after a brief delay so the player can see it
@@ -6067,19 +6072,19 @@ function buildZoneWindowEl(zoneId) {
         <img src="${trainerSprite(state.gang.bossSprite)}" alt="Boss" onerror="this.src='${trainerSprite('acetrainer')}'">
         <span class="boss-cd-label" style="display:none;font-family:var(--font-pixel);font-size:7px;color:var(--red);background:rgba(0,0,0,.8);border-radius:2px;padding:1px 3px;white-space:nowrap;position:absolute;top:-16px;left:50%;transform:translateX(-50%)"></span>
       </div>` : ''}
-      <div class="zone-slots-bar" style="display:flex;align-items:center;gap:6px;padding:3px 8px;font-family:var(--font-pixel);font-size:8px;background:rgba(0,0,0,.4);border-top:1px solid var(--border)">
-        <span class="slot-count" style="color:var(--text-dim)">Agents: ${assignedAgents.length}/${zState.slots || 1}</span>
-        ${(zState.slots || 1) < ZONE_SLOT_COSTS.length + 1 ? (() => {
-          const nextSlot = (zState.slots || 1);
-          const cost = getZoneSlotCost(zoneId, nextSlot - 1);
-          const canAfford = state.gang.money >= cost;
-          return `<button class="zone-slot-upgrade" data-zone-upgrade="${zoneId}" data-cost="${cost}"
-            style="font-family:var(--font-pixel);font-size:7px;padding:2px 6px;background:var(--bg);
-            border:1px solid ${canAfford ? 'var(--gold-dim)' : 'var(--border)'};border-radius:2px;
-            color:${canAfford ? 'var(--gold)' : 'var(--text-dim)'};cursor:${canAfford ? 'pointer' : 'default'}"
-            ${canAfford ? '' : 'disabled'}>+slot ${cost.toLocaleString()}₽</button>`;
-        })() : `<span style="color:var(--gold)">FULL</span>`}
-      </div>
+    </div>
+    <div class="zone-slots-bar" style="display:flex;align-items:center;gap:6px;padding:3px 8px;font-family:var(--font-pixel);font-size:8px;background:rgba(0,0,0,.55);border-top:1px solid var(--border)">
+      <span class="slot-count" style="color:var(--text-dim)">Agents: ${assignedAgents.length}/${zState.slots || 1}</span>
+      ${(zState.slots || 1) < ZONE_SLOT_COSTS.length + 1 ? (() => {
+        const nextSlot = (zState.slots || 1);
+        const cost = getZoneSlotCost(zoneId, nextSlot - 1);
+        const canAfford = state.gang.money >= cost;
+        return `<button class="zone-slot-upgrade" data-zone-upgrade="${zoneId}" data-cost="${cost}"
+          style="font-family:var(--font-pixel);font-size:7px;padding:2px 6px;background:var(--bg);
+          border:1px solid ${canAfford ? 'var(--gold-dim)' : 'var(--border)'};border-radius:2px;
+          color:${canAfford ? 'var(--gold)' : 'var(--text-dim)'};cursor:${canAfford ? 'pointer' : 'default'}"
+          ${canAfford ? '' : 'disabled'}>+slot ${cost.toLocaleString()}₽</button>`;
+      })() : `<span style="color:var(--gold)">FULL</span>`}
     </div>
   `;
 
@@ -6215,9 +6220,9 @@ function patchZoneWindow(zoneId, win) {
     viewport.appendChild(bossEl);
   }
 
-  // Refresh slots bar
+  // Refresh slots bar (now a footer sibling of .zone-viewport, not inside it)
   const viewport2 = win.querySelector('.zone-viewport');
-  const slotsBar = viewport2?.querySelector('.zone-slots-bar');
+  const slotsBar = win.querySelector('.zone-slots-bar');
   if (slotsBar) {
     const freshAssigned = state.agents.filter(a => a.assignedZone === zoneId);
     const freshZState = state.zones[zoneId] || {};
@@ -7206,6 +7211,16 @@ function _tryWingDrop(zoneId) {
   saveState();
 }
 
+// Adds a red "VS" badge over a trainer spawn element to indicate combat
+function _addVSBadge(el) {
+  if (!el || el.querySelector('.spawn-vs-badge')) return;
+  const badge = document.createElement('div');
+  badge.className = 'spawn-vs-badge';
+  badge.textContent = 'VS';
+  badge.style.cssText = 'position:absolute;top:-10px;left:50%;transform:translateX(-50%);font-family:var(--font-pixel);font-size:9px;font-weight:bold;color:#ff3333;background:rgba(0,0,0,.8);border:1px solid rgba(255,51,51,.5);border-radius:3px;padding:1px 5px;pointer-events:none;z-index:5;animation:pop .2s ease-out';
+  el.appendChild(badge);
+}
+
 function renderSpawnInWindow(zoneId, spawnObj) {
   const win = document.getElementById(`zw-${zoneId}`);
   if (!win) return;
@@ -7243,6 +7258,7 @@ function renderSpawnInWindow(zoneId, spawnObj) {
     el.addEventListener('click', () => {
       if (el.dataset.challenged) return;
       el.dataset.challenged = '1';
+      _addVSBadge(el);
       openCombatPopup(zoneId, spawnObj);
     });
   } else if (spawnObj.type === 'trainer') {
@@ -7253,6 +7269,7 @@ function renderSpawnInWindow(zoneId, spawnObj) {
     el.addEventListener('click', () => {
       if (el.dataset.challenged) return;
       el.dataset.challenged = '1';
+      _addVSBadge(el);
       openCombatPopup(zoneId, spawnObj);
     });
   } else if (spawnObj.type === 'chest') {
