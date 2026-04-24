@@ -5,6 +5,13 @@
 'use strict';
 
 import './modules/secretCodes.js';
+import './modules/systems/llm.js';
+import './modules/systems/missions.js';
+import './modules/systems/market.js';
+import './modules/systems/agent.js';
+import './modules/systems/sessionObjectives.js';
+import './modules/systems/trainingRoom.js';
+import './modules/systems/pension.js';
 
 import { POKEDEX_DESC } from './data/pokedex-desc.js';
 import { ZONE_BGS, COSMETIC_BGS } from './data/zones-visuals-data.js';
@@ -237,6 +244,7 @@ const DEFAULT_STATE = {
 };
 
 let state = structuredClone(DEFAULT_STATE);
+globalThis.state = state;
 
 let _supaLastSaveAt = 0;
 const SUPA_SAVE_THROTTLE_MS = 30_000; // max 1 cloud save / 30s
@@ -266,6 +274,7 @@ function slimPokemon(p) {
 }
 
 function saveState() {
+  globalThis.state = state; // keep modules in sync
   if (!state.marketSales) state.marketSales = {}; // guard: toujours initialisé
 
   // Playtime accumulation
@@ -542,7 +551,7 @@ function importSave(file) {
 // ── Modal de prévisualisation + conversion d'import ──────────────────────────
 function openImportPreviewModal(raw) {
   const overlay = document.createElement('div');
-  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:20000;display:flex;align-items:center;justify-content:center;padding:16px';
 
   // ── Analyse de la save importée ──────────────────────────────────────────
   const schemaVer   = raw._schemaVersion ?? raw.version ?? '?';
@@ -950,151 +959,8 @@ function pokemonDisplayName(p) {
   return p.nick || speciesName(p.species_en);
 }
 
-// ════════════════════════════════════════════════════════════════
-// SESSION TRACKING  (30-min idle = nouvelle session)
-// ════════════════════════════════════════════════════════════════
-const SESSION_KEY     = 'pg_session_baseline';
-const SESSION_IDLE_MS = 30 * 60 * 1000;
-let _sessionBaseline  = null;
+// ── SESSION TRACKING … itemSprite extracted → modules/systems/sessionObjectives.js ──
 
-function initSession() {
-  const now = Date.now();
-  const raw = localStorage.getItem(SESSION_KEY);
-  if (raw) {
-    try {
-      const saved = JSON.parse(raw);
-      if (now - saved.ts < SESSION_IDLE_MS) {
-        _sessionBaseline = saved;
-        // Migration : anciens saves de session sans caught/sold
-        if (_sessionBaseline.caughtAtStart === undefined) _sessionBaseline.caughtAtStart = state.stats.totalCaught || 0;
-        if (_sessionBaseline.soldAtStart   === undefined) _sessionBaseline.soldAtStart   = state.stats.totalSold   || 0;
-        return; // session en cours — on la continue
-      }
-    } catch {}
-  }
-  // Nouvelle session
-  _sessionBaseline = {
-    ts:           now,
-    money:        state.gang.money,
-    rep:          state.gang.reputation,
-    pokemon:      state.pokemons.length,
-    shinies:      state.stats.shinyCaught    || 0,
-    fights:       state.stats.totalFightsWon || 0,
-    caughtAtStart: state.stats.totalCaught   || 0,
-    soldAtStart:   state.stats.totalSold     || 0,
-  };
-  localStorage.setItem(SESSION_KEY, JSON.stringify(_sessionBaseline));
-}
-
-function _saveSessionActivity() {
-  if (_sessionBaseline) {
-    _sessionBaseline.ts = Date.now();
-    localStorage.setItem(SESSION_KEY, JSON.stringify(_sessionBaseline));
-  }
-}
-
-function getSessionDelta() {
-  if (!_sessionBaseline) return null;
-  const dMoney  = state.gang.money            - _sessionBaseline.money;
-  const dRep    = state.gang.reputation       - _sessionBaseline.rep;
-  const dCaught = (state.stats.totalCaught   || 0) - (_sessionBaseline.caughtAtStart || 0);
-  const dSold   = (state.stats.totalSold     || 0) - (_sessionBaseline.soldAtStart   || 0);
-  const dShiny  = (state.stats.shinyCaught   || 0) - (_sessionBaseline.shinies       || 0);
-  const dFights = (state.stats.totalFightsWon|| 0) - (_sessionBaseline.fights        || 0);
-
-  const parts = [];
-  const fmtPos = (v, icon) => {
-    if (v <= 0) return null;
-    const color = 'var(--green-dim,#4a8)';
-    return `<span style="color:${color}">+${Math.abs(v) >= 1000 ? v.toLocaleString() : v} ${icon}</span>`;
-  };
-  const fmtAny = (v, icon) => {
-    if (v === 0) return null;
-    const sign  = v > 0 ? '+' : '';
-    const color = v > 0 ? 'var(--green-dim,#4a8)' : 'var(--red)';
-    return `<span style="color:${color}">${sign}${Math.abs(v) >= 1000 ? v.toLocaleString() : v} ${icon}</span>`;
-  };
-
-  if (dMoney  !== 0) parts.push(fmtAny(dMoney,  '₽'));
-  if (dCaught  > 0)  parts.push(fmtPos(dCaught, '🎯'));
-  if (dSold    > 0)  parts.push(`<span style="color:var(--text-dim)">-${dSold} 💱</span>`);
-  if (dRep    !== 0) parts.push(fmtAny(dRep,    '⭐'));
-  if (dShiny   > 0)  parts.push(fmtPos(dShiny,  '✨'));
-  if (dFights  > 0)  parts.push(fmtPos(dFights, '⚔'));
-  return parts.filter(Boolean).join(' · ');
-}
-
-// ════════════════════════════════════════════════════════════════
-// NEXT OBJECTIVE
-// ════════════════════════════════════════════════════════════════
-function getNextObjective() {
-  const pc     = state.pokemons.length;
-  const team   = state.gang.bossTeam.length;
-  const agents = state.agents.length;
-  const money  = state.gang.money;
-  const rep    = state.gang.reputation;
-  const zones  = openZones ? openZones.size : 0;
-  const dex    = Object.values(state.pokedex).filter(e => e.caught).length;
-
-  if (!state.gang.initialized)
-    return { text: '👋 Crée ton Gang pour commencer', tab: null };
-  if (pc === 0)
-    return { text: '⚡ Capture ton premier Pokémon', detail: '→ Zones', tab: 'tabZones' };
-  if (team === 0)
-    return { text: '⚔ Place un Pokémon dans ton équipe Boss', detail: '→ PC', tab: 'tabPC' };
-  if (team < 3)
-    return { text: `⚔ Complète ton équipe Boss`, detail: `${team}/3`, tab: 'tabPC' };
-  if (agents === 0) {
-    const cost = typeof getAgentRecruitCost === 'function' ? getAgentRecruitCost() : 10000;
-    const progress = money >= cost ? 'Prêt !' : `₽${money.toLocaleString()}/${cost.toLocaleString()}`;
-    return { text: '👤 Recrute ton premier agent', detail: progress, tab: 'tabPC' };
-  }
-  // Zone suivante verrouillée
-  const nextLocked = ZONES ? ZONES.find(z => !isZoneUnlocked(z.id)) : null;
-  if (nextLocked) {
-    const req = nextLocked.repRequired || 0;
-    if (req > 0)
-      return { text: `🗺 Débloquer ${nextLocked.fr}`, detail: `Rép. ${rep}/${req}`, tab: 'tabZones' };
-  }
-  if (agents < 3)
-    return { text: `👥 Avoir ${agents+1} agents`, detail: `${agents}/3`, tab: 'tabAgents' };
-  if (dex < 151)
-    return { text: `📖 Pokédex ${dex}/151`, detail: `${151 - dex} espèces manquantes`, tab: 'tabPokedex' };
-  return { text: '🏆 Pokédex complet — Tu domines Kanto !', detail: null, tab: null };
-}
-
-// ── Boost helpers ─────────────────────────────────────────────
-function isBoostActive(boostId) {
-  return (state.activeBoosts[boostId] || 0) > Date.now();
-}
-function boostRemaining(boostId) {
-  const exp = state.activeBoosts[boostId] || 0;
-  return Math.max(0, Math.ceil((exp - Date.now()) / 1000));
-}
-// Boost durations moved to data/gameplay-config-data.js
-
-function activateBoost(boostId) {
-  if ((state.inventory[boostId] || 0) <= 0) return false;
-  state.inventory[boostId]--;
-  const duration = BOOST_DURATIONS[boostId] || 90000;
-  // Cumulate: extend from current expiry if already active, else from now
-  const base = Math.max(Date.now(), state.activeBoosts[boostId] || 0);
-  state.activeBoosts[boostId] = base + duration;
-  saveState();
-  return true;
-}
-
-// Item and ball sprite URLs moved to data/assets-data.js
-function itemSprite(id) {
-  const url = ITEM_SPRITE_URLS[id];
-  return url
-    ? `<img src="${url}" style="width:28px;height:28px;image-rendering:pixelated" onerror="this.style.display='none'">`
-    : `<span style="font-family:var(--font-pixel);font-size:8px;color:var(--text-dim)">${id.toUpperCase().slice(0,3)}</span>`;
-}
-
-// Translator flavor text moved to data/flavor-data.js
-
-// PC sub-view state
 let pcView = 'grid'; // 'grid' | 'lab'
 let _pcLastRenderKey = ''; // tracks last filter/sort/page combo to avoid unnecessary rebuilds
 
@@ -2230,6 +2096,10 @@ function getZoneAgentSlots(zoneId) {
 const openZones = new Set();
 const zoneSpawnTimers = {};
 const zoneSpawns = {}; // zoneId -> [{ type, data, el, timeout }]
+// Expose for agent module (const objects — mutated in-place, reference stays valid)
+globalThis.openZones = openZones;
+globalThis.zoneSpawns = zoneSpawns;
+globalThis.zoneSpawnTimers = zoneSpawnTimers;
 
 function makeTrainerTeam(zone, trainerKey, forcedSize) {
   const trainer = TRAINER_TYPES[trainerKey];
@@ -2801,1010 +2671,13 @@ function _processZoneUnlockQueue() {
   popup.classList.add('show');
 }
 
-// ════════════════════════════════════════════════════════════════
-//  7b. MISSIONS MODULE
-// ════════════════════════════════════════════════════════f════════
+// ── getMissionStat … claimMission extracted → modules/systems/missions.js ──
 
-function getMissionStat(statKey) {
-  if (statKey === '_reputation') return state.gang.reputation;
-  if (statKey === '_agentCount') return state.agents.length;
-  if (statKey === '_pokedexCaught') {
-    return Object.values(state.pokedex).filter(e => e.caught).length;
-  }
-  if (statKey === '_starterCount') {
-    const starters = ['bulbasaur', 'charmander', 'squirtle'];
-    return starters.filter(s => state.pokemons.some(p => p.species_en === s)).length;
-  }
-  if (statKey === '_fossilCount') {
-    const fossils = ['omanyte', 'kabuto', 'aerodactyl'];
-    return fossils.filter(s => state.pokemons.some(p => p.species_en === s)).length;
-  }
-  if (statKey === '_zonesWithCapture') {
-    return Object.values(state.zones).filter(z => (z.captures || 0) > 0).length;
-  }
-  if (statKey === '_dexKantoCaught') {
-    return POKEMON_GEN1.filter(s => !s.hidden && s.dex >= 1 && s.dex <= 151 && state.pokedex[s.en]?.caught).length;
-  }
-  if (statKey === '_dexFullCaught') {
-    return POKEMON_GEN1.filter(s => !s.hidden && state.pokedex[s.en]?.caught).length;
-  }
-  if (statKey === '_shinyDexCount') {
-    return POKEMON_GEN1.filter(s => !s.hidden && state.pokedex[s.en]?.shiny).length;
-  }
-  if (statKey === '_shinyStarterCount') {
-    return ['bulbasaur','charmander','squirtle'].filter(s => state.pokedex[s]?.shiny).length;
-  }
-  if (statKey === '_shinyLegendaryCount') {
-    return POKEMON_GEN1.filter(s => s.rarity === 'legendary' && !s.hidden && state.pokedex[s.en]?.shiny).length;
-  }
-  return state.stats[statKey] || 0;
-}
+// ── getAgentRecruitCost … agentOpenChest extracted → modules/systems/agent.js ──
 
-function initMissions() {
-  if (!state.missions) {
-    state.missions = { completed: [], daily: { reset: 0, progress: {}, claimed: [] }, weekly: { reset: 0, progress: {}, claimed: [] } };
-  }
-  // Reset daily/weekly if expired
-  const now = Date.now();
-  const DAY = 86400000;
-  const WEEK = 604800000;
-  if (now - state.missions.daily.reset >= DAY) {
-    // Snapshot current stats as baseline
-    const baseline = {};
-    for (const m of MISSIONS.filter(m => m.type === 'daily')) {
-      baseline[m.stat] = getMissionStat(m.stat);
-    }
-    state.missions.daily = { reset: now, progress: baseline, claimed: [] };
-  }
-  if (now - state.missions.weekly.reset >= WEEK) {
-    const baseline = {};
-    for (const m of MISSIONS.filter(m => m.type === 'weekly')) {
-      baseline[m.stat] = getMissionStat(m.stat);
-    }
-    state.missions.weekly = { reset: now, progress: baseline, claimed: [] };
-  }
-}
+// ── calculatePrice … buyItem extracted → modules/systems/market.js ──
 
-// ── Hourly quests ─────────────────────────────────────────────
-const HOUR_MS = 3600000;
-
-function initHourlyQuests() {
-  if (!state.missions.hourly) state.missions.hourly = { reset: 0, slots: [], baseline: {}, claimed: [] };
-  const h = state.missions.hourly;
-  if (Date.now() - h.reset >= HOUR_MS) {
-    // Draw 3 medium + 2 hard from pool (no duplicates)
-    const medium = HOURLY_QUEST_POOL.filter(q => q.diff === 'medium');
-    const hard   = HOURLY_QUEST_POOL.filter(q => q.diff === 'hard');
-    const pickRand = (arr, n) => {
-      const shuffled = [...arr].sort(() => Math.random() - 0.5);
-      return shuffled.slice(0, n).map(q => q.id);
-    };
-    const slots = [...pickRand(medium, 3), ...pickRand(hard, 2)];
-    const baseline = {};
-    for (const qId of slots) {
-      const q = HOURLY_QUEST_POOL.find(x => x.id === qId);
-      if (q) baseline[q.stat] = (baseline[q.stat] === undefined) ? getMissionStat(q.stat) : baseline[q.stat];
-    }
-    state.missions.hourly = { reset: Date.now(), slots, baseline, claimed: [] };
-    saveState();
-  }
-}
-
-function getHourlyQuest(slotIdx) {
-  const id = state.missions.hourly?.slots?.[slotIdx];
-  return id ? HOURLY_QUEST_POOL.find(q => q.id === id) : null;
-}
-
-function getHourlyProgress(q) {
-  const baseline = state.missions.hourly.baseline?.[q.stat] || 0;
-  return Math.min(getMissionStat(q.stat) - baseline, q.target);
-}
-
-function isHourlyComplete(q)  { return getHourlyProgress(q) >= q.target; }
-function isHourlyClaimed(idx) { return (state.missions.hourly.claimed || []).includes(idx); }
-
-function claimHourlyQuest(idx) {
-  const q = getHourlyQuest(idx);
-  if (!q || !isHourlyComplete(q) || isHourlyClaimed(idx)) return;
-  if (!state.missions.hourly.claimed) state.missions.hourly.claimed = [];
-  state.missions.hourly.claimed.push(idx);
-  if (q.reward.money) { state.gang.money += q.reward.money; state.stats.totalMoneyEarned += q.reward.money; }
-  if (q.reward.rep)   { const prev = state.gang.reputation; state.gang.reputation += q.reward.rep; checkForNewlyUnlockedZones(prev); }
-  notify(`✓ Quête : ${q.fr} — +${q.reward.money?.toLocaleString() || 0}₽${q.reward.rep ? ' +'+q.reward.rep+' rep' : ''}`, 'gold');
-  SFX.play('coin')
-  saveState();
-}
-
-function rerollHourlyQuest(idx) {
-  if (state.gang.money < HOURLY_QUEST_REROLL_COST) { notify(`Pokédollars insuffisants (${HOURLY_QUEST_REROLL_COST}₽ req)`); return; }
-  const h = state.missions.hourly;
-  if (!h || isHourlyClaimed(idx)) return;
-  const current = getHourlyQuest(idx);
-  if (!current) return;
-  state.gang.money -= HOURLY_QUEST_REROLL_COST;
-  // Pick a different quest of same difficulty
-  const pool = HOURLY_QUEST_POOL.filter(q => q.diff === current.diff && q.id !== current.id && !h.slots.includes(q.id));
-  if (pool.length === 0) { notify('Aucune quête disponible pour le reroll'); state.gang.money += HOURLY_QUEST_REROLL_COST; return; }
-  const newQ = pool[Math.floor(Math.random() * pool.length)];
-  h.slots[idx] = newQ.id;
-  if (h.baseline[newQ.stat] === undefined) h.baseline[newQ.stat] = getMissionStat(newQ.stat);
-  saveState();
-  notify(`Reroll : ${newQ.fr}`, 'success');
-}
-
-function getMissionProgress(mission) {
-  const current = getMissionStat(mission.stat);
-  if (mission.type === 'story') {
-    return Math.min(current, mission.target);
-  }
-  const period = mission.type === 'daily' ? state.missions.daily : state.missions.weekly;
-  const baseline = period.progress[mission.stat] || 0;
-  return Math.min(current - baseline, mission.target);
-}
-
-function isMissionComplete(mission) {
-  return getMissionProgress(mission) >= mission.target;
-}
-
-function isMissionClaimed(mission) {
-  if (mission.type === 'story') return state.missions.completed.includes(mission.id);
-  const period = mission.type === 'daily' ? state.missions.daily : state.missions.weekly;
-  return period.claimed.includes(mission.id);
-}
-
-function claimMission(mission) {
-  if (!isMissionComplete(mission) || isMissionClaimed(mission)) return;
-  // Grant rewards
-  if (mission.reward.money) {
-    state.gang.money += mission.reward.money;
-    state.stats.totalMoneyEarned += mission.reward.money;
-  }
-  if (mission.reward.rep) {
-    state.gang.reputation += mission.reward.rep;
-  }
-  // Mark as claimed
-  if (mission.type === 'story') {
-    state.missions.completed.push(mission.id);
-  } else {
-    const period = mission.type === 'daily' ? state.missions.daily : state.missions.weekly;
-    period.claimed.push(mission.id);
-  }
-  const name = state.lang === 'fr' ? mission.fr : mission.en;
-  notify(`${mission.icon} ${name} — ${state.lang === 'fr' ? 'Récompense récupérée !' : 'Reward claimed!'}`, 'gold');
-  saveState();
-  updateTopBar();
-}
-
-// ════════════════════════════════════════════════════════════════
-//  8.  AGENT MODULE
-// ════════════════════════════════════════════════════════════════
-
-// Exponential cost scaling: 5k → 20k → 80k → 320k → 1.28M → …
-function getAgentRecruitCost() {
-  const n = state.agents.length;
-  const base = Math.round(5000 * Math.pow(4, n));
-  // Au-dessus de 1M : palier linéaire = N millions (N = nb agents actuels)
-  return base > 1_000_000 ? n * 1_000_000 : base;
-}
-
-function rollNewAgent() {
-  const isFemale = Math.random() < 0.5;
-  const name = pick(isFemale ? AGENT_NAMES_F : AGENT_NAMES_M);
-  const sprite = pick(AGENT_SPRITES);
-  const personality = [];
-  const pool = [...AGENT_PERSONALITIES];
-  for (let i = 0; i < 2; i++) {
-    const idx = Math.floor(Math.random() * pool.length);
-    personality.push(pool.splice(idx, 1)[0]);
-  }
-  return {
-    id: `ag-${uid()}`,
-    name,
-    sprite: trainerSprite(sprite),
-    spriteKey: sprite,
-    title: 'grunt',
-    level: 1,
-    xp: 0,
-    combatsWon: 0,
-    stats: {
-      capture: randInt(3, 18),
-      combat: randInt(3, 18),
-      luck: randInt(1, 12),
-    },
-    personality,
-    team: [],
-    assignedZone: null,
-    notifyCaptures: true,
-    perkLevels: [],
-    pendingPerk: false,
-  };
-}
-
-function recruitAgent(agentData) {
-  state.agents.push(agentData);
-  addLog(t('recruit_agent') + ': ' + agentData.name);
-  // Behavioural log — premier agent recruté
-  if (!state.behaviourLogs) state.behaviourLogs = {};
-  if (!state.behaviourLogs.firstAgentAt) state.behaviourLogs.firstAgentAt = Date.now();
-  saveState();
-}
-
-function openAgentRecruitModal(onAfterRecruit) {
-  const cost = getAgentRecruitCost();
-  if (state.gang.money < cost) {
-    notify(state.lang === 'fr' ? 'Pas assez d\'argent !' : 'Not enough money!');
-    SFX.play('error')
-    return;
-  }
-
-  const candidates = [rollNewAgent(), rollNewAgent(), rollNewAgent()];
-
-  const TITLE_FR = { grunt:'Grunt', soldier:'Soldat', lieutenant:'Lieutenant', captain:'Capitaine', commander:'Commandant' };
-  function statBar(val, max = 20) {
-    const pct = Math.round(Math.min(val / max, 1) * 100);
-    return `<div style="height:4px;background:var(--bg);border-radius:2px;width:80px;overflow:hidden"><div style="height:100%;width:${pct}%;background:var(--gold)"></div></div>`;
-  }
-
-  const cardsHtml = candidates.map((ag, i) => `
-    <div class="recruit-card" data-idx="${i}" style="
-      flex:1;min-width:140px;max-width:190px;
-      background:var(--bg-card);border:1px solid var(--border);
-      border-radius:var(--radius);padding:12px 10px;
-      display:flex;flex-direction:column;align-items:center;gap:8px;
-      cursor:pointer;transition:border-color .15s,box-shadow .15s">
-      <img src="${ag.sprite}" style="width:48px;height:48px;image-rendering:pixelated">
-      <div style="font-family:var(--font-pixel);font-size:10px;color:var(--text);text-align:center">${ag.name}</div>
-      <div style="font-size:8px;color:var(--text-dim)">${ag.personality.map(p => p.fr || p).join(' · ')}</div>
-      <div style="display:flex;flex-direction:column;gap:4px;width:100%;margin-top:2px">
-        <div style="display:flex;justify-content:space-between;align-items:center;font-family:var(--font-pixel);font-size:7px;color:var(--text-dim)">
-          <span>ATK</span>${statBar(ag.stats.combat)}
-          <span style="color:var(--text)">${ag.stats.combat}</span>
-        </div>
-        <div style="display:flex;justify-content:space-between;align-items:center;font-family:var(--font-pixel);font-size:7px;color:var(--text-dim)">
-          <span>CAP</span>${statBar(ag.stats.capture)}
-          <span style="color:var(--text)">${ag.stats.capture}</span>
-        </div>
-        <div style="display:flex;justify-content:space-between;align-items:center;font-family:var(--font-pixel);font-size:7px;color:var(--text-dim)">
-          <span>LCK</span>${statBar(ag.stats.luck, 12)}
-          <span style="color:var(--text)">${ag.stats.luck}</span>
-        </div>
-      </div>
-      <button class="recruit-pick-btn" data-idx="${i}" style="
-        margin-top:4px;font-family:var(--font-pixel);font-size:8px;
-        padding:5px 14px;background:var(--bg);border:1px solid var(--gold-dim);
-        border-radius:var(--radius-sm);color:var(--gold);cursor:pointer;width:100%">
-        Recruter
-      </button>
-    </div>`).join('');
-
-  const modal = document.createElement('div');
-  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.75);display:flex;align-items:center;justify-content:center;z-index:9999';
-  modal.innerHTML = `
-    <div style="background:var(--bg-panel);border:2px solid var(--gold-dim);border-radius:var(--radius);padding:20px;max-width:640px;width:96%;display:flex;flex-direction:column;gap:14px">
-      <div style="font-family:var(--font-pixel);font-size:11px;color:var(--gold);text-align:center">
-        ★ RECRUTEMENT — Choisissez un candidat
-      </div>
-      <div style="font-size:8px;color:var(--text-dim);text-align:center;font-family:var(--font-pixel)">
-        Coût : ${cost.toLocaleString()}₽ — Trois candidats disponibles
-      </div>
-      <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">${cardsHtml}</div>
-      <div style="text-align:center">
-        <button id="recruitCancelBtn" style="font-family:var(--font-pixel);font-size:8px;padding:6px 16px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-dim);cursor:pointer">Annuler</button>
-      </div>
-    </div>`;
-  document.body.appendChild(modal);
-
-  // Hover highlight
-  modal.querySelectorAll('.recruit-card').forEach(card => {
-    card.addEventListener('mouseenter', () => { card.style.borderColor = 'var(--gold-dim)'; card.style.boxShadow = '0 0 10px rgba(255,204,90,.2)'; });
-    card.addEventListener('mouseleave', () => { card.style.borderColor = 'var(--border)'; card.style.boxShadow = ''; });
-  });
-
-  // Pick
-  modal.querySelectorAll('.recruit-pick-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const idx = parseInt(btn.dataset.idx);
-      state.gang.money -= cost;
-      recruitAgent(candidates[idx]);
-      notify(`${state.lang === 'fr' ? 'Recruté' : 'Recruited'}: ${candidates[idx].name}!`, 'gold');
-      updateTopBar();
-      modal.remove();
-      onAfterRecruit?.();
-    });
-  });
-
-  document.getElementById('recruitCancelBtn').addEventListener('click', () => modal.remove());
-  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
-}
-
-function assignAgentToZone(agentId, zoneId) {
-  const agent = state.agents.find(a => a.id === agentId);
-  if (!agent) return;
-  // Remove from old zone
-  if (agent.assignedZone) {
-    const oldZ = state.zones[agent.assignedZone];
-    if (oldZ) {
-      oldZ.assignedAgents = oldZ.assignedAgents.filter(id => id !== agentId);
-    }
-  }
-  agent.assignedZone = zoneId;
-  if (zoneId) {
-    const z = initZone(zoneId);
-    const maxSlots = z.slots || 1;
-    if (!z.assignedAgents.includes(agentId)) {
-      if (z.assignedAgents.length < maxSlots) {
-        z.assignedAgents.push(agentId);
-      } else {
-        // Zone pleine — désassigner l'agent sans l'ajouter
-        agent.assignedZone = null;
-        notify(`Zone pleine (${maxSlots} slot${maxSlots > 1 ? 's' : ''}). Améliore la zone pour +1 agent.`, 'error');
-        saveState();
-        return;
-      }
-    }
-  }
-  saveState();
-}
-
-function grantAgentXP(agent, amount) {
-  agent.xp += amount;
-  const needed = agent.level * 30;
-  while (agent.xp >= needed && agent.level < 100) {
-    agent.xp -= needed;
-    agent.level++;
-    if (agent.level % 5 === 0) {
-      agent.pendingPerk = true;
-      notify(`${agent.name} a gagne un perk ! (Lv.${agent.level})`, 'gold');
-    }
-  }
-  checkPromotion(agent);
-}
-
-function checkPromotion(agent) {
-  if (agent.title === 'grunt' &&
-      agent.level >= TITLE_REQUIREMENTS.lieutenant.level &&
-      agent.combatsWon >= TITLE_REQUIREMENTS.lieutenant.combatsWon) {
-    agent.title = 'lieutenant';
-    notify(t('agent_promo', { agent: agent.name, title: 'Lieutenant' }), 'gold');
-    addLog(t('agent_promo', { agent: agent.name, title: 'Lieutenant' }));
-  }
-  if (agent.title === 'lieutenant' &&
-      agent.level >= TITLE_REQUIREMENTS.captain.level &&
-      agent.combatsWon >= TITLE_REQUIREMENTS.captain.combatsWon) {
-    agent.title = 'captain';
-    notify(t('agent_promo', { agent: agent.name, title: 'Captain' }), 'gold');
-    addLog(t('agent_promo', { agent: agent.name, title: 'Captain' }));
-  }
-}
-
-function getAgentCombatPower(agent) {
-  const bonus = 1 + (TITLE_BONUSES[agent.title] || 0);
-  let teamPower = 0;
-  for (const pkId of agent.team) {
-    const p = state.pokemons.find(pk => pk.id === pkId);
-    if (p) teamPower += getPokemonPower(p);
-  }
-  return Math.round((agent.stats.combat * 10 + teamPower) * bonus);
-}
-
-// ── Passive agent tick (background, no open window needed) ───────
-// Runs every ~10s and simulates agent activity for closed zones
-function passiveAgentTick() {
-  if (!state.settings.autoCombat) return;
-  let changed = false;
-  const now = Date.now();
-
-  for (const agent of state.agents) {
-    if (!agent.assignedZone) continue;
-    const zoneId = agent.assignedZone;
-    // Skip zones already handled by the visual tick this frame
-    if (openZones.has(zoneId)) continue;
-
-    const zone = ZONE_BY_ID[zoneId];
-    if (!zone || zone.spawnRate === 0) continue;
-
-    // Chance to act this tick (proportional to agent capture stat)
-    const actChance = 0.4 + agent.stats.capture / 100;
-    if (Math.random() > actChance) continue;
-
-    // Roll what would spawn
-    const entry = spawnInZone(zoneId);
-    if (!entry) continue;
-
-    if (entry.type === 'pokemon') {
-      // Agent captures silently
-      const ball = 'pokeball';
-      if ((state.inventory[ball] || 0) <= 0) continue;
-      const pokemon = makePokemon(entry.species_en, zoneId, ball);
-      if (!pokemon) continue;
-      // Crit de capture : basé sur la stat CAP de l'agent
-      const agentCritChance = (agent.stats.capture || 0) / 100;
-      if (Math.random() < agentCritChance) {
-        pokemon.potential = Math.min(5, (pokemon.potential || 1) + 1);
-        if (agent.notifyCaptures) notify(`★ ${agent.name} — Capture critique ! ★`, 'gold');
-      }
-      state.inventory[ball]--;
-      state.pokemons.push(pokemon);
-      state.stats.totalCaught++;
-      if (!state.pokedex[pokemon.species_en]) {
-        state.pokedex[pokemon.species_en] = { seen: true, caught: true, shiny: pokemon.shiny, count: 1 };
-      } else {
-        state.pokedex[pokemon.species_en].caught = true;
-        state.pokedex[pokemon.species_en].count++;
-        if (pokemon.shiny) state.pokedex[pokemon.species_en].shiny = true;
-      }
-      if (pokemon.shiny) state.stats.shinyCaught++;
-      grantAgentXP(agent, 5);
-      const name = speciesName(pokemon.species_en);
-      const stars = '★'.repeat(pokemon.potential);
-      if (agent.notifyCaptures) {
-        notify(`👤 ${agent.name} → ${name} ${stars}${pokemon.shiny ? ' ✨' : ''}`, pokemon.shiny ? 'gold' : 'success');
-      }
-      addLog(t('agent_catch', { agent: agent.name, pokemon: name }));
-      changed = true;
-
-    } else if (entry.type === 'trainer' || entry.type === 'raid') {
-      // Agent auto-fights (raids are tougher — need zone group power)
-      const agentPower = entry.type === 'raid'
-        ? state.agents.filter(a => a.assignedZone === zoneId).reduce((s, a) => s + getAgentCombatPower(a), 0)
-        : getAgentCombatPower(agent);
-      let enemyPower = 0;
-      for (const t of entry.team) enemyPower += (t.stats.atk + t.stats.def + t.stats.spd);
-      const pRoll = agentPower * (0.8 + Math.random() * 0.4);
-      const eRoll = enemyPower * (0.8 + Math.random() * 0.4);
-      const win = pRoll >= eRoll;
-      if (win) {
-        const reward = Math.min(MAX_COMBAT_REWARD, randInt(entry.trainer.reward[0], entry.trainer.reward[1]));
-        const repGain = getCombatRepGain(entry.trainerKey || entry.trainer?.sprite, true);
-        // Accumulate in zone instead of direct payment
-        const zs = initZone(zoneId);
-        zs.pendingIncome = (zs.pendingIncome || 0) + reward;
-        state.stats.totalMoneyEarned += reward;
-        state.gang.reputation += repGain;
-        state.stats.totalFights++;
-        state.stats.totalFightsWon++;
-        agent.combatsWon = (agent.combatsWon || 0) + 1;
-        if (entry.trainerKey === 'rocketgrunt' || entry.trainerKey === 'rocketgruntf' || entry.trainerKey === 'giovanni') {
-          state.stats.rocketDefeated++;
-        }
-        if (entry.trainerKey === 'blue') {
-          state.stats.blueDefeated = (state.stats.blueDefeated || 0) + 1;
-        }
-        const xpEach = Math.round((10 + entry.trainer.diff * 5) * 0.75);
-        grantAgentXP(agent, xpEach);
-        for (const pkId of agent.team) {
-          const p = state.pokemons.find(pk => pk.id === pkId);
-          if (p) levelUpPokemon(p, xpEach);
-        }
-        // Zone combats counter
-        zs.combatsWon = (zs.combatsWon || 0) + 1;
-        if (agent.notifyCaptures) {
-          notify(`[WIN] ${agent.name} +${reward}P`, 'success');
-        }
-        addLog(t('agent_win', { agent: agent.name }));
-        addBattleLogEntry({
-          ts: Date.now(),
-          zoneName: `[Agent] ${agent.name} — ${ZONE_BY_ID[zoneId]?.fr || zoneId}`,
-          win: true,
-          reward: reward,
-          repGain: repGain,
-          lines: [`${agent.name} a battu un dresseur. +${reward}₽ +${repGain}rep`],
-          trainerKey: entry.trainerKey,
-          isAgent: true,
-        });
-      } else {
-        state.stats.totalFights++;
-        state.gang.reputation = Math.max(0, state.gang.reputation - 5);
-        if (agent.notifyCaptures) notify(`[KO] ${agent.name} defaite...`);
-        addLog(t('agent_lose', { agent: agent.name }));
-        addBattleLogEntry({
-          ts: Date.now(),
-          zoneName: `[Agent] ${agent.name} — ${ZONE_BY_ID[zoneId]?.fr || zoneId}`,
-          win: false,
-          reward: 0,
-          repGain: 0,
-          lines: [`${agent.name} a perdu un combat.`],
-          trainerKey: entry.trainerKey,
-          isAgent: true,
-        });
-      }
-      changed = true;
-
-    } else if (entry.type === 'chest') {
-      state.stats.chestsOpened = (state.stats.chestsOpened || 0) + 1;
-      const loot = rollChestLoot(zoneId, true);
-      if (agent.notifyCaptures) notify(`📦 ${agent.name} — ${loot.msg}`, loot.type);
-      changed = true;
-    }
-  }
-
-  // Auto gym raid: for each city zone with gymLeader, if cooldown passed + agent assigned + 1 manual win
-  const raidCooldownMs = 5 * 60 * 1000;
-  const checkedRaidZones = new Set();
-  for (const agent of state.agents) {
-    if (!agent.assignedZone) continue;
-    const zid = agent.assignedZone;
-    if (checkedRaidZones.has(zid)) continue;
-    if (openZones.has(zid)) continue;
-    const raidZone = ZONE_BY_ID[zid];
-    if (!raidZone || raidZone.type !== 'city' || !raidZone.gymLeader) continue;
-    const rzs = state.zones[zid];
-    if (!rzs || !rzs.gymDefeated) continue; // need at least 1 manual win
-    if ((rzs.combatsWon || 0) < 10) continue;
-    if (Date.now() - (rzs.gymRaidLastFight || 0) < raidCooldownMs) continue;
-    checkedRaidZones.add(zid);
-    if (triggerGymRaid(zid, true)) changed = true;
-  }
-
-  if (changed) {
-    saveState();
-    updateTopBar();
-    // Agent capture: only refresh grid (not full rebuild) to avoid resetting pcSelectedId / view state
-    if (activeTab === 'tabPC') {
-      if (pcView === 'grid') renderPokemonGrid();
-      else if (pcView === 'eggs') { const el = document.getElementById('eggsInPC'); if (el) renderEggsView(el); }
-      // Update eggs button count
-      const eggsBtn = document.getElementById('pcBtnEggs');
-      if (eggsBtn) eggsBtn.textContent = `[OEUFS${state.eggs.length ? ` (${state.eggs.length})` : ''}]`;
-    }
-    if (activeTab === 'tabGang') renderGangTab();
-  }
-}
-
-// Agent automation tick — agents interact with VISIBLE spawns in zone windows
-function agentTick() {
-  if (!state.settings.autoCombat) return; // auto-combat off = agents idle
-  const zoneDone = new Set(); // track zones already processed this tick
-  for (const agent of state.agents) {
-    if (!agent.assignedZone) continue;
-    const zoneId = agent.assignedZone;
-    if (!openZones.has(zoneId)) continue; // only act in open zone windows
-    const spawns = zoneSpawns[zoneId];
-    if (!spawns || spawns.length === 0) continue;
-    if (zoneDone.has(zoneId)) continue; // one action per zone per tick
-    // Chance to act this tick based on agent capture stat (higher = more active)
-    const actChance = 0.5 + agent.stats.capture / 60;
-    if (Math.random() > actChance) continue;
-
-    // Priority: raids > trainers > pokemon > chests
-    const trainerSpawn = spawns.find(s => (s.type === 'trainer' || s.type === 'raid') && !s._agentClaimed);
-    const pokemonSpawn = spawns.find(s => s.type === 'pokemon' && !s._agentClaimed && !s.playerCatching);
-    const chestSpawn = spawns.find(s => s.type === 'chest' && !s._agentClaimed);
-
-    if (trainerSpawn) {
-      // Mark claimed so other agents don't try
-      trainerSpawn._agentClaimed = true;
-      zoneDone.add(zoneId);
-      // Open combat popup with auto-execute
-      agentAutoCombat(zoneId, trainerSpawn, agent);
-    } else if (pokemonSpawn) {
-      pokemonSpawn._agentClaimed = true;
-      zoneDone.add(zoneId);
-      // Agent throws ball at visible pokemon spawn
-      agentCaptureVisibleSpawn(agent, zoneId, pokemonSpawn);
-    } else if (chestSpawn) {
-      chestSpawn._agentClaimed = true;
-      zoneDone.add(zoneId);
-      // Agent opens chest
-      agentOpenChest(agent, zoneId, chestSpawn);
-    }
-  }
-}
-
-// Agent captures a visible pokemon spawn with ball throw animation
-function agentCaptureVisibleSpawn(agent, zoneId, spawnObj) {
-  const win = document.getElementById(`zw-${zoneId}`);
-  if (!win) return;
-  const viewport = win.querySelector('.zone-viewport');
-  if (!viewport) return;
-  const spawnEl = viewport.querySelector(`[data-spawn-id="${spawnObj.id}"]`);
-  if (!spawnEl) return;
-
-  // Skip if player is already capturing this spawn
-  if (spawnObj.playerCatching) return;
-
-  // Mark as catching to prevent player clicks
-  spawnEl.classList.add('catching');
-
-  // Find agent sprite position in zone
-  const agentEls = viewport.querySelectorAll('.zone-agent');
-  let agentEl = null;
-  for (const el of agentEls) {
-    const label = el.querySelector('.agent-label');
-    if (label && label.textContent === agent.name) { agentEl = el; break; }
-  }
-  let startX = 40, startY = 150;
-  if (agentEl) {
-    const r = agentEl.getBoundingClientRect();
-    const wr = viewport.getBoundingClientRect();
-    startX = r.left - wr.left + r.width / 2;
-    startY = r.top - wr.top;
-  }
-  const targetX = parseInt(spawnEl.style.left) + 28;
-  const targetY = parseInt(spawnEl.style.top) + 28;
-
-  // Ball projectile
-  const ball = document.createElement('div');
-  ball.className = 'ball-projectile';
-  ball.innerHTML = `<img src="${BALL_SPRITES.pokeball}">`;
-  ball.style.left = startX + 'px';
-  ball.style.top = startY + 'px';
-  viewport.appendChild(ball);
-
-  SFX.play('ballThrow')
-  requestAnimationFrame(() => {
-    ball.style.transition = 'left .35s ease-out, top .35s ease-in';
-    ball.style.left = targetX + 'px';
-    ball.style.top = targetY + 'px';
-  });
-
-  setTimeout(() => {
-    ball.remove();
-    // Try capture using tryCapture (uses balls from inventory)
-    const caught = tryCapture(zoneId, spawnObj.species_en);
-    if (caught) {
-      // Luck reroll for agents
-      if (agent.stats.luck > 8 && caught.potential < 3 && Math.random() < 0.3) {
-        caught.potential = randInt(3, 5);
-        caught.stats = calculateStats(caught);
-      }
-      showCaptureBurst(viewport, targetX, targetY, caught.potential, caught.shiny);
-      grantAgentXP(agent, 2);
-      if (agent.notifyCaptures !== false) {
-        notify(t('agent_catch', { agent: agent.name, pokemon: speciesName(spawnObj.species_en) }), 'success');
-      }
-      addLog(t('agent_catch', { agent: agent.name, pokemon: speciesName(spawnObj.species_en) }));
-      removeSpawn(zoneId, spawnObj.id);
-      updateTopBar();
-      updateZoneTimers(zoneId);
-    } else {
-      // No balls left — release spawn
-      spawnEl.classList.remove('catching');
-      spawnObj._agentClaimed = false;
-    }
-  }, 380);
-}
-
-// Agent auto-fights a trainer — opens inline combat and auto-executes
-function agentAutoCombat(zoneId, spawnObj, agent) {
-  // Don't start if a combat is already running
-  if (currentCombat) return;
-  // Open combat popup (same as player click)
-  openCombatPopup(zoneId, spawnObj);
-  // Auto-execute after a brief delay so the player can see it
-  setTimeout(() => {
-    if (!currentCombat) return;
-    executeCombat();
-    // Auto-close after showing result
-    setTimeout(() => {
-      const arena = document.getElementById('battleArena');
-      if (arena && arena.classList.contains('active')) {
-        closeCombatPopup();
-        removeSpawn(zoneId, spawnObj.id);
-        updateTopBar();
-        if (activeTab === 'tabGang') renderGangTab();
-      }
-    }, 1500);
-  }, 800);
-}
-
-// Agent opens a chest
-function agentOpenChest(agent, zoneId, spawnObj) {
-  state.stats.chestsOpened = (state.stats.chestsOpened || 0) + 1;
-  const loot = rollChestLoot(zoneId);
-  notify(`${agent.name}: ${loot.msg}`, loot.type);
-  grantAgentXP(agent, 1);
-  SFX.play('chest');
-  removeSpawn(zoneId, spawnObj.id);
-  updateTopBar();
-  updateZoneTimers(zoneId);
-  saveState();
-}
-
-// (Agent capture animation is now handled by agentCaptureVisibleSpawn above)
-
-// ════════════════════════════════════════════════════════════════
-//  9.  MARKET MODULE
-// ════════════════════════════════════════════════════════════════
-
-function calculatePrice(pokemon) {
-  const sp = SPECIES_BY_EN[pokemon.species_en];
-  if (!sp) return 50;
-  const base = BASE_PRICE[sp.rarity] || 100;
-  const potMult = POTENTIAL_MULT[pokemon.potential - 1] || 1;
-  const shinyMult = pokemon.shiny ? 10 : 1;
-  const nat = NATURES[pokemon.nature];
-  const natMult = nat ? (nat.atk + nat.def + nat.spd) / 3 : 1;
-  return Math.round(base * potMult * shinyMult * natMult);
-}
-
-// Returns the supply pressure as a percentage (0 = normal, 60 = max saturation)
-function getMarketSaturation(species_en) {
-  const sales = state.marketSales[species_en];
-  if (!sales) return 0;
-  return Math.min(60, sales.count * 8);
-}
-
-// Decay market sales over time (called on load + periodically)
-function decayMarketSales() {
-  const now = Date.now();
-  const DECAY_PER_HOUR = 1; // lose 1 sale unit per hour
-  for (const species of Object.keys(state.marketSales)) {
-    const s = state.marketSales[species];
-    const hoursElapsed = (now - s.lastSale) / 3600000;
-    const decay = Math.floor(hoursElapsed * DECAY_PER_HOUR);
-    if (decay > 0) {
-      s.count = Math.max(0, s.count - decay);
-      s.lastSale = now;
-      if (s.count === 0) delete state.marketSales[species];
-    }
-  }
-}
-
-function removePokemonFromAllAssignments(pkId) {
-  // Équipe Boss
-  state.gang.bossTeam = state.gang.bossTeam.filter(id => id !== pkId);
-  // Formation
-  if (state.trainingRoom) state.trainingRoom.pokemon = (state.trainingRoom.pokemon || []).filter(id => id !== pkId);
-  // Pension
-  if (state.pension) {
-    if (state.pension.slotA === pkId) { state.pension.slotA = null; state.pension.eggAt = null; }
-    if (state.pension.slotB === pkId) { state.pension.slotB = null; state.pension.eggAt = null; }
-  }
-}
-
-function sellPokemon(pokemonIds, _shinyConfirmed = false) {
-  // Block noSell pokemon (ex: MissingNo)
-  const noSellBlocked = pokemonIds.filter(id => {
-    const p = state.pokemons.find(pk => pk.id === id);
-    if (!p) return false;
-    const species = POKEMON_GEN1.find(s => s.en === p.species_en);
-    return species?.noSell === true;
-  });
-  if (noSellBlocked.length > 0) {
-    notify('Ce Pokémon ne peut pas être vendu.', 'error');
-    pokemonIds = pokemonIds.filter(id => !noSellBlocked.includes(id));
-    if (pokemonIds.length === 0) return;
-  }
-  // Filter out homesick pokemon — they cannot be sold
-  const homesickBlocked = pokemonIds.filter(id => {
-    const p = state.pokemons.find(pk => pk.id === id);
-    return p && p.homesick;
-  });
-  if (homesickBlocked.length > 0) {
-    notify('Ce Pokémon souffre du mal du pays et ne peut pas être vendu.', 'error');
-    pokemonIds = pokemonIds.filter(id => !homesickBlocked.includes(id));
-    if (pokemonIds.length === 0) return;
-  }
-  // Block pension pokémon
-  const pensionSet = new Set([state.pension?.slotA, state.pension?.slotB].filter(Boolean));
-  const pensionBlocked = pokemonIds.filter(id => pensionSet.has(id));
-  if (pensionBlocked.length > 0) {
-    notify('Les Pokémon en pension ne peuvent pas être vendus.', 'error');
-    pokemonIds = pokemonIds.filter(id => !pensionSet.has(id));
-    if (pokemonIds.length === 0) return;
-  }
-  // Block training pokémon
-  const trainingSet = new Set(state.trainingRoom?.pokemon || []);
-  const trainingBlocked = pokemonIds.filter(id => trainingSet.has(id));
-  if (trainingBlocked.length > 0) {
-    notify('Les Pokémon en formation ne peuvent pas être vendus.', 'error');
-    pokemonIds = pokemonIds.filter(id => !trainingSet.has(id));
-    if (pokemonIds.length === 0) return;
-  }
-  // Shiny confirmation
-  if (!_shinyConfirmed) {
-    const shinyIds = pokemonIds.filter(id => state.pokemons.find(p => p.id === id)?.shiny);
-    if (shinyIds.length > 0) {
-      const names = shinyIds.map(id => speciesName(state.pokemons.find(p => p.id === id)?.species_en)).join(', ');
-      const modal = document.createElement('div');
-      modal.style.cssText = 'position:fixed;inset:0;z-index:9500;background:rgba(0,0,0,.88);display:flex;align-items:center;justify-content:center';
-      modal.innerHTML = `<div style="background:var(--bg-panel);border:2px solid var(--gold);border-radius:var(--radius);padding:20px;max-width:360px;width:92%;display:flex;flex-direction:column;gap:14px">
-        <div style="font-family:var(--font-pixel);font-size:10px;color:var(--gold)">⚠ Vente de Chromatique</div>
-        <div style="font-size:11px;color:var(--text)">Tu t'apprêtes à vendre <b style="color:#ffcc5a">${shinyIds.length} Pokémon Shiny</b> :<br><span style="font-size:9px;color:#aaa">${names}</span></div>
-        <div style="font-size:9px;color:var(--text-dim)">Cette action est irréversible.</div>
-        <div style="display:flex;gap:8px;justify-content:flex-end">
-          <button id="shinyCancel" style="font-family:var(--font-pixel);font-size:9px;padding:8px 14px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-dim);cursor:pointer">Annuler</button>
-          <button id="shinyConfirm" style="font-family:var(--font-pixel);font-size:9px;padding:8px 14px;background:var(--bg);border:1px solid var(--gold);border-radius:var(--radius-sm);color:var(--gold);cursor:pointer">Vendre quand même</button>
-        </div>
-      </div>`;
-      document.body.appendChild(modal);
-      modal.querySelector('#shinyCancel').addEventListener('click', () => modal.remove());
-      modal.querySelector('#shinyConfirm').addEventListener('click', () => { modal.remove(); sellPokemon(pokemonIds, true); });
-      return;
-    }
-  }
-
-  let total = 0;
-  const toRemove = new Set(pokemonIds);
-  // Unassign from agents/boss
-  for (const agent of state.agents) {
-    agent.team = agent.team.filter(id => !toRemove.has(id));
-  }
-  state.gang.bossTeam = state.gang.bossTeam.filter(id => !toRemove.has(id));
-  // Remove from favorites
-  state.favorites = state.favorites.filter(id => !toRemove.has(id));
-
-  for (const id of pokemonIds) {
-    const idx = state.pokemons.findIndex(p => p.id === id);
-    if (idx === -1) continue;
-    const p = state.pokemons[idx];
-    const soldPrice = calculatePrice(p);
-    total += soldPrice;
-    state.pokemons.splice(idx, 1);
-    state.stats.totalSold++;
-    // Track most expensive sale
-    if (!state.stats.mostExpensiveSold || soldPrice > (state.stats.mostExpensiveSold.price || 0)) {
-      state.stats.mostExpensiveSold = { name: speciesName(p.species_en), price: soldPrice };
-    }
-  }
-  state.gang.money += total;
-  state.stats.totalMoneyEarned += total;
-  notify(t('sold', { n: pokemonIds.length, price: total }), 'gold');
-  addLog(t('sold', { n: pokemonIds.length, price: total }));
-  SFX.play('sell');
-  saveState();
-  return total;
-}
-
-const BOOST_ITEMS = new Set(['incense', 'rarescope', 'aura', 'lure', 'superlure']);
-
-function buyItem(itemDef) {
-  const actualCost = itemDef.id === 'mysteryegg' ? getMysteryEggCost() : itemDef.cost;
-  if (state.gang.money < actualCost) {
-    notify(t('not_enough'));
-    SFX.play('error')
-    return false;
-  }
-  state.gang.money -= actualCost;
-  state.stats.totalMoneySpent += actualCost;
-  // Behavioural log — premier achat
-  if (!state.behaviourLogs) state.behaviourLogs = {};
-  if (!state.behaviourLogs.firstPurchaseAt) state.behaviourLogs.firstPurchaseAt = Date.now();
-
-  if (itemDef.id === 'translator') {
-    state.purchases.translator = true;
-    notify('Traducteur Pokemon obtenu !', 'gold');
-    saveState();
-    return true;
-  }
-
-  if (itemDef.id === 'incubator') {
-    state.inventory.incubator = (state.inventory.incubator || 0) + 1;
-    notify(`Incubateur obtenu ! Total: ${state.inventory.incubator}`, 'gold');
-    saveState();
-    return true;
-  }
-
-  // ── Permis ailes (coût en items, pas en ₽) ───────────────────
-  const WING_PERMIT_ITEMS = new Set(['tourbillon_permit','carillon_permit']);
-  if (WING_PERMIT_ITEMS.has(itemDef.id)) {
-    if (state.purchases[itemDef.id]) {
-      notify(state.lang === 'fr' ? 'Déjà possédé !' : 'Already owned!');
-      return false;
-    }
-    const wc = itemDef.wingCost;
-    const have = state.inventory[wc.item] || 0;
-    if (have < wc.qty) {
-      const itemName = wc.item === 'silver_wing' ? 'Argent\'Aile' : 'Arcenci\'Aile';
-      notify(`Il te faut ${wc.qty}× ${itemName} (tu en as ${have}).`, 'error');
-      return false;
-    }
-    state.inventory[wc.item] -= wc.qty;
-    state.purchases[itemDef.id] = true;
-    const zone = ZONES.find(z => z.unlockItem === itemDef.id);
-    const zLabel = zone ? (state.lang === 'fr' ? zone.fr : zone.en) : '';
-    const pName  = state.lang === 'fr' ? itemDef.fr : itemDef.en;
-    notify(`${pName} obtenu !${zLabel ? ' → ' + zLabel + ' accessible' : ''}`, 'gold');
-    saveState();
-    renderZonesTab?.();
-    return true;
-  }
-
-  const ZONE_UNLOCK_ITEMS = new Set(['map_pallet','casino_ticket','silph_keycard','boat_ticket']);
-  if (ZONE_UNLOCK_ITEMS.has(itemDef.id)) {
-    if (state.purchases[itemDef.id]) {
-      notify(state.lang === 'fr' ? 'Déjà possédé !' : 'Already owned!');
-      state.gang.money += actualCost; // refund
-      state.stats.totalMoneySpent -= actualCost;
-      return false;
-    }
-    state.purchases[itemDef.id] = true;
-    const zoneName = ZONES.find(z => z.unlockItem === itemDef.id);
-    const name = state.lang === 'fr' ? (itemDef.fr || itemDef.id) : (itemDef.en || itemDef.id);
-    const zLabel = zoneName ? (state.lang === 'fr' ? zoneName.fr : zoneName.en) : '';
-    notify(`${name} obtenu !${zLabel ? ' → ' + zLabel + ' accessible' : ''}`, 'gold');
-    saveState();
-    renderZonesTab?.();
-    return true;
-  }
-
-  if (itemDef.id === 'mysteryegg') {
-    const species_en = weightedPick(MYSTERY_EGG_POOL);
-    const sp = SPECIES_BY_EN[species_en];
-    const potential = Math.random() < 0.1 ? 3 : Math.random() < 0.4 ? 2 : 1;
-    const shiny = Math.random() < 0.02;
-    state.eggs.push({ id: uid(), species_en, hatchAt: null, incubating: false, potential, shiny, mystery: true });
-    state.purchases.mysteryEggCount = (state.purchases.mysteryEggCount || 0) + 1;
-    tryAutoIncubate();
-    notify(`🥚 Un œuf mystérieux est apparu… On se demande ce qu'il contient !`, 'gold');
-    saveState();
-    return true;
-  }
-
-  // All consumables go to inventory — player activates manually from the Zone bag bar
-  state.inventory[itemDef.id] = (state.inventory[itemDef.id] || 0) + itemDef.qty;
-  const _itemName = state.lang === 'fr' ? (itemDef.fr || BALLS[itemDef.id]?.fr || itemDef.id) : (itemDef.en || BALLS[itemDef.id]?.en || itemDef.id);
-  notify(`${itemDef.qty}× ${_itemName} → sac`, 'success');
-  SFX.play('buy');
-  playSE('buy', 0.5);
-  saveState();
-  return true;
-}
-
-// ════════════════════════════════════════════════════════════════
-// 10.  LLM MODULE
-// ════════════════════════════════════════════════════════════════
-
-async function detectLLM() {
-  if (state.settings.llmProvider === 'none') {
-    state.settings.llmEnabled = false;
-    return;
-  }
-  if (state.settings.llmProvider === 'local') {
-    try {
-      const res = await fetch(`${state.settings.llmUrl}/api/tags`, { signal: AbortSignal.timeout(2000) });
-      if (res.ok) {
-        state.settings.llmEnabled = true;
-        addLog(t('llm_connected'));
-        return;
-      }
-    } catch { /* ignore */ }
-  }
-  if ((state.settings.llmProvider === 'openai' || state.settings.llmProvider === 'anthropic') && state.settings.llmApiKey) {
-    state.settings.llmEnabled = true;
-    addLog(t('llm_connected'));
-    return;
-  }
-  state.settings.llmEnabled = false;
-}
-
-const FALLBACK_DIALOGUES = {
-  fr: [
-    'Prépare-toi à avoir des problèmes !',
-    'Et fais-le double !',
-    'Tu oses défier notre gang ?',
-    'Tes Pokémon ne font pas le poids !',
-    'La Team Rocket va t\'écraser !',
-    'Tu n\'as aucune chance contre nous !',
-    'Ton gang est une blague !',
-    'Je vais te montrer la vraie puissance !',
-    'Quoi ? Tu veux te battre ? Très bien !',
-    'Je suis un dresseur ! J\'affronte tout ceux que je croise !',
-    'Hé ! Ne me sous-estime pas !',
-    'Les insectes sont les meilleurs Pokémon !',
-    'Je me suis entraîné dur pour ce moment !',
-    'Tu as l\'air fort... intéressant !',
-    'Mon Pokémon est le plus fort de la route !',
-    'Tu vas regretter d\'être venu ici !',
-    'J\'ai perdu mon chemin... mais je vais te battre !',
-    'Je suis imbattable ! Enfin je crois...',
-  ],
-  en: [
-    'Prepare for trouble!',
-    'And make it double!',
-    'You dare challenge our gang?',
-    'Your Pokémon don\'t stand a chance!',
-    'Team Rocket will crush you!',
-    'You have no chance against us!',
-    'Your gang is a joke!',
-    'I\'ll show you real power!',
-  ],
-};
-
-function getTrainerDialogue() {
-  return pick(FALLBACK_DIALOGUES[state.lang] || FALLBACK_DIALOGUES.fr);
-}
+// ── detectLLM … getTrainerDialogue extracted → modules/systems/llm.js ──
 
 // ════════════════════════════════════════════════════════════════
 // 11.  UI — NOTIFICATIONS
@@ -4180,6 +3053,8 @@ function switchTab(tabId) {
   if (tabId !== 'tabPC') _pcLastRenderKey = ''; // force full rebuild on next PC visit
   SFX.play('tabSwitch');
   activeTab = tabId;
+  globalThis.activeTab = activeTab;
+  globalThis.pcView = pcView; // sync in case pcView changed before this call
   document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.tab === tabId);
   });
@@ -6067,19 +4942,19 @@ function buildZoneWindowEl(zoneId) {
         <img src="${trainerSprite(state.gang.bossSprite)}" alt="Boss" onerror="this.src='${trainerSprite('acetrainer')}'">
         <span class="boss-cd-label" style="display:none;font-family:var(--font-pixel);font-size:7px;color:var(--red);background:rgba(0,0,0,.8);border-radius:2px;padding:1px 3px;white-space:nowrap;position:absolute;top:-16px;left:50%;transform:translateX(-50%)"></span>
       </div>` : ''}
-      <div class="zone-slots-bar" style="display:flex;align-items:center;gap:6px;padding:3px 8px;font-family:var(--font-pixel);font-size:8px;background:rgba(0,0,0,.4);border-top:1px solid var(--border)">
-        <span class="slot-count" style="color:var(--text-dim)">Agents: ${assignedAgents.length}/${zState.slots || 1}</span>
-        ${(zState.slots || 1) < ZONE_SLOT_COSTS.length + 1 ? (() => {
-          const nextSlot = (zState.slots || 1);
-          const cost = getZoneSlotCost(zoneId, nextSlot - 1);
-          const canAfford = state.gang.money >= cost;
-          return `<button class="zone-slot-upgrade" data-zone-upgrade="${zoneId}" data-cost="${cost}"
-            style="font-family:var(--font-pixel);font-size:7px;padding:2px 6px;background:var(--bg);
-            border:1px solid ${canAfford ? 'var(--gold-dim)' : 'var(--border)'};border-radius:2px;
-            color:${canAfford ? 'var(--gold)' : 'var(--text-dim)'};cursor:${canAfford ? 'pointer' : 'default'}"
-            ${canAfford ? '' : 'disabled'}>+slot ${cost.toLocaleString()}₽</button>`;
-        })() : `<span style="color:var(--gold)">FULL</span>`}
-      </div>
+    </div>
+    <div class="zone-slots-bar" style="display:flex;align-items:center;gap:6px;padding:3px 8px;font-family:var(--font-pixel);font-size:8px;background:rgba(0,0,0,.55);border-top:1px solid var(--border)">
+      <span class="slot-count" style="color:var(--text-dim)">Agents: ${assignedAgents.length}/${zState.slots || 1}</span>
+      ${(zState.slots || 1) < ZONE_SLOT_COSTS.length + 1 ? (() => {
+        const nextSlot = (zState.slots || 1);
+        const cost = getZoneSlotCost(zoneId, nextSlot - 1);
+        const canAfford = state.gang.money >= cost;
+        return `<button class="zone-slot-upgrade" data-zone-upgrade="${zoneId}" data-cost="${cost}"
+          style="font-family:var(--font-pixel);font-size:7px;padding:2px 6px;background:var(--bg);
+          border:1px solid ${canAfford ? 'var(--gold-dim)' : 'var(--border)'};border-radius:2px;
+          color:${canAfford ? 'var(--gold)' : 'var(--text-dim)'};cursor:${canAfford ? 'pointer' : 'default'}"
+          ${canAfford ? '' : 'disabled'}>+slot ${cost.toLocaleString()}₽</button>`;
+      })() : `<span style="color:var(--gold)">FULL</span>`}
     </div>
   `;
 
@@ -6215,9 +5090,9 @@ function patchZoneWindow(zoneId, win) {
     viewport.appendChild(bossEl);
   }
 
-  // Refresh slots bar
+  // Refresh slots bar (now a footer sibling of .zone-viewport, not inside it)
   const viewport2 = win.querySelector('.zone-viewport');
-  const slotsBar = viewport2?.querySelector('.zone-slots-bar');
+  const slotsBar = win.querySelector('.zone-slots-bar');
   if (slotsBar) {
     const freshAssigned = state.agents.filter(a => a.assignedZone === zoneId);
     const freshZState = state.zones[zoneId] || {};
@@ -7206,6 +6081,16 @@ function _tryWingDrop(zoneId) {
   saveState();
 }
 
+// Adds a red "VS" badge over a trainer spawn element to indicate combat
+function _addVSBadge(el) {
+  if (!el || el.querySelector('.spawn-vs-badge')) return;
+  const badge = document.createElement('div');
+  badge.className = 'spawn-vs-badge';
+  badge.textContent = 'VS';
+  badge.style.cssText = 'position:absolute;top:-10px;left:50%;transform:translateX(-50%);font-family:var(--font-pixel);font-size:9px;font-weight:bold;color:#ff3333;background:rgba(0,0,0,.8);border:1px solid rgba(255,51,51,.5);border-radius:3px;padding:1px 5px;pointer-events:none;z-index:5;animation:pop .2s ease-out';
+  el.appendChild(badge);
+}
+
 function renderSpawnInWindow(zoneId, spawnObj) {
   const win = document.getElementById(`zw-${zoneId}`);
   if (!win) return;
@@ -7243,6 +6128,7 @@ function renderSpawnInWindow(zoneId, spawnObj) {
     el.addEventListener('click', () => {
       if (el.dataset.challenged) return;
       el.dataset.challenged = '1';
+      _addVSBadge(el);
       openCombatPopup(zoneId, spawnObj);
     });
   } else if (spawnObj.type === 'trainer') {
@@ -7253,6 +6139,7 @@ function renderSpawnInWindow(zoneId, spawnObj) {
     el.addEventListener('click', () => {
       if (el.dataset.challenged) return;
       el.dataset.challenged = '1';
+      _addVSBadge(el);
       openCombatPopup(zoneId, spawnObj);
     });
   } else if (spawnObj.type === 'chest') {
@@ -7506,6 +6393,7 @@ function openCombatPopup(zoneId, spawnObj) {
   }
 
   currentCombat = { zoneId, spawnObj, playerTeam: available };
+  globalThis.currentCombat = currentCombat;
 
   // Jingle d'intro de combat — désactivé temporairement
   // (() => { ... })();
@@ -7805,6 +6693,7 @@ function executeCombat() {
         removeSpawn(zoneId, spawnObj.id);
         updateTopBar();
         currentCombat = null;
+        globalThis.currentCombat = null;
         if (activeTab === 'tabGang') renderGangTab();
       }, 3500);
     }
@@ -7823,6 +6712,7 @@ function closeCombatPopup() {
   const logTitle = document.getElementById('battleLogTitle');
   if (logTitle) logTitle.textContent = 'LOG COMBATS';
   currentCombat = null;
+  globalThis.currentCombat = null;
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -8391,6 +7281,7 @@ function renderPCTab() {
       switcher.querySelectorAll('.pc-view-btn').forEach(btn => {
         btn.addEventListener('click', () => {
           pcView = btn.dataset.pcview;
+          globalThis.pcView = pcView;
           renderPCTab();
         });
       });
@@ -11483,859 +10374,12 @@ function initSettings() {
 // ════════════════════════════════════════════════════════════════
 // 21.  GAME LOOP & BOOT
 // ════════════════════════════════════════════════════════════════
-// 20.  TRAINING ROOM
-// ════════════════════════════════════════════════════════════════
-
-let _trSearch = '';           // persisté entre re-renders
-let _trSelected = new Set(); // IDs cochés pour ajout groupé
-
-function renderTrainingTab() {
-  const tab = (activeTab === 'tabPC' && pcView === 'training')
-    ? document.getElementById('trainingInPC')
-    : document.getElementById('tabTraining');
-  if (!tab) return;
-
-  const tr = state.trainingRoom;
-  const slots = 6;
-  const inRoom = new Set(tr.pokemon);
-  const teamIds = new Set([...state.gang.bossTeam]);
-  for (const a of state.agents) a.team.forEach(id => teamIds.add(id));
-
-  let slotsHtml = '';
-  for (let i = 0; i < slots; i++) {
-    const pkId = tr.pokemon[i];
-    const p = pkId ? state.pokemons.find(pk => pk.id === pkId) : null;
-    if (p) {
-      slotsHtml += `<div class="training-slot filled" data-tr-remove="${p.id}">
-        <img src="${pokeSprite(p.species_en, p.shiny)}" style="width:52px;height:52px;${p.shiny?'filter:drop-shadow(0 0 4px var(--gold))':''}">
-        <div style="font-size:8px;margin-top:2px">${speciesName(p.species_en)}</div>
-        <div style="font-size:8px;color:var(--text-dim)">Lv.${p.level} ${'*'.repeat(p.potential)}</div>
-        <button class="tr-remove-btn" data-tr-remove="${p.id}" style="margin-top:4px;font-size:8px;padding:2px 6px;background:var(--bg);border:1px solid var(--red);border-radius:var(--radius-sm);color:var(--red);cursor:pointer">Retirer</button>
-      </div>`;
-    } else {
-      slotsHtml += `<div class="training-slot empty"><span style="color:var(--text-dim);font-size:8px">Slot libre</span></div>`;
-    }
-  }
-
-  // Pokemon not in room, not in team, not in pension — filtered by search
-  const q = _trSearch.toLowerCase();
-  const freeSlots = slots - tr.pokemon.length;
-  const pensionIds = new Set([state.pension?.slotA, state.pension?.slotB].filter(Boolean));
-  const allCandidates = state.pokemons
-    .filter(p => !inRoom.has(p.id) && !teamIds.has(p.id) && !pensionIds.has(p.id) && p.level < 100)
-    .sort((a, b) => getPokemonPower(b) - getPokemonPower(a));
-  const candidates = q
-    ? allCandidates.filter(p => speciesName(p.species_en).toLowerCase().includes(q) || p.species_en.includes(q))
-    : allCandidates;
-
-  // Nettoyer la sélection si les IDs ne sont plus valides
-  _trSelected = new Set([..._trSelected].filter(id => candidates.find(p => p.id === id)));
-
-  const addableCount = Math.min(_trSelected.size, freeSlots);
-  const candidatesHtml = candidates.map(p => {
-    const checked = _trSelected.has(p.id);
-    return `<label class="tr-candidate" data-tr-add="${p.id}" style="display:flex;align-items:center;gap:8px;padding:6px;border-bottom:1px solid var(--border);cursor:pointer;background:${checked ? 'rgba(68,136,204,.12)' : ''}">
-      <input type="checkbox" class="tr-check" data-id="${p.id}" ${checked ? 'checked' : ''} style="width:14px;height:14px;cursor:pointer;accent-color:var(--blue)">
-      <img src="${pokeSprite(p.species_en, p.shiny)}" style="width:32px;height:32px">
-      <div style="flex:1">
-        <div style="font-size:10px">${speciesName(p.species_en)} ${'*'.repeat(p.potential)}${p.shiny ? ' ✨' : ''}</div>
-        <div style="font-size:9px;color:var(--text-dim)">Lv.${p.level}</div>
-      </div>
-    </label>`;
-  }).join('') || `<div style="color:var(--text-dim);font-size:10px;padding:12px">Aucun Pokemon disponible</div>`;
-
-  const recentLog = (tr.log || []).slice(-8).reverse().map(e => {
-    let color = 'var(--text-dim)';
-    if (e.includes('[W]')) color = 'var(--gold)';
-    else if (e.includes('[L]')) color = 'var(--red-dim, var(--red))';
-    return `<div style="font-size:9px;color:${color};padding:2px 0">${e}</div>`;
-  }).join('') || '<div style="font-size:9px;color:var(--text-dim)">Aucun evenement</div>';
-
-  // Last fight display
-  let lastFightHtml = '';
-  if (tr.lastFight) {
-    const { winner, loser } = tr.lastFight;
-    lastFightHtml = `
-      <div style="font-family:var(--font-pixel);font-size:9px;color:var(--text-dim);margin-bottom:6px">DERNIER COMBAT</div>
-      <div style="display:flex;align-items:center;gap:8px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px;margin-bottom:12px">
-        <div style="text-align:center">
-          <img src="${pokeSprite(winner.species_en)}" style="width:48px;height:48px">
-          <div style="font-size:8px;color:var(--gold)">${speciesName(winner.species_en)}</div>
-          <div style="font-size:7px;color:var(--text-dim)">Lv.${winner.level} [W]</div>
-        </div>
-        <div style="font-family:var(--font-pixel);font-size:10px;color:var(--text-dim)">VS</div>
-        <div style="text-align:center;transform:scaleX(-1)">
-          <img src="${pokeSprite(loser.species_en)}" style="width:48px;height:48px">
-          <div style="font-size:8px;color:var(--red);transform:scaleX(-1)">${speciesName(loser.species_en)}</div>
-          <div style="font-size:7px;color:var(--text-dim);transform:scaleX(-1)">Lv.${loser.level} [L]</div>
-        </div>
-      </div>`;
-  }
-
-  const roomLevel = tr.level || 1;
-  const upgradeCost = Math.round(5000 * Math.pow(2, roomLevel - 1));
-  const mult = Math.round((1 + 0.25 * (roomLevel - 1)) * 100);
-  const winXPPreview = Math.round(25 * (mult / 100) * 1.25);
-
-  tab.innerHTML = `
-    <div style="display:grid;grid-template-columns:1fr 300px;gap:16px;padding:12px">
-      <div>
-        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
-          <div style="font-family:var(--font-pixel);font-size:10px;color:var(--gold)">SALLE D\'ENTRAINEMENT</div>
-          <div style="font-size:9px;color:var(--text-dim)">Niv.${roomLevel} — XP x${mult}%</div>
-          ${tr.pokemon.length > 0 ? `<button id="btnTrClearAll" style="margin-left:auto;font-family:var(--font-pixel);font-size:8px;padding:4px 8px;background:var(--bg);border:1px solid var(--red);border-radius:var(--radius-sm);color:var(--red);cursor:pointer">Tout retirer</button>` : ''}
-        </div>
-        <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px">
-          <div style="flex:1;font-size:9px;color:var(--text-dim)">
-            <b style="color:var(--text)">Melee generale</b> — Mode actif : gagnant +${winXPPreview} XP (x1.25), perdant +${Math.round(10*(mult/100))} XP
-          </div>
-          <button id="btnTrainingUpgrade" style="font-family:var(--font-pixel);font-size:8px;padding:6px 10px;background:var(--bg);border:2px solid var(--gold-dim);border-radius:var(--radius-sm);color:var(--gold);cursor:pointer">
-            AMELIORER<br>${upgradeCost.toLocaleString()}P
-          </button>
-        </div>
-        <div style="font-size:10px;color:var(--text-dim);margin-bottom:12px">
-          Min. 2 Pokemon pour s\'entrainer. Combat toutes les 60s.
-        </div>
-        ${lastFightHtml}
-        <div class="training-slots" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px">${slotsHtml}</div>
-        <div style="font-family:var(--font-pixel);font-size:9px;color:var(--text-dim);margin-bottom:8px">JOURNAL</div>
-        <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px;max-height:120px;overflow-y:auto">${recentLog}</div>
-      </div>
-      <div>
-        <div style="font-family:var(--font-pixel);font-size:9px;color:var(--text-dim);margin-bottom:8px">AJOUTER UN POKEMON</div>
-        <input id="trSearchInput" type="text" placeholder="Rechercher…" value="${_trSearch}"
-          style="width:100%;padding:6px 8px;margin-bottom:6px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:10px;box-sizing:border-box;outline:none">
-        ${_trSelected.size > 0 ? `
-        <button id="btnTrAddSelected" style="width:100%;margin-bottom:6px;padding:6px;background:var(--bg);border:1px solid var(--blue);border-radius:var(--radius-sm);color:var(--blue);font-family:var(--font-pixel);font-size:8px;cursor:pointer">
-          + Ajouter ${addableCount} sélectionné${addableCount > 1 ? 's' : ''} (${freeSlots} slot${freeSlots > 1 ? 's' : ''} libre${freeSlots > 1 ? 's' : ''})
-        </button>` : ''}
-        <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);max-height:400px;overflow-y:auto">${candidatesHtml}</div>
-      </div>
-    </div>`;
-
-  // Clear all training slots
-  document.getElementById('btnTrClearAll')?.addEventListener('click', () => {
-    state.trainingRoom.pokemon = [];
-    saveState();
-    notify('Salle d\'entrainement vidée.', 'success');
-    renderTrainingTab();
-  });
-
-  // Upgrade button
-  document.getElementById('btnTrainingUpgrade')?.addEventListener('click', () => {
-    const lvl = state.trainingRoom.level || 1;
-    const cost = Math.round(5000 * Math.pow(2, lvl - 1));
-    if (state.gang.money < cost) { notify('Fonds insuffisants.'); return; }
-    state.gang.money -= cost;
-    state.stats.totalMoneySpent = (state.stats.totalMoneySpent || 0) + cost;
-    state.trainingRoom.level = lvl + 1;
-    saveState();
-    updateTopBar();
-    notify(`Salle d'entrainement Niv.${state.trainingRoom.level} !`, 'gold');
-    renderTrainingTab();
-  });
-
-  tab.querySelectorAll('.tr-remove-btn').forEach(btn => {
-    btn.addEventListener('click', e => {
-      e.stopPropagation();
-      const id = btn.dataset.trRemove;
-      state.trainingRoom.pokemon = state.trainingRoom.pokemon.filter(x => x !== id);
-      saveState();
-      renderTrainingTab();
-    });
-  });
-  // Recherche — filtre en temps réel sans re-render complet
-  tab.querySelector('#trSearchInput')?.addEventListener('input', e => {
-    _trSearch = e.target.value;
-    renderTrainingTab();
-  });
-
-  // Checkboxes — toggle sélection
-  tab.querySelectorAll('.tr-check').forEach(cb => {
-    cb.addEventListener('change', e => {
-      e.stopPropagation();
-      const id = cb.dataset.id;
-      if (cb.checked) _trSelected.add(id);
-      else _trSelected.delete(id);
-      renderTrainingTab();
-    });
-  });
-
-  // Clic sur une ligne = toggle checkbox
-  tab.querySelectorAll('.tr-candidate').forEach(el => {
-    el.addEventListener('click', e => {
-      if (e.target.type === 'checkbox') return; // géré par le cb lui-même
-      const cb = el.querySelector('.tr-check');
-      if (!cb) return;
-      cb.checked = !cb.checked;
-      const id = el.dataset.trAdd;
-      if (cb.checked) _trSelected.add(id);
-      else _trSelected.delete(id);
-      renderTrainingTab();
-    });
-  });
-
-  // Bouton "Ajouter X sélectionnés"
-  tab.querySelector('#btnTrAddSelected')?.addEventListener('click', () => {
-    const availSlots = 6 - state.trainingRoom.pokemon.length;
-    let added = 0;
-    for (const id of _trSelected) {
-      if (added >= availSlots) break;
-      if (!state.trainingRoom.pokemon.includes(id)) {
-        removePokemonFromAllAssignments(id);
-        state.trainingRoom.pokemon.push(id);
-        added++;
-      }
-    }
-    _trSelected.clear();
-    saveState();
-    notify(`${added} Pokémon ajouté${added > 1 ? 's' : ''} à la salle`, 'success');
-    renderTrainingTab();
-  });
-}
-
-function trainingRoomTick() {
-  const room = state.trainingRoom;
-  if (!room || room.pokemon.length < 2) return;
-
-  // Collect valid Pokémon objects
-  const fighters = room.pokemon
-    .map(id => state.pokemons.find(p => p.id === id))
-    .filter(Boolean);
-  if (fighters.length < 2) return;
-
-  // Room level multiplier: each upgrade adds 25% efficiency
-  const roomLevel = room.level || 1;
-  const mult = 1 + 0.25 * (roomLevel - 1);
-
-  // Pick 2 random fighters
-  const shuffled = [...fighters].sort(() => Math.random() - 0.5);
-  const pA = shuffled[0];
-  const pB = shuffled[1];
-
-  // Simulate fight (±25% randomness)
-  const powA = getPokemonPower(pA) * (0.75 + Math.random() * 0.5);
-  const powB = getPokemonPower(pB) * (0.75 + Math.random() * 0.5);
-  const winner = powA >= powB ? pA : pB;
-  const loser  = powA >= powB ? pB : pA;
-
-  // XP: winner gets 1.25x bonus (mêlée générale), loser still learns
-  const winXP  = Math.round(25 * mult * 1.25);
-  const loseXP = Math.round(10 * mult);
-  const prevWinnerName = speciesName(winner.species_en);
-  const prevLoserName  = speciesName(loser.species_en);
-  levelUpPokemon(winner, winXP);
-  levelUpPokemon(loser, loseXP);
-
-  const msg = `${prevWinnerName} [W] bat ${prevLoserName} [L] (+${winXP} / +${loseXP} XP)`;
-  room.log.push(msg);
-
-  // Store last fight for visual display
-  room.lastFight = {
-    winner: { species_en: winner.species_en, level: winner.level },
-    loser:  { species_en: loser.species_en,  level: loser.level  },
-  };
-
-  // Everyone else gets passive XP
-  const passiveXP = Math.round(6 * mult);
-  for (const p of fighters) {
-    if (p.id !== pA.id && p.id !== pB.id) levelUpPokemon(p, passiveXP);
-  }
-
-  // Check for evolutions in training room
-  for (const p of fighters) {
-    const nameBefore = speciesName(p.species_en);
-    const evolved = tryAutoEvolution(p);
-    if (evolved) {
-      const m = `${nameBefore} evolue en ${speciesName(p.species_en)} dans la salle !`;
-      room.log.push(m);
-      notify(m, 'gold');
-    }
-  }
-
-  // Random events: potential gain
-  for (const p of fighters) {
-    if (Math.random() < 0.002 && p.potential < 5) {
-      p.potential++;
-      const m = `${speciesName(p.species_en)} a gagne du potentiel en s'entrainant ! (${p.potential}*)`;
-      room.log.push(m);
-      notify(m, 'gold');
-    }
-  }
-
-  if (room.log.length > 50) room.log = room.log.slice(-50);
-
-  saveState();
-  if (activeTab === 'tabTraining' || (activeTab === 'tabPC' && pcView === 'training')) renderTrainingTab();
-}
-
-// ════════════════════════════════════════════════════════════════
-// 21.  SCIENCE LAB (potential upgrade)
-// ════════════════════════════════════════════════════════════════
-
-let labSelectedId = null;
-let labShowAll = false; // false = seulement mutations réalisables
-
-function renderLabTabInEl(tab) {
-  if (!tab) return;
-
-  const teamIds = new Set([...state.gang.bossTeam]);
-  for (const a of state.agents) a.team.forEach(id => teamIds.add(id));
-  const pensionSet = new Set([state.pension?.slotA, state.pension?.slotB].filter(Boolean));
-
-  // Tous les Pokémon améliorables
-  const allUpgradeable = state.pokemons
-    .filter(p => p.potential < 5)
-    .sort((a, b) => b.potential - a.potential || getPokemonPower(b) - getPokemonPower(a));
-
-  // Seulement ceux dont la mutation est réalisable maintenant
-  const possible = allUpgradeable.filter(p => {
-    const cost = POT_UPGRADE_COSTS[p.potential - 1] || 99;
-    const donors = state.pokemons.filter(d =>
-      d.species_en === p.species_en && d.id !== p.id &&
-      !d.shiny && d.potential <= p.potential &&
-      !teamIds.has(d.id) && !state.trainingRoom.pokemon?.includes(d.id) &&
-      !pensionSet.has(d.id)
-    );
-    return donors.length >= cost;
-  });
-
-  const displayList = labShowAll ? allUpgradeable : possible;
-  const selected = labSelectedId ? state.pokemons.find(p => p.id === labSelectedId) : null;
-
-  // ── Panneau mutation ────────────────────────────────────────
-  let mutationHtml = `
-    <div style="color:var(--text-dim);font-size:9px;padding:16px;text-align:center;line-height:1.6">
-      Sélectionne un Pokémon<br><br>
-      <span style="font-size:8px">Par défaut, seules les mutations<br>réalisables sont affichées.</span>
-    </div>`;
-  if (selected) {
-    const cost = POT_UPGRADE_COSTS[selected.potential - 1] || 99;
-    const donors = state.pokemons.filter(d =>
-      d.species_en === selected.species_en && d.id !== selected.id &&
-      !d.shiny && d.potential <= selected.potential &&
-      !teamIds.has(d.id) && !state.trainingRoom.pokemon?.includes(d.id) &&
-      !pensionSet.has(d.id)
-    );
-    const canUpgrade = donors.length >= cost && selected.potential < 5;
-    mutationHtml = `
-      <div style="text-align:center;margin-bottom:12px">
-        <img src="${pokeSprite(selected.species_en, selected.shiny)}" style="width:80px;height:80px">
-        <div style="font-family:var(--font-pixel);font-size:10px;margin-top:4px">${speciesName(selected.species_en)}</div>
-        <div style="font-size:10px;color:var(--gold)">${'*'.repeat(selected.potential)} → ${'*'.repeat(selected.potential + 1)}</div>
-      </div>
-      <div style="font-size:10px;margin-bottom:8px">
-        <div>Potentiel : <b>${selected.potential}/5</b></div>
-        <div>Spécimens : <b style="color:${donors.length >= cost ? 'var(--green)' : 'var(--red)'}">${donors.length}/${cost}</b></div>
-      </div>
-      <div style="font-size:8px;color:var(--text-dim);margin-bottom:10px">Équipe + Formation protégées.</div>
-      <button id="btnLabUpgrade" style="width:100%;font-size:10px;padding:8px;background:var(--bg);
-        border:2px solid ${canUpgrade ? 'var(--gold)' : 'var(--border)'};border-radius:var(--radius-sm);
-        color:${canUpgrade ? 'var(--gold)' : 'var(--text-dim)'};cursor:${canUpgrade ? 'pointer' : 'default'}"
-        ${canUpgrade ? '' : 'disabled'}>
-        ${canUpgrade ? '⚗ MUTER LE POTENTIEL' : 'Spécimens insuffisants'}
-      </button>
-      <div style="margin-top:12px">
-        <div style="font-size:8px;color:var(--text-dim);margin-bottom:4px">COÛTS</div>
-        ${POT_UPGRADE_COSTS.map((c, i) =>
-          `<div style="font-size:8px;${selected.potential - 1 === i ? 'color:var(--gold)' : 'color:var(--text-dim)'}">
-            ${'★'.repeat(i+1)} → ${'★'.repeat(i+2)}: ${c} specimens
-          </div>`
-        ).join('')}
-      </div>`;
-  }
-
-  // ── Panneau tracker ─────────────────────────────────────────
-  const tracked = state.lab?.trackedSpecies || [];
-  // Build a quick species list from owned pokémon for the selector
-  const ownedSpecies = [...new Set(state.pokemons.map(p => p.species_en))].sort((a, b) =>
-    speciesName(a).localeCompare(speciesName(b))
-  );
-  const trackerHtml = `
-    <div style="font-family:var(--font-pixel);font-size:9px;color:var(--gold);margin-bottom:8px">🔍 TRACKER</div>
-    <div style="display:flex;gap:6px;margin-bottom:10px">
-      <select id="labTrackerSel" style="flex:1;font-size:9px;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:3px;padding:3px">
-        <option value="">— Espèce —</option>
-        ${ownedSpecies.map(en => `<option value="${en}">${speciesName(en)}</option>`).join('')}
-      </select>
-      <button id="btnLabTrack" style="font-size:10px;padding:3px 10px;background:var(--bg);border:1px solid var(--gold-dim);border-radius:3px;color:var(--gold);cursor:pointer">+</button>
-    </div>
-    ${tracked.length === 0
-      ? '<div style="font-size:9px;color:var(--text-dim)">Aucune espèce suivie.</div>'
-      : tracked.map(species => {
-          const owned = state.pokemons.filter(p => p.species_en === species);
-          const sp = SPECIES_BY_EN[species];
-          const byPot = [1,2,3,4,5].map(pot => owned.filter(p => p.potential === pot).length);
-          // Check if any mutation is currently possible
-          const mutPossible = [1,2,3,4].some(pot => {
-            const cost = POT_UPGRADE_COSTS[pot - 1] || 99;
-            const donors = owned.filter(d => d.potential === pot &&
-              !teamIds.has(d.id) && !state.trainingRoom.pokemon?.includes(d.id));
-            const targets = owned.filter(d => d.potential === pot);
-            return targets.length > 0 && donors.length >= cost + 1;
-          });
-          return `<div style="border:1px solid ${mutPossible ? 'var(--gold-dim)' : 'var(--border)'};border-radius:var(--radius-sm);padding:8px;background:var(--bg);margin-bottom:6px">
-            <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
-              <img src="${pokeSprite(species)}" style="width:26px;height:26px">
-              <span style="font-size:9px;flex:1"><b>${speciesName(species)}</b> — <span style="color:var(--gold)">${owned.length}</span></span>
-              <button class="lab-untrack" data-untrack="${species}" style="font-size:8px;padding:1px 5px;background:var(--bg);border:1px solid var(--red);border-radius:2px;color:var(--red);cursor:pointer">✕</button>
-            </div>
-            <div style="display:flex;gap:3px;flex-wrap:wrap">
-              ${byPot.map((n, i) => `<div style="font-size:8px;padding:2px 5px;border-radius:2px;
-                background:${n > 0 ? 'rgba(255,204,90,0.12)' : 'rgba(0,0,0,0)'};
-                border:1px solid ${n > 0 ? 'var(--gold-dim)' : 'var(--border)'}">
-                ${'★'.repeat(i+1)}: <b>${n}</b>
-              </div>`).join('')}
-            </div>
-            ${mutPossible ? '<div style="font-size:8px;color:var(--green);margin-top:4px">⚡ Mutation possible !</div>' : ''}
-          </div>`;
-        }).join('')
-    }`;
-
-  // ── Liste candidates ────────────────────────────────────────
-  const listHtml = displayList.map(p => {
-    const cost = POT_UPGRADE_COSTS[p.potential - 1] || 99;
-    const donors = state.pokemons.filter(d =>
-      d.species_en === p.species_en && d.id !== p.id &&
-      !d.shiny && d.potential <= p.potential &&
-      !teamIds.has(d.id) && !state.trainingRoom.pokemon?.includes(d.id)
-    );
-    const ready = donors.length >= cost;
-    return `<div class="lab-candidate" data-lab-id="${p.id}"
-      style="display:flex;align-items:center;gap:8px;padding:8px;border-bottom:1px solid var(--border);
-      cursor:pointer;background:${labSelectedId === p.id ? 'var(--bg-hover)' : ''}">
-      <img src="${pokeSprite(p.species_en, p.shiny)}" style="width:36px;height:36px">
-      <div style="flex:1">
-        <div style="font-size:10px">${speciesName(p.species_en)} ${'★'.repeat(p.potential)}</div>
-        <div style="font-size:9px;color:${ready ? 'var(--green)' : 'var(--text-dim)'}">
-          ${ready ? `✓ Prêt (${donors.length}/${cost})` : `${donors.length}/${cost} spécimens`}
-        </div>
-      </div>
-    </div>`;
-  }).join('') || `<div style="color:var(--text-dim);font-size:9px;padding:14px;text-align:center">
-    ${labShowAll ? 'Tous vos Pokémon sont au potentiel max' : 'Aucune mutation réalisable actuellement.<br>Activez « Tous » pour voir tous les candidats.'}
-  </div>`;
-
-  // ── Rendu principal ─────────────────────────────────────────
-  tab.innerHTML = `
-    <div style="display:grid;grid-template-columns:1fr 290px;gap:14px;padding:12px;min-height:400px">
-      <div style="display:flex;flex-direction:column;gap:8px">
-        <div style="display:flex;align-items:center;justify-content:space-between">
-          <div style="font-family:var(--font-pixel);font-size:10px;color:var(--gold)">LABORATOIRE</div>
-          <button id="btnLabToggleAll" style="font-family:var(--font-pixel);font-size:8px;padding:3px 8px;
-            background:${labShowAll ? 'var(--gold-dim)' : 'var(--bg)'};
-            border:1px solid ${labShowAll ? 'var(--gold)' : 'var(--border)'};border-radius:3px;
-            color:${labShowAll ? 'var(--bg)' : 'var(--text-dim)'};cursor:pointer">
-            ${labShowAll ? '✓ TOUS' : 'PRÊTS seulement'}
-          </button>
-        </div>
-        <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);flex:1;overflow-y:auto;max-height:520px">${listHtml}</div>
-      </div>
-      <div style="display:flex;flex-direction:column;gap:10px;overflow-y:auto;max-height:600px">
-        <div style="background:var(--bg-panel);border:1px solid var(--border);border-radius:var(--radius);padding:12px">${mutationHtml}</div>
-        <div style="background:var(--bg-panel);border:1px solid var(--border);border-radius:var(--radius);padding:12px">${trackerHtml}</div>
-      </div>
-    </div>`;
-
-  // Bind — liste
-  tab.querySelectorAll('.lab-candidate').forEach(el => {
-    el.addEventListener('click', () => {
-      labSelectedId = el.dataset.labId;
-      if (pcView === 'lab') renderPCTab(); else renderLabTab();
-    });
-  });
-
-  // Bind — toggle filtre
-  tab.querySelector('#btnLabToggleAll')?.addEventListener('click', () => {
-    labShowAll = !labShowAll;
-    if (pcView === 'lab') renderPCTab(); else renderLabTab();
-  });
-
-  // Bind — mutation
-  tab.querySelector('#btnLabUpgrade')?.addEventListener('click', () => {
-    if (!selected) return;
-    const cost = POT_UPGRADE_COSTS[selected.potential - 1];
-    const pensionSet = new Set([state.pension?.slotA, state.pension?.slotB].filter(Boolean));
-    const donors = state.pokemons.filter(d =>
-      d.species_en === selected.species_en && d.id !== selected.id &&
-      !d.shiny && d.potential <= selected.potential &&
-      !teamIds.has(d.id) && !state.trainingRoom.pokemon?.includes(d.id) &&
-      !pensionSet.has(d.id)
-    );
-    if (donors.length < cost) return;
-    const toSacrifice = donors.slice(0, cost).map(p => p.id);
-    state.pokemons = state.pokemons.filter(p => !toSacrifice.includes(p.id));
-    selected.potential++;
-    saveState();
-    _pcLastRenderKey = '';
-    notify(`${speciesName(selected.species_en)} est maintenant ${'★'.repeat(selected.potential)} !`, 'gold');
-    if (pcView === 'lab') renderPCTab(); else renderLabTab();
-    updateTopBar();
-  });
-
-  // Bind — tracker ajouter
-  tab.querySelector('#btnLabTrack')?.addEventListener('click', () => {
-    const val = document.getElementById('labTrackerSel')?.value;
-    if (!val) return;
-    if (!state.lab.trackedSpecies.includes(val)) {
-      state.lab.trackedSpecies.push(val);
-      saveState();
-      if (pcView === 'lab') renderPCTab(); else renderLabTab();
-    }
-  });
-
-  // Bind — tracker retirer
-  tab.querySelectorAll('.lab-untrack').forEach(btn => {
-    btn.addEventListener('click', () => {
-      state.lab.trackedSpecies = state.lab.trackedSpecies.filter(s => s !== btn.dataset.untrack);
-      saveState();
-      if (pcView === 'lab') renderPCTab(); else renderLabTab();
-    });
-  });
-}
-
-function renderLabTab() {
-  const tab = document.getElementById('tabLab');
-  if (!tab) return;
-  renderLabTabInEl(tab);
-}
-
-// ════════════════════════════════════════════════════════════════
-
-let agentTickInterval   = null;
-let autoSaveInterval    = null;
-let cooldownInterval    = null;
-let _gameLoopStarted    = false;  // guard against double-start
+// ── renderTrainingTab / trainingRoomTick extracted → modules/systems/trainingRoom.js ──
 
 // ════════════════════════════════════════════════════════════════
 // 22.  PENSION & EGGS
 // ════════════════════════════════════════════════════════════════
-
-const EGG_HATCH_MS = {
-  common:    1 * 60 * 1000,
-  uncommon:  5 * 60 * 1000,
-  rare:      15 * 60 * 1000,
-  very_rare: 45 * 60 * 1000,
-  legendary: 60 * 60 * 1000,
-};
-const EGG_GEN_MS = 5 * 60 * 1000; // new egg every 5 min when both slots filled
-
-function pensionTick() {
-  const p = state.pension;
-  const now = Date.now();
-
-  // Generate egg when both slots filled and timer elapsed
-  if (p.slotA && p.slotB && p.eggAt && now >= p.eggAt) {
-    const pkA = state.pokemons.find(pk => pk.id === p.slotA);
-    const pkB = state.pokemons.find(pk => pk.id === p.slotB);
-    if (pkA && pkB) {
-      // Legendaries can't transmit species; if both legendary, skip egg
-      const isLegA = SPECIES_BY_EN[pkA.species_en]?.rarity === 'legendary';
-      const isLegB = SPECIES_BY_EN[pkB.species_en]?.rarity === 'legendary';
-      if (isLegA && isLegB) {
-        p.eggAt = now + EGG_GEN_MS; // reset timer, no egg from two legends
-        saveState(); return;
-      }
-      // Non-legendary always transmits; if both non-legendary, random pick
-      const parent = isLegA ? pkB : isLegB ? pkA : (Math.random() < 0.5 ? pkA : pkB);
-      // Eggs always hatch at stage 1 of the evolution chain
-      const baseSpeciesEn = getBaseSpecies(parent.species_en);
-      const sp = SPECIES_BY_EN[baseSpeciesEn];
-      if (sp && EGG_HATCH_MS[sp.rarity] !== null) {
-        const hatchMs = EGG_HATCH_MS[sp.rarity] || EGG_HATCH_MS.common;
-        const avgPot = Math.floor((pkA.potential + pkB.potential) / 2);
-        const potential = Math.min(5, avgPot + (Math.random() < 0.2 ? 1 : 0));
-        const shinyChance = (pkA.shiny && pkB.shiny) ? 0.15 : (pkA.shiny || pkB.shiny) ? 0.05 : 0.01;
-        const egg = {
-          id: `egg_${now}_${Math.random().toString(36).slice(2,7)}`,
-          species_en: baseSpeciesEn,
-          hatchAt: null,
-          incubating: false,
-          rarity: sp.rarity,
-          potential,
-          shiny: Math.random() < shinyChance,
-          parentA: pkA.species_en,
-          parentB: pkB.species_en,
-        };
-        state.eggs.push(egg);
-        tryAutoIncubate();
-        p.eggAt = now + EGG_GEN_MS;
-        notify(`Un oeuf de ${speciesName(baseSpeciesEn)} a ete depose !${state.purchases?.autoIncubator ? ' (auto-incubé)' : ' Placez-le dans un incubateur.'}`, 'gold');
-        saveState();
-        if (activeTab === 'tabPC') renderPCTab();
-      }
-    }
-  }
-  // Start timer when both slots first filled
-  if (p.slotA && p.slotB && !p.eggAt) {
-    p.eggAt = now + EGG_GEN_MS;
-    saveState();
-  }
-  // Clear timer if slots empty
-  if (!p.slotA || !p.slotB) p.eggAt = null;
-
-  // Hatch only incubating eggs that are ready
-  const ready = state.eggs.filter(e => e.incubating && e.hatchAt && e.hatchAt <= now);
-  for (const egg of ready) {
-    const baseEn = getBaseSpecies(egg.species_en);
-    const sp = SPECIES_BY_EN[baseEn];
-    if (!sp) continue;
-    const hatched = makePokemon(baseEn, 'pension', 'pokeball');
-    if (hatched) {
-      hatched.level = 1;
-      hatched.xp = 0;
-      hatched.potential = egg.potential;
-      hatched.shiny = egg.shiny;
-      hatched.stats = calculateStats(hatched);
-      hatched.history = [{ type: 'hatched', ts: now }];
-      state.pokemons.push(hatched);
-      state.stats.totalCaught++;
-      state.stats.eggsHatched = (state.stats.eggsHatched || 0) + 1;
-      if (!state.pokedex[baseEn]) {
-        state.pokedex[baseEn] = { seen: true, caught: true, shiny: egg.shiny, count: 1 };
-      } else {
-        state.pokedex[baseEn].caught = true;
-        state.pokedex[baseEn].count++;
-        if (egg.shiny) state.pokedex[baseEn].shiny = true;
-      }
-      notify(`L\'oeuf a eclore ! ${egg.shiny ? '[SHINY] ' : ''}${speciesName(baseEn)} Lv.1 ${'*'.repeat(egg.potential)} rejoint le PC.`, 'gold');
-    }
-    state.eggs = state.eggs.filter(e => e.id !== egg.id);
-    saveState();
-    if (activeTab === 'tabPC') renderPCTab();
-  }
-}
-
-function renderPensionView(container) {
-  const p = state.pension;
-  const now = Date.now();
-  const pkA = p.slotA ? state.pokemons.find(pk => pk.id === p.slotA) : null;
-  const pkB = p.slotB ? state.pokemons.find(pk => pk.id === p.slotB) : null;
-
-  const slotHtml = (pk, slot) => {
-    if (pk) {
-      return `<div class="pension-slot filled" data-pension-slot="${slot}">
-        <img src="${pokeSprite(pk.species_en, pk.shiny)}" style="width:52px;height:52px">
-        <div style="font-size:8px;margin-top:2px">${speciesName(pk.species_en)}</div>
-        <div style="font-size:8px;color:var(--text-dim)">Lv.${pk.level} ${'*'.repeat(pk.potential)}</div>
-        <button class="pension-remove-btn" data-slot="${slot}" style="margin-top:4px;font-size:8px;padding:2px 6px;background:var(--bg);border:1px solid var(--red);border-radius:var(--radius-sm);color:var(--red);cursor:pointer">Retirer</button>
-      </div>`;
-    }
-    return `<div class="pension-slot empty" data-pension-slot="${slot}">
-      <div style="font-size:9px;color:var(--text-dim)">Slot ${slot === 'slotA' ? 'A' : 'B'}</div>
-      <div style="font-size:8px;color:var(--text-dim);margin-top:4px">Cliquer un Pokemon</div>
-    </div>`;
-  };
-
-  const nextEggMs = p.eggAt ? Math.max(0, p.eggAt - now) : null;
-  const nextEggStr = nextEggMs !== null ? `${Math.ceil(nextEggMs / 60000)}min` : '--';
-
-  // ── Incubator slots ──
-  const incubatorCount = state.inventory.incubator || 0;
-  const incubatingEggs = state.eggs.filter(e => e.incubating);
-  const freeSlots = incubatorCount - incubatingEggs.length;
-
-  const incubatorHtml = (() => {
-    if (incubatorCount === 0) {
-      return `<div style="font-size:9px;color:var(--text-dim);padding:8px;text-align:center">
-        Aucun incubateur — achetez-en un au Marche (15 000P)
-      </div>`;
-    }
-    let html = '';
-    // Active incubations
-    for (const egg of incubatingEggs) {
-      const rarity = egg.rarity || SPECIES_BY_EN[egg.species_en]?.rarity || 'common';
-      const total = EGG_HATCH_MS[rarity] || EGG_HATCH_MS.common;
-      const rem = Math.max(0, (egg.hatchAt || 0) - now);
-      const pct = total > 0 ? Math.round((1 - rem / total) * 100) : 100;
-      const remStr = rem <= 0 ? 'Pret !' : rem < 60000 ? `${Math.ceil(rem / 1000)}s` : `${Math.ceil(rem / 60000)}min`;
-      html += `<div style="display:flex;align-items:center;gap:8px;padding:8px;border:1px solid var(--gold-dim);border-radius:var(--radius-sm);margin-bottom:6px;background:var(--bg)">
-        <img src="${ITEM_SPRITE_URLS.incubator}" style="width:24px;height:24px">
-        <img src="${pokeSprite(egg.species_en)}" style="width:36px;height:36px">
-        <div style="flex:1">
-          <div style="font-size:9px">${speciesName(egg.species_en)}${egg.shiny ? ' [S]' : ''} ${'*'.repeat(egg.potential)}</div>
-          <div style="background:var(--border);border-radius:2px;height:4px;margin-top:4px">
-            <div style="background:var(--gold-dim);height:4px;border-radius:2px;width:${pct}%"></div>
-          </div>
-          <div style="font-size:8px;color:var(--gold);margin-top:2px">${remStr}</div>
-        </div>
-      </div>`;
-    }
-    // Free slots
-    for (let i = 0; i < freeSlots; i++) {
-      html += `<div style="display:flex;align-items:center;gap:8px;padding:8px;border:1px dashed var(--border);border-radius:var(--radius-sm);margin-bottom:6px;color:var(--text-dim);font-size:9px">
-        <img src="${ITEM_SPRITE_URLS.incubator}" style="width:24px;height:24px;opacity:.4">
-        <span>Incubateur libre — cliquez un oeuf ci-dessous</span>
-      </div>`;
-    }
-    return html;
-  })();
-
-  // ── Waiting eggs (not incubating) ──
-  const waitingEggs = state.eggs.filter(e => !e.incubating);
-  const waitingHtml = waitingEggs.length
-    ? waitingEggs.map(egg => {
-        const rarity = egg.rarity || SPECIES_BY_EN[egg.species_en]?.rarity || 'common';
-        const hatchTime = EGG_HATCH_MS[rarity] || EGG_HATCH_MS.common;
-        const hatchStr = hatchTime < 60000 ? `${hatchTime/1000}s` : `${hatchTime/60000}min`;
-        // Prix de vente : valeur marchande × 50 %
-        const sellPrice = Math.round((BASE_PRICE[rarity] || 100) * (POTENTIAL_MULT[(egg.potential || 1) - 1] || 1) * 0.5);
-        // Afficher parents sans révéler le Pokémon intérieur
-        const parentsStr = egg.mystery
-          ? 'Oeuf Mystère'
-          : (egg.parentA && egg.parentB)
-            ? `${speciesName(egg.parentA)} × ${speciesName(egg.parentB)}`
-            : '? × ?';
-        return `<div style="display:flex;align-items:center;gap:8px;padding:6px;border-bottom:1px solid var(--border)">
-          <img src="${ITEM_SPRITE_URLS.incubator}" style="width:36px;height:36px;opacity:.85;image-rendering:pixelated">
-          <div style="flex:1">
-            <div style="font-size:9px;color:var(--gold)">Oeuf ${rarity} ${'*'.repeat(egg.potential || 1)}</div>
-            <div style="font-size:8px;color:var(--text-dim)">${parentsStr} — éclosion : ${hatchStr}</div>
-          </div>
-          <div style="display:flex;flex-direction:column;gap:3px;align-items:flex-end">
-            ${freeSlots > 0
-              ? `<button class="pension-incubate-btn" data-egg-id="${egg.id}" style="font-size:8px;padding:3px 8px;background:var(--bg);border:1px solid var(--gold-dim);border-radius:var(--radius-sm);color:var(--gold);cursor:pointer">Incuber</button>`
-              : ''}
-            <button class="pension-sell-egg-btn" data-egg-id="${egg.id}" data-sell-price="${sellPrice}" style="font-size:8px;padding:3px 8px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-dim);cursor:pointer">Vendre ${sellPrice.toLocaleString()}₽</button>
-          </div>
-        </div>`;
-      }).join('')
-    : `<div style="color:var(--text-dim);font-size:9px;padding:8px">Aucun oeuf en attente</div>`;
-
-  // Pokemon picker (not in pension, not in team, not in training room, not legendary)
-  const usedIds = new Set([p.slotA, p.slotB].filter(Boolean));
-  const teamIds = new Set([...state.gang.bossTeam]);
-  for (const a of state.agents) a.team.forEach(id => teamIds.add(id));
-  const trainingIds = new Set(state.trainingRoom?.pokemon || []);
-
-  // Récupère la valeur de recherche courante (persistée entre re-renders)
-  const pensionQ = (container.querySelector('#pensionSearchInput')?.value || '').toLowerCase();
-
-  const allPensionCandidates = state.pokemons
-    .filter(pk => !usedIds.has(pk.id) && !teamIds.has(pk.id) && !trainingIds.has(pk.id) && SPECIES_BY_EN[pk.species_en]?.rarity !== 'legendary')
-    .sort((a, b) => getPokemonPower(b) - getPokemonPower(a));
-  const candidates = pensionQ
-    ? allPensionCandidates.filter(pk => speciesName(pk.species_en).toLowerCase().includes(pensionQ) || pk.species_en.includes(pensionQ))
-    : allPensionCandidates;
-
-  const pickerHtml = candidates.map(pk =>
-    `<div class="pension-candidate" data-pk-id="${pk.id}" style="display:flex;align-items:center;gap:8px;padding:6px;border-bottom:1px solid var(--border);cursor:pointer">
-      <img src="${pokeSprite(pk.species_en, pk.shiny)}" style="width:32px;height:32px">
-      <div style="flex:1">
-        <div style="font-size:10px">${speciesName(pk.species_en)} ${'*'.repeat(pk.potential)}${pk.shiny ? ' ✨' : ''}</div>
-        <div style="font-size:9px;color:var(--text-dim)">Lv.${pk.level}</div>
-      </div>
-    </div>`
-  ).join('') || `<div style="color:var(--text-dim);font-size:10px;padding:12px">Aucun Pokemon disponible</div>`;
-
-  container.innerHTML = `
-    <div style="display:grid;grid-template-columns:1fr 220px;gap:16px;padding:12px">
-      <div>
-        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
-          <div style="font-family:var(--font-pixel);font-size:10px;color:var(--gold)">PENSION POKEMON</div>
-          ${(p.slotA || p.slotB) ? `<button id="btnPensionClearAll" style="margin-left:auto;font-family:var(--font-pixel);font-size:8px;padding:4px 8px;background:var(--bg);border:1px solid var(--red);border-radius:var(--radius-sm);color:var(--red);cursor:pointer">Tout retirer</button>` : ''}
-        </div>
-        <div style="font-size:10px;color:var(--text-dim);margin-bottom:12px">Deposez deux Pokemon — un oeuf sera pond tous les ${EGG_GEN_MS/60000}min.</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
-          ${slotHtml(pkA, 'slotA')}
-          ${slotHtml(pkB, 'slotB')}
-        </div>
-        ${pkA && pkB ? `<div style="font-size:9px;color:var(--text-dim);padding:6px 8px;background:var(--bg);border-radius:var(--radius-sm);margin-bottom:12px">Prochain oeuf dans : <b style="color:var(--gold)">${nextEggStr}</b></div>` : ''}
-
-        <div style="font-family:var(--font-pixel);font-size:9px;color:var(--gold);margin-bottom:6px">INCUBATEURS (${incubatingEggs.length}/${incubatorCount})</div>
-        <div style="margin-bottom:12px">${incubatorHtml}</div>
-
-        <div style="font-family:var(--font-pixel);font-size:9px;color:var(--text-dim);margin-bottom:6px">OEUFS EN ATTENTE (${waitingEggs.length})</div>
-        <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);max-height:180px;overflow-y:auto">${waitingHtml}</div>
-      </div>
-      <div>
-        <div style="font-family:var(--font-pixel);font-size:9px;color:var(--text-dim);margin-bottom:8px">CHOISIR UN POKEMON</div>
-        <input id="pensionSearchInput" type="text" placeholder="Rechercher…" value="${pensionQ}"
-          style="width:100%;padding:6px 8px;margin-bottom:6px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:10px;box-sizing:border-box;outline:none">
-        <div style="font-size:8px;color:var(--text-dim);margin-bottom:6px">Cliquer pour placer dans slot vide</div>
-        <div id="pensionPicker" style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);max-height:460px;overflow-y:auto">${pickerHtml}</div>
-      </div>
-    </div>`;
-
-  // Clear all pension slots
-  container.querySelector('#btnPensionClearAll')?.addEventListener('click', () => {
-    state.pension.slotA = null;
-    state.pension.slotB = null;
-    state.pension.eggAt = null;
-    saveState();
-    notify('Pension vidée.', 'success');
-    renderPensionView(container);
-  });
-
-  // Recherche pension
-  container.querySelector('#pensionSearchInput')?.addEventListener('input', () => {
-    renderPensionView(container);
-  });
-
-  container.querySelectorAll('.pension-remove-btn').forEach(btn => {
-    btn.addEventListener('click', e => {
-      e.stopPropagation();
-      state.pension[btn.dataset.slot] = null;
-      state.pension.eggAt = null;
-      saveState();
-      renderPensionView(container);
-    });
-  });
-
-  // Place egg in incubator
-  container.querySelectorAll('.pension-incubate-btn').forEach(btn => {
-    btn.addEventListener('click', e => {
-      e.stopPropagation();
-      if (freeSlots <= 0) { notify('Pas d\'incubateur libre.'); return; }
-      const egg = state.eggs.find(eg => eg.id === btn.dataset.eggId);
-      if (!egg || egg.incubating) return;
-      const rarity = egg.rarity || SPECIES_BY_EN[egg.species_en]?.rarity || 'common';
-      egg.incubating = true;
-      egg.hatchAt = Date.now() + (EGG_HATCH_MS[rarity] || EGG_HATCH_MS.common);
-      saveState();
-      notify(`Oeuf de ${speciesName(egg.species_en)} place en incubateur !`, 'gold');
-      renderPensionView(container);
-    });
-  });
-
-  // Sell waiting egg
-  container.querySelectorAll('.pension-sell-egg-btn').forEach(btn => {
-    btn.addEventListener('click', e => {
-      e.stopPropagation();
-      const egg = state.eggs.find(eg => eg.id === btn.dataset.eggId);
-      if (!egg || egg.incubating) return;
-      const price = parseInt(btn.dataset.sellPrice) || 0;
-      const rarity = egg.rarity || 'common';
-      const parentsStr = egg.mystery ? 'Oeuf Mystère' : (egg.parentA && egg.parentB) ? `${speciesName(egg.parentA)} × ${speciesName(egg.parentB)}` : 'oeuf';
-      showConfirm(
-        `Vendre cet oeuf (${parentsStr}) pour ${price.toLocaleString()}₽ ?<br><span style="color:var(--text-dim);font-size:11px">Vous ne saurez jamais quel Pokémon était dedans.</span>`,
-        () => {
-          state.eggs = state.eggs.filter(eg => eg.id !== egg.id);
-          state.gang.money += price;
-          state.stats.totalMoneyEarned = (state.stats.totalMoneyEarned || 0) + price;
-          saveState();
-          updateTopBar();
-          notify(`Oeuf vendu pour ${price.toLocaleString()}₽`, 'success');
-          renderPensionView(container);
-        },
-        null,
-        { danger: true, confirmLabel: 'Vendre', cancelLabel: 'Garder' }
-      );
-    });
-  });
-
-  container.querySelectorAll('.pension-candidate').forEach(el => {
-    el.addEventListener('click', () => {
-      const pkId = el.dataset.pkId;
-      removePokemonFromAllAssignments(pkId);
-      if (!state.pension.slotA) state.pension.slotA = pkId;
-      else if (!state.pension.slotB && state.pension.slotA !== pkId) state.pension.slotB = pkId;
-      else return;
-      saveState();
-      renderPensionView(container);
-    });
-  });
-}
+// ── pensionTick / renderPensionView extracted → modules/systems/pension.js ──
 
 function startGameLoop() {
   // Guard: only start once — prevents interval accumulation on hot-reload
@@ -12955,6 +10999,42 @@ function showMigrationBanner({ from, toLegacyKey, fields }) {
   overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
 }
 
+// ════════════════════════════════════════════════════════════════
+// GLOBAL EXPORTS — functions/constants needed by extracted modules
+// ════════════════════════════════════════════════════════════════
+Object.assign(globalThis, {
+  // Utility functions
+  t, pick, weightedPick, uid, randInt, addLog, speciesName, playSE,
+  getMysteryEggCost, trainerSprite,
+  // UI / state helpers
+  notify, saveState,
+  checkForNewlyUnlockedZones, updateTopBar, tryAutoIncubate,
+  renderZonesTab, renderGangTab, renderPokemonGrid, renderEggsView,
+  // Audio
+  SFX,
+  // Zone / spawn functions (agent module)
+  initZone, spawnInZone, makePokemon, getPokemonPower, levelUpPokemon,
+  getCombatRepGain, addBattleLogEntry, rollChestLoot, triggerGymRaid,
+  tryCapture, calculateStats, showCaptureBurst,
+  removeSpawn, updateZoneTimers,
+  // Combat (agent module)
+  openCombatPopup, executeCombat, closeCombatPopup,
+  _addVSBadge,
+  // Data constants (imported at top of app.js, need to be on globalThis for modules)
+  MISSIONS, HOURLY_QUEST_POOL, HOURLY_QUEST_REROLL_COST,
+  BASE_PRICE, POTENTIAL_MULT, NATURES, BALLS, MYSTERY_EGG_POOL,
+  MAX_COMBAT_REWARD, BALL_SPRITES,
+  AGENT_NAMES_M, AGENT_NAMES_F, AGENT_SPRITES, AGENT_PERSONALITIES,
+  TITLE_REQUIREMENTS, TITLE_BONUSES,
+  // sessionObjectives module
+  isZoneUnlocked,
+  BOOST_DURATIONS, ITEM_SPRITE_URLS,
+  // trainingRoom module
+  pokeSprite, tryAutoEvolution,
+  // pension module
+  showConfirm, renderPCTab,
+});
+
 function boot() {
   // Version check — must run before anything else; may trigger reload
   if (checkVersionOnBoot()) return;
@@ -12963,6 +11043,7 @@ function boot() {
   const saved = loadState();
   if (saved) {
     state = saved;
+    globalThis.state = state;
   }
   state.sessionStart = Date.now();
 

@@ -513,6 +513,11 @@ function agentCaptureVisibleSpawn(agent, zoneId, spawnObj) {
 function agentAutoCombat(zoneId, spawnObj, agent) {
   // Don't start if a combat is already running
   if (globalThis.currentCombat) return;
+  // Show VS badge on the spawn element
+  const _win = document.getElementById(`zw-${zoneId}`);
+  const _vp  = _win?.querySelector('.zone-viewport');
+  const _el  = _vp?.querySelector(`[data-spawn-id="${spawnObj.id}"]`);
+  if (_el) globalThis._addVSBadge(_el);
   // Open combat popup (same as player click)
   globalThis.openCombatPopup(zoneId, spawnObj);
   // Auto-execute after a brief delay so the player can see it
