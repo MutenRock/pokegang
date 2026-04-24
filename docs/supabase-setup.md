@@ -44,21 +44,42 @@ Données publiques mises à jour à chaque save. Sert de base pour les classemen
 
 ```sql
 CREATE TABLE public.players (
-  user_id       uuid        NOT NULL PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  gang_name     text        NOT NULL DEFAULT 'Team ???',
-  boss_name     text        NOT NULL DEFAULT 'Boss',
-  reputation    integer     NOT NULL DEFAULT 0,
-  total_caught  integer     NOT NULL DEFAULT 0,
-  total_sold    integer     NOT NULL DEFAULT 0,
-  shiny_count   integer     NOT NULL DEFAULT 0,
-  pokedex_count integer     NOT NULL DEFAULT 0,
-  updated_at    timestamptz NOT NULL DEFAULT now()
+  user_id           uuid        NOT NULL PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  gang_name         text        NOT NULL DEFAULT 'Team ???',
+  boss_name         text        NOT NULL DEFAULT 'Boss',
+  reputation        integer     NOT NULL DEFAULT 0,
+  money             integer     NOT NULL DEFAULT 0,
+  total_caught      integer     NOT NULL DEFAULT 0,
+  total_sold        integer     NOT NULL DEFAULT 0,
+  shiny_count       integer     NOT NULL DEFAULT 0,
+  pokedex_count     integer     NOT NULL DEFAULT 0,
+  pokemon_count     integer     NOT NULL DEFAULT 0,
+  total_fights_won  integer     NOT NULL DEFAULT 0,
+  eggs_hatched      integer     NOT NULL DEFAULT 0,
+  events_completed  integer     NOT NULL DEFAULT 0,
+  updated_at        timestamptz NOT NULL DEFAULT now()
 );
 
-COMMENT ON TABLE  public.players              IS 'Stats publiques des joueurs pour le leaderboard';
-COMMENT ON COLUMN public.players.reputation   IS 'Réputation totale du gang (principal critère de classement)';
-COMMENT ON COLUMN public.players.shiny_count  IS 'Nombre de shinies attrapés (critère secondaire)';
+COMMENT ON TABLE  public.players                   IS 'Stats publiques des joueurs pour le leaderboard';
+COMMENT ON COLUMN public.players.reputation        IS 'Réputation totale du gang (principal critère de classement)';
+COMMENT ON COLUMN public.players.shiny_count       IS 'Total shinies capturés depuis le début (state.stats.shinyCaught)';
+COMMENT ON COLUMN public.players.total_caught      IS 'Total Pokémon capturés (state.stats.totalCaught)';
+COMMENT ON COLUMN public.players.total_sold        IS 'Total Pokémon vendus (state.stats.totalSold)';
+COMMENT ON COLUMN public.players.pokemon_count     IS 'Pokémon actuellement dans le PC';
+COMMENT ON COLUMN public.players.total_fights_won  IS 'Combats remportés (state.stats.totalFightsWon)';
+COMMENT ON COLUMN public.players.eggs_hatched      IS 'Œufs éclos (state.stats.eggsHatched)';
+COMMENT ON COLUMN public.players.events_completed  IS 'Événements complétés (state.stats.eventsCompleted)';
 ```
+
+> ⚠️ **Migration** — si la table existe déjà, ajouter les nouvelles colonnes :
+> ```sql
+> ALTER TABLE public.players
+>   ADD COLUMN IF NOT EXISTS money            integer NOT NULL DEFAULT 0,
+>   ADD COLUMN IF NOT EXISTS pokemon_count    integer NOT NULL DEFAULT 0,
+>   ADD COLUMN IF NOT EXISTS total_fights_won integer NOT NULL DEFAULT 0,
+>   ADD COLUMN IF NOT EXISTS eggs_hatched     integer NOT NULL DEFAULT 0,
+>   ADD COLUMN IF NOT EXISTS events_completed integer NOT NULL DEFAULT 0;
+> ```
 
 ---
 
@@ -157,10 +178,15 @@ CREATE POLICY "world_prices: update connecté"
 
 ```sql
 -- Leaderboard trié par réputation
-CREATE INDEX idx_players_reputation  ON public.players (reputation DESC);
+CREATE INDEX idx_players_reputation   ON public.players (reputation DESC);
 
 -- Leaderboard secondaire par shinies
-CREATE INDEX idx_players_shiny       ON public.players (shiny_count DESC);
+CREATE INDEX idx_players_shiny        ON public.players (shiny_count DESC);
+
+-- Autres critères de classement
+CREATE INDEX idx_players_caught       ON public.players (total_caught DESC);
+CREATE INDEX idx_players_fights       ON public.players (total_fights_won DESC);
+CREATE INDEX idx_players_pokedex      ON public.players (pokedex_count DESC);
 
 -- Lookup rapide des saves par slot
 CREATE INDEX idx_player_saves_slot   ON public.player_saves (user_id, slot);
