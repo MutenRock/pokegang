@@ -12146,7 +12146,7 @@ async function supaForceCloudLoad() {
 async function supaUpdateLeaderboard() {
   if (!_supabase || !supaSession) return;
   const s           = state.stats || {};
-  const dexCount    = Object.values(state.pokedex || {}).filter(v => v > 0).length;
+  const dexCount    = Object.values(state.pokedex || {}).filter(e => e.caught).length;
   const pokemonCount = (state.pokemons || []).length;
   await _supabase.from('players').upsert({
     user_id:            supaSession.user.id,
