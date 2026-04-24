@@ -158,6 +158,11 @@ export function migrateSave(saved, deps) {
     merged._limitViolationReward = true;
   }
 
+  // Initialiser dexCaught depuis le pokédex existant si absent ou à 0
+  if (!merged.stats.dexCaught) {
+    merged.stats.dexCaught = Object.values(merged.pokedex || {}).filter(e => e.caught).length;
+  }
+
   merged._schemaVersion = SAVE_SCHEMA_VERSION;
   return merged;
 }
