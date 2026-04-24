@@ -221,90 +221,95 @@
     <div class="intro-panels">
 
       <!-- LEFT: animated showcase -->
-      <div class="intro-showcase">
-        <div class="intro-logo">
-          <img src="https://lab.sterenna.fr/PG/pokegang_logo/pokegang_logo_full_B.png" alt="PokéGang">
+      <div class="intro-showcase intro-showcase-briefing">
+        <div class="intro-logo-fade" aria-hidden="true">
+          <img src="https://lab.sterenna.fr/PG/pokegang_logo/pokegang_logo_full_B.png" alt="">
         </div>
-        <div class="intro-scene-wrap">
+
+        <div class="intro-showcase-copy">
+          <div class="intro-brief-label"><img class="intro-brief-icon" src="https://lab.sterenna.fr/PG/pokegang_logo/pokegang_logo_little.png" alt="">Briefing PokéGang</div>
+          <div class="intro-showcase-title">Prends le contrôle de Kanto.</div>
+          <div class="intro-showcase-text">
+            Recrute des agents, capture des Pokémon rares et étends ton influence dans l'ombre.
+          </div>
+        </div>
+
+        <div class="intro-scene-wrap intro-scene-wrap-briefing">
           <div id="introSceneContainer" class="intro-scene">
             <!-- filled by JS -->
           </div>
         </div>
+
         <div class="intro-dots" id="introSceneDots">
           <div class="intro-dot active"></div>
           <div class="intro-dot"></div>
           <div class="intro-dot"></div>
         </div>
-        <div class="intro-features">
-          <div class="intro-feature">
-            <div class="intro-feature-icon">🎯</div>
-            <div>Capturez des centaines de Pokémon rares dans des zones exclusives</div>
+
+        <div class="intro-pillars">
+          <div class="intro-pillar">
+            <span class="intro-pillar-kicker">Capture</span>
+            <span class="intro-pillar-text">Récupère les meilleures cibles.</span>
           </div>
-          <div class="intro-feature">
-            <div class="intro-feature-icon">⚔</div>
-            <div>Combattez des dresseurs et remportez des tournois de Gang</div>
+          <div class="intro-pillar">
+            <span class="intro-pillar-kicker">Dirige</span>
+            <span class="intro-pillar-text">Déploie ton réseau d'agents.</span>
           </div>
-          <div class="intro-feature">
-            <div class="intro-feature-icon">👑</div>
-            <div>Développez votre réputation et devenez le Gang le plus puissant</div>
+          <div class="intro-pillar">
+            <span class="intro-pillar-kicker">Gagne de la réputation</span>
+            <span class="intro-pillar-text">Étends ton influence dans toute la région.</span>
           </div>
         </div>
       </div>
 
-      <!-- RIGHT: form -->
-      <div class="intro-form-panel">
-        <div class="intro-section-label">SAUVEGARDES</div>
+      <!-- RIGHT: save selection -->
+      <div class="intro-form-panel intro-form-panel-saves">
+        <div class="intro-section-label intro-section-label-with-icon">
+          <img class="intro-section-logo" src="https://lab.sterenna.fr/PG/pokegang_logo/pokegang_logo_little.png" alt="PokéGang">
+          <span>SAUVEGARDES</span>
+        </div>
+        <div class="intro-panel-note">Choisis une sauvegarde existante ou clique sur un slot vide pour créer une nouvelle partie.</div>
         <div class="intro-slots" id="introSlots">
           <!-- filled by JS -->
         </div>
-
-        <div style="display:flex;gap:8px;margin-bottom:16px">
-          <button id="btnHubRepairSlot" style="
-            flex:1;font-family:var(--font-pixel);font-size:8px;padding:10px 10px;
-            background:rgba(255,160,0,.06);border:1px dashed rgba(255,160,0,.4);
-            border-radius:var(--radius-sm);color:#ffa000;cursor:pointer;
-            text-align:center;transition:background .15s,border-color .15s
-          " onmouseover="this.style.background='rgba(255,160,0,.14)';this.style.borderColor='rgba(255,160,0,.8)'"
-             onmouseout="this.style.background='rgba(255,160,0,.06)';this.style.borderColor='rgba(255,160,0,.4)'">
-            🔧 Réparer un slot
-            <div style="font-family:sans-serif;font-size:9px;color:var(--text-dim);margin-top:3px">
-              Corrige & migre une save
-            </div>
-          </button>
-          <button id="btnHubImportSave" style="
-            flex:1;font-family:var(--font-pixel);font-size:8px;padding:10px 10px;
-            background:rgba(255,140,0,.06);border:1px dashed rgba(255,140,0,.4);
-            border-radius:var(--radius-sm);color:#ffa040;cursor:pointer;
-            text-align:center;transition:background .15s,border-color .15s
-          " onmouseover="this.style.background='rgba(255,140,0,.14)';this.style.borderColor='rgba(255,140,0,.8)'"
-             onmouseout="this.style.background='rgba(255,140,0,.06)';this.style.borderColor='rgba(255,140,0,.4)'">
-            📥 Importer une save
-            <div style="font-family:sans-serif;font-size:9px;color:var(--text-dim);margin-top:3px">
-              Depuis fichier JSON
-            </div>
-          </button>
+        <div class="intro-slot-tools">
+          <button id="btnHubImportSave" class="intro-slot-tool intro-slot-tool-import">📥 Importer une save</button>
+          <button id="btnHubRepairSlot" class="intro-slot-tool intro-slot-tool-repair">🔧 Réparer une save</button>
         </div>
-
-        <div class="intro-section-label">NOUVELLE PARTIE</div>
-
-        <div class="intro-field">
-          <label>Nom du Boss</label>
-          <input type="text" id="inputBossName" maxlength="16" placeholder="Red">
-        </div>
-
-        <div class="intro-field">
-          <label>Nom du Gang</label>
-          <input type="text" id="inputGangName" maxlength="20" placeholder="Team Fury">
-        </div>
-
-        <div class="intro-field">
-          <label>Avatar</label>
-        </div>
-        <div class="sprite-picker" id="spritePicker"></div>
-
-        <button class="btn-start" id="btnStartGame">Commencer</button>
       </div>
 
+    </div>
+  </div>
+  <div id="newGameModal" class="new-game-modal" aria-hidden="true">
+    <div class="new-game-modal__backdrop" data-close-new-game></div>
+    <div class="new-game-modal__box" role="dialog" aria-modal="true" aria-labelledby="newGameTitle">
+      <div class="new-game-modal__header">
+        <div>
+          <div class="new-game-modal__eyebrow">Création de partie</div>
+          <div class="new-game-modal__title" id="newGameTitle">Nouvelle opération</div>
+        </div>
+        <button class="new-game-modal__close" id="btnCloseNewGameModal" title="Fermer">✕</button>
+      </div>
+
+      <div class="intro-field">
+        <label>Nom du Boss</label>
+        <input type="text" id="inputBossName" maxlength="16" placeholder="Boss">
+      </div>
+
+      <div class="intro-field">
+        <label>Nom du Gang</label>
+        <input type="text" id="inputGangName" maxlength="20" placeholder="Team Fury">
+      </div>
+
+      <div class="intro-field">
+        <label>Avatar</label>
+      </div>
+      <div class="sprite-picker" id="spritePicker"></div>
+
+      <div class="new-game-modal__footer">
+        <div class="new-game-modal__slot" id="newGameSelectedSlotLabel">Slot sélectionné : 1</div>
+        <button class="btn-start" id="btnStartGame">Créer la partie</button>
+      </div>
     </div>
   </div>
 
