@@ -1405,6 +1405,7 @@ function evolvePokemon(pokemon, targetEN) {
   // Update pokedex
   if (!state.pokedex[sp.en]) {
     state.pokedex[sp.en] = { seen: true, caught: true, shiny: pokemon.shiny, count: 1 };
+    state.stats.dexCaught = (state.stats.dexCaught || 0) + 1;
   } else {
     state.pokedex[sp.en].caught = true;
     state.pokedex[sp.en].count++;
@@ -2099,6 +2100,7 @@ function rollChestLoot(zoneId, passive = false) {
           const stars = '★'.repeat(pokemon.potential);
           if (!state.pokedex[pokemon.species_en]) {
             state.pokedex[pokemon.species_en] = { seen: true, caught: true, shiny: pokemon.shiny, count: 1 };
+            state.stats.dexCaught = (state.stats.dexCaught || 0) + 1;
           } else {
             state.pokedex[pokemon.species_en].caught = true;
             state.pokedex[pokemon.species_en].count++;
@@ -2265,6 +2267,7 @@ function tryCapture(zoneId, speciesEN, bonusPotential = 0) {
   // Pokedex
   if (!state.pokedex[pokemon.species_en]) {
     state.pokedex[pokemon.species_en] = { seen: true, caught: true, shiny: pokemon.shiny, count: 1 };
+    state.stats.dexCaught = (state.stats.dexCaught || 0) + 1;
   } else {
     state.pokedex[pokemon.species_en].caught = true;
     state.pokedex[pokemon.species_en].count++;
@@ -2860,6 +2863,7 @@ function passiveAgentTick() {
       state.stats.totalCaught++;
       if (!state.pokedex[pokemon.species_en]) {
         state.pokedex[pokemon.species_en] = { seen: true, caught: true, shiny: pokemon.shiny, count: 1 };
+        state.stats.dexCaught = (state.stats.dexCaught || 0) + 1;
       } else {
         state.pokedex[pokemon.species_en].caught = true;
         state.pokedex[pokemon.species_en].count++;
@@ -8171,6 +8175,7 @@ function hatchEgg(eggId) {
   state.stats.eggsHatched = (state.stats.eggsHatched || 0) + 1;
   if (!state.pokedex[baseEn]) {
     state.pokedex[baseEn] = { seen: true, caught: true, shiny: egg.shiny, count: 1 };
+    state.stats.dexCaught = (state.stats.dexCaught || 0) + 1;
   } else {
     state.pokedex[baseEn].caught = true;
     state.pokedex[baseEn].count++;
@@ -11681,6 +11686,7 @@ function pensionTick() {
       state.stats.eggsHatched = (state.stats.eggsHatched || 0) + 1;
       if (!state.pokedex[baseEn]) {
         state.pokedex[baseEn] = { seen: true, caught: true, shiny: egg.shiny, count: 1 };
+        state.stats.dexCaught = (state.stats.dexCaught || 0) + 1;
       } else {
         state.pokedex[baseEn].caught = true;
         state.pokedex[baseEn].count++;
@@ -12146,7 +12152,7 @@ async function supaForceCloudLoad() {
 async function supaUpdateLeaderboard() {
   if (!_supabase || !supaSession) return;
   const s           = state.stats || {};
-  const dexCount    = Object.values(state.pokedex || {}).filter(e => e.caught).length;
+  const dexCount    = s.dexCaught || 0;
   const pokemonCount = (state.pokemons || []).length;
   await _supabase.from('players').upsert({
     user_id:            supaSession.user.id,
