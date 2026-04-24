@@ -5,6 +5,9 @@
 'use strict';
 
 import './modules/secretCodes.js';
+import './modules/systems/llm.js';
+import './modules/systems/missions.js';
+import './modules/systems/market.js';
 
 import { POKEDEX_DESC } from './data/pokedex-desc.js';
 import { ZONE_BGS, COSMETIC_BGS } from './data/zones-visuals-data.js';
@@ -103,9 +106,11 @@ const store = createStore({
 let state = store.getState();
 let activeSaveSlot = store.getActiveSaveSlot();
 let SAVE_KEY = store.getSaveKey();
+globalThis.state = state;
 
 store.subscribe((nextState) => {
   state = nextState;
+  globalThis.state = nextState;
 });
 
 function syncStoreRefs() {
@@ -2436,179 +2441,7 @@ function _processZoneUnlockQueue() {
   popup.classList.add('show');
 }
 
-// ════════════════════════════════════════════════════════════════
-//  7b. MISSIONS MODULE
-// ════════════════════════════════════════════════════════f════════
-
-function getMissionStat(statKey) {
-  if (statKey === '_reputation') return state.gang.reputation;
-  if (statKey === '_agentCount') return state.agents.length;
-  if (statKey === '_pokedexCaught') {
-    return Object.values(state.pokedex).filter(e => e.caught).length;
-  }
-  if (statKey === '_starterCount') {
-    const starters = ['bulbasaur', 'charmander', 'squirtle'];
-    return starters.filter(s => state.pokemons.some(p => p.species_en === s)).length;
-  }
-  if (statKey === '_fossilCount') {
-    const fossils = ['omanyte', 'kabuto', 'aerodactyl'];
-    return fossils.filter(s => state.pokemons.some(p => p.species_en === s)).length;
-  }
-  if (statKey === '_zonesWithCapture') {
-    return Object.values(state.zones).filter(z => (z.captures || 0) > 0).length;
-  }
-  if (statKey === '_dexKantoCaught') {
-    return POKEMON_GEN1.filter(s => !s.hidden && s.dex >= 1 && s.dex <= 151 && state.pokedex[s.en]?.caught).length;
-  }
-  if (statKey === '_dexFullCaught') {
-    return POKEMON_GEN1.filter(s => !s.hidden && state.pokedex[s.en]?.caught).length;
-  }
-  if (statKey === '_shinyDexCount') {
-    return POKEMON_GEN1.filter(s => !s.hidden && state.pokedex[s.en]?.shiny).length;
-  }
-  if (statKey === '_shinyStarterCount') {
-    return ['bulbasaur','charmander','squirtle'].filter(s => state.pokedex[s]?.shiny).length;
-  }
-  if (statKey === '_shinyLegendaryCount') {
-    return POKEMON_GEN1.filter(s => s.rarity === 'legendary' && !s.hidden && state.pokedex[s.en]?.shiny).length;
-  }
-  return state.stats[statKey] || 0;
-}
-
-function initMissions() {
-  if (!state.missions) {
-    state.missions = { completed: [], daily: { reset: 0, progress: {}, claimed: [] }, weekly: { reset: 0, progress: {}, claimed: [] } };
-  }
-  // Reset daily/weekly if expired
-  const now = Date.now();
-  const DAY = 86400000;
-  const WEEK = 604800000;
-  if (now - state.missions.daily.reset >= DAY) {
-    // Snapshot current stats as baseline
-    const baseline = {};
-    for (const m of MISSIONS.filter(m => m.type === 'daily')) {
-      baseline[m.stat] = getMissionStat(m.stat);
-    }
-    state.missions.daily = { reset: now, progress: baseline, claimed: [] };
-  }
-  if (now - state.missions.weekly.reset >= WEEK) {
-    const baseline = {};
-    for (const m of MISSIONS.filter(m => m.type === 'weekly')) {
-      baseline[m.stat] = getMissionStat(m.stat);
-    }
-    state.missions.weekly = { reset: now, progress: baseline, claimed: [] };
-  }
-}
-
-// ── Hourly quests ─────────────────────────────────────────────
-const HOUR_MS = 3600000;
-
-function initHourlyQuests() {
-  if (!state.missions.hourly) state.missions.hourly = { reset: 0, slots: [], baseline: {}, claimed: [] };
-  const h = state.missions.hourly;
-  if (Date.now() - h.reset >= HOUR_MS) {
-    // Draw 3 medium + 2 hard from pool (no duplicates)
-    const medium = HOURLY_QUEST_POOL.filter(q => q.diff === 'medium');
-    const hard   = HOURLY_QUEST_POOL.filter(q => q.diff === 'hard');
-    const pickRand = (arr, n) => {
-      const shuffled = [...arr].sort(() => Math.random() - 0.5);
-      return shuffled.slice(0, n).map(q => q.id);
-    };
-    const slots = [...pickRand(medium, 3), ...pickRand(hard, 2)];
-    const baseline = {};
-    for (const qId of slots) {
-      const q = HOURLY_QUEST_POOL.find(x => x.id === qId);
-      if (q) baseline[q.stat] = (baseline[q.stat] === undefined) ? getMissionStat(q.stat) : baseline[q.stat];
-    }
-    state.missions.hourly = { reset: Date.now(), slots, baseline, claimed: [] };
-    saveState();
-  }
-}
-
-function getHourlyQuest(slotIdx) {
-  const id = state.missions.hourly?.slots?.[slotIdx];
-  return id ? HOURLY_QUEST_POOL.find(q => q.id === id) : null;
-}
-
-function getHourlyProgress(q) {
-  const baseline = state.missions.hourly.baseline?.[q.stat] || 0;
-  return Math.min(getMissionStat(q.stat) - baseline, q.target);
-}
-
-function isHourlyComplete(q)  { return getHourlyProgress(q) >= q.target; }
-function isHourlyClaimed(idx) { return (state.missions.hourly.claimed || []).includes(idx); }
-
-function claimHourlyQuest(idx) {
-  const q = getHourlyQuest(idx);
-  if (!q || !isHourlyComplete(q) || isHourlyClaimed(idx)) return;
-  if (!state.missions.hourly.claimed) state.missions.hourly.claimed = [];
-  state.missions.hourly.claimed.push(idx);
-  if (q.reward.money) { state.gang.money += q.reward.money; state.stats.totalMoneyEarned += q.reward.money; }
-  if (q.reward.rep)   { const prev = state.gang.reputation; state.gang.reputation += q.reward.rep; checkForNewlyUnlockedZones(prev); }
-  notify(`✓ Quête : ${q.fr} — +${q.reward.money?.toLocaleString() || 0}₽${q.reward.rep ? ' +'+q.reward.rep+' rep' : ''}`, 'gold');
-  SFX.play('coin')
-  saveState();
-}
-
-function rerollHourlyQuest(idx) {
-  if (state.gang.money < HOURLY_QUEST_REROLL_COST) { notify(`Pokédollars insuffisants (${HOURLY_QUEST_REROLL_COST}₽ req)`); return; }
-  const h = state.missions.hourly;
-  if (!h || isHourlyClaimed(idx)) return;
-  const current = getHourlyQuest(idx);
-  if (!current) return;
-  state.gang.money -= HOURLY_QUEST_REROLL_COST;
-  // Pick a different quest of same difficulty
-  const pool = HOURLY_QUEST_POOL.filter(q => q.diff === current.diff && q.id !== current.id && !h.slots.includes(q.id));
-  if (pool.length === 0) { notify('Aucune quête disponible pour le reroll'); state.gang.money += HOURLY_QUEST_REROLL_COST; return; }
-  const newQ = pool[Math.floor(Math.random() * pool.length)];
-  h.slots[idx] = newQ.id;
-  if (h.baseline[newQ.stat] === undefined) h.baseline[newQ.stat] = getMissionStat(newQ.stat);
-  saveState();
-  notify(`Reroll : ${newQ.fr}`, 'success');
-}
-
-function getMissionProgress(mission) {
-  const current = getMissionStat(mission.stat);
-  if (mission.type === 'story') {
-    return Math.min(current, mission.target);
-  }
-  const period = mission.type === 'daily' ? state.missions.daily : state.missions.weekly;
-  const baseline = period.progress[mission.stat] || 0;
-  return Math.min(current - baseline, mission.target);
-}
-
-function isMissionComplete(mission) {
-  return getMissionProgress(mission) >= mission.target;
-}
-
-function isMissionClaimed(mission) {
-  if (mission.type === 'story') return state.missions.completed.includes(mission.id);
-  const period = mission.type === 'daily' ? state.missions.daily : state.missions.weekly;
-  return period.claimed.includes(mission.id);
-}
-
-function claimMission(mission) {
-  if (!isMissionComplete(mission) || isMissionClaimed(mission)) return;
-  // Grant rewards
-  if (mission.reward.money) {
-    state.gang.money += mission.reward.money;
-    state.stats.totalMoneyEarned += mission.reward.money;
-  }
-  if (mission.reward.rep) {
-    state.gang.reputation += mission.reward.rep;
-  }
-  // Mark as claimed
-  if (mission.type === 'story') {
-    state.missions.completed.push(mission.id);
-  } else {
-    const period = mission.type === 'daily' ? state.missions.daily : state.missions.weekly;
-    period.claimed.push(mission.id);
-  }
-  const name = state.lang === 'fr' ? mission.fr : mission.en;
-  notify(`${mission.icon} ${name} — ${state.lang === 'fr' ? 'Récompense récupérée !' : 'Reward claimed!'}`, 'gold');
-  saveState();
-  updateTopBar();
-}
+// ── Missions module extracted → game/modules/systems/missions.js ─
 
 // ════════════════════════════════════════════════════════════════
 //  8.  AGENT MODULE
@@ -3139,308 +2972,9 @@ function agentOpenChest(agent, zoneId, spawnObj) {
 
 // (Agent capture animation is now handled by agentCaptureVisibleSpawn above)
 
-// ════════════════════════════════════════════════════════════════
-//  9.  MARKET MODULE
-// ════════════════════════════════════════════════════════════════
+// ── Market module extracted → game/modules/systems/market.js ────
 
-function calculatePrice(pokemon) {
-  const sp = SPECIES_BY_EN[pokemon.species_en];
-  if (!sp) return 50;
-  const base = BASE_PRICE[sp.rarity] || 100;
-  const potMult = POTENTIAL_MULT[pokemon.potential - 1] || 1;
-  const shinyMult = pokemon.shiny ? 10 : 1;
-  const nat = NATURES[pokemon.nature];
-  const natMult = nat ? (nat.atk + nat.def + nat.spd) / 3 : 1;
-  return Math.round(base * potMult * shinyMult * natMult);
-}
-
-// Returns the supply pressure as a percentage (0 = normal, 60 = max saturation)
-function getMarketSaturation(species_en) {
-  const sales = state.marketSales[species_en];
-  if (!sales) return 0;
-  return Math.min(60, sales.count * 8);
-}
-
-// Decay market sales over time (called on load + periodically)
-function decayMarketSales() {
-  const now = Date.now();
-  const DECAY_PER_HOUR = 1; // lose 1 sale unit per hour
-  for (const species of Object.keys(state.marketSales)) {
-    const s = state.marketSales[species];
-    const hoursElapsed = (now - s.lastSale) / 3600000;
-    const decay = Math.floor(hoursElapsed * DECAY_PER_HOUR);
-    if (decay > 0) {
-      s.count = Math.max(0, s.count - decay);
-      s.lastSale = now;
-      if (s.count === 0) delete state.marketSales[species];
-    }
-  }
-}
-
-function removePokemonFromAllAssignments(pkId) {
-  // Équipe Boss
-  state.gang.bossTeam = state.gang.bossTeam.filter(id => id !== pkId);
-  // Formation
-  if (state.trainingRoom) state.trainingRoom.pokemon = (state.trainingRoom.pokemon || []).filter(id => id !== pkId);
-  // Pension
-  if (state.pension) {
-    if (state.pension.slotA === pkId) { state.pension.slotA = null; state.pension.eggAt = null; }
-    if (state.pension.slotB === pkId) { state.pension.slotB = null; state.pension.eggAt = null; }
-  }
-}
-
-function sellPokemon(pokemonIds, _shinyConfirmed = false) {
-  // Block noSell pokemon (ex: MissingNo)
-  const noSellBlocked = pokemonIds.filter(id => {
-    const p = state.pokemons.find(pk => pk.id === id);
-    if (!p) return false;
-    const species = POKEMON_GEN1.find(s => s.en === p.species_en);
-    return species?.noSell === true;
-  });
-  if (noSellBlocked.length > 0) {
-    notify('Ce Pokémon ne peut pas être vendu.', 'error');
-    pokemonIds = pokemonIds.filter(id => !noSellBlocked.includes(id));
-    if (pokemonIds.length === 0) return;
-  }
-  // Filter out homesick pokemon — they cannot be sold
-  const homesickBlocked = pokemonIds.filter(id => {
-    const p = state.pokemons.find(pk => pk.id === id);
-    return p && p.homesick;
-  });
-  if (homesickBlocked.length > 0) {
-    notify('Ce Pokémon souffre du mal du pays et ne peut pas être vendu.', 'error');
-    pokemonIds = pokemonIds.filter(id => !homesickBlocked.includes(id));
-    if (pokemonIds.length === 0) return;
-  }
-  // Block pension pokémon
-  const pensionSet = new Set([state.pension?.slotA, state.pension?.slotB].filter(Boolean));
-  const pensionBlocked = pokemonIds.filter(id => pensionSet.has(id));
-  if (pensionBlocked.length > 0) {
-    notify('Les Pokémon en pension ne peuvent pas être vendus.', 'error');
-    pokemonIds = pokemonIds.filter(id => !pensionSet.has(id));
-    if (pokemonIds.length === 0) return;
-  }
-  // Block training pokémon
-  const trainingSet = new Set(state.trainingRoom?.pokemon || []);
-  const trainingBlocked = pokemonIds.filter(id => trainingSet.has(id));
-  if (trainingBlocked.length > 0) {
-    notify('Les Pokémon en formation ne peuvent pas être vendus.', 'error');
-    pokemonIds = pokemonIds.filter(id => !trainingSet.has(id));
-    if (pokemonIds.length === 0) return;
-  }
-  // Shiny confirmation
-  if (!_shinyConfirmed) {
-    const shinyIds = pokemonIds.filter(id => state.pokemons.find(p => p.id === id)?.shiny);
-    if (shinyIds.length > 0) {
-      const names = shinyIds.map(id => speciesName(state.pokemons.find(p => p.id === id)?.species_en)).join(', ');
-      const modal = document.createElement('div');
-      modal.style.cssText = 'position:fixed;inset:0;z-index:9500;background:rgba(0,0,0,.88);display:flex;align-items:center;justify-content:center';
-      modal.innerHTML = `<div style="background:var(--bg-panel);border:2px solid var(--gold);border-radius:var(--radius);padding:20px;max-width:360px;width:92%;display:flex;flex-direction:column;gap:14px">
-        <div style="font-family:var(--font-pixel);font-size:10px;color:var(--gold)">⚠ Vente de Chromatique</div>
-        <div style="font-size:11px;color:var(--text)">Tu t'apprêtes à vendre <b style="color:#ffcc5a">${shinyIds.length} Pokémon Shiny</b> :<br><span style="font-size:9px;color:#aaa">${names}</span></div>
-        <div style="font-size:9px;color:var(--text-dim)">Cette action est irréversible.</div>
-        <div style="display:flex;gap:8px;justify-content:flex-end">
-          <button id="shinyCancel" style="font-family:var(--font-pixel);font-size:9px;padding:8px 14px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-dim);cursor:pointer">Annuler</button>
-          <button id="shinyConfirm" style="font-family:var(--font-pixel);font-size:9px;padding:8px 14px;background:var(--bg);border:1px solid var(--gold);border-radius:var(--radius-sm);color:var(--gold);cursor:pointer">Vendre quand même</button>
-        </div>
-      </div>`;
-      document.body.appendChild(modal);
-      modal.querySelector('#shinyCancel').addEventListener('click', () => modal.remove());
-      modal.querySelector('#shinyConfirm').addEventListener('click', () => { modal.remove(); sellPokemon(pokemonIds, true); });
-      return;
-    }
-  }
-
-  let total = 0;
-  const toRemove = new Set(pokemonIds);
-  // Unassign from agents/boss
-  for (const agent of state.agents) {
-    agent.team = agent.team.filter(id => !toRemove.has(id));
-  }
-  state.gang.bossTeam = state.gang.bossTeam.filter(id => !toRemove.has(id));
-  // Remove from favorites
-  state.favorites = state.favorites.filter(id => !toRemove.has(id));
-
-  for (const id of pokemonIds) {
-    const idx = state.pokemons.findIndex(p => p.id === id);
-    if (idx === -1) continue;
-    const p = state.pokemons[idx];
-    const soldPrice = calculatePrice(p);
-    total += soldPrice;
-    state.pokemons.splice(idx, 1);
-    state.stats.totalSold++;
-    // Track most expensive sale
-    if (!state.stats.mostExpensiveSold || soldPrice > (state.stats.mostExpensiveSold.price || 0)) {
-      state.stats.mostExpensiveSold = { name: speciesName(p.species_en), price: soldPrice };
-    }
-  }
-  state.gang.money += total;
-  state.stats.totalMoneyEarned += total;
-  notify(t('sold', { n: pokemonIds.length, price: total }), 'gold');
-  addLog(t('sold', { n: pokemonIds.length, price: total }));
-  SFX.play('sell');
-  saveState();
-  return total;
-}
-
-const BOOST_ITEMS = new Set(['incense', 'rarescope', 'aura', 'lure', 'superlure']);
-
-function buyItem(itemDef) {
-  const actualCost = itemDef.id === 'mysteryegg' ? getMysteryEggCost() : itemDef.cost;
-  if (state.gang.money < actualCost) {
-    notify(t('not_enough'));
-    SFX.play('error')
-    return false;
-  }
-  state.gang.money -= actualCost;
-  state.stats.totalMoneySpent += actualCost;
-  // Behavioural log — premier achat
-  if (!state.behaviourLogs) state.behaviourLogs = {};
-  if (!state.behaviourLogs.firstPurchaseAt) state.behaviourLogs.firstPurchaseAt = Date.now();
-
-  if (itemDef.id === 'translator') {
-    state.purchases.translator = true;
-    notify('Traducteur Pokemon obtenu !', 'gold');
-    saveState();
-    return true;
-  }
-
-  if (itemDef.id === 'incubator') {
-    state.inventory.incubator = (state.inventory.incubator || 0) + 1;
-    notify(`Incubateur obtenu ! Total: ${state.inventory.incubator}`, 'gold');
-    saveState();
-    return true;
-  }
-
-  // ── Permis ailes (coût en items, pas en ₽) ───────────────────
-  const WING_PERMIT_ITEMS = new Set(['tourbillon_permit','carillon_permit']);
-  if (WING_PERMIT_ITEMS.has(itemDef.id)) {
-    if (state.purchases[itemDef.id]) {
-      notify(state.lang === 'fr' ? 'Déjà possédé !' : 'Already owned!');
-      return false;
-    }
-    const wc = itemDef.wingCost;
-    const have = state.inventory[wc.item] || 0;
-    if (have < wc.qty) {
-      const itemName = wc.item === 'silver_wing' ? 'Argent\'Aile' : 'Arcenci\'Aile';
-      notify(`Il te faut ${wc.qty}× ${itemName} (tu en as ${have}).`, 'error');
-      return false;
-    }
-    state.inventory[wc.item] -= wc.qty;
-    state.purchases[itemDef.id] = true;
-    const zone = ZONES.find(z => z.unlockItem === itemDef.id);
-    const zLabel = zone ? (state.lang === 'fr' ? zone.fr : zone.en) : '';
-    const pName  = state.lang === 'fr' ? itemDef.fr : itemDef.en;
-    notify(`${pName} obtenu !${zLabel ? ' → ' + zLabel + ' accessible' : ''}`, 'gold');
-    saveState();
-    renderZonesTab?.();
-    return true;
-  }
-
-  const ZONE_UNLOCK_ITEMS = new Set(['map_pallet','casino_ticket','silph_keycard','boat_ticket']);
-  if (ZONE_UNLOCK_ITEMS.has(itemDef.id)) {
-    if (state.purchases[itemDef.id]) {
-      notify(state.lang === 'fr' ? 'Déjà possédé !' : 'Already owned!');
-      state.gang.money += actualCost; // refund
-      state.stats.totalMoneySpent -= actualCost;
-      return false;
-    }
-    state.purchases[itemDef.id] = true;
-    const zoneName = ZONES.find(z => z.unlockItem === itemDef.id);
-    const name = state.lang === 'fr' ? (itemDef.fr || itemDef.id) : (itemDef.en || itemDef.id);
-    const zLabel = zoneName ? (state.lang === 'fr' ? zoneName.fr : zoneName.en) : '';
-    notify(`${name} obtenu !${zLabel ? ' → ' + zLabel + ' accessible' : ''}`, 'gold');
-    saveState();
-    renderZonesTab?.();
-    return true;
-  }
-
-  if (itemDef.id === 'mysteryegg') {
-    const species_en = weightedPick(MYSTERY_EGG_POOL);
-    const sp = SPECIES_BY_EN[species_en];
-    const potential = Math.random() < 0.1 ? 3 : Math.random() < 0.4 ? 2 : 1;
-    const shiny = Math.random() < 0.02;
-    state.eggs.push({ id: uid(), species_en, hatchAt: null, incubating: false, potential, shiny, mystery: true });
-    state.purchases.mysteryEggCount = (state.purchases.mysteryEggCount || 0) + 1;
-    tryAutoIncubate();
-    notify(`🥚 Un œuf mystérieux est apparu… On se demande ce qu'il contient !`, 'gold');
-    saveState();
-    return true;
-  }
-
-  // All consumables go to inventory — player activates manually from the Zone bag bar
-  state.inventory[itemDef.id] = (state.inventory[itemDef.id] || 0) + itemDef.qty;
-  const _itemName = state.lang === 'fr' ? (itemDef.fr || BALLS[itemDef.id]?.fr || itemDef.id) : (itemDef.en || BALLS[itemDef.id]?.en || itemDef.id);
-  notify(`${itemDef.qty}× ${_itemName} → sac`, 'success');
-  SFX.play('buy');
-  playSE('buy', 0.5);
-  saveState();
-  return true;
-}
-
-// ════════════════════════════════════════════════════════════════
-// 10.  LLM MODULE
-// ════════════════════════════════════════════════════════════════
-
-async function detectLLM() {
-  if (state.settings.llmProvider === 'none') {
-    state.settings.llmEnabled = false;
-    return;
-  }
-  if (state.settings.llmProvider === 'local') {
-    try {
-      const res = await fetch(`${state.settings.llmUrl}/api/tags`, { signal: AbortSignal.timeout(2000) });
-      if (res.ok) {
-        state.settings.llmEnabled = true;
-        addLog(t('llm_connected'));
-        return;
-      }
-    } catch { /* ignore */ }
-  }
-  if ((state.settings.llmProvider === 'openai' || state.settings.llmProvider === 'anthropic') && state.settings.llmApiKey) {
-    state.settings.llmEnabled = true;
-    addLog(t('llm_connected'));
-    return;
-  }
-  state.settings.llmEnabled = false;
-}
-
-const FALLBACK_DIALOGUES = {
-  fr: [
-    'Prépare-toi à avoir des problèmes !',
-    'Et fais-le double !',
-    'Tu oses défier notre gang ?',
-    'Tes Pokémon ne font pas le poids !',
-    'La Team Rocket va t\'écraser !',
-    'Tu n\'as aucune chance contre nous !',
-    'Ton gang est une blague !',
-    'Je vais te montrer la vraie puissance !',
-    'Quoi ? Tu veux te battre ? Très bien !',
-    'Je suis un dresseur ! J\'affronte tout ceux que je croise !',
-    'Hé ! Ne me sous-estime pas !',
-    'Les insectes sont les meilleurs Pokémon !',
-    'Je me suis entraîné dur pour ce moment !',
-    'Tu as l\'air fort... intéressant !',
-    'Mon Pokémon est le plus fort de la route !',
-    'Tu vas regretter d\'être venu ici !',
-    'J\'ai perdu mon chemin... mais je vais te battre !',
-    'Je suis imbattable ! Enfin je crois...',
-  ],
-  en: [
-    'Prepare for trouble!',
-    'And make it double!',
-    'You dare challenge our gang?',
-    'Your Pokémon don\'t stand a chance!',
-    'Team Rocket will crush you!',
-    'You have no chance against us!',
-    'Your gang is a joke!',
-    'I\'ll show you real power!',
-  ],
-};
-
-function getTrainerDialogue() {
-  return pick(FALLBACK_DIALOGUES[state.lang] || FALLBACK_DIALOGUES.fr);
-}
+// ── LLM module extracted → game/modules/systems/llm.js ──────────
 
 // ════════════════════════════════════════════════════════════════
 // 11.  UI — NOTIFICATIONS
@@ -12563,6 +12097,7 @@ function boot() {
   const saved = loadState();
   if (saved) {
     state = saved;
+    globalThis.state = state;
   }
   state.sessionStart = Date.now();
 
@@ -12805,5 +12340,38 @@ function boot() {
   // Start game loop
   startGameLoop();
 }
+
+// ── Expose app.js internals for extracted system modules ─────────
+// These globals are read inside functions (not at module init time),
+// so they're always resolved after app.js finishes evaluation.
+Object.assign(globalThis, {
+  // Utility functions
+  t,
+  pick,
+  weightedPick,
+  uid,
+  addLog,
+  speciesName,
+  playSE,
+  getMysteryEggCost,
+  // UI + State helpers
+  notify,
+  saveState,
+  checkForNewlyUnlockedZones,
+  updateTopBar,
+  tryAutoIncubate,
+  renderZonesTab,
+  // Audio
+  SFX,
+  // Imported constants (module-scoped, not accessible as globals otherwise)
+  MISSIONS,
+  HOURLY_QUEST_POOL,
+  HOURLY_QUEST_REROLL_COST,
+  BASE_PRICE,
+  POTENTIAL_MULT,
+  NATURES,
+  BALLS,
+  MYSTERY_EGG_POOL,
+});
 
 window.addEventListener('DOMContentLoaded', boot);
