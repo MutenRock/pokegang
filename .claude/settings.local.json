@@ -129,7 +129,14 @@
       "Bash(awk 'NR==1{s=NR} /^\\\\/\\\\/ [0-9]+\\\\./{if\\(NR>1\\) printf \"  %-6s lignes — section précédente\\\\n\", NR-s; s=NR; printf \"L%-6s \", NR} /^\\\\/\\\\/ [0-9]+\\\\./{print}' game/app.js)",
       "Bash(awk ' *)",
       "Bash(grep \"^//\")",
-      "Bash(awk '/^\\\\/\\\\/ ════/{flag=1;next} flag && /^\\\\/\\\\/ / && !/^\\\\/\\\\/ ══/{print NR\": \"$0; flag=0}' game/app.js)"
+      "Bash(awk '/^\\\\/\\\\/ ════/{flag=1;next} flag && /^\\\\/\\\\/ / && !/^\\\\/\\\\/ ══/{print NR\": \"$0; flag=0}' game/app.js)",
+      "Bash(grep -v \"//.*extracted\\\\|\\\\.filter\\\\|\\\\.find\\\\|\\\\.some\\\\|\\\\.reduce\\\\|Exposes\\\\|Depends\\\\|modules/systems\")",
+      "Bash(grep -v \"//.*extracted\\\\|globalThis\\\\.\")",
+      "Bash(grep -v \"//.*extracted\")",
+      "Bash(python3 -c ' *)",
+      "Bash(grep -v \"function\\\\|^\\\\s*//\")",
+      "Bash(grep -v \"//.*extracted\\\\|//.*modules\")",
+      "Bash(git -C \"C:/Users/pierr/Documents/GitHub/pokeforge\" show 26639af -- game/app.js)"
     ]
   }
 }

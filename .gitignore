@@ -58,3 +58,4 @@ game/config.local.js
 .claude/settings.local.json
 .claude/settings.local.json
 /.claude
+.claude/settings.local.json
